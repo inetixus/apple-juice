@@ -9,6 +9,7 @@ type ChatBody = {
   apiKey?: string;
   model?: string;
   provider?: string;
+  openaiKey?: string;
 };
 
 export async function POST(req: Request) {
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
   const apiKey = body.apiKey?.trim() ?? "";
   const model = body.model?.trim() ?? "gpt-4o-mini";
   const provider = (body.provider?.trim() || "openai").toString();
+  const openaiKey = body.openaiKey?.trim() ?? "";
 
   if (!prompt || !pairingCode || !apiKey) {
     return Response.json(
@@ -41,7 +43,39 @@ export async function POST(req: Request) {
   let raw = "";
   let code = "";
 
-  if (provider === "google") {
+  // If user selected a GPT-style model and provided an OpenAI key, prefer OpenAI.
+  if (model.toLowerCase().startsWith("gpt-") && openaiKey) {
+    const llmRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openaiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content: "Output ONLY valid Luau code. Do not use markdown formatting or backticks.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+
+    raw = await llmRes.text();
+
+    if (!llmRes.ok) {
+      return Response.json(
+        { error: "LLM request failed", status: llmRes.status, detail: raw, model },
+        { status: 502 },
+      );
+    }
+
+    const parsed = JSON.parse(raw);
+    code = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
+  } else if (provider === "google") {
     // Use the requested model name (normalize to models/<name>) or fallback to text-bison-001
     const requestedModel = (model || "text-bison-001").trim();
     const googleModelPath = requestedModel.startsWith("models/") ? requestedModel : `models/${requestedModel}`;

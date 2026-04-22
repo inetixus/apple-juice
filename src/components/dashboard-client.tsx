@@ -255,6 +255,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
           apiKey: apiKey.trim(),
           model: selectedModel,
           provider,
+          openaiKey: openaiKey.trim(),
         }),
       });
 
