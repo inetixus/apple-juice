@@ -1,0 +1,50 @@
+globalThis.__BUILD_MANIFEST = {
+  "pages": {
+    "/_app": [
+      "static/chunks/00ga_next_dist_compiled_0wiscij._.js",
+      "static/chunks/00ga_next_dist_shared_lib_0p~foor._.js",
+      "static/chunks/00ga_next_dist_client_0wxvin6._.js",
+      "static/chunks/00ga_next_dist_0fvi.11._.js",
+      "static/chunks/00ga_next_app_12fkr.q.js",
+      "static/chunks/[next]_entry_page-loader_ts_0~nmhbj._.js",
+      "static/chunks/00ga_react-dom_0frpex-._.js",
+      "static/chunks/00ga_0jzrv.6._.js",
+      "static/chunks/[root-of-the-server]__0oniz3p._.js",
+      "static/chunks/OneDrive_Desktop_apple-juice-source-files_pages__app_07xvfw~._.js",
+      "static/chunks/turbopack-OneDrive_Desktop_apple-juice-source-files_pages__app_0pzc153._.js"
+    ],
+    "/_error": [
+      "static/chunks/00ga_next_dist_compiled_0wiscij._.js",
+      "static/chunks/00ga_next_dist_shared_lib_0q2~_.r._.js",
+      "static/chunks/00ga_next_dist_client_0wxvin6._.js",
+      "static/chunks/00ga_next_dist_07ssg9w._.js",
+      "static/chunks/[next]_entry_page-loader_ts_0jij7rb._.js",
+      "static/chunks/00ga_react-dom_0frpex-._.js",
+      "static/chunks/00ga_0jzrv.6._.js",
+      "static/chunks/[root-of-the-server]__08.d3-l._.js",
+      "static/chunks/OneDrive_Desktop_apple-juice-source-files_pages__error_07xvfw~._.js",
+      "static/chunks/turbopack-OneDrive_Desktop_apple-juice-source-files_pages__error_0q205vc._.js"
+    ]
+  },
+  "devFiles": [],
+  "polyfillFiles": [
+    "static/chunks/00ga_next_dist_build_polyfills_polyfill-nomodule.js"
+  ],
+  "lowPriorityFiles": [
+    "static/development/_buildManifest.js",
+    "static/development/_ssgManifest.js",
+    "static/development/_clientMiddlewareManifest.js"
+  ],
+  "rootMainFiles": [
+    "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_0tut2p2._.js",
+    "static/chunks/00ga_next_dist_compiled_next-devtools_index_004h9uj.js",
+    "static/chunks/00ga_next_dist_compiled_react-dom_0cu3tv.._.js",
+    "static/chunks/00ga_next_dist_compiled_react-server-dom-turbopack_05ci6gn._.js",
+    "static/chunks/00ga_next_dist_compiled_04eesw1._.js",
+    "static/chunks/00ga_next_dist_client_0dhkcf~._.js",
+    "static/chunks/00ga_next_dist_030pspe._.js",
+    "static/chunks/00ga_@swc_helpers_cjs_0l79tgx._.js",
+    "static/chunks/OneDrive_Desktop_apple-juice-source-files_0rqeker._.js",
+    "static/chunks/turbopack-OneDrive_Desktop_apple-juice-source-files_0h-x5ud._.js"
+  ]
+};
