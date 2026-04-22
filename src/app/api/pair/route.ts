@@ -20,7 +20,7 @@ export async function POST() {
   const pairToken = crypto.randomBytes(24).toString("hex");
   const expiresAt = Date.now() + 1000 * 60 * 30;
 
-  createOrReplaceSession({
+  await createOrReplaceSession({
     pairingCode,
     ownerUserId,
     pairToken,

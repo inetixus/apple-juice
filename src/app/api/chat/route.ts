@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const pair = getSession(pairingCode);
+  const pair = await getSession(pairingCode);
   if (!pair) return Response.json({ error: "Invalid pairing code" }, { status: 404 });
   if (pair.ownerUserId !== ownerUserId) return Response.json({ error: "Forbidden" }, { status: 403 });
   if (Date.now() > pair.expiresAt) return Response.json({ error: "Pairing expired" }, { status: 410 });
@@ -249,7 +249,7 @@ export async function POST(req: Request) {
   }
 
   const messageId = crypto.randomUUID();
-  upsertGeneratedCode(pairingCode, code, messageId);
+  await upsertGeneratedCode(pairingCode, code, messageId);
 
   return Response.json({ ok: true, code, messageId, model: modelUsed });
 }

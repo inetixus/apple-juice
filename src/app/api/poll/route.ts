@@ -9,7 +9,7 @@ export async function GET(req: Request) {
     return Response.json({ paired: false, error: "Missing code or token" }, { status: 400 });
   }
 
-  const result = consumeIfAuthorized(code, token);
+  const result = await consumeIfAuthorized(code, token);
 
   if (!result.ok) {
     if (result.reason === "not_found") return Response.json({ paired: false }, { status: 404 });
