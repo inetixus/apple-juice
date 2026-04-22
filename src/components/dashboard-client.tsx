@@ -112,12 +112,23 @@ export function DashboardClient({ username }: DashboardClientProps) {
     setPluginStatus("Creating pairing session...");
     try {
       const res = await fetch("/api/pair", { method: "POST" });
-      const payload = await res.json();
       if (!res.ok) {
-        setPluginStatus(`Pair creation failed: ${payload?.error || res.statusText}`);
+        let errMsg = res.statusText;
+        try {
+          const errPayload = await res.json();
+          errMsg = errPayload?.error || errMsg;
+        } catch {
+          // ignore parse errors
+        }
+        if (res.status === 401) {
+          setPluginStatus("Pair creation failed: Unauthorized — please sign in and try again.");
+        } else {
+          setPluginStatus(`Pair creation failed: ${errMsg}`);
+        }
         return;
       }
 
+      const payload = await res.json();
       const code = (payload?.pairingCode as string) || "";
       const token = (payload?.pairToken as string) || "";
       setPairingCode(code);
@@ -144,6 +155,19 @@ export function DashboardClient({ username }: DashboardClientProps) {
         body: JSON.stringify({ apiKey: key, provider: usedProvider }),
       });
 
+      if (!response.ok) {
+        let msg = response.statusText;
+        try {
+          const err = await response.json();
+          msg = err?.error || msg;
+        } catch {
+          // ignore
+        }
+        setAvailableModels(FALLBACK_MODELS);
+        setPluginStatus(`Model list failed: ${msg}`);
+        return;
+      }
+
       const payload = (await response.json()) as { models?: string[]; error?: string };
       const nextModels = payload.models && payload.models.length > 0 ? payload.models : FALLBACK_MODELS;
       setAvailableModels(nextModels);
@@ -156,10 +180,6 @@ export function DashboardClient({ username }: DashboardClientProps) {
         const first = nextModels[0] || fallbackDefault;
         setSelectedModel(first);
         window.localStorage.setItem("apple-juice-model", first);
-      }
-
-      if (!response.ok) {
-        setPluginStatus(`Model list fallback loaded: ${payload.error || "Provider returned an error."}`);
       }
     } catch {
       setAvailableModels(FALLBACK_MODELS);
@@ -259,10 +279,18 @@ export function DashboardClient({ username }: DashboardClientProps) {
         }),
       });
 
-      const payload = (await response.json()) as { code?: string; error?: string; detail?: string };
       if (!response.ok) {
-        throw new Error(payload.detail || payload.error || "Failed to generate code");
+        let errText = response.statusText;
+        try {
+          const errPayload = await response.json();
+          errText = errPayload?.detail || errPayload?.error || errText;
+        } catch {
+          // ignore parse error
+        }
+        throw new Error(errText || "Failed to generate code");
       }
+
+      const payload = (await response.json()) as { code?: string; error?: string; detail?: string };
 
       setMessages((current) => [
         ...current,
@@ -297,10 +325,18 @@ export function DashboardClient({ username }: DashboardClientProps) {
       const response = await fetch(
         `/api/poll?code=${encodeURIComponent(pairingCode)}&token=${encodeURIComponent(pairToken)}`,
       );
-      const payload = (await response.json()) as { hasNewCode?: boolean; code?: string; error?: string };
       if (!response.ok) {
-        throw new Error(payload.error || "Poll failed");
+        let msg = response.statusText;
+        try {
+          const err = await response.json();
+          msg = err?.error || msg;
+        } catch {
+          // ignore
+        }
+        throw new Error(msg || "Poll failed");
       }
+
+      const payload = (await response.json()) as { hasNewCode?: boolean; code?: string; error?: string };
 
       if (payload.hasNewCode && payload.code) {
         setPluginStatus("Plugin pull successful. New script consumed from session.");

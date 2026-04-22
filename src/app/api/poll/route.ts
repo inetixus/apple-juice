@@ -9,18 +9,23 @@ export async function GET(req: Request) {
     return Response.json({ paired: false, error: "Missing code or token" }, { status: 400 });
   }
 
-  const result = await consumeIfAuthorized(code, token);
+  try {
+    const result = await consumeIfAuthorized(code, token);
 
-  if (!result.ok) {
-    if (result.reason === "not_found") return Response.json({ paired: false }, { status: 404 });
-    if (result.reason === "bad_token") return Response.json({ paired: false }, { status: 401 });
-    if (result.reason === "expired") return Response.json({ paired: false, error: "expired" }, { status: 410 });
+    if (!result.ok) {
+      if (result.reason === "not_found") return Response.json({ paired: false }, { status: 404 });
+      if (result.reason === "bad_token") return Response.json({ paired: false }, { status: 401 });
+      if (result.reason === "expired") return Response.json({ paired: false, error: "expired" }, { status: 410 });
+    }
+
+    return Response.json({
+      paired: true,
+      hasNewCode: result.payload.hasNewCode,
+      code: result.payload.code,
+      messageId: result.payload.messageId,
+    });
+  } catch (err) {
+    console.error("/api/poll error", err instanceof Error ? err.message : String(err));
+    return Response.json({ paired: false, error: "Internal server error" }, { status: 500 });
   }
-
-  return Response.json({
-    paired: true,
-    hasNewCode: result.payload.hasNewCode,
-    code: result.payload.code,
-    messageId: result.payload.messageId,
-  });
 }
