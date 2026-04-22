@@ -1,5 +1,4 @@
-import fs from "fs/promises";
-import path from "path";
+import { Redis } from "@upstash/redis";
 
 export type SessionEntry = {
   pairingCode: string;
@@ -11,85 +10,105 @@ export type SessionEntry = {
   messageId: string;
 };
 
-type Store = Record<string, SessionEntry>;
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-const SESSIONS_FILE = path.join(process.cwd(), "data", "sessions.json");
-
-// A simple in-process queue to serialize read-write operations.
-let pending: Promise<unknown> = Promise.resolve();
-function queued<T>(op: () => Promise<T>): Promise<T> {
-  const run = () => op();
-  const result = pending.then(run, run);
-  pending = result.then(() => undefined, () => undefined);
-  return result;
+if (!UPSTASH_URL || !UPSTASH_TOKEN) {
+  // Fail fast in dev/build if env vars are missing — clearer than obscure runtime errors.
+  console.warn(
+    "UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN is not set. Sessions will not persist.",
+  );
 }
 
-async function readSessions(): Promise<Store> {
-  try {
-    const raw = await fs.readFile(SESSIONS_FILE, "utf-8");
-    return JSON.parse(raw) as Store;
-  } catch (err: any) {
-    if (err?.code === "ENOENT") return {};
-    throw err;
-  }
-}
+const redis = new Redis({ url: UPSTASH_URL || "", token: UPSTASH_TOKEN || "" });
 
-async function writeSessions(store: Store) {
-  await fs.mkdir(path.dirname(SESSIONS_FILE), { recursive: true });
-  const tmp = `${SESSIONS_FILE}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(store, null, 2), "utf-8");
-  await fs.rename(tmp, SESSIONS_FILE);
+function makeKey(pairingCode: string) {
+  return `apple-juice:session:${pairingCode}`;
 }
 
 export async function createOrReplaceSession(entry: SessionEntry): Promise<SessionEntry> {
-  return queued(async () => {
-    const store = await readSessions();
-    store[entry.pairingCode] = entry;
-    await writeSessions(store);
-    return entry;
-  });
+  const key = makeKey(entry.pairingCode);
+  await redis.set(key, JSON.stringify(entry));
+  // Set TTL to match expiresAt so sessions auto-expire in Redis
+  try {
+    const ttl = Math.max(0, Math.floor((entry.expiresAt - Date.now()) / 1000));
+    if (ttl > 0) await redis.expire(key, ttl);
+  } catch (e) {
+    // ignore TTL errors
+  }
+  return entry;
 }
 
 export async function getSession(pairingCode: string): Promise<SessionEntry | undefined> {
-  const store = await readSessions();
-  return store[pairingCode];
+  const key = makeKey(pairingCode);
+  const raw = await redis.get(key);
+  if (!raw) return undefined;
+  try {
+    return JSON.parse(raw as string) as SessionEntry;
+  } catch (e) {
+    console.warn("Failed to parse session JSON from Redis", e);
+    return undefined;
+  }
 }
 
 export async function upsertGeneratedCode(pairingCode: string, code: string, messageId: string) {
-  return queued(async () => {
-    const store = await readSessions();
-    const session = store[pairingCode];
-    if (!session) return null;
-    session.code = code;
-    session.messageId = messageId;
-    session.hasNewCode = true;
-    await writeSessions(store);
-    return session;
-  });
+  const key = makeKey(pairingCode);
+  const script = `
+    local val = redis.call('GET', KEYS[1])
+    if not val then return nil end
+    local ttl = redis.call('TTL', KEYS[1])
+    local obj = cjson.decode(val)
+    obj.code = ARGV[1]
+    obj.messageId = ARGV[2]
+    obj.hasNewCode = true
+    local new = cjson.encode(obj)
+    redis.call('SET', KEYS[1], new)
+    if ttl and ttl > 0 then redis.call('EXPIRE', KEYS[1], ttl) end
+    return new
+  `;
+
+  const res = await redis.eval(script, { keys: [key], args: [code, messageId] });
+  if (!res) return null;
+  try {
+    return JSON.parse(res as string) as SessionEntry;
+  } catch (e) {
+    console.warn("Failed to parse upsertGeneratedCode result", e);
+    return null;
+  }
 }
 
 export async function consumeIfAuthorized(pairingCode: string, pairToken: string) {
-  return queued(async () => {
-    const store = await readSessions();
-    const session = store[pairingCode];
-    if (!session) return { ok: false as const, reason: "not_found" as const };
-    if (session.pairToken !== pairToken) return { ok: false as const, reason: "bad_token" as const };
-    if (Date.now() > session.expiresAt) return { ok: false as const, reason: "expired" as const };
+  const key = makeKey(pairingCode);
+  const script = `
+    local val = redis.call('GET', KEYS[1])
+    if not val then return cjson.encode({ok=false, reason='not_found'}) end
+    local obj = cjson.decode(val)
+    if obj.pairToken ~= ARGV[1] then return cjson.encode({ok=false, reason='bad_token'}) end
+    if tonumber(obj.expiresAt) < tonumber(ARGV[2]) then return cjson.encode({ok=false, reason='expired'}) end
+    local payload = { hasNewCode = obj.hasNewCode, code = obj.code, messageId = obj.messageId }
+    obj.hasNewCode = false
+    local ttl = redis.call('TTL', KEYS[1])
+    redis.call('SET', KEYS[1], cjson.encode(obj))
+    if ttl and ttl > 0 then redis.call('EXPIRE', KEYS[1], ttl) end
+    return cjson.encode({ok=true, payload=payload})
+  `;
 
-    const payload = {
-      hasNewCode: session.hasNewCode,
-      code: session.code,
-      messageId: session.messageId,
-    };
-
-    session.hasNewCode = false;
-    await writeSessions(store);
-    return { ok: true as const, payload };
-  });
+  const now = Date.now().toString();
+  const res = await redis.eval(script, { keys: [key], args: [pairToken, now] });
+  try {
+    const parsed = JSON.parse(res as string);
+    if (!parsed.ok) {
+      return { ok: false as const, reason: parsed.reason as "not_found" | "bad_token" | "expired" };
+    }
+    return { ok: true as const, payload: parsed.payload };
+  } catch (e) {
+    console.error("consumeIfAuthorized: failed to parse redis response", e);
+    return { ok: false as const, reason: "not_found" as const };
+  }
 }
 
-// NOTE: This file-backed store is intended as a simple, persistent fallback for local
-// development. For production/robustness you should use a centralized store that
-// survives across instances/processes, e.g. Upstash Redis (serverless-friendly) or
-// a proper database with a Prisma schema (Postgres, MySQL, etc.). The exported
-// functions are async so you can swap implementations without changing call sites.
+// Note: This Upstash-backed store stores sessions as JSON strings under key
+// `apple-juice:session:<pairingCode>`. For production, set the following env vars:
+// - UPSTASH_REDIS_REST_URL
+// - UPSTASH_REDIS_REST_TOKEN
+// Install with: `npm install @upstash/redis`
