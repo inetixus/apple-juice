@@ -67,7 +67,7 @@ export async function upsertGeneratedCode(pairingCode: string, code: string, mes
     return new
   `;
 
-  const res = await redis.eval(script, { keys: [key], args: [code, messageId] });
+  const res = await redis.eval(script, [key], [code, messageId]);
   if (!res) return null;
   try {
     return JSON.parse(res as string) as SessionEntry;
@@ -94,7 +94,7 @@ export async function consumeIfAuthorized(pairingCode: string, pairToken: string
   `;
 
   const now = Date.now().toString();
-  const res = await redis.eval(script, { keys: [key], args: [pairToken, now] });
+  const res = await redis.eval(script, [key], [pairToken, now]);
   try {
     const parsed = JSON.parse(res as string);
     if (!parsed.ok) {
