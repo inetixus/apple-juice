@@ -4,6 +4,14 @@ type ModelsBody = {
 };
 
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
+const GOOGLE_FALLBACK_MODELS = [
+  "models/gemini-3.1-pro",
+  "models/gemini-3-flash",
+  "models/gemini-3.1-flash-lite",
+  "models/gemini-2.5-pro",
+  "models/gemini-2.5-flash",
+  "models/text-bison-001",
+];
 
 export async function POST(request: Request) {
   const body = (await request.json()) as ModelsBody;
@@ -26,7 +34,7 @@ export async function POST(request: Request) {
           {
             error: "Failed to load models from Google",
             detail,
-            models: ["text-bison-001"],
+            models: GOOGLE_FALLBACK_MODELS,
           },
           { status: 502 },
         );
@@ -39,10 +47,10 @@ export async function POST(request: Request) {
         .filter((id) => !!id)
         .sort();
 
-      return Response.json({ models: models.length > 0 ? models : ["text-bison-001"] });
+      return Response.json({ models: models.length > 0 ? models : GOOGLE_FALLBACK_MODELS });
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
-      return Response.json({ error: "Failed to load models from Google", detail, models: ["text-bison-001"] }, { status: 502 });
+      return Response.json({ error: "Failed to load models from Google", detail, models: GOOGLE_FALLBACK_MODELS }, { status: 502 });
     }
   }
 
