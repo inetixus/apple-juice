@@ -129,19 +129,19 @@ export function DashboardClient({ username }: DashboardClientProps) {
     }
   }
 
-  async function loadModels(rawApiKey?: string, preferredModel?: string) {
+  async function loadModels(rawApiKey?: string, preferredModel?: string, providerArg?: string) {
     const key = (rawApiKey ?? apiKey).trim();
     if (!key) {
       setPluginStatus("Add your API key in Settings to load model choices.");
       return;
     }
-
     setIsLoadingModels(true);
+    const usedProvider = providerArg ?? provider;
     try {
       const response = await fetch("/api/models", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: key, provider }),
+        body: JSON.stringify({ apiKey: key, provider: usedProvider }),
       });
 
       const payload = (await response.json()) as { models?: string[]; error?: string };
@@ -152,7 +152,8 @@ export function DashboardClient({ username }: DashboardClientProps) {
       if (targetModel && nextModels.includes(targetModel)) {
         setSelectedModel(targetModel);
       } else {
-        const first = nextModels[0] || "gpt-4o-mini";
+        const fallbackDefault = usedProvider === "google" ? "text-bison-001" : "gpt-4o-mini";
+        const first = nextModels[0] || fallbackDefault;
         setSelectedModel(first);
         window.localStorage.setItem("apple-juice-model", first);
       }
@@ -185,18 +186,33 @@ export function DashboardClient({ username }: DashboardClientProps) {
     }
   }
 
+  function looksLikeGoogleKey(k: string) {
+    if (!k) return false;
+    const s = k.trim();
+    return /^AIza/.test(s) || /^ya29\./.test(s);
+  }
+
   function saveApiKey() {
-    const trimmed = (provider === "google" ? googleKey : openaiKey).trim();
-    if (provider === "google") {
-      window.localStorage.setItem("apple-juice-google-key", trimmed);
+    const inputValue = (provider === "google" ? googleKey : openaiKey).trim();
+    const detectedGoogle = looksLikeGoogleKey(inputValue);
+    const finalProvider: "openai" | "google" = detectedGoogle ? "google" : provider;
+
+    if (finalProvider === "google") {
+      window.localStorage.setItem("apple-juice-google-key", inputValue);
+      setGoogleKey(inputValue);
+      setProvider("google");
     } else {
-      window.localStorage.setItem("apple-juice-openai-key", trimmed);
+      window.localStorage.setItem("apple-juice-openai-key", inputValue);
       // keep legacy key for compatibility
-      window.localStorage.setItem("apple-juice-api-key", trimmed);
+      window.localStorage.setItem("apple-juice-api-key", inputValue);
+      setOpenaiKey(inputValue);
+      setProvider("openai");
     }
-    window.localStorage.setItem("apple-juice-provider", provider);
-    setApiKey(trimmed);
-    void loadModels(trimmed);
+
+    window.localStorage.setItem("apple-juice-provider", finalProvider);
+    setApiKey(inputValue);
+    // Pass explicit provider to loadModels to avoid waiting for state update
+    void loadModels(inputValue, undefined, finalProvider);
     setShowSettings(false);
   }
 
