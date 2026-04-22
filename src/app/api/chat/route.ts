@@ -42,11 +42,13 @@ export async function POST(req: Request) {
   let code = "";
 
   if (provider === "google") {
-    // Use Google Generative Language API (best-effort). Use text-bison-001 as fallback.
-    const googleModel = "text-bison-001";
-    const url = `https://generativelanguage.googleapis.com/v1beta2/models/${googleModel}:generateText?key=${encodeURIComponent(
+    // Use the requested model name (normalize to models/<name>) or fallback to text-bison-001
+    const requestedModel = (model || "text-bison-001").trim();
+    const googleModelPath = requestedModel.startsWith("models/") ? requestedModel : `models/${requestedModel}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta2/${googleModelPath}:generateText?key=${encodeURIComponent(
       apiKey,
     )}`;
+
     const llmRes = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -61,15 +63,22 @@ export async function POST(req: Request) {
 
     if (!llmRes.ok) {
       return Response.json(
-        { error: "LLM request failed", status: llmRes.status, detail: raw, model, provider },
+        { error: "LLM request failed", status: llmRes.status, detail: raw, model: requestedModel, provider },
         { status: 502 },
       );
     }
 
     try {
       const parsed = JSON.parse(raw);
-      // Google responses vary; try common fields
-      code = parsed?.candidates?.[0]?.content?.trim?.() ?? parsed?.output?.[0]?.content?.trim?.() ?? parsed?.content ?? parsed?.outputText ?? "";
+      // Try several possible response shapes that Google may return.
+      code =
+        parsed?.candidates?.[0]?.content?.trim?.() ||
+        parsed?.candidates?.[0]?.output?.[0]?.content?.trim?.() ||
+        parsed?.candidates?.[0]?.text ||
+        parsed?.output?.[0]?.content?.trim?.() ||
+        parsed?.outputText ||
+        parsed?.content ||
+        "";
     } catch {
       code = "";
     }
