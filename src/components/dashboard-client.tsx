@@ -62,6 +62,7 @@ function parseSegments(content: string): MessageSegment[] {
 
 export function DashboardClient({ username }: DashboardClientProps) {
   const [pairingCode, setPairingCode] = useState("");
+  const [pairToken, setPairToken] = useState("");
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
@@ -74,7 +75,8 @@ export function DashboardClient({ username }: DashboardClientProps) {
   const [pluginStatus, setPluginStatus] = useState("Idle. Pair your plugin using the code below.");
 
   useEffect(() => {
-    setPairingCode(createSessionCode());
+    // create pairing session on the server (returns pairing code + token)
+    void createPairOnServer();
     const savedKey = window.localStorage.getItem("apple-juice-api-key") ?? "";
     const savedModel = window.localStorage.getItem("apple-juice-model") ?? "gpt-4o-mini";
     setApiKey(savedKey);
@@ -93,6 +95,27 @@ export function DashboardClient({ username }: DashboardClientProps) {
       void loadModels(savedKey, savedModel);
     }
   }, []);
+
+  async function createPairOnServer() {
+    setPluginStatus("Creating pairing session...");
+    try {
+      const res = await fetch("/api/pair", { method: "POST" });
+      const payload = await res.json();
+      if (!res.ok) {
+        setPluginStatus(`Pair creation failed: ${payload?.error || res.statusText}`);
+        return;
+      }
+
+      const code = (payload?.pairingCode as string) || "";
+      const token = (payload?.pairToken as string) || "";
+      setPairingCode(code);
+      setPairToken(token);
+      setPluginStatus("Pair created. Copy the token and paste it into the plugin.");
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      setPluginStatus(`Pair creation failed: ${detail}`);
+    }
+  }
 
   async function loadModels(rawApiKey?: string, preferredModel?: string) {
     const key = (rawApiKey ?? apiKey).trim();
@@ -222,12 +245,20 @@ export function DashboardClient({ username }: DashboardClientProps) {
 
   async function pollPluginSession() {
     if (!pairingCode) {
+      setPluginStatus("No pairing code. Create one first.");
+      return;
+    }
+
+    if (!pairToken) {
+      setPluginStatus("No pair token. Create pairing session and copy token to plugin.");
       return;
     }
 
     setPluginStatus("Checking /api/poll for plugin sync...");
     try {
-      const response = await fetch(`/api/poll?code=${encodeURIComponent(pairingCode)}`);
+      const response = await fetch(
+        `/api/poll?code=${encodeURIComponent(pairingCode)}&token=${encodeURIComponent(pairToken)}`,
+      );
       const payload = (await response.json()) as { hasNewCode?: boolean; code?: string; error?: string };
       if (!response.ok) {
         throw new Error(payload.error || "Poll failed");
@@ -346,7 +377,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPairingCode(createSessionCode())}
+                  onClick={() => void createPairOnServer()}
                   className="inline-flex items-center gap-2 rounded border border-white/20 px-3 py-2 text-sm hover:border-white/40"
                 >
                   <RefreshCw className="h-4 w-4" />
@@ -358,6 +389,19 @@ export function DashboardClient({ username }: DashboardClientProps) {
               Enter this code in your Studio plugin. The plugin can poll <code>/api/poll?code=...</code> and receive
               generated Luau once available.
             </p>
+            {pairToken && (
+              <div className="mt-4 flex items-center gap-2">
+                <p className="text-sm text-zinc-300">Pair Token:</p>
+                <pre className="rounded border border-white/10 bg-black/30 px-2 py-1 text-sm text-zinc-100">{pairToken}</pre>
+                <button
+                  type="button"
+                  onClick={() => copyText(pairToken)}
+                  className="rounded border border-white/20 px-3 py-2 text-sm text-zinc-100 hover:border-white/40"
+                >
+                  Copy Token
+                </button>
+              </div>
+            )}
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <button
                 type="button"
