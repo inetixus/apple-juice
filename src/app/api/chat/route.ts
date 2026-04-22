@@ -8,6 +8,7 @@ type ChatBody = {
   pairingCode?: string;
   apiKey?: string;
   model?: string;
+  provider?: string;
 };
 
 export async function POST(req: Request) {
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
   const pairingCode = body.pairingCode?.trim() ?? "";
   const apiKey = body.apiKey?.trim() ?? "";
   const model = body.model?.trim() ?? "gpt-4o-mini";
+  const provider = (body.provider?.trim() || "openai").toString();
 
   if (!prompt || !pairingCode || !apiKey) {
     return Response.json(
@@ -36,37 +38,73 @@ export async function POST(req: Request) {
   if (pair.ownerUserId !== ownerUserId) return Response.json({ error: "Forbidden" }, { status: 403 });
   if (Date.now() > pair.expiresAt) return Response.json({ error: "Pairing expired" }, { status: 410 });
 
-  const llmRes = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Output ONLY valid Luau code. Do not use markdown formatting or backticks.",
-        },
-        { role: "user", content: prompt },
-      ],
-    }),
-  });
+  let raw = "";
+  let code = "";
 
-  const raw = await llmRes.text();
+  if (provider === "google") {
+    // Use Google Generative Language API (best-effort). Use text-bison-001 as fallback.
+    const googleModel = "text-bison-001";
+    const url = `https://generativelanguage.googleapis.com/v1beta2/models/${googleModel}:generateText?key=${encodeURIComponent(
+      apiKey,
+    )}`;
+    const llmRes = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: { text: prompt },
+        temperature: 0.2,
+        maxOutputTokens: 1024,
+      }),
+    });
 
-  if (!llmRes.ok) {
-    return Response.json(
-      { error: "LLM request failed", status: llmRes.status, detail: raw, model },
-      { status: 502 }
-    );
+    raw = await llmRes.text();
+
+    if (!llmRes.ok) {
+      return Response.json(
+        { error: "LLM request failed", status: llmRes.status, detail: raw, model, provider },
+        { status: 502 },
+      );
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      // Google responses vary; try common fields
+      code = parsed?.candidates?.[0]?.content?.trim?.() ?? parsed?.output?.[0]?.content?.trim?.() ?? parsed?.content ?? parsed?.outputText ?? "";
+    } catch {
+      code = "";
+    }
+  } else {
+    const llmRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content: "Output ONLY valid Luau code. Do not use markdown formatting or backticks.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+
+    raw = await llmRes.text();
+
+    if (!llmRes.ok) {
+      return Response.json(
+        { error: "LLM request failed", status: llmRes.status, detail: raw, model },
+        { status: 502 },
+      );
+    }
+
+    const parsed = JSON.parse(raw);
+    code = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
   }
-
-  const parsed = JSON.parse(raw);
-  const code = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
 
   if (!code) {
     return Response.json({ error: "Model returned empty output", detail: raw }, { status: 502 });

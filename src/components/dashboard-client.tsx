@@ -60,6 +60,9 @@ export function DashboardClient({ username }: DashboardClientProps) {
   const [pairToken, setPairToken] = useState("");
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [provider, setProvider] = useState<"openai" | "google">("openai");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [googleKey, setGoogleKey] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [availableModels, setAvailableModels] = useState<string[]>(FALLBACK_MODELS);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -72,10 +75,24 @@ export function DashboardClient({ username }: DashboardClientProps) {
   useEffect(() => {
     // create pairing session on the server (returns pairing code + token)
     void createPairOnServer();
-    const savedKey = window.localStorage.getItem("apple-juice-api-key") ?? "";
+
+    const savedProvider = (window.localStorage.getItem("apple-juice-provider") || "openai") as
+      | "openai"
+      | "google";
+    const savedOpen =
+      window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
+    const savedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
+
+    setProvider(savedProvider);
+    setOpenaiKey(savedOpen);
+    setGoogleKey(savedGoogle);
+
+    const effectiveKey = savedProvider === "google" ? savedGoogle : savedOpen;
+    setApiKey(effectiveKey);
+
     const savedModel = window.localStorage.getItem("apple-juice-model") ?? "gpt-4o-mini";
-    setApiKey(savedKey);
     setSelectedModel(savedModel);
+
     const saved = window.localStorage.getItem("apple-juice-recent-prompts");
     if (saved) {
       try {
@@ -86,8 +103,8 @@ export function DashboardClient({ username }: DashboardClientProps) {
       }
     }
 
-    if (savedKey) {
-      void loadModels(savedKey, savedModel);
+    if (effectiveKey) {
+      void loadModels(effectiveKey, savedModel);
     }
   }, []);
 
@@ -124,7 +141,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
       const response = await fetch("/api/models", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: key }),
+        body: JSON.stringify({ apiKey: key, provider }),
       });
 
       const payload = (await response.json()) as { models?: string[]; error?: string };
@@ -169,8 +186,16 @@ export function DashboardClient({ username }: DashboardClientProps) {
   }
 
   function saveApiKey() {
-    const trimmed = apiKey.trim();
-    window.localStorage.setItem("apple-juice-api-key", trimmed);
+    const trimmed = (provider === "google" ? googleKey : openaiKey).trim();
+    if (provider === "google") {
+      window.localStorage.setItem("apple-juice-google-key", trimmed);
+    } else {
+      window.localStorage.setItem("apple-juice-openai-key", trimmed);
+      // keep legacy key for compatibility
+      window.localStorage.setItem("apple-juice-api-key", trimmed);
+    }
+    window.localStorage.setItem("apple-juice-provider", provider);
+    setApiKey(trimmed);
     void loadModels(trimmed);
     setShowSettings(false);
   }
@@ -213,6 +238,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
           pairingCode,
           apiKey: apiKey.trim(),
           model: selectedModel,
+          provider,
         }),
       });
 
@@ -301,16 +327,45 @@ export function DashboardClient({ username }: DashboardClientProps) {
 
         {showSettings && (
           <section className="mt-5 rounded-lg border border-white/15 bg-zinc-950/60 p-4">
-            <label className="text-sm text-zinc-300" htmlFor="api-key-input">
+            <label className="text-sm text-zinc-300">Provider</label>
+            <div className="mt-2 flex items-center gap-3">
+              <select
+                id="provider-select"
+                value={provider}
+                onChange={(e) => {
+                  const val = (e.target.value as "openai" | "google");
+                  const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
+                  const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
+                  setProvider(val);
+                  setOpenaiKey(storedOpen);
+                  setGoogleKey(storedGoogle);
+                  const newKey = val === "google" ? storedGoogle : storedOpen;
+                  setApiKey(newKey);
+                  window.localStorage.setItem("apple-juice-provider", val);
+                }}
+                className="w-48 rounded border border-white/15 bg-black/40 px-3 py-2 text-sm text-zinc-100 outline-none"
+              >
+                <option value="openai">OpenAI</option>
+                <option value="google">Google AI Studio</option>
+              </select>
+              <p className="text-sm text-zinc-300">Select API provider for model calls</p>
+            </div>
+
+            <label className="mt-4 text-sm text-zinc-300" htmlFor="api-key-input">
               Provider API Key (stored in your browser localStorage)
             </label>
             <div className="mt-2 flex flex-wrap gap-2">
               <input
                 id="api-key-input"
                 type="password"
-                value={apiKey}
-                onChange={(event) => setApiKey(event.target.value)}
-                placeholder="sk-..."
+                value={provider === "google" ? googleKey : openaiKey}
+                onChange={(event) => {
+                  const v = event.target.value;
+                  if (provider === "google") setGoogleKey(v);
+                  else setOpenaiKey(v);
+                  setApiKey(v);
+                }}
+                placeholder={provider === "google" ? "Google API Key" : "sk-..."}
                 className="min-w-[280px] flex-1 rounded border border-white/15 bg-black/40 px-3 py-2 text-sm outline-none ring-red-500/50 placeholder:text-zinc-500 focus:ring"
               />
               <button
