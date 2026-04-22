@@ -22,11 +22,6 @@ type MessageSegment = {
 
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
 
-function createSessionCode() {
-  const value = Math.floor(100000 + Math.random() * 900000).toString();
-  return `${value.slice(0, 3)}-${value.slice(3, 6)}`;
-}
-
 function parseSegments(content: string): MessageSegment[] {
   const regex = /```([\w-]+)?\n([\s\S]*?)```/g;
   const segments: MessageSegment[] = [];
