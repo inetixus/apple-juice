@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/ineti/OneDrive/Desktop/apple-juice-source-files/src/components/Providers.tsx"],"sourcesContent":["\"use client\";\n\nimport { SessionProvider } from \"next-auth/react\";\n\ntype ProvidersProps = {\n  children: React.ReactNode;\n};\n\nexport function Providers({ children }: ProvidersProps) {\n  return <SessionProvider>{children}</SessionProvider>;\n}"],"names":["Providers","children"],"mappings":";;;;;AAEA;AAFA;;;AAQO,SAASA,UAAU,EAAEC,QAAQ,EAAkB;IACpD,qBAAO,qQAAC,wLAAe;kBAAEA;;;;;;AAC3B"}}]
-}
