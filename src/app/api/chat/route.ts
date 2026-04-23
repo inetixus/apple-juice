@@ -66,9 +66,9 @@ export async function POST(req: Request) {
 
   // Helper to call OpenAI Chat Completions and extract structured payload or raw content
   async function callOpenAI(key: string, modelName: string) {
-    const apiMessages = [
+    const apiMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       {
-        role: "system" as const,
+        role: "system",
         content:
           "Output ONLY a JSON object with fields `parent` (dot path), `name` (script name), and `code` (Luau source as a string). Return only the JSON object and nothing else — no markdown, no backticks, no commentary. The `code` field must contain valid Luau code.",
       },
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     if (body.messages && body.messages.length > 0) {
       apiMessages.push(...(body.messages as any[]));
     } else {
-      apiMessages.push({ role: "user" as const, content: prompt });
+      apiMessages.push({ role: "user", content: prompt });
     }
 
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
