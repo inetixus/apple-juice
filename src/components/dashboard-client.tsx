@@ -366,19 +366,20 @@ export function DashboardClient({ username }: DashboardClientProps) {
   }
 
   return (
-    <main className="min-h-screen bg-transparent text-zinc-100 animate-fade-in">
-      <div className="mx-auto w-full max-w-6xl px-4 py-10">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-6">
+    <main className="relative min-h-screen text-navy-100 animate-fade-up">
+      <div className="glow-blob w-[400px] h-[400px] bg-indigo-600/10 top-[-100px] right-[10%]" />
+      <div className="mx-auto w-full max-w-6xl px-6 py-10">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.06] pb-6">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] font-semibold text-juice-400">Apple Juice Dashboard</p>
-            <h1 className="mt-2 text-3xl font-medium tracking-tight text-white">Welcome, {username}</h1>
-            <p className="mt-1 text-sm text-zinc-400">Generate Luau, pair with your plugin, and sync instantly.</p>
+            <p className="text-xs uppercase tracking-[0.24em] font-semibold text-indigo-400">Apple Juice Dashboard</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Welcome, {username}</h1>
+            <p className="mt-1 text-sm text-navy-300">Generate Luau, pair with your plugin, and sync instantly.</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setShowSettings((open) => !open)}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-surface-100/50 px-4 py-2 text-sm font-medium text-zinc-300 backdrop-blur-sm transition-colors hover:bg-white/10 hover:text-white"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-navy-200 transition-all hover:bg-white/[0.08] hover:text-white"
             >
               <Settings2 className="h-4 w-4" />
               Settings
@@ -386,7 +387,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-surface-100/50 px-4 py-2 text-sm font-medium text-zinc-300 backdrop-blur-sm transition-colors hover:bg-white/10 hover:text-white"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-navy-200 transition-all hover:bg-white/[0.08] hover:text-white"
             >
               <LogOut className="h-4 w-4" />
               Sign Out
@@ -395,8 +396,8 @@ export function DashboardClient({ username }: DashboardClientProps) {
         </header>
 
         {showSettings && (
-          <section className="mt-5 rounded-2xl border border-white/5 bg-surface-100/60 p-5 shadow-xl backdrop-blur-md animate-fade-in">
-            <label className="text-sm font-medium text-zinc-300">Provider</label>
+          <section className="mt-5 rounded-2xl border border-white/[0.06] bg-navy-800/50 p-5 shadow-xl backdrop-blur-md animate-fade-up">
+            <label className="text-sm font-medium text-navy-200">Provider</label>
             <div className="mt-2 flex items-center gap-3">
               <select
                 id="provider-select"
@@ -412,16 +413,16 @@ export function DashboardClient({ username }: DashboardClientProps) {
                   setApiKey(newKey);
                   window.localStorage.setItem("apple-juice-provider", val);
                 }}
-                className="w-48 rounded-lg border border-white/10 bg-surface-50/50 px-3 py-2 text-sm text-zinc-100 outline-none transition-colors focus:border-juice-500 focus:bg-surface-50"
+                className="w-48 rounded-lg border border-white/10 bg-navy-900/60 px-3 py-2 text-sm text-navy-100 outline-none transition-colors focus:border-indigo-500 focus:bg-navy-900"
               >
                 <option value="openai">OpenAI</option>
                 <option value="google">Google AI Studio</option>
               </select>
-              <p className="text-sm text-zinc-400">Select API provider for model calls</p>
+              <p className="text-sm text-navy-300">Select API provider for model calls</p>
             </div>
 
-            <label className="mt-4 block text-sm font-medium text-zinc-300" htmlFor="api-key-input">
-              Provider API Key <span className="text-zinc-500 font-normal">(stored in your browser localStorage)</span>
+            <label className="mt-4 block text-sm font-medium text-navy-200" htmlFor="api-key-input">
+              Provider API Key <span className="text-navy-400 font-normal">(stored in your browser localStorage)</span>
             </label>
             <div className="mt-2 flex flex-wrap gap-3">
               <input
@@ -435,12 +436,12 @@ export function DashboardClient({ username }: DashboardClientProps) {
                   setApiKey(v);
                 }}
                 placeholder={provider === "google" ? "Google API Key" : "sk-..."}
-                className="min-w-[280px] flex-1 rounded-lg border border-white/10 bg-surface-50/50 px-3 py-2 text-sm outline-none transition-all placeholder:text-zinc-600 focus:border-juice-500 focus:bg-surface-50 focus:ring-1 focus:ring-juice-500/50"
+                className="min-w-[280px] flex-1 rounded-lg border border-white/10 bg-navy-900/60 px-3 py-2 text-sm outline-none transition-all placeholder:text-navy-400 focus:border-indigo-500 focus:bg-navy-900 focus:ring-1 focus:ring-indigo-500/50"
               />
               <button
                 type="button"
                 onClick={saveApiKey}
-                className="rounded-lg bg-juice-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-juice-500/20 transition-all hover:bg-juice-500 hover:shadow-juice-500/40"
+                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-500/20 transition-all hover:bg-indigo-500 hover:shadow-indigo-500/40"
               >
                 Save Key
               </button>
@@ -448,14 +449,14 @@ export function DashboardClient({ username }: DashboardClientProps) {
                 type="button"
                 onClick={() => loadModels()}
                 disabled={isLoadingModels}
-                className="rounded-lg border border-white/10 bg-white/5 px-5 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-lg border border-white/10 bg-white/5 px-5 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoadingModels ? "Loading Models..." : "Refresh Models"}
               </button>
             </div>
 
             <div className="mt-5">
-              <label className="text-sm font-medium text-zinc-300" htmlFor="model-select">
+              <label className="text-sm font-medium text-navy-200" htmlFor="model-select">
                 Model
               </label>
               <select
@@ -466,7 +467,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
                   setSelectedModel(value);
                   window.localStorage.setItem("apple-juice-model", value);
                 }}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-surface-50/50 px-3 py-2.5 text-sm text-zinc-100 outline-none transition-colors focus:border-juice-500 focus:bg-surface-50"
+                className="mt-2 w-full rounded-lg border border-white/10 bg-navy-900/60 px-3 py-2.5 text-sm text-navy-100 outline-none transition-colors focus:border-indigo-500 focus:bg-navy-900"
               >
                 {availableModels.map((model) => (
                   <option key={model} value={model}>
@@ -479,17 +480,17 @@ export function DashboardClient({ username }: DashboardClientProps) {
         )}
 
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-          <div className="rounded-2xl border border-white/5 bg-surface-100/40 p-6 shadow-xl backdrop-blur-md">
+          <div className="rounded-2xl border border-white/[0.06] bg-navy-800/40 p-6 shadow-xl backdrop-blur-md">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] font-medium text-zinc-500">Pairing Session Code</p>
+                <p className="text-xs uppercase tracking-[0.2em] font-medium text-navy-400">Pairing Session Code</p>
                 <p className="mt-2 text-4xl font-semibold tracking-widest text-white">{pairingCode}</p>
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => copyText(pairingCode)}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-surface-50/50 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-navy-900/60 px-4 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   <Copy className="h-4 w-4" />
                   Copy
@@ -497,46 +498,46 @@ export function DashboardClient({ username }: DashboardClientProps) {
                 <button
                   type="button"
                   onClick={() => void createPairOnServer()}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-surface-50/50 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-navy-900/60 px-4 py-2 text-sm font-medium text-navy-200 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   <RefreshCw className="h-4 w-4" />
                   Regenerate
                 </button>
               </div>
             </div>
-            <p className="mt-5 text-sm leading-relaxed text-zinc-400">
+            <p className="mt-5 text-sm leading-relaxed text-navy-300">
               Enter this code in your Studio plugin. The plugin can poll <code>/api/poll?code=...</code> and receive
               generated Luau once available.
             </p>
             {pairToken && (
               <div className="mt-5 flex items-center gap-3">
-                <p className="text-sm font-medium text-zinc-400">Pair Token:</p>
-                <pre className="rounded-lg border border-white/5 bg-surface-50/80 px-3 py-1.5 text-sm text-zinc-200">{pairToken}</pre>
+                <p className="text-sm font-medium text-navy-300">Pair Token:</p>
+                <pre className="rounded-lg border border-white/[0.06] bg-navy-900/80 px-3 py-1.5 text-sm text-navy-200">{pairToken}</pre>
                 <button
                   type="button"
                   onClick={() => copyText(pairToken)}
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-navy-200 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   Copy Token
                 </button>
               </div>
             )}
-            <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/5 pt-5">
+            <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-5">
               <button
                 type="button"
                 onClick={pollPluginSession}
-                className="rounded-full border border-juice-500/30 bg-juice-500/10 px-4 py-2 text-sm font-medium text-juice-400 transition-colors hover:bg-juice-500/20"
+                className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-400 transition-colors hover:bg-indigo-500/20"
               >
                 Simulate Plugin Poll
               </button>
-              <p className="text-sm text-zinc-400">{pluginStatus}</p>
+              <p className="text-sm text-navy-300">{pluginStatus}</p>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/5 bg-surface-100/40 p-6 shadow-xl backdrop-blur-md">
-            <p className="text-xs uppercase tracking-[0.2em] font-medium text-zinc-500">Recent Prompts</p>
+          <div className="rounded-2xl border border-white/[0.06] bg-navy-800/40 p-6 shadow-xl backdrop-blur-md">
+            <p className="text-xs uppercase tracking-[0.2em] font-medium text-navy-400">Recent Prompts</p>
             {recentPrompts.length === 0 ? (
-              <p className="mt-3 text-sm text-zinc-500">No recent prompts yet.</p>
+              <p className="mt-3 text-sm text-navy-400">No recent prompts yet.</p>
             ) : (
               <div className="mt-3 flex flex-wrap gap-2">
                 {recentPrompts.map((item) => (
@@ -544,7 +545,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
                     key={item}
                     type="button"
                     onClick={() => setPrompt(item)}
-                    className="rounded-full border border-white/10 bg-surface-50/50 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:border-white/20 hover:text-zinc-200"
+                    className="rounded-lg border border-white/10 bg-navy-900/60 px-3 py-1.5 text-xs font-medium text-navy-300 transition-colors hover:border-white/20 hover:text-navy-200"
                   >
                     {item.length > 64 ? `${item.slice(0, 64)}...` : item}
                   </button>
@@ -553,19 +554,19 @@ export function DashboardClient({ username }: DashboardClientProps) {
             )}
 
             {latestCode && (
-              <div className="mt-5 border-t border-white/5 pt-5">
+              <div className="mt-5 border-t border-white/[0.06] pt-5">
                 <div className="mb-3 flex items-center justify-between">
-                  <p className="text-xs uppercase tracking-[0.2em] font-medium text-zinc-500">Latest Script</p>
+                  <p className="text-xs uppercase tracking-[0.2em] font-medium text-navy-400">Latest Script</p>
                   <button
                     type="button"
                     onClick={() => copyText(latestCode)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-navy-200 transition-colors hover:bg-white/10 hover:text-white"
                   >
                     <Copy className="h-3.5 w-3.5" />
                     Copy
                   </button>
                 </div>
-                <pre className="max-h-56 overflow-auto rounded-xl border border-white/5 bg-surface-50/80 p-4 text-xs leading-relaxed text-zinc-300">
+                <pre className="max-h-56 overflow-auto rounded-xl border border-white/[0.06] bg-navy-900/80 p-4 text-xs leading-relaxed text-navy-200">
                   <code>{latestCode}</code>
                 </pre>
               </div>
@@ -573,23 +574,23 @@ export function DashboardClient({ username }: DashboardClientProps) {
           </div>
         </section>
 
-        <section className="mt-8 rounded-2xl border border-white/5 bg-surface-100/40 p-6 shadow-xl backdrop-blur-md">
-          <p className="text-xs uppercase tracking-[0.2em] font-medium text-zinc-500">Prompt</p>
+        <section className="mt-8 rounded-2xl border border-white/[0.06] bg-navy-800/40 p-6 shadow-xl backdrop-blur-md">
+          <p className="text-xs uppercase tracking-[0.2em] font-medium text-navy-400">Prompt</p>
           <div className="mt-4 flex flex-col gap-4">
             <textarea
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               placeholder="Example: Create a server-side anti-speed script with logs and a warning threshold."
               rows={5}
-              className="w-full resize-y rounded-xl border border-white/10 bg-surface-50/50 p-4 text-sm leading-relaxed text-zinc-100 outline-none transition-all placeholder:text-zinc-600 focus:border-juice-500 focus:bg-surface-50 focus:ring-1 focus:ring-juice-500/50"
+              className="w-full resize-y rounded-xl border border-white/10 bg-navy-900/60 p-4 text-sm leading-relaxed text-navy-100 outline-none transition-all placeholder:text-navy-400 focus:border-indigo-500 focus:bg-navy-900 focus:ring-1 focus:ring-indigo-500/50"
             />
-            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-4">
-              <p className="text-sm text-zinc-500">Output target: raw Luau code (no markdown). Model: <span className="font-medium text-zinc-300">{selectedModel}</span></p>
+            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.06] pt-4">
+              <p className="text-sm text-navy-400">Output target: raw Luau code (no markdown). Model: <span className="font-medium text-navy-200">{selectedModel}</span></p>
               <button
                 type="button"
                 onClick={submitPrompt}
                 disabled={isGenerating}
-                className="inline-flex items-center gap-2 rounded-full bg-juice-600 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-juice-500/20 transition-all hover:-translate-y-0.5 hover:bg-juice-500 hover:shadow-juice-500/40 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white shadow-lg shadow-indigo-500/20 transition-all hover:-translate-y-0.5 hover:bg-indigo-500 hover:shadow-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 <WandSparkles className="h-4 w-4" />
                 {isGenerating ? "Generating..." : "Generate Script"}
@@ -599,19 +600,19 @@ export function DashboardClient({ username }: DashboardClientProps) {
         </section>
 
         <section className="mt-8 space-y-4 pb-10">
-          <p className="text-xs uppercase tracking-[0.2em] font-medium text-zinc-500">Conversation</p>
+          <p className="text-xs uppercase tracking-[0.2em] font-medium text-navy-400">Conversation</p>
           {messages.length === 0 ? (
-            <div className="rounded-2xl border border-white/5 bg-surface-100/30 p-8 text-center text-sm text-zinc-500 backdrop-blur-sm">
+            <div className="rounded-2xl border border-white/[0.06] bg-navy-800/30 p-8 text-center text-sm text-navy-400 backdrop-blur-sm">
               Start by writing a prompt above. Responses are stored in this thread and can be copied into Studio.
             </div>
           ) : (
             messages.map((message) => (
-              <article key={message.id} className="rounded-2xl border border-white/5 bg-surface-100/40 p-6 shadow-lg backdrop-blur-md">
-                <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${message.role === 'user' ? 'bg-surface-50 text-zinc-400 border border-white/10' : 'bg-juice-900/50 text-juice-400 border border-juice-500/20'}`}>
+              <article key={message.id} className="rounded-2xl border border-white/[0.06] bg-navy-800/40 p-6 shadow-lg backdrop-blur-md">
+                <div className="flex items-center gap-3 border-b border-white/[0.06] pb-4">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${message.role === 'user' ? 'bg-navy-900 text-navy-300 border border-white/10' : 'bg-indigo-900/50 text-indigo-400 border border-indigo-500/20'}`}>
                     {message.role === "user" ? "U" : "AJ"}
                   </div>
-                  <p className="text-sm font-medium text-zinc-300">
+                  <p className="text-sm font-medium text-navy-200">
                     {message.role === "user" ? "You" : "Apple Juice Assistant"}
                   </p>
                 </div>
@@ -619,23 +620,23 @@ export function DashboardClient({ username }: DashboardClientProps) {
                   {parseSegments(message.content).map((segment, index) =>
                     segment.type === "code" ? (
                       <div key={`${message.id}-segment-${index}`} className="group relative">
-                        <div className="mb-2 flex items-center justify-between text-xs font-medium text-zinc-500">
+                        <div className="mb-2 flex items-center justify-between text-xs font-medium text-navy-400">
                           <span className="uppercase tracking-wider">{segment.language || "luau"}</span>
                           <button
                             type="button"
                             onClick={() => copyText(segment.value)}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 transition-colors hover:bg-white/10 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1 transition-colors hover:bg-white/10 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100"
                           >
                             <Copy className="h-3.5 w-3.5" />
                             Copy
                           </button>
                         </div>
-                        <pre className="overflow-auto rounded-xl border border-white/5 bg-surface-50/80 p-4 text-sm leading-relaxed text-zinc-300 shadow-inner">
+                        <pre className="overflow-auto rounded-xl border border-white/[0.06] bg-navy-900/80 p-4 text-sm leading-relaxed text-navy-200 shadow-inner">
                           <code>{segment.value}</code>
                         </pre>
                       </div>
                     ) : (
-                      <p key={`${message.id}-segment-${index}`} className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+                      <p key={`${message.id}-segment-${index}`} className="whitespace-pre-wrap text-sm leading-relaxed text-navy-200">
                         {segment.value}
                       </p>
                     ),
