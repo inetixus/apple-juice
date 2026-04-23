@@ -3,8 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSession, upsertGeneratedCode } from "@/lib/store";
 
+type ChatMessage = { role: "user" | "assistant"; content: string };
+
 type ChatBody = {
   prompt?: string;
+  messages?: ChatMessage[];
   pairingCode?: string;
   apiKey?: string;
   model?: string;
@@ -63,20 +66,27 @@ export async function POST(req: Request) {
 
   // Helper to call OpenAI Chat Completions and extract structured payload or raw content
   async function callOpenAI(key: string, modelName: string) {
+    const apiMessages = [
+      {
+        role: "system" as const,
+        content:
+          "Output ONLY a JSON object with fields `parent` (dot path), `name` (script name), and `code` (Luau source as a string). Return only the JSON object and nothing else — no markdown, no backticks, no commentary. The `code` field must contain valid Luau code.",
+      },
+    ];
+
+    if (body.messages && body.messages.length > 0) {
+      apiMessages.push(...(body.messages as any[]));
+    } else {
+      apiMessages.push({ role: "user" as const, content: prompt });
+    }
+
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
         model: modelName,
         temperature: 0.2,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Output ONLY a JSON object with fields `parent` (dot path), `name` (script name), and `code` (Luau source as a string). Return only the JSON object and nothing else — no markdown, no backticks, no commentary. The `code` field must contain valid Luau code.",
-          },
-          { role: "user", content: prompt },
-        ],
+        messages: apiMessages,
       }),
     });
 
@@ -140,17 +150,21 @@ export async function POST(req: Request) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text:
-                      "Output ONLY a JSON object with fields `parent` (dot path), `name` (script name), and `code` (Luau source as a string). Return only the JSON object and nothing else — no markdown, no backticks, no commentary. The `code` field must contain valid Luau code.\n\nUser Prompt: " +
-                      prompt,
-                  },
-                ],
-              },
-            ],
+            contents: (() => {
+              const sysInstruction = "Output ONLY a JSON object with fields `parent` (dot path), `name` (script name), and `code` (Luau source as a string). Return only the JSON object and nothing else — no markdown, no backticks, no commentary. The `code` field must contain valid Luau code.";
+              if (body.messages && body.messages.length > 0) {
+                return body.messages.map((m, i) => ({
+                  role: m.role === "assistant" ? "model" : "user",
+                  parts: [{ text: (i === 0 && m.role === "user") ? `${sysInstruction}\n\nUser Prompt: ${m.content}` : m.content }]
+                }));
+              }
+              return [
+                {
+                  role: "user",
+                  parts: [{ text: `${sysInstruction}\n\nUser Prompt: ${prompt}` }]
+                }
+              ];
+            })(),
             generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
           }),
         });
