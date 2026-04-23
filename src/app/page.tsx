@@ -4,7 +4,7 @@ import { ArrowRight, Zap, Shield, RefreshCw, Code2, Sparkles } from "lucide-reac
 
 export default function LandingPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden text-navy-100">
+    <main className="relative min-h-screen overflow-hidden text-zinc-100">
       {/* ── Ambient glow blobs ── */}
       <div className="glow-blob w-[600px] h-[600px] bg-indigo-600/20 top-[-200px] left-[10%]" />
       <div className="glow-blob w-[500px] h-[500px] bg-violet-600/15 top-[100px] right-[-100px]" />
@@ -12,7 +12,7 @@ export default function LandingPage() {
 
       {/* ── Navbar ── */}
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.06]">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6 backdrop-blur-xl bg-navy-950/60">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6 backdrop-blur-xl bg-[#09090b]/60">
           <div className="flex items-center gap-2.5">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5 text-white" fill="currentColor" aria-hidden>
@@ -23,7 +23,7 @@ export default function LandingPage() {
             <span className="text-[15px] font-semibold text-white tracking-tight">Apple Juice</span>
           </div>
 
-          <nav className="hidden items-center gap-8 text-sm font-medium text-navy-300 md:flex">
+          <nav className="hidden items-center gap-8 text-sm font-medium text-zinc-400 md:flex">
             <a href="#features" className="transition-colors hover:text-white">Features</a>
             <a href="#how-it-works" className="transition-colors hover:text-white">How it Works</a>
             <a href="https://github.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub</a>
@@ -54,7 +54,7 @@ export default function LandingPage() {
               <br />
               for Roblox.
             </h1>
-            <p className="mt-6 max-w-md text-lg leading-relaxed text-navy-300">
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-zinc-400">
               Join creators using Apple Juice to quickly turn dream ideas into working Luau prototypes — with instant Studio sync.
             </p>
 
@@ -70,7 +70,7 @@ export default function LandingPage() {
                 href="https://github.com"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-6 py-3 text-sm font-medium text-navy-200 transition-all hover:bg-white/[0.08] hover:text-white"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-6 py-3 text-sm font-medium text-zinc-300 transition-all hover:bg-white/[0.08] hover:text-white"
               >
                 Watch Demo
                 <ArrowRight className="h-4 w-4" />
@@ -81,22 +81,22 @@ export default function LandingPage() {
           {/* Right — code editor mockup */}
           <div className="animate-fade-up-lg relative">
             {/* Stacked card shadows behind */}
-            <div className="absolute -left-3 -top-3 h-full w-full rounded-2xl border border-white/[0.04] bg-navy-800/30" />
-            <div className="absolute -left-1.5 -top-1.5 h-full w-full rounded-2xl border border-white/[0.04] bg-navy-800/50" />
+            <div className="absolute -left-3 -top-3 h-full w-full rounded-2xl border border-white/[0.04] bg-white/[0.02]" />
+            <div className="absolute -left-1.5 -top-1.5 h-full w-full rounded-2xl border border-white/[0.04] bg-white/[0.02]" />
 
             {/* Main card */}
-            <div className="relative rounded-2xl border border-white/[0.08] bg-gradient-to-br from-navy-800/80 to-navy-900/90 shadow-2xl shadow-black/40 animate-float">
+            <div className="relative rounded-2xl border border-white/[0.08] bg-gradient-to-br from-zinc-900/80 to-zinc-950/90 shadow-2xl shadow-black/40 animate-float">
               {/* Window chrome */}
               <div className="flex items-center gap-2 border-b border-white/[0.06] px-5 py-3.5">
                 <span className="h-3 w-3 rounded-full bg-red-500/70" />
                 <span className="h-3 w-3 rounded-full bg-yellow-500/70" />
                 <span className="h-3 w-3 rounded-full bg-green-500/70" />
-                <span className="ml-4 text-xs font-medium text-navy-400">apple-juice-assistant.lua</span>
+                <span className="ml-4 text-xs font-medium text-zinc-500">apple-juice-assistant.lua</span>
               </div>
 
               {/* Code content */}
               <div className="p-5">
-                <pre className="overflow-x-auto text-[13px] leading-relaxed text-navy-200">
+                <pre className="overflow-x-auto text-[13px] leading-relaxed text-zinc-300">
                   <code>{`local Door = script.Parent
 local TweenService = game:GetService("TweenService")
 
@@ -124,7 +124,7 @@ end`}</code>
               {/* Prompt bar at bottom */}
               <div className="flex items-center gap-3 border-t border-white/[0.06] px-5 py-3">
                 <Sparkles className="h-4 w-4 text-indigo-400 animate-glow" />
-                <span className="text-sm text-navy-300">Create a door that tweens open and closed...</span>
+                <span className="text-sm text-zinc-400">Create a door that tweens open and closed...</span>
               </div>
             </div>
 
@@ -136,7 +136,7 @@ end`}</code>
                   className={`rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
                     i === 0
                       ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                      : "text-navy-400 hover:text-navy-200"
+                      : "text-zinc-500 hover:text-zinc-300"
                   }`}
                 >
                   {label}
@@ -157,7 +157,7 @@ end`}</code>
             <h2 className="mt-5 text-3xl font-bold tracking-tight text-white lg:text-4xl">
               Everything you need to build faster.
             </h2>
-            <p className="mx-auto mt-4 max-w-lg text-base text-navy-300">
+            <p className="mx-auto mt-4 max-w-lg text-base text-zinc-400">
               From generating Luau scripts to syncing them live with Studio — all powered by your own API keys.
             </p>
           </div>
@@ -203,7 +203,7 @@ end`}</code>
                   <feature.icon className="h-5 w-5" />
                 </div>
                 <h3 className="mt-4 text-base font-semibold text-white">{feature.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-navy-300">{feature.desc}</p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-400">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -229,11 +229,11 @@ end`}</code>
               { step: "3", title: "Generate", desc: "Describe what you want. Get working Luau code synced to Studio instantly." },
             ].map((item) => (
               <div key={item.step} className="relative flex flex-col items-center text-center px-6 py-4">
-                <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full border-2 border-indigo-500/40 bg-navy-900 text-xl font-bold text-indigo-400 shadow-lg shadow-indigo-500/10">
+                <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-full border-2 border-indigo-500/40 bg-zinc-900 text-xl font-bold text-indigo-400 shadow-lg shadow-indigo-500/10">
                   {item.step}
                 </div>
                 <h3 className="mt-5 text-lg font-semibold text-white">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-navy-300">{item.desc}</p>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-400">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -247,7 +247,7 @@ end`}</code>
             <h2 className="text-3xl font-bold tracking-tight text-white lg:text-4xl">
               Ready to build faster?
             </h2>
-            <p className="mx-auto mt-4 max-w-md text-base text-navy-300">
+            <p className="mx-auto mt-4 max-w-md text-base text-zinc-400">
               Join the open-source community and start prototyping Roblox experiences with AI today.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
@@ -265,7 +265,7 @@ end`}</code>
 
       {/* ── Footer ── */}
       <footer className="border-t border-white/[0.06] py-10">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 text-sm text-navy-400">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 text-sm text-zinc-500">
           <p>&copy; {new Date().getFullYear()} Apple Juice. Open source under MIT.</p>
           <div className="flex gap-6">
             <a href="https://github.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub</a>
