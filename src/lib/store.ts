@@ -15,18 +15,21 @@ const PREFIX = "apple-juice:session:";
 let _redis: Redis | null = null;
 function getRedis(): Redis {
   if (_redis) return _redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Prefer Vercel KV environment variable names, fallback to Upstash legacy names
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) {
     // Create a minimal placeholder that throws when trying to use Redis so imports don't crash during build.
+    const missingMsg =
+      "Missing Redis credentials. Ensure KV_REST_API_URL or UPSTASH_REDIS_REST_URL is set in your environment.";
     const missing: Partial<Redis> = {
       set: async () => {
-        throw new Error("Missing Upstash environment variables: UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN");
+        throw new Error(missingMsg);
       },
       get: async () => null,
       expire: async () => 0,
       eval: async () => {
-        throw new Error("Missing Upstash environment variables: UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN");
+        throw new Error(missingMsg);
       },
     };
     _redis = missing as Redis;
@@ -123,8 +126,9 @@ export async function consumeIfAuthorized(pairingCode: string, pairToken: string
   }
 }
 
-// Note: This implementation uses Upstash Redis. Ensure you set UPSTASH_REDIS_REST_URL
-// and UPSTASH_REDIS_REST_TOKEN in your environment (.env.local for local dev and
+// Note: This implementation uses Upstash Redis. Prefer setting KV_REST_API_URL
+// and KV_REST_API_TOKEN (Vercel KV) or fallback to UPSTASH_REDIS_REST_URL and
+// UPSTASH_REDIS_REST_TOKEN in your environment (.env.local for local dev and
 // in Vercel project settings for production). The keys are stored as JSON strings
 // under the prefix `apple-juice:session:` and consumeIfAuthorized is implemented
 // using a Lua script (EVAL) to atomically read-and-clear the `hasNewCode` flag.
