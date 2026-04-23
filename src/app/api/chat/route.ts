@@ -16,9 +16,7 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const ownerUserId = (session?.user as { id?: string } | undefined)?.id;
 
-  if (!ownerUserId) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!ownerUserId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = (await req.json()) as ChatBody;
   const prompt = body.prompt?.trim() ?? "";
@@ -29,10 +27,7 @@ export async function POST(req: Request) {
   const openaiKey = body.openaiKey?.trim() ?? "";
 
   if (!prompt || !pairingCode || !apiKey) {
-    return Response.json(
-      { error: "prompt, pairingCode, and apiKey are required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "prompt, pairingCode, and apiKey are required" }, { status: 400 });
   }
 
   const pair = await getSession(pairingCode);
@@ -44,41 +39,70 @@ export async function POST(req: Request) {
   let code = "";
   let modelUsed = model;
 
-  // If user selected a GPT-style model and provided an OpenAI key, prefer OpenAI.
-  if (model.toLowerCase().startsWith("gpt-") && openaiKey) {
-    const llmRes = await fetch("https://api.openai.com/v1/chat/completions", {
+  type PluginPayload = { parent?: string; name?: string; code?: string };
+
+  function tryParsePluginPayload(text?: string): PluginPayload | null {
+    if (!text) return null;
+    try {
+      const obj = JSON.parse(text);
+      if (obj && typeof obj === "object" && ("code" in obj)) return obj as PluginPayload;
+    } catch {
+      // ignore
+    }
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) {
+      try {
+        const obj = JSON.parse(m[0]);
+        if (obj && typeof obj === "object" && ("code" in obj)) return obj as PluginPayload;
+      } catch {
+        // ignore
+      }
+    }
+    return null;
+  }
+
+  // Helper to call OpenAI Chat Completions and extract structured payload or raw content
+  async function callOpenAI(key: string, modelName: string) {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openaiKey}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
-        model,
+        model: modelName,
         temperature: 0.2,
         messages: [
           {
             role: "system",
-            content: "Output ONLY valid Luau code. Do not use markdown formatting or backticks.",
+            content:
+              "Output ONLY a JSON object with fields `parent` (dot path), `name` (script name), and `code` (Luau source as a string). Return only the JSON object and nothing else — no markdown, no backticks, no commentary. The `code` field must contain valid Luau code.",
           },
           { role: "user", content: prompt },
         ],
       }),
     });
 
-    raw = await llmRes.text();
+    const text = await res.text();
+    return { ok: res.ok, text };
+  }
 
-    if (!llmRes.ok) {
-      return Response.json(
-        { error: "LLM request failed", status: llmRes.status, detail: raw, model },
-        { status: 502 },
-      );
+  if (model.toLowerCase().startsWith("gpt-") && openaiKey) {
+    const { ok, text } = await callOpenAI(openaiKey, model);
+    raw = text;
+    if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model }, { status: 502 });
+    try {
+      const parsed = JSON.parse(raw);
+      const content = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
+      const structured = tryParsePluginPayload(content) || tryParsePluginPayload(raw);
+      if (structured && structured.code) {
+        code = structured.code;
+        raw = JSON.stringify(structured);
+      } else {
+        code = content;
+      }
+    } catch {
+      code = raw;
     }
-
-    const parsed = JSON.parse(raw);
-    code = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
     modelUsed = model;
   } else if (provider === "google") {
-    // Try multiple Google models (requested → fallbacks → discovered models), then OpenAI fallback.
     const requestedModel = (model || "text-bison-001").trim();
     const GOOGLE_FALLBACK_MODELS = [
       "models/gemini-3.1-pro",
@@ -89,7 +113,6 @@ export async function POST(req: Request) {
       "models/text-bison-001",
     ];
 
-    // Discover available models from Google (best-effort).
     let availableModels: string[] = [];
     try {
       const listUrl = `https://generativelanguage.googleapis.com/v1beta2/models?key=${encodeURIComponent(apiKey)}`;
@@ -98,12 +121,7 @@ export async function POST(req: Request) {
       if (listRes.ok) {
         const listParsed = JSON.parse(listRaw);
         const rawModels = listParsed?.models || [];
-        availableModels = rawModels
-          .map((m: any) => m?.name || m?.model || "")
-          .filter((id: string) => !!id);
-      } else {
-        // keep availableModels empty; log for diagnostics (do not log API keys)
-        console.warn("Google models list failed", { status: listRes.status, body: listRaw?.slice?.(0, 1000) });
+        availableModels = rawModels.map((m: any) => m?.name || m?.model || "").filter((id: string) => !!id);
       }
     } catch (err) {
       console.warn("Google models list error", err instanceof Error ? err.message : String(err));
@@ -116,46 +134,48 @@ export async function POST(req: Request) {
     let lastResponseBody = "";
     for (const candidate of candidatePool) {
       attemptedModels.push(candidate);
-      // Use v1beta and generateContent for modern Gemini models
       const url = `https://generativelanguage.googleapis.com/v1beta/${candidate}:generateContent?key=${encodeURIComponent(apiKey)}`;
       try {
         const llmRes = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{
-              parts: [{ text: "Output ONLY valid Luau code. Do not use markdown formatting or backticks.\n\nUser Prompt: " + prompt }]
-            }],
-            generationConfig: {
-              temperature: 0.2,
-              maxOutputTokens: 1024,
-            }
+            contents: [
+              {
+                parts: [
+                  {
+                    text:
+                      "Output ONLY a JSON object with fields `parent` (dot path), `name` (script name), and `code` (Luau source as a string). Return only the JSON object and nothing else — no markdown, no backticks, no commentary. The `code` field must contain valid Luau code.\n\nUser Prompt: " +
+                      prompt,
+                  },
+                ],
+              },
+            ],
+            generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
           }),
         });
 
         const bodyText = await llmRes.text();
         lastResponseBody = bodyText;
-
         if (!llmRes.ok) {
           console.warn("Google generateContent failed", { model: candidate, status: llmRes.status });
           continue;
         }
 
-        try {
-          const parsed = JSON.parse(bodyText);
-          // Extract text from the Gemini response structure
-          code = parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+        const parsed = JSON.parse(bodyText);
+        const content = parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+        const structured = tryParsePluginPayload(content) || tryParsePluginPayload(bodyText);
+        if (structured && structured.code) {
+          code = structured.code;
+          raw = JSON.stringify(structured);
+          modelUsed = candidate;
+          break;
+        }
 
-          if (code) {
-            // Strip out markdown code blocks just in case Gemini ignored the system prompt
-            code = code.replace(/^```(luau|lua)?\n?/gmi, '').replace(/```$/gm, '').trim();
-            modelUsed = candidate;
-            break;
-          }
-        } catch (err) {
-          lastResponseBody = bodyText;
-          console.warn("Failed to parse Google response", err instanceof Error ? err.message : String(err));
-          continue;
+        if (content) {
+          code = content.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
+          modelUsed = candidate;
+          break;
         }
       } catch (err) {
         lastResponseBody = String(err);
@@ -164,103 +184,64 @@ export async function POST(req: Request) {
       }
     }
 
-    // If Google attempts didn't produce code, allow OpenAI fallback if configured.
     if (!code && openaiKey) {
-      try {
-        const llmRes = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${openaiKey}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            temperature: 0.2,
-            messages: [
-              {
-                role: "system",
-                content: "Output ONLY valid Luau code. Do not use markdown formatting or backticks.",
-              },
-              { role: "user", content: prompt },
-            ],
-          }),
-        });
-
-        raw = await llmRes.text();
-        if (llmRes.ok) {
+      const { ok, text } = await callOpenAI(openaiKey, "gpt-4o-mini");
+      raw = text;
+      if (ok) {
+        try {
           const parsed = JSON.parse(raw);
-          code = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
-          modelUsed = "gpt-4o-mini";
-        } else {
-          lastResponseBody = raw;
+          const content = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
+          const structured = tryParsePluginPayload(content) || tryParsePluginPayload(raw);
+          if (structured && structured.code) {
+            code = structured.code;
+            raw = JSON.stringify(structured);
+          } else {
+            code = content;
+          }
+        } catch {
+          code = raw;
         }
-      } catch (err) {
-        lastResponseBody = String(err);
+        modelUsed = "gpt-4o-mini";
       }
     }
 
     if (!code) {
-      return Response.json(
-        {
-          error: "LLM request failed",
-          detail: lastResponseBody,
-          attemptedModels,
-          provider,
-          requestedModel,
-        },
-        { status: 502 },
-      );
+      return Response.json({ error: "LLM request failed", detail: lastResponseBody, attemptedModels, provider, requestedModel }, { status: 502 });
     }
   } else {
-    const llmRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        messages: [
-          {
-            role: "system",
-            content: "Output ONLY valid Luau code. Do not use markdown formatting or backticks.",
-          },
-          { role: "user", content: prompt },
-        ],
-      }),
-    });
-
-    raw = await llmRes.text();
-
-    if (!llmRes.ok) {
-      return Response.json(
-        { error: "LLM request failed", status: llmRes.status, detail: raw, model },
-        { status: 502 },
-      );
+    // Default: OpenAI using provided apiKey
+    const { ok, text } = await callOpenAI(apiKey, model);
+    raw = text;
+    if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model }, { status: 502 });
+    try {
+      const parsed = JSON.parse(raw);
+      const content = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
+      const structured = tryParsePluginPayload(content) || tryParsePluginPayload(raw);
+      if (structured && structured.code) {
+        code = structured.code;
+        raw = JSON.stringify(structured);
+      } else {
+        code = content;
+      }
+    } catch {
+      code = raw;
     }
-
-    const parsed = JSON.parse(raw);
-    code = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
     modelUsed = model;
   }
 
-  if (!code) {
-    return Response.json({ error: "Model returned empty output", detail: raw }, { status: 502 });
-  }
+  if (!code) return Response.json({ error: "Model returned empty output", detail: raw }, { status: 502 });
 
   const messageId = crypto.randomUUID();
 
-  // Build a plugin-friendly structured payload so the Studio plugin can
-  // automatically place the script where intended. The plugin will JSON-decode
-  // this string and use `parent`, `name`, and `code` fields if present.
-  const pluginPayload = JSON.stringify({
-    parent: "ServerScriptService",
-    name: `GeneratedScript_${messageId.slice(0, 8)}`,
-    code,
-  });
+  // If the LLM returned a structured payload, raw will contain that JSON; prefer those fields.
+  const structuredFinal = tryParsePluginPayload(raw) || null;
+  const finalParent = structuredFinal?.parent ?? "ServerScriptService";
+  const finalName = structuredFinal?.name ?? `GeneratedScript_${messageId.slice(0, 8)}`;
+  const finalCode = structuredFinal?.code ?? code;
+
+  const pluginPayload = JSON.stringify({ parent: finalParent, name: finalName, code: finalCode });
 
   await upsertGeneratedCode(pairingCode, pluginPayload, messageId);
 
-  return Response.json({ ok: true, code, messageId, model: modelUsed });
+  return Response.json({ ok: true, code: finalCode, messageId, model: modelUsed });
 }
