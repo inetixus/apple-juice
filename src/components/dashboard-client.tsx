@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Copy, LogOut, RefreshCw, Settings2, WandSparkles } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 
 type DashboardClientProps = {
   username: string;
@@ -376,27 +381,20 @@ export function DashboardClient({ username }: DashboardClientProps) {
             <p className="mt-1 text-sm text-[#8a8f98]">Generate Luau, pair with your plugin, and sync instantly.</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowSettings((open) => !open)}
-              className="inline-flex items-center gap-2 bg-transparent border border-white/10 text-white hover:bg-white/5 transition-colors rounded-lg px-4 py-2 text-sm font-medium"
-            >
+            <Button variant="outline" onClick={() => setShowSettings((open) => !open)}>
               <Settings2 className="h-4 w-4" />
               Settings
-            </button>
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="inline-flex items-center gap-2 bg-transparent border border-white/10 text-white hover:bg-white/5 transition-colors rounded-lg px-4 py-2 text-sm font-medium"
-            >
+            </Button>
+            <Button variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
               <LogOut className="h-4 w-4" />
               Sign Out
-            </button>
+            </Button>
           </div>
         </header>
 
         {showSettings && (
-          <section className="mt-5 bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
+          <Card className="mt-5">
+            <CardContent className="p-6 space-y-5">
             <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">Provider</label>
             <div className="mt-2 flex items-center gap-3">
               <select
@@ -425,7 +423,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
               Provider API Key <span className="text-[#8a8f98] font-normal">(stored in your browser localStorage)</span>
             </label>
             <div className="mt-2 flex flex-wrap gap-3">
-              <input
+              <Input
                 id="api-key-input"
                 type="password"
                 value={provider === "google" ? googleKey : openaiKey}
@@ -436,23 +434,18 @@ export function DashboardClient({ username }: DashboardClientProps) {
                   setApiKey(v);
                 }}
                 placeholder={provider === "google" ? "Google API Key" : "sk-..."}
-                className="min-w-[280px] flex-1 w-full bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#8a8f98] focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
+                className="min-w-[280px] flex-1"
               />
-              <button
-                type="button"
-                onClick={saveApiKey}
-                className="bg-[#ccff00] text-black hover:bg-[#bbf000] font-semibold transition-colors rounded-lg px-4 py-2 text-sm"
-              >
+              <Button onClick={saveApiKey}>
                 Save Key
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="outline"
                 onClick={() => loadModels()}
                 disabled={isLoadingModels}
-                className="rounded-lg border border-white/10 bg-white/5 px-5 py-2 text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoadingModels ? "Loading Models..." : "Refresh Models"}
-              </button>
+              </Button>
             </div>
 
             <div className="mt-5">
@@ -476,33 +469,27 @@ export function DashboardClient({ username }: DashboardClientProps) {
                 ))}
               </select>
             </div>
-          </section>
+            </CardContent>
+          </Card>
         )}
 
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
+          <Card>
+            <CardContent className="p-6">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98]">Pairing Session Code</p>
+                <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Pairing Session Code</p>
                 <p className="mt-2 text-4xl font-semibold tracking-widest text-white">{pairingCode}</p>
               </div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => copyText(pairingCode)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1 transition-colors hover:bg-white/10 hover:text-white"
-                >
+                <Button variant="outline" size="sm" onClick={() => copyText(pairingCode)}>
                   <Copy className="h-4 w-4" />
                   Copy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void createPairOnServer()}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1 transition-colors hover:bg-white/10 hover:text-white"
-                >
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => void createPairOnServer()}>
                   <RefreshCw className="h-4 w-4" />
                   Regenerate
-                </button>
+                </Button>
               </div>
             </div>
             <p className="mt-5 text-sm leading-relaxed text-[#8a8f98]">
@@ -513,42 +500,31 @@ export function DashboardClient({ username }: DashboardClientProps) {
               <div className="mt-5 flex items-center gap-3">
                 <p className="text-sm font-medium text-[#8a8f98]">Pair Token:</p>
                 <pre className="font-mono text-[13px] bg-[#050505] border border-white/5 rounded-lg px-3 py-1.5 text-[#d1d5db]">{pairToken}</pre>
-                <button
-                  type="button"
-                  onClick={() => copyText(pairToken)}
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1 transition-colors hover:bg-white/10 hover:text-white"
-                >
+                <Button variant="ghost" size="sm" onClick={() => copyText(pairToken)}>
                   Copy Token
-                </button>
+                </Button>
               </div>
             )}
             <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/5 pt-5">
-              <button
-                type="button"
-                onClick={pollPluginSession}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#ccff00] bg-[#ccff00]/10 border border-[#ccff00]/20 px-3 py-1.5 rounded-md hover:bg-[#ccff00]/20 transition-colors"
-              >
+              <Badge className="cursor-pointer hover:bg-[#ccff00]/20" onClick={pollPluginSession}>
                 Simulate Plugin Poll
-              </button>
+              </Badge>
               <p className="text-sm text-[#8a8f98]">{pluginStatus}</p>
             </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
-            <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98]">Recent Prompts</p>
+          <Card>
+            <CardContent className="p-6">
+            <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Recent Prompts</p>
             {recentPrompts.length === 0 ? (
               <p className="mt-3 text-sm text-[#8a8f98]">No recent prompts yet.</p>
             ) : (
               <div className="mt-3 flex flex-wrap gap-2">
                 {recentPrompts.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setPrompt(item)}
-                    className="bg-transparent border border-white/10 text-[#8a8f98] hover:bg-white/5 hover:text-white transition-colors rounded-lg px-3 py-1.5 text-xs font-medium"
-                  >
+                  <Button key={item} variant="ghost" size="sm" className="text-xs text-[#8a8f98]" onClick={() => setPrompt(item)}>
                     {item.length > 64 ? `${item.slice(0, 64)}...` : item}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -557,58 +533,48 @@ export function DashboardClient({ username }: DashboardClientProps) {
               <div className="mt-5 border-t border-white/5 pt-5">
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98]">Latest Script</p>
-                  <button
-                    type="button"
-                    onClick={() => copyText(latestCode)}
-                    className="inline-flex items-center gap-1.5 bg-transparent border border-white/10 text-white hover:bg-white/5 transition-colors rounded-md px-2 py-1 text-xs font-medium"
-                  >
+                  <Button variant="outline" size="sm" className="text-xs" onClick={() => copyText(latestCode)}>
                     <Copy className="h-3.5 w-3.5" />
                     Copy
-                  </button>
+                  </Button>
                 </div>
                 <pre className="max-h-56 overflow-auto font-mono text-[13px] bg-[#050505] border border-white/5 rounded-lg p-4 text-[#d1d5db]">
                   <code>{latestCode}</code>
                 </pre>
               </div>
             )}
-          </div>
+            </CardContent>
+          </Card>
         </section>
 
-        <section className="relative mt-8 bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
-
-          <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98]">Prompt</p>
-          <div className="mt-4 flex flex-col gap-4">
-            <textarea
+        <Card className="mt-8">
+          <CardContent className="p-6 space-y-4">
+          <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Prompt</p>
+            <Textarea
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               placeholder="Example: Create a server-side anti-speed script with logs and a warning threshold."
               rows={5}
-              className="w-full resize-y bg-transparent border border-white/10 rounded-lg px-3 py-3 text-sm text-white placeholder:text-[#8a8f98] focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
             />
             <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-4">
               <p className="text-sm text-[#8a8f98]">Output target: raw Luau code (no markdown). Model: <span className="font-medium text-white">{selectedModel}</span></p>
-              <button
-                type="button"
-                onClick={submitPrompt}
-                disabled={isGenerating}
-                className="inline-flex items-center gap-2 bg-[#ccff00] text-black hover:bg-[#bbf000] font-semibold transition-colors rounded-lg px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-              >
+              <Button onClick={submitPrompt} disabled={isGenerating}>
                 <WandSparkles className="h-4 w-4" />
                 {isGenerating ? "Generating..." : "Generate Script"}
-              </button>
+              </Button>
             </div>
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
         <section className="mt-8 space-y-4 pb-10">
           <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98]">Conversation</p>
           {messages.length === 0 ? (
-            <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-8 text-center text-sm text-[#8a8f98]">
+            <Card className="p-8 text-center text-sm text-[#8a8f98]">
               Start by writing a prompt above. Responses are stored in this thread and can be copied into Studio.
-            </div>
+            </Card>
           ) : (
             messages.map((message) => (
-              <article key={message.id} className="bg-[#0a0a0a] border border-white/5 rounded-xl p-6">
+              <Card key={message.id} className="p-6">
                 <div className="flex items-center gap-3 border-b border-white/5 pb-4">
                   <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${message.role === 'user' ? 'bg-[#111111] text-[#8a8f98] border border-white/5' : 'bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/20'}`}>
                     {message.role === "user" ? "U" : "AJ"}
@@ -623,14 +589,15 @@ export function DashboardClient({ username }: DashboardClientProps) {
                       <div key={`${message.id}-segment-${index}`} className="group relative">
                         <div className="mb-2 flex items-center justify-between text-xs font-medium text-[#8a8f98]">
                           <span className="uppercase tracking-wider">{segment.language || "luau"}</span>
-                          <button
-                            type="button"
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs opacity-0 group-hover:opacity-100 focus:opacity-100"
                             onClick={() => copyText(segment.value)}
-                            className="inline-flex items-center gap-1.5 bg-transparent border border-white/10 text-white hover:bg-white/5 transition-colors rounded-md px-2 py-1 text-xs opacity-0 group-hover:opacity-100 focus:opacity-100"
                           >
                             <Copy className="h-3.5 w-3.5" />
                             Copy
-                          </button>
+                          </Button>
                         </div>
                         <pre className="overflow-auto font-mono text-[13px] bg-[#050505] border border-white/5 rounded-lg p-4 text-[#d1d5db]">
                           <code>{segment.value}</code>
@@ -643,7 +610,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
                     ),
                   )}
                 </div>
-              </article>
+              </Card>
             ))
           )}
         </section>
