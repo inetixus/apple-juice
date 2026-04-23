@@ -371,110 +371,109 @@ export function DashboardClient({ username }: DashboardClientProps) {
   }
 
   return (
-    <main className="min-h-screen bg-[#030303] text-white">
+    <main className="h-screen bg-[#030303] text-white flex flex-col overflow-hidden">
+      <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/5 px-6 lg:px-10 py-5">
+        <div>
+          <p className="text-[11px] uppercase tracking-wider font-semibold text-[#ccff00]">Apple Juice Dashboard</p>
+          <h1 className="mt-1 text-xl font-medium tracking-tight text-white">Welcome, {username}</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowSettings((open) => !open)}>
+            <Settings2 className="h-4 w-4" />
+            Settings
+          </Button>
+          <Button variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
+      </header>
 
-      <div className="mx-auto w-full max-w-6xl px-6 py-10">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-6">
-          <div>
-            <p className="text-[11px] uppercase tracking-wider font-semibold text-[#ccff00]">Apple Juice Dashboard</p>
-            <h1 className="mt-2 text-xl font-medium tracking-tight text-white">Welcome, {username}</h1>
-            <p className="mt-1 text-sm text-[#8a8f98]">Generate Luau, pair with your plugin, and sync instantly.</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setShowSettings((open) => !open)}>
-              <Settings2 className="h-4 w-4" />
-              Settings
-            </Button>
-            <Button variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </Button>
-          </div>
-        </header>
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* LEFT SIDEBAR */}
+        <div className="w-full lg:w-[450px] xl:w-[500px] flex-shrink-0 border-r border-white/5 overflow-y-auto p-6 lg:p-8 space-y-6">
+          {showSettings && (
+            <Card className="animate-in fade-in slide-in-from-top-4 duration-300">
+              <CardContent className="p-6 space-y-5">
+              <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">Provider</label>
+              <div className="mt-2 flex items-center gap-3">
+                <select
+                  id="provider-select"
+                  value={provider}
+                  onChange={(e) => {
+                    const val = (e.target.value as "openai" | "google");
+                    const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
+                    const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
+                    setProvider(val);
+                    setOpenaiKey(storedOpen);
+                    setGoogleKey(storedGoogle);
+                    const newKey = val === "google" ? storedGoogle : storedOpen;
+                    setApiKey(newKey);
+                    window.localStorage.setItem("apple-juice-provider", val);
+                  }}
+                  className="w-48 bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="google">Google AI Studio</option>
+                </select>
+                <p className="text-sm text-[#8a8f98]">Select API provider for model calls</p>
+              </div>
 
-        {showSettings && (
-          <Card className="mt-5">
-            <CardContent className="p-6 space-y-5">
-            <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">Provider</label>
-            <div className="mt-2 flex items-center gap-3">
-              <select
-                id="provider-select"
-                value={provider}
-                onChange={(e) => {
-                  const val = (e.target.value as "openai" | "google");
-                  const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
-                  const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
-                  setProvider(val);
-                  setOpenaiKey(storedOpen);
-                  setGoogleKey(storedGoogle);
-                  const newKey = val === "google" ? storedGoogle : storedOpen;
-                  setApiKey(newKey);
-                  window.localStorage.setItem("apple-juice-provider", val);
-                }}
-                className="w-48 bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
-              >
-                <option value="openai">OpenAI</option>
-                <option value="google">Google AI Studio</option>
-              </select>
-              <p className="text-sm text-[#8a8f98]">Select API provider for model calls</p>
-            </div>
-
-            <label className="mt-4 block text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1" htmlFor="api-key-input">
-              Provider API Key <span className="text-[#8a8f98] font-normal">(stored in your browser localStorage)</span>
-            </label>
-            <div className="mt-2 flex flex-wrap gap-3">
-              <Input
-                id="api-key-input"
-                type="password"
-                value={provider === "google" ? googleKey : openaiKey}
-                onChange={(event) => {
-                  const v = event.target.value;
-                  if (provider === "google") setGoogleKey(v);
-                  else setOpenaiKey(v);
-                  setApiKey(v);
-                }}
-                placeholder={provider === "google" ? "Google API Key" : "sk-..."}
-                className="min-w-[280px] flex-1"
-              />
-              <Button onClick={saveApiKey}>
-                Save Key
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => loadModels()}
-                disabled={isLoadingModels}
-              >
-                {isLoadingModels ? "Loading Models..." : "Refresh Models"}
-              </Button>
-            </div>
-
-            <div className="mt-5">
-              <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1" htmlFor="model-select">
-                Model
+              <label className="mt-4 block text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1" htmlFor="api-key-input">
+                Provider API Key <span className="text-[#8a8f98] font-normal">(stored in your browser localStorage)</span>
               </label>
-              <select
-                id="model-select"
-                value={selectedModel}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setSelectedModel(value);
-                  window.localStorage.setItem("apple-juice-model", value);
-                }}
-                className="mt-2 w-full bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
-              >
-                {availableModels.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-              </select>
-            </div>
-            </CardContent>
-          </Card>
-        )}
+              <div className="mt-2 flex flex-wrap gap-3">
+                <Input
+                  id="api-key-input"
+                  type="password"
+                  value={provider === "google" ? googleKey : openaiKey}
+                  onChange={(event) => {
+                    const v = event.target.value;
+                    if (provider === "google") setGoogleKey(v);
+                    else setOpenaiKey(v);
+                    setApiKey(v);
+                  }}
+                  placeholder={provider === "google" ? "Google API Key" : "sk-..."}
+                  className="min-w-[280px] flex-1"
+                />
+                <Button onClick={saveApiKey}>
+                  Save Key
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => loadModels()}
+                  disabled={isLoadingModels}
+                >
+                  {isLoadingModels ? "Loading Models..." : "Refresh Models"}
+                </Button>
+              </div>
 
-        <section className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-          <Card>
+              <div className="mt-5">
+                <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1" htmlFor="model-select">
+                  Model
+                </label>
+                <select
+                  id="model-select"
+                  value={selectedModel}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setSelectedModel(value);
+                    window.localStorage.setItem("apple-juice-model", value);
+                  }}
+                  className="mt-2 w-full bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
+                >
+                  {availableModels.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className="animate-in fade-in slide-in-from-left-4 duration-500 delay-100 fill-mode-both">
             <CardContent className="p-6">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -514,7 +513,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="animate-in fade-in slide-in-from-left-4 duration-500 delay-200 fill-mode-both">
             <CardContent className="p-6">
             <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Recent Prompts</p>
             {recentPrompts.length === 0 ? (
@@ -545,75 +544,93 @@ export function DashboardClient({ username }: DashboardClientProps) {
             )}
             </CardContent>
           </Card>
-        </section>
+        </div>
 
-        <Card className="mt-8">
-          <CardContent className="p-6 space-y-4">
-          <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Prompt</p>
-            <Textarea
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder="Example: Create a server-side anti-speed script with logs and a warning threshold."
-              rows={5}
-            />
-            <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-4">
-              <p className="text-sm text-[#8a8f98]">Output target: raw Luau code (no markdown). Model: <span className="font-medium text-white">{selectedModel}</span></p>
-              <Button onClick={submitPrompt} disabled={isGenerating}>
-                <WandSparkles className="h-4 w-4" />
-                {isGenerating ? "Generating..." : "Generate Script"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <section className="mt-8 space-y-4 pb-10">
-          <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98]">Conversation</p>
-          {messages.length === 0 ? (
-            <Card className="p-8 text-center text-sm text-[#8a8f98]">
-              Start by writing a prompt above. Responses are stored in this thread and can be copied into Studio.
-            </Card>
-          ) : (
-            messages.map((message) => (
-              <Card key={message.id} className="p-6">
-                <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${message.role === 'user' ? 'bg-[#111111] text-[#8a8f98] border border-white/5' : 'bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/20'}`}>
-                    {message.role === "user" ? "U" : "AJ"}
+        {/* RIGHT SIDE (CHAT) */}
+        <div className="flex-1 flex flex-col h-full bg-[#050505] relative overflow-hidden">
+          {/* Chat History */}
+          <div className="flex-1 overflow-y-auto p-6 lg:p-10 space-y-6 flex flex-col">
+            {messages.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="max-w-md text-center animate-in fade-in zoom-in-95 duration-500">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#ccff00]/10 border border-[#ccff00]/20 text-[#ccff00] mb-4">
+                    <WandSparkles className="h-8 w-8" />
                   </div>
-                  <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">
-                    {message.role === "user" ? "You" : "Apple Juice Assistant"}
+                  <h2 className="text-xl font-medium tracking-tight text-white mb-2">How can I help you build?</h2>
+                  <p className="text-sm text-[#8a8f98]">
+                    Write a prompt below to generate Luau code. Your responses will be stored here and can be synced directly to Studio.
                   </p>
                 </div>
-                <div className="mt-4 space-y-4">
-                  {parseSegments(message.content).map((segment, index) =>
-                    segment.type === "code" ? (
-                      <div key={`${message.id}-segment-${index}`} className="group relative">
-                        <div className="mb-2 flex items-center justify-between text-xs font-medium text-[#8a8f98]">
-                          <span className="uppercase tracking-wider">{segment.language || "luau"}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs opacity-0 group-hover:opacity-100 focus:opacity-100"
-                            onClick={() => copyText(segment.value)}
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                            Copy
-                          </Button>
+              </div>
+            ) : (
+              messages.map((message) => (
+                <Card key={message.id} className="p-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${message.role === 'user' ? 'bg-[#111111] text-[#8a8f98] border border-white/5' : 'bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/20'}`}>
+                      {message.role === "user" ? "U" : "AJ"}
+                    </div>
+                    <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">
+                      {message.role === "user" ? "You" : "Apple Juice Assistant"}
+                    </p>
+                  </div>
+                  <div className="mt-4 space-y-4">
+                    {parseSegments(message.content).map((segment, index) =>
+                      segment.type === "code" ? (
+                        <div key={`${message.id}-segment-${index}`} className="group relative">
+                          <div className="mb-2 flex items-center justify-between text-xs font-medium text-[#8a8f98]">
+                            <span className="uppercase tracking-wider">{segment.language || "luau"}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs opacity-0 group-hover:opacity-100 focus:opacity-100"
+                              onClick={() => copyText(segment.value)}
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                              Copy
+                            </Button>
+                          </div>
+                          <pre className="overflow-auto font-mono text-[13px] bg-[#000000] border border-white/5 rounded-lg p-4 text-[#d1d5db]">
+                            <code>{segment.value}</code>
+                          </pre>
                         </div>
-                        <pre className="overflow-auto font-mono text-[13px] bg-[#050505] border border-white/5 rounded-lg p-4 text-[#d1d5db]">
-                          <code>{segment.value}</code>
-                        </pre>
-                      </div>
-                    ) : (
-                      <p key={`${message.id}-segment-${index}`} className="whitespace-pre-wrap text-sm leading-relaxed text-white">
-                        {segment.value}
-                      </p>
-                    ),
-                  )}
-                </div>
-              </Card>
-            ))
-          )}
-        </section>
+                      ) : (
+                        <p key={`${message.id}-segment-${index}`} className="whitespace-pre-wrap text-sm leading-relaxed text-white">
+                          {segment.value}
+                        </p>
+                      ),
+                    )}
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+
+          {/* Prompt Input Fixed Bottom */}
+          <div className="flex-shrink-0 border-t border-white/5 p-6 bg-[#0a0a0a]">
+            <div className="max-w-4xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both">
+              <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Prompt</p>
+              <Textarea
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder="Example: Create a server-side anti-speed script with logs and a warning threshold."
+                rows={3}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    submitPrompt();
+                  }
+                }}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-4">
+                <p className="text-sm text-[#8a8f98]">Output target: raw Luau code. Model: <span className="font-medium text-white">{selectedModel}</span></p>
+                <Button onClick={submitPrompt} disabled={isGenerating}>
+                  <WandSparkles className="h-4 w-4" />
+                  {isGenerating ? "Generating..." : "Generate Script"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   );

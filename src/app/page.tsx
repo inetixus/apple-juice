@@ -40,17 +40,17 @@ export default function LandingPage() {
       <section className="pt-32 pb-20 lg:pt-40 lg:pb-28">
         <div className="mx-auto grid w-full max-w-6xl items-center gap-16 px-6 lg:grid-cols-[1fr_1.15fr]">
           <div>
-            <h1 className="text-[3rem] font-bold leading-[1.1] tracking-tight text-white lg:text-[4rem]">
+            <h1 className="text-[3rem] font-bold leading-[1.1] tracking-tight text-white lg:text-[4rem] animate-in fade-in slide-in-from-bottom-6 duration-700 fill-mode-both delay-100">
               The first{" "}
               <span className="text-[#ccff00]">AI Code Tool</span>
               <br />
               for Roblox.
             </h1>
-            <p className="mt-6 max-w-md text-base leading-relaxed text-[#8a8f98]">
+            <p className="mt-6 max-w-md text-base leading-relaxed text-[#8a8f98] animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both delay-200">
               Join creators using Apple Juice to quickly turn dream ideas into working Luau prototypes — with instant Studio sync.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-8 flex flex-wrap items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both delay-300">
               <Link
                 href="/dashboard"
                 className="inline-flex items-center gap-2 bg-[#ccff00] text-black hover:bg-[#bbf000] font-semibold transition-colors rounded-lg px-5 py-2.5 text-sm"
@@ -71,7 +71,7 @@ export default function LandingPage() {
           </div>
 
           {/* Code editor mockup */}
-          <div className="relative">
+          <div className="relative animate-in fade-in zoom-in-95 duration-1000 fill-mode-both delay-500">
             <div className="absolute -left-3 -top-3 h-full w-full rounded-xl border border-white/[0.03] bg-[#080808]" />
             <div className="absolute -left-1.5 -top-1.5 h-full w-full rounded-xl border border-white/[0.03] bg-[#0a0a0a]" />
 
@@ -134,7 +134,7 @@ end`}</code>
       {/* ── Features ── */}
       <section id="features" className="py-20 lg:py-28">
         <div className="mx-auto w-full max-w-6xl px-6">
-          <div className="text-center">
+          <div className="text-center animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#ccff00] bg-[#ccff00]/10 border border-[#ccff00]/20 px-2 py-1 rounded-md">
               <Zap className="h-3 w-3" /> Features
             </span>
@@ -146,7 +146,7 @@ end`}</code>
             </p>
           </div>
 
-          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both">
             {[
               { icon: Code2, title: "AI Code Generation", desc: "Generate production-ready Luau scripts from natural language prompts using GPT-4 or Gemini." },
               { icon: RefreshCw, title: "Instant Studio Sync", desc: "Your generated code is instantly available to your Roblox Studio plugin via a simple poll endpoint." },
