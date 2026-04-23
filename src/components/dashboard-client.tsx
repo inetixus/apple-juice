@@ -114,12 +114,26 @@ export function DashboardClient({ username }: DashboardClientProps) {
       const res = await fetch("/api/pair", { method: "POST" });
       if (!res.ok) {
         let errMsg = res.statusText;
+        let errPayload: any = null;
         try {
-          const errPayload = await res.json();
+          errPayload = await res.json();
           errMsg = errPayload?.error || errMsg;
         } catch {
           // ignore parse errors
         }
+
+        // If server returned a 500 with details, surface exact details in an alert for debugging
+        if (res.status >= 500 && errPayload?.details) {
+          const detail = errPayload.details;
+          setPluginStatus(`Pair creation failed: ${detail}`);
+          try {
+            window.alert(`Pair creation failed (server error): ${detail}`);
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+
         if (res.status === 401) {
           setPluginStatus("Pair creation failed: Unauthorized — please sign in and try again.");
         } else {

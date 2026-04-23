@@ -32,13 +32,18 @@ export async function POST() {
         messageId: "",
       });
     } catch (err) {
-      console.error("Failed to create pairing session", err instanceof Error ? err.message : String(err));
-      return Response.json({ error: "Failed to create pairing session" }, { status: 500 });
+      const details = err instanceof Error ? err.message : String(err);
+      console.error("Failed to create pairing session", details);
+      return Response.json(
+        { error: "Failed to create pairing session", details },
+        { status: 500 },
+      );
     }
 
     return Response.json({ pairingCode, pairToken, expiresAt });
   } catch (err) {
-    console.error("/api/pair error", err instanceof Error ? err.message : String(err));
-    return Response.json({ error: "Internal server error" }, { status: 500 });
+    const details = err instanceof Error ? err.message : String(err);
+    console.error("/api/pair error", details);
+    return Response.json({ error: "Internal server error", details }, { status: 500 });
   }
 }
