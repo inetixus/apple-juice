@@ -1,18 +1,22 @@
 import { AuthButton } from "@/components/AuthButton";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { ArrowRight, Code2, Shield, RefreshCw, Zap, Sparkles } from "lucide-react";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await getServerSession(authOptions);
   return (
-    <main className="min-h-screen bg-[#030303] text-white">
+    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#111318] via-[#030303] to-[#000000] text-white">
       {/* ── Navbar ── */}
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-[#030303]/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 w-full max-w-[90rem] items-center justify-between px-6">
+        <div className="mx-auto flex h-14 w-full max-w-[120rem] items-center justify-between px-6">
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#ccff00]">
-              <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor" aria-hidden>
-                <path d="M14.5 3.2c.6-.8 1.4-1.3 2.2-1.5.2 1-.1 2-.7 2.7-.6.7-1.6 1.3-2.5 1.2-.1-.9.3-1.8 1-2.4Z" />
-                <path d="M12.1 7.1c1.1 0 1.9.5 2.6.5.8 0 1.4-.5 2.4-.5 1 0 2 .4 2.8 1.2-2.5 1.5-2.1 5.2.4 6.4-.6 1.9-2 4.3-3.7 4.3-.8 0-1.4-.4-2.3-.4-.9 0-1.6.4-2.5.4-1.8 0-3-2.2-3.8-4.1-1.2-2.8-1.3-6.1 1-7.6.8-.5 1.8-.8 2.9-.8Z" />
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 2v3" />
+                <rect x="5" y="5" width="14" height="17" rx="2" />
+                <path d="M5 10h14" />
               </svg>
             </span>
             <span className="text-sm font-semibold text-white tracking-tight">Apple Juice</span>
@@ -21,24 +25,33 @@ export default function LandingPage() {
           <nav className="hidden items-center gap-8 text-sm font-medium text-[#8a8f98] md:flex">
             <a href="#features" className="transition-colors hover:text-white">Features</a>
             <a href="#how-it-works" className="transition-colors hover:text-white">How it Works</a>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub</a>
+            <a href="https://github.com/inetixus/apple-juice" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub</a>
           </nav>
 
           <div className="flex items-center gap-3">
             <AuthButton />
-            <Link
-              href="/dashboard"
-              className="hidden bg-[#ccff00] text-black hover:bg-[#bbf000] font-semibold transition-colors rounded-lg px-4 py-2 text-sm sm:inline-flex"
-            >
-              Sign up
-            </Link>
+            {session ? (
+              <a
+                href="/api/auth/signout"
+                className="hidden bg-white/10 text-white hover:bg-white/20 font-semibold transition-colors rounded-lg px-4 py-2 text-sm sm:inline-flex"
+              >
+                Log out
+              </a>
+            ) : (
+              <Link
+                href="/dashboard"
+                className="hidden bg-[#ccff00] text-black hover:bg-[#bbf000] font-semibold transition-colors rounded-lg px-4 py-2 text-sm sm:inline-flex"
+              >
+                Sign up
+              </Link>
+            )}
           </div>
         </div>
       </header>
 
       {/* ── Hero ── */}
       <section className="pt-32 pb-20 lg:pt-40 lg:pb-28">
-        <div className="mx-auto grid w-full max-w-[90rem] items-center gap-16 px-6 lg:px-12 lg:grid-cols-[1fr_1.15fr] relative">
+        <div className="mx-auto grid w-full max-w-[120rem] items-center gap-16 px-6 lg:px-12 lg:grid-cols-[1fr_1.15fr] relative">
           <div className="absolute -top-40 -left-20 w-[800px] h-[600px] bg-[#ccff00]/10 blur-[120px] rounded-full mix-blend-screen pointer-events-none" />
             <div className="absolute top-20 right-0 w-[600px] h-[600px] bg-emerald-500/10 blur-[150px] rounded-full mix-blend-screen pointer-events-none" />
             <div className="relative z-10">
@@ -61,7 +74,7 @@ export default function LandingPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <a
-                href="https://github.com"
+                href="https://github.com/inetixus/apple-juice"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 bg-transparent border border-white/10 text-white hover:bg-white/5 transition-colors rounded-lg px-5 py-2.5 text-sm font-medium"
@@ -119,10 +132,10 @@ end`}</code>
               {["Door System", "NPC AI", "Shop UI", "Inventory"].map((label, i) => (
                 <span
                   key={label}
-                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
                     i === 0
-                      ? "bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/20"
-                      : "text-[#8a8f98] hover:text-white"
+                      ? "bg-[#ccff00] text-black shadow-[0_0_15px_rgba(204,255,0,0.5)]"
+                      : "bg-[#1c1d22] text-white border border-white/10 hover:border-[#ccff00]/50 hover:text-[#ccff00]"
                   }`}
                 >
                   {label}
@@ -135,7 +148,7 @@ end`}</code>
 
       {/* ── Features ── */}
       <section id="features" className="py-20 lg:py-28">
-        <div className="mx-auto w-full max-w-[90rem] px-6">
+        <div className="mx-auto w-full max-w-[120rem] px-6">
           <div className="text-center animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#ccff00] bg-[#ccff00]/10 border border-[#ccff00]/20 px-2 py-1 rounded-md">
               <Zap className="h-3 w-3" /> Features
@@ -223,10 +236,10 @@ end`}</code>
 
       {/* ── Footer ── */}
       <footer className="border-t border-white/5 py-8">
-        <div className="mx-auto flex w-full max-w-[90rem] flex-wrap items-center justify-between gap-4 px-6 text-sm text-[#8a8f98]">
+        <div className="mx-auto flex w-full max-w-[120rem] flex-wrap items-center justify-between gap-4 px-6 text-sm text-[#8a8f98]">
           <p>&copy; {new Date().getFullYear()} Apple Juice. Open source under MIT.</p>
           <div className="flex gap-6">
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub</a>
+            <a href="https://github.com/inetixus/apple-juice" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub</a>
             <a href="#features" className="transition-colors hover:text-white">Features</a>
           </div>
         </div>
