@@ -7,7 +7,7 @@ export default function LandingPage() {
     <main className="min-h-screen bg-[#030303] text-white">
       {/* ── Navbar ── */}
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-[#030303]/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-6">
+        <div className="mx-auto flex h-14 w-full max-w-[90rem] items-center justify-between px-6">
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-[#ccff00]">
               <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor" aria-hidden>
@@ -38,11 +38,13 @@ export default function LandingPage() {
 
       {/* ── Hero ── */}
       <section className="pt-32 pb-20 lg:pt-40 lg:pb-28">
-        <div className="mx-auto grid w-full max-w-6xl items-center gap-16 px-6 lg:grid-cols-[1fr_1.15fr]">
-          <div>
-            <h1 className="text-[3rem] font-bold leading-[1.1] tracking-tight text-white lg:text-[4rem] animate-in fade-in slide-in-from-bottom-6 duration-700 fill-mode-both delay-100">
+        <div className="mx-auto grid w-full max-w-[90rem] items-center gap-16 px-6 lg:px-12 lg:grid-cols-[1fr_1.15fr] relative">
+          <div className="absolute -top-40 -left-20 w-[800px] h-[600px] bg-[#ccff00]/10 blur-[120px] rounded-full mix-blend-screen pointer-events-none" />
+            <div className="absolute top-20 right-0 w-[600px] h-[600px] bg-emerald-500/10 blur-[150px] rounded-full mix-blend-screen pointer-events-none" />
+            <div className="relative z-10">
+            <h1 className="text-[4rem] font-extrabold leading-[1.05] tracking-tight text-white lg:text-[6.5rem] animate-in fade-in slide-in-from-bottom-6 duration-700 fill-mode-both delay-100">
               The first{" "}
-              <span className="text-[#ccff00]">AI Code Tool</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ccff00] to-emerald-400">AI Code Tool</span>
               <br />
               for Roblox.
             </h1>
@@ -133,7 +135,7 @@ end`}</code>
 
       {/* ── Features ── */}
       <section id="features" className="py-20 lg:py-28">
-        <div className="mx-auto w-full max-w-6xl px-6">
+        <div className="mx-auto w-full max-w-[90rem] px-6">
           <div className="text-center animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#ccff00] bg-[#ccff00]/10 border border-[#ccff00]/20 px-2 py-1 rounded-md">
               <Zap className="h-3 w-3" /> Features
@@ -169,7 +171,7 @@ end`}</code>
 
       {/* ── How It Works ── */}
       <section id="how-it-works" className="py-20 lg:py-28">
-        <div className="mx-auto w-full max-w-4xl px-6">
+        <div className="mx-auto w-full max-w-7xl px-6">
           <div className="text-center">
             <h2 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
               From prompt to Studio in 3 steps.
@@ -221,7 +223,7 @@ end`}</code>
 
       {/* ── Footer ── */}
       <footer className="border-t border-white/5 py-8">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 text-sm text-[#8a8f98]">
+        <div className="mx-auto flex w-full max-w-[90rem] flex-wrap items-center justify-between gap-4 px-6 text-sm text-[#8a8f98]">
           <p>&copy; {new Date().getFullYear()} Apple Juice. Open source under MIT.</p>
           <div className="flex gap-6">
             <a href="https://github.com" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub</a>

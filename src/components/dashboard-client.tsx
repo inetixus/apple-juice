@@ -374,8 +374,8 @@ export function DashboardClient({ username }: DashboardClientProps) {
     <main className="h-screen bg-[#030303] text-white flex flex-col overflow-hidden">
       <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/5 px-6 lg:px-10 py-5">
         <div>
-          <p className="text-[11px] uppercase tracking-wider font-semibold text-[#ccff00]">Apple Juice Dashboard</p>
-          <h1 className="mt-1 text-xl font-medium tracking-tight text-white">Welcome, {username}</h1>
+          <p className="text-xs uppercase tracking-widest font-bold text-[#ccff00]">Apple Juice Dashboard</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">Welcome, {username}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowSettings((open) => !open)}>
@@ -478,7 +478,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Pairing Session Code</p>
-                <p className="mt-2 text-4xl font-semibold tracking-widest text-white">{pairingCode}</p>
+                <p className="mt-2 text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-[#ccff00] to-emerald-400 drop-shadow-sm">{pairingCode}</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => copyText(pairingCode)}>
@@ -556,7 +556,7 @@ export function DashboardClient({ username }: DashboardClientProps) {
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#ccff00]/10 border border-[#ccff00]/20 text-[#ccff00] mb-4">
                     <WandSparkles className="h-8 w-8" />
                   </div>
-                  <h2 className="text-xl font-medium tracking-tight text-white mb-2">How can I help you build?</h2>
+                  <h2 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 mb-3">How can I help you build?</h2>
                   <p className="text-sm text-[#8a8f98]">
                     Write a prompt below to generate Luau code. Your responses will be stored here and can be synced directly to Studio.
                   </p>
