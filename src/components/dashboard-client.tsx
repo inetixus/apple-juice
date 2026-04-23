@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 
 type DashboardClientProps = {
   username: string;
+  avatarUrl?: string;
 };
 
 type ChatMessage = {
@@ -60,7 +61,13 @@ function parseSegments(content: string): MessageSegment[] {
   return segments.length > 0 ? segments : [{ type: "code", value: content.trim(), language: "luau" }];
 }
 
-export function DashboardClient({ username }: DashboardClientProps) {
+export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
   const [pairingCode, setPairingCode] = useState("");
   const [pairToken, setPairToken] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -375,7 +382,21 @@ export function DashboardClient({ username }: DashboardClientProps) {
       <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/5 px-6 lg:px-10 py-5">
         <div>
           <p className="text-xs uppercase tracking-widest font-bold text-[#ccff00]">Apple Juice Dashboard</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">Welcome, {username}</h1>
+          <div className="mt-2 flex items-center gap-4">
+            {avatarUrl ? (
+              <div className="relative h-12 w-12 rounded-full p-0.5 bg-gradient-to-br from-[#ccff00] to-emerald-400 shadow-[0_0_15px_rgba(204,255,0,0.2)]">
+                <img src={avatarUrl} alt="Avatar" className="rounded-full w-full h-full object-cover bg-[#0a0c14]" />
+              </div>
+            ) : (
+              <div className="h-12 w-12 rounded-full bg-[#1e212b] border border-white/10 flex items-center justify-center text-lg font-bold text-[#8a8f98]">
+                {username.charAt(0)}
+              </div>
+            )}
+            <div className="flex flex-col">
+              <span className="text-[#ccff00] font-bold tracking-widest uppercase text-[10px] mb-0.5">{getGreeting()}</span>
+              <h1 className="text-2xl font-bold tracking-tight text-white">{username}</h1>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowSettings((open) => !open)}>

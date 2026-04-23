@@ -10,5 +10,18 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  return <DashboardClient username={session.user?.name ?? "Roblox User"} />;
+  let avatarUrl = "";
+  if ((session.user as any)?.id) {
+    try {
+      const res = await fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${(session.user as any).id}&size=420x420&format=Png&isCircular=false`, { next: { revalidate: 3600 } });
+      const data = await res.json();
+      if (data?.data?.[0]?.imageUrl) {
+        avatarUrl = data.data[0].imageUrl;
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+
+  return <DashboardClient username={session.user?.name ?? "Roblox User"} avatarUrl={avatarUrl} />;
 }

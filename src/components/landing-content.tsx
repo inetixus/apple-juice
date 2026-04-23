@@ -50,7 +50,13 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
   );
 }
 
-export function LandingContent({ session }: { session: any }) {
+export function LandingContent({ session, avatarUrl }: { session: any, avatarUrl?: string }) {
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
   const [activeTab, setActiveTab] = useState("Door System");
 
   const codeSnippets: Record<string, { code: string; desc: string }> = {
@@ -170,17 +176,44 @@ end`,
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
-              <h1 className="text-[4rem] font-extrabold leading-[1.05] tracking-tight text-white lg:text-[6.5rem]">
-                The first{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ccff00] via-emerald-400 to-cyan-400 drop-shadow-sm">
-                  AI Code Tool
-                </span>
-                <br />
-                for Roblox.
-              </h1>
-              <p className="mt-8 max-w-xl text-lg leading-relaxed text-[#a0a5b0]">
-                Join creators using Apple Juice to quickly turn dream ideas into working Luau prototypes — with instant Studio sync.
-              </p>
+              {session ? (
+                <>
+                  <div className="flex items-center gap-6 mb-6">
+                    {avatarUrl ? (
+                      <div className="relative h-24 w-24 rounded-full p-1 bg-gradient-to-br from-[#ccff00] to-emerald-400 shadow-[0_0_30px_rgba(204,255,0,0.3)]">
+                        <img src={avatarUrl} alt="Avatar" className="rounded-full w-full h-full object-cover bg-[#0a0c14]" />
+                      </div>
+                    ) : (
+                      <div className="h-24 w-24 rounded-full bg-[#1e212b] border border-white/10 flex items-center justify-center text-3xl font-bold text-[#8a8f98]">
+                        {session.user?.name?.charAt(0) || "U"}
+                      </div>
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-[#ccff00] font-bold tracking-widest uppercase text-sm mb-1">{getGreeting()}</span>
+                      <h1 className="text-[3rem] font-extrabold leading-[1.05] tracking-tight text-white lg:text-[4.5rem]">
+                        {session.user?.name}
+                      </h1>
+                    </div>
+                  </div>
+                  <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#a0a5b0]">
+                    Jump back into your dashboard to generate more Luau scripts and sync them instantly to Studio.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="text-[4rem] font-extrabold leading-[1.05] tracking-tight text-white lg:text-[6.5rem]">
+                    The first{" "}
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ccff00] via-emerald-400 to-cyan-400 drop-shadow-sm">
+                      AI Code Tool
+                    </span>
+                    <br />
+                    for Roblox.
+                  </h1>
+                  <p className="mt-8 max-w-xl text-lg leading-relaxed text-[#a0a5b0]">
+                    Join creators using Apple Juice to quickly turn dream ideas into working Luau prototypes — with instant Studio sync.
+                  </p>
+                </>
+              )}
 
               <div className="mt-10 flex flex-wrap items-center gap-4">
                 <Link
