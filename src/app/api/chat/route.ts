@@ -116,15 +116,20 @@ export async function POST(req: Request) {
     let lastResponseBody = "";
     for (const candidate of candidatePool) {
       attemptedModels.push(candidate);
-      const url = `https://generativelanguage.googleapis.com/v1beta2/${candidate}:generateText?key=${encodeURIComponent(apiKey)}`;
+      // Use v1beta and generateContent for modern Gemini models
+      const url = `https://generativelanguage.googleapis.com/v1beta/${candidate}:generateContent?key=${encodeURIComponent(apiKey)}`;
       try {
         const llmRes = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            prompt: { text: prompt },
-            temperature: 0.2,
-            maxOutputTokens: 1024,
+            contents: [{
+              parts: [{ text: "Output ONLY valid Luau code. Do not use markdown formatting or backticks.\n\nUser Prompt: " + prompt }]
+            }],
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 1024,
+            }
           }),
         });
 
@@ -132,22 +137,18 @@ export async function POST(req: Request) {
         lastResponseBody = bodyText;
 
         if (!llmRes.ok) {
-          console.warn("Google generateText failed", { model: candidate, status: llmRes.status });
+          console.warn("Google generateContent failed", { model: candidate, status: llmRes.status });
           continue;
         }
 
         try {
           const parsed = JSON.parse(bodyText);
-          code =
-            parsed?.candidates?.[0]?.content?.trim?.() ||
-            parsed?.candidates?.[0]?.output?.[0]?.content?.trim?.() ||
-            parsed?.candidates?.[0]?.text ||
-            parsed?.output?.[0]?.content?.trim?.() ||
-            parsed?.outputText ||
-            parsed?.content ||
-            "";
+          // Extract text from the Gemini response structure
+          code = parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
 
           if (code) {
+            // Strip out markdown code blocks just in case Gemini ignored the system prompt
+            code = code.replace(/^```(luau|lua)?\n?/gmi, '').replace(/```$/gm, '').trim();
             modelUsed = candidate;
             break;
           }
