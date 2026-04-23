@@ -69,7 +69,7 @@ export async function getSession(pairingCode: string): Promise<SessionEntry | un
   const raw = await getRedis().get(key);
   if (!raw) return undefined;
   try {
-    return JSON.parse(raw as string) as SessionEntry;
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as SessionEntry;
   } catch (err) {
     console.warn("Failed to parse session JSON", err instanceof Error ? err.message : String(err));
     return undefined;
