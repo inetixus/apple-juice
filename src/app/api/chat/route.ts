@@ -87,6 +87,7 @@ export async function POST(req: Request) {
         model: modelName,
         temperature: 0.2,
         messages: apiMessages,
+        max_tokens: 4096,
       }),
     });
 
@@ -165,7 +166,7 @@ export async function POST(req: Request) {
                 }
               ];
             })(),
-            generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
+            generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
           }),
         });
 
