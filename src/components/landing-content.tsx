@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Code2, Shield, RefreshCw, Zap, Sparkles, ChevronDown } from "lucide-react";
-import { AuthButton } from "@/components/AuthButton";
+import { signIn } from "next-auth/react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 
@@ -148,21 +148,28 @@ end`,
             </nav>
 
             <div className="flex items-center gap-3">
-              <AuthButton />
               {session ? (
-                <a
-                  href="/api/auth/signout"
-                  className="hidden bg-white/10 text-white hover:bg-white/20 font-semibold transition-colors rounded-lg px-5 py-2.5 text-sm sm:inline-flex"
-                >
-                  Log out
-                </a>
+                <>
+                  <Link
+                    href="/dashboard"
+                    className="hidden bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_20px_rgba(204,255,0,0.3)] font-bold transition-colors rounded-xl px-8 py-3.5 text-base sm:inline-flex"
+                  >
+                    Dashboard
+                  </Link>
+                  <a
+                    href="/api/auth/signout"
+                    className="hidden bg-transparent border border-white/10 text-white hover:bg-white/5 font-semibold transition-colors rounded-xl px-6 py-3.5 text-base sm:inline-flex"
+                  >
+                    Log out
+                  </a>
+                </>
               ) : (
-                <Link
-                  href="/dashboard"
-                  className="hidden bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_20px_rgba(204,255,0,0.3)] font-semibold transition-colors rounded-lg px-5 py-2.5 text-sm sm:inline-flex"
+                <button
+                  onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
+                  className="hidden bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_20px_rgba(204,255,0,0.3)] font-bold transition-colors rounded-xl px-8 py-3.5 text-base sm:inline-flex"
                 >
-                  Sign up
-                </Link>
+                  Sign in with Roblox
+                </button>
               )}
             </div>
           </div>
@@ -216,13 +223,23 @@ end`,
               )}
 
               <div className="mt-10 flex flex-wrap items-center gap-4">
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-2 bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_30px_rgba(204,255,0,0.4)] font-bold transition-all hover:scale-105 rounded-xl px-8 py-4 text-base"
-                >
-                  Start Prototyping
-                  <ArrowRight className="h-5 w-5" />
-                </Link>
+                {session ? (
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex items-center gap-2 bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_30px_rgba(204,255,0,0.4)] font-bold transition-all hover:scale-105 rounded-xl px-8 py-4 text-base"
+                  >
+                    Start Prototyping
+                    <ArrowRight className="h-5 w-5" />
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
+                    className="inline-flex items-center gap-2 bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_30px_rgba(204,255,0,0.4)] font-bold transition-all hover:scale-105 rounded-xl px-8 py-4 text-base"
+                  >
+                    Start Prototyping
+                    <ArrowRight className="h-5 w-5" />
+                  </button>
+                )}
                 <a
                   href="https://github.com/inetixus/apple-juice"
                   target="_blank"
@@ -443,13 +460,23 @@ end`,
                   Join the open-source community and start prototyping Roblox experiences with AI today.
                 </p>
                 <div className="mt-10">
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex items-center gap-3 bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_30px_rgba(204,255,0,0.3)] font-bold transition-all hover:scale-105 rounded-xl px-10 py-5 text-lg"
-                  >
-                    Get Started Free
-                    <ArrowRight className="h-5 w-5" />
-                  </Link>
+                  {session ? (
+                    <Link
+                      href="/dashboard"
+                      className="inline-flex items-center gap-3 bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_30px_rgba(204,255,0,0.3)] font-bold transition-all hover:scale-105 rounded-xl px-10 py-5 text-lg"
+                    >
+                      Get Started Free
+                      <ArrowRight className="h-5 w-5" />
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
+                      className="inline-flex items-center gap-3 bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_30px_rgba(204,255,0,0.3)] font-bold transition-all hover:scale-105 rounded-xl px-10 py-5 text-lg"
+                    >
+                      Get Started Free
+                      <ArrowRight className="h-5 w-5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
