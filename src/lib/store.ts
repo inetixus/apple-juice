@@ -92,7 +92,7 @@ export async function upsertGeneratedCode(pairingCode: string, code: string, mes
   try {
     const res = await getRedis().eval(lua, [key], [code, messageId]);
     if (!res) return null;
-    return JSON.parse(res as string) as SessionEntry;
+    return (typeof res === "string" ? JSON.parse(res) : res) as SessionEntry;
   } catch (err) {
     console.error("upsertGeneratedCode error", err instanceof Error ? err.message : String(err));
     return null;
@@ -117,7 +117,7 @@ export async function consumeIfAuthorized(pairingCode: string, pairToken: string
   try {
     const res = await getRedis().eval(lua, [key], [pairToken, String(now)]);
     if (!res) return { ok: false as const, reason: "not_found" as const };
-    const parsed = JSON.parse(res as string);
+    const parsed = typeof res === "string" ? JSON.parse(res) : res;
     if (parsed.ok) return { ok: true as const, payload: parsed.payload };
     return { ok: false as const, reason: parsed.reason as "not_found" | "bad_token" | "expired" };
   } catch (err) {
