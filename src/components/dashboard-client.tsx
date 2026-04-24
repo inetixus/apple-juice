@@ -177,7 +177,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       if (targetModel && nextModels.includes(targetModel)) {
         setSelectedModel(targetModel);
       } else {
-        const fallbackDefault = usedProvider === "google" ? "text-bison-001" : "gpt-4o-mini";
+        const fallbackDefault = usedProvider === "google" ? "gemini-2.5-flash" : "gpt-4o-mini";
         const first = nextModels[0] || fallbackDefault;
         setSelectedModel(first);
         window.localStorage.setItem("apple-juice-model", first);
