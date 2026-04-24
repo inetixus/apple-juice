@@ -69,6 +69,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const codeConsumedRef = useRef<boolean>(false);
   const lastReportedErrorRef = useRef<string | null>(null);
   const pendingPayloadRef = useRef<any>(null);
+  const stepTimeoutsRef = useRef<any[]>([]);
 
   useEffect(() => {
     if (!pairingCode) return;
@@ -400,18 +401,27 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
     setThinkingSteps([{ icon: "thinking", label: "Thinking about the request...", done: false }]);
     
-    // Simulate thinking steps
-    const stepInterval = setInterval(() => {
+    // Randomize thinking steps
+    const t1 = setTimeout(() => {
       setThinkingSteps(prev => {
         if (prev.length === 1 && !prev[0].done) {
           return [{ ...prev[0], done: true }, { icon: "looking", label: "Looking at Roblox API docs...", done: false }];
         }
-        if (prev.length === 2 && !prev[1].done) {
-          return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: "Writing Luau script...", done: false }];
-        }
         return prev;
       });
-    }, 1500);
+      
+      const t2 = setTimeout(() => {
+        setThinkingSteps(prev => {
+          if (prev.length === 2 && !prev[1].done) {
+            return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: "Writing Luau script...", done: false }];
+          }
+          return prev;
+        });
+      }, 1000 + Math.random() * 2000);
+      stepTimeoutsRef.current.push(t2);
+    }, 800 + Math.random() * 1500);
+    
+    stepTimeoutsRef.current.push(t1);
 
     try {
       const response = await fetch("/api/chat", {
@@ -428,7 +438,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         }),
       });
 
-      clearInterval(stepInterval);
+      stepTimeoutsRef.current.forEach(clearTimeout);
+      stepTimeoutsRef.current = [];
       setThinkingSteps(prev => prev.map(s => ({ ...s, done: true })));
 
       if (!response.ok) {
@@ -486,7 +497,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }, 15000);
 
     } catch (error) {
-      clearInterval(stepInterval);
+      stepTimeoutsRef.current.forEach(clearTimeout);
+      stepTimeoutsRef.current = [];
       let detail = error instanceof Error ? error.message : "Unknown error";
       
       try {
@@ -564,7 +576,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     <main className="h-screen bg-[#030303] text-white flex flex-col overflow-hidden">
       <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/5 px-6 lg:px-10 py-5">
         <div>
-          <p className="text-xs uppercase tracking-widest font-bold text-[#ccff00]">Apple Juice Dashboard</p>
+          <p className="text-base uppercase tracking-widest font-extrabold text-[#ccff00]">Apple Juice Dashboard</p>
           <div className="mt-2 flex items-center gap-4">
             {avatarUrl ? (
               <div className="relative h-12 w-12 rounded-full p-0.5 bg-gradient-to-br from-[#ccff00] to-emerald-400 shadow-[0_0_15px_rgba(204,255,0,0.2)]">
@@ -726,19 +738,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
           <Card className="animate-in fade-in slide-in-from-left-4 duration-500 delay-200 fill-mode-both">
             <CardContent className="p-6">
-            <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Recent Prompts</p>
-            {recentPrompts.length === 0 ? (
-              <p className="mt-3 text-sm text-[#8a8f98]">No recent prompts yet.</p>
-            ) : (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {recentPrompts.map((item) => (
-                  <Button key={item} variant="ghost" size="sm" className="text-xs text-[#8a8f98]" onClick={() => setPrompt(item)}>
-                    {item.length > 64 ? `${item.slice(0, 64)}...` : item}
-                  </Button>
-                ))}
-              </div>
-            )}
-
             {latestCode && (
               <div className="mt-5 border-t border-white/5 pt-5">
                 <div className="mb-3 flex items-center justify-between">
@@ -768,7 +767,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       Clear
                     </Button>
                     <Button variant="outline" size="sm" className="text-xs text-[#ccff00] border-[#ccff00]/20 hover:bg-[#ccff00]/10" onClick={() => {
-                      setPrompt("Please analyze these game logs and help me fix any errors:\n" + gameLogs.join("\n"));
+                      submitPrompt("Please analyze these game logs and help me fix any errors:\n" + gameLogs.join("\n"));
                       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
                     }}>
                       <Sparkles className="h-3 w-3 mr-1" />
