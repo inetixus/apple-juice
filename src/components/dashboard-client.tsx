@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState } from "react";
-import { Copy, LogOut, RefreshCw, Settings2, WandSparkles } from "lucide-react";
+import { Copy, LogOut, RefreshCw, Settings2, WandSparkles, Sparkles } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
