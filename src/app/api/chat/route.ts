@@ -304,44 +304,25 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
   const messageId = crypto.randomUUID();
 
   if (isMultiScript) {
-    // Multi-script: send each script to the plugin sequentially
     const scripts = structuredFinal!.scripts!;
-    const scriptResults: any[] = [];
+    const scriptResults = scripts.map((s, i) => ({
+      action: s.action ?? "create",
+      type: s.type ?? "Script",
+      parent: s.parent ?? "ServerScriptService",
+      name: s.name ?? `GeneratedScript_${i}`,
+      code: s.code ?? "",
+      lineCount: s.code ? s.code.split("\n").length : 0,
+    }));
 
-    for (let i = 0; i < scripts.length; i++) {
-      const s = scripts[i];
-      const sName = s.name ?? `GeneratedScript_${i}`;
-      const sType = s.type ?? "Script";
-      const sParent = s.parent ?? "ServerScriptService";
-      const sCode = s.code ?? "";
-      const sAction = s.action ?? "create";
-
-      const pluginPayload = JSON.stringify({
-        action: sAction,
-        type: sType,
-        parent: sParent,
-        name: sName,
-        code: sCode,
-      });
-
-      // Each script gets a unique messageId so the plugin picks them up separately
-      const scriptMsgId = `${messageId}_${i}`;
-      await upsertGeneratedCode(sessionKey, pluginPayload, scriptMsgId);
-
-      // Small delay between scripts so the plugin can poll and consume each one
-      if (i < scripts.length - 1) {
-        await new Promise(r => setTimeout(r, 3000));
-      }
-
-      scriptResults.push({
-        name: sName,
-        parent: sParent,
-        type: sType,
-        action: sAction,
-        lineCount: sCode ? sCode.split("\n").length : 0,
-        code: sCode,
-      });
-    }
+    // Store the entire scripts array as a single plugin payload
+    const pluginPayload = JSON.stringify({ scripts: scriptResults.map(s => ({
+      action: s.action,
+      type: s.type,
+      parent: s.parent,
+      name: s.name,
+      code: s.code,
+    }))});
+    await upsertGeneratedCode(sessionKey, pluginPayload, messageId);
 
     const finalMessage = structuredFinal?.message ?? 
       `I've created ${scripts.length} scripts for you: ${scriptResults.map(s => s.name).join(", ")}.`;

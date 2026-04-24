@@ -69,7 +69,6 @@ end
 makeLabel("Apple Juice AI Sync", 1, 24, Color3.fromRGB(240, 240, 245), Enum.Font.GothamBold, 17)
 makeLabel("Auto-pairs via IP — just click Connect.", 2, 16, Color3.fromRGB(120, 126, 140), Enum.Font.Gotham, 11)
 
--- Spacer
 local spacer = Instance.new("Frame")
 spacer.Size = UDim2.new(1, 0, 0, 4)
 spacer.BackgroundTransparency = 1
@@ -98,7 +97,7 @@ connectButtonCorner.Parent = connectButton
 
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "Status"
-statusLabel.Size = UDim2.new(1, 0, 0, 48)
+statusLabel.Size = UDim2.new(1, 0, 0, 56)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextWrapped = true
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -184,15 +183,12 @@ local function resolvePath(pathStr)
 	return current
 end
 
-local function injectCode(incomingData)
-	local decodeOk, parsed = pcall(function() return HttpService:JSONDecode(incomingData) end)
-	if not decodeOk or type(parsed) ~= "table" then return false, "Invalid JSON payload" end
-
-	local action = parsed.action or "create"
-	local parentPath = parsed.parent or "ServerScriptService"
-	local scriptName = parsed.name or "AIGeneratedScript"
-	local scriptClass = parsed.type or "Script"
-	local codeText = parsed.code or ""
+local function injectSingleScript(scriptData)
+	local action = scriptData.action or "create"
+	local parentPath = scriptData.parent or "ServerScriptService"
+	local scriptName = scriptData.name or "AIGeneratedScript"
+	local scriptClass = scriptData.type or "Script"
+	local codeText = scriptData.code or ""
 
 	local parentInstance = resolvePath(parentPath)
 	if not parentInstance then
@@ -205,7 +201,7 @@ local function injectCode(incomingData)
 			target:Destroy()
 			return true, "Deleted " .. scriptName
 		else
-			return false, "Delete failed"
+			return false, "Delete failed: " .. scriptName
 		end
 	end
 
@@ -225,8 +221,30 @@ local function injectCode(incomingData)
 		ScriptEditorService:UpdateSourceAsync(target, function() return codeText end)
 	end)
 
-	if ok then return true, "Synced " .. scriptClass .. " [" .. scriptName .. "]"
+	if ok then return true, "Synced " .. scriptClass .. " [" .. scriptName .. "] → " .. parentPath
 	else return false, "ScriptEditor Error: " .. tostring(err) end
+end
+
+local function injectCode(incomingData)
+	local decodeOk, parsed = pcall(function() return HttpService:JSONDecode(incomingData) end)
+	if not decodeOk or type(parsed) ~= "table" then return false, "Invalid JSON payload", 0 end
+
+	-- Multi-script: payload has a "scripts" array
+	if parsed.scripts and type(parsed.scripts) == "table" and #parsed.scripts > 0 then
+		local successCount = 0
+		local messages = {}
+		for _, scriptData in ipairs(parsed.scripts) do
+			local ok, msg = injectSingleScript(scriptData)
+			if ok then successCount += 1 end
+			table.insert(messages, msg)
+		end
+		local summary = "Synced " .. successCount .. "/" .. #parsed.scripts .. " scripts"
+		return successCount > 0, summary, #parsed.scripts
+	end
+
+	-- Single script
+	local ok, msg = injectSingleScript(parsed)
+	return ok, msg, 1
 end
 
 -- ─── Auto-connect via IP ──────────────────────────────────────────────────────
@@ -317,8 +335,13 @@ local function pollLoop(sessionKey)
 			local messageId = data.messageId and tostring(data.messageId) or nil
 			if messageId ~= lastMessageId then
 				lastMessageId = messageId
-				local injected, msg = injectCode(data.code)
-				setStatus(msg, injected and "success" or "error")
+				local injected, msg, scriptCount = injectCode(data.code)
+				
+				if scriptCount > 1 then
+					setStatus(msg, injected and "success" or "error")
+				else
+					setStatus(msg, injected and "success" or "error")
+				end
 				
 				if injected and StudioTestService then
 					task.wait(0.5)
@@ -383,7 +406,6 @@ connectButton.MouseButton1Click:Connect(function()
 		return
 	end
 
-	-- Auto-connect via IP
 	local sessionKey, err = autoConnect()
 	if not sessionKey then
 		setStatus(err or "Could not auto-connect.", "error")
