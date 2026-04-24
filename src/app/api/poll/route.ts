@@ -18,10 +18,15 @@ export async function GET(req: Request) {
       if (result.reason === "expired") return Response.json({ paired: false, error: "expired" }, { status: 410 });
     }
 
+    // Ensure code is always a string for the plugin — Upstash can auto-parse
+    // the nested JSON payload into an object, but the plugin expects a raw JSON string.
+    const codeValue = result.payload.code;
+    const codeStr = typeof codeValue === "string" ? codeValue : JSON.stringify(codeValue);
+
     return Response.json({
       paired: true,
       hasNewCode: result.payload.hasNewCode,
-      code: result.payload.code,
+      code: codeStr,
       messageId: result.payload.messageId,
     });
   } catch (err) {
