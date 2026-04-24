@@ -17,7 +17,14 @@ type DashboardClientProps = {
   avatarUrl?: string;
 };
 
-type ScriptMeta = { name: string; parent: string; lineCount: number; code: string; };
+type ScriptMeta = { 
+  name: string; 
+  parent: string; 
+  type?: string;
+  action?: "create" | "delete";
+  lineCount: number; 
+  code: string; 
+};
 
 type ChatMessage = {
   id: string;
@@ -314,6 +321,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       const payload = (await response.json()) as { 
         code?: string; error?: string; detail?: string; 
         scriptName?: string; scriptParent?: string; lineCount?: number; 
+        scriptType?: string; action?: "create" | "delete";
         message?: string; suggestions?: string[] 
       };
 
@@ -323,11 +331,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           id: crypto.randomUUID(),
           role: "assistant",
           content: payload.message || "Here is the code you requested.",
-          script: payload.code ? {
-            name: payload.scriptName || "Script",
+          script: payload.scriptName ? {
+            name: payload.scriptName,
             parent: payload.scriptParent || "ServerScriptService",
-            lineCount: payload.lineCount || payload.code.split("\\n").length,
-            code: payload.code
+            type: payload.scriptType || "Script",
+            action: payload.action || "create",
+            lineCount: payload.lineCount || (payload.code ? payload.code.split("\n").length : 0),
+            code: payload.code || ""
           } : undefined,
           suggestions: payload.suggestions,
         },

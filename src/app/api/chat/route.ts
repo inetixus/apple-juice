@@ -42,13 +42,21 @@ export async function POST(req: Request) {
   let code = "";
   let modelUsed = model;
 
-  type PluginPayload = { parent?: string; name?: string; code?: string; message?: string; suggestions?: string[] };
+  type PluginPayload = { 
+    action?: "create" | "delete";
+    type?: "Script" | "LocalScript" | "ModuleScript";
+    parent?: string; 
+    name?: string; 
+    code?: string; 
+    message?: string; 
+    suggestions?: string[] 
+  };
 
   function tryParsePluginPayload(text?: string): PluginPayload | null {
     if (!text) return null;
     try {
       const obj = JSON.parse(text);
-      if (obj && typeof obj === "object" && ("code" in obj)) return obj as PluginPayload;
+      if (obj && typeof obj === "object" && ("code" in obj || "action" in obj)) return obj as PluginPayload;
     } catch {
       // ignore
     }
@@ -56,7 +64,7 @@ export async function POST(req: Request) {
     if (m) {
       try {
         const obj = JSON.parse(m[0]);
-        if (obj && typeof obj === "object" && ("code" in obj)) return obj as PluginPayload;
+        if (obj && typeof obj === "object" && ("code" in obj || "action" in obj)) return obj as PluginPayload;
       } catch {
         // ignore
       }
@@ -65,11 +73,18 @@ export async function POST(req: Request) {
   }
 
   const SYSTEM_PROMPT = `You are a Roblox Luau scripting assistant called Apple Juice. Output ONLY a JSON object with these fields:
-- "parent": dot path string (e.g. "ServerScriptService", "StarterPlayerScripts", "ReplicatedStorage")
+- "action": "create" or "delete" (whether to create a new script or delete an existing one)
+- "type": "Script", "LocalScript", or "ModuleScript" (only if creating)
+- "parent": dot path string exactly matching Roblox hierarchy (e.g. "ServerScriptService", "StarterPlayer.StarterPlayerScripts", "ReplicatedStorage", "StarterGui")
 - "name": script name string (e.g. "AntiSpeedHandler", "DataSaveManager")
-- "code": valid Luau source code as a string
-- "message": a short, friendly conversational explanation of what the script does and how it works (2-4 sentences, no code in this field, speak naturally like a helpful assistant)
+- "code": valid Luau source code as a string (empty if deleting)
+- "message": a short, friendly conversational explanation of what you did and how it works (2-4 sentences, no code in this field)
 - "suggestions": an array of 3 short strings suggesting what the user could build next that pairs well with this script
+
+IMPORTANT FOR PARENTING:
+- Normal server scripts go in "ServerScriptService" or "Workspace".
+- LocalScripts go in "StarterPlayer.StarterPlayerScripts", "StarterPlayer.StarterCharacterScripts", or inside a GUI in "StarterGui".
+- ModuleScripts go in "ReplicatedStorage" (if shared), "ServerStorage" (if server-only), or wherever relevant.
 
 Return ONLY the JSON object — no markdown, no backticks, no extra commentary outside the JSON.`;
 
@@ -250,24 +265,33 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     modelUsed = model;
   }
 
-  if (!code) return Response.json({ error: "Model returned empty output", detail: raw }, { status: 502 });
+  const structuredFinal = tryParsePluginPayload(raw) || null;
+  const isDelete = structuredFinal?.action === "delete";
+  
+  if (!code && !isDelete) return Response.json({ error: "Model returned empty output", detail: raw }, { status: 502 });
 
   const messageId = crypto.randomUUID();
 
-  // If the LLM returned a structured payload, raw will contain that JSON; prefer those fields.
-  const structuredFinal = tryParsePluginPayload(raw) || null;
   const finalParent = structuredFinal?.parent ?? "ServerScriptService";
   const finalName = structuredFinal?.name ?? `GeneratedScript_${messageId.slice(0, 8)}`;
   const finalCode = structuredFinal?.code ?? code;
-  const finalMessage = structuredFinal?.message ?? `I've created a script called "${finalName}" and placed it in ${finalParent}. The script is ready to sync to your Studio.`;
+  const finalType = structuredFinal?.type ?? "Script";
+  const finalMessage = structuredFinal?.message ?? 
+    (isDelete ? `I've removed the script called "${finalName}" from ${finalParent}.` : `I've created a ${finalType} called "${finalName}" and placed it in ${finalParent}. The script is ready to sync to your Studio.`);
   const finalSuggestions = structuredFinal?.suggestions ?? [
     "Add error handling and logging",
     "Create a configuration module",
     "Build a matching client-side script",
   ];
-  const lineCount = finalCode.split("\n").length;
+  const lineCount = finalCode ? finalCode.split("\n").length : 0;
 
-  const pluginPayload = JSON.stringify({ parent: finalParent, name: finalName, code: finalCode });
+  const pluginPayload = JSON.stringify({ 
+    action: isDelete ? "delete" : "create",
+    type: finalType,
+    parent: finalParent, 
+    name: finalName, 
+    code: finalCode 
+  });
 
   await upsertGeneratedCode(pairingCode, pluginPayload, messageId);
 
@@ -278,6 +302,8 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     model: modelUsed,
     scriptName: finalName,
     scriptParent: finalParent,
+    scriptType: finalType,
+    action: isDelete ? "delete" : "create",
     lineCount,
     message: finalMessage,
     suggestions: finalSuggestions,
