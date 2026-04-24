@@ -1,14 +1,13 @@
 import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { createOrReplaceSession } from "@/lib/store";
+import { createOrReplaceSession, extractIp } from "@/lib/store";
 
 function createSessionKey() {
-  // Generate an 8-character alphanumeric key (easy to type)
   return crypto.randomBytes(4).toString("hex").toUpperCase();
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     const ownerUserId = (session?.user as { id?: string } | undefined)?.id;
@@ -17,6 +16,7 @@ export async function POST() {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const clientIp = extractIp(req);
     const sessionKey = createSessionKey();
     const expiresAt = Date.now() + 1000 * 60 * 60; // 1 hour
 
@@ -24,6 +24,7 @@ export async function POST() {
       await createOrReplaceSession({
         sessionKey,
         ownerUserId,
+        clientIp,
         expiresAt,
         hasNewCode: false,
         code: "",
@@ -38,7 +39,7 @@ export async function POST() {
       );
     }
 
-    return Response.json({ sessionKey, expiresAt });
+    return Response.json({ sessionKey, expiresAt, clientIp });
   } catch (err) {
     const details = err instanceof Error ? err.message : String(err);
     console.error("/api/pair error", details);

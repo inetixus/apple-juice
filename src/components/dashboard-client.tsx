@@ -689,27 +689,23 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             <CardContent className="p-6">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Session Key</p>
-                <p className="mt-2 text-5xl font-black tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-r from-[#ccff00] to-emerald-400 drop-shadow-sm font-mono">{sessionKey}</p>
+                <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Plugin Connection</p>
+                <div className="mt-3 flex items-center gap-3">
+                  <div className={`h-3 w-3 rounded-full ${lastPollRef.current > 0 ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.3)]'} animate-pulse`} />
+                  <p className="text-lg font-semibold text-white">
+                    {lastPollRef.current > 0 ? "Connected" : "Waiting for plugin..."}
+                  </p>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => copyText(sessionKey)}>
-                  <Copy className="h-4 w-4" />
-                  Copy
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => void createPairOnServer()}>
-                  <RefreshCw className="h-4 w-4" />
-                  Regenerate
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" onClick={() => void createPairOnServer()}>
+                <RefreshCw className="h-4 w-4" />
+                Reset Session
+              </Button>
             </div>
-            <p className="mt-5 text-sm leading-relaxed text-[#8a8f98]">
-              Paste this key into your Studio plugin to connect. That&apos;s it — one key, no tokens needed.
+            <p className="mt-4 text-sm leading-relaxed text-[#8a8f98]">
+              Just click <strong className="text-white">Connect</strong> in your Studio plugin — it auto-pairs via IP. No codes needed.
             </p>
-            <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/5 pt-5">
-              <Badge className="cursor-pointer hover:bg-[#ccff00]/20" onClick={pollPluginSession}>
-                Simulate Plugin Poll
-              </Badge>
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/5 pt-4">
               <p className="text-sm text-[#8a8f98]">{pluginStatus}</p>
             </div>
             </CardContent>

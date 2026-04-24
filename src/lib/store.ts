@@ -3,6 +3,7 @@ import { Redis } from "@upstash/redis";
 export type SessionEntry = {
   sessionKey: string;
   ownerUserId: string;
+  clientIp: string;
   expiresAt: number;
   hasNewCode: boolean;
   code: string;
@@ -12,15 +13,14 @@ export type SessionEntry = {
 };
 
 const PREFIX = "apple-juice:session:";
+const IP_PREFIX = "apple-juice:ip:";
 
 let _redis: Redis | null = null;
 function getRedis(): Redis {
   if (_redis) return _redis;
-  // Prefer Vercel KV environment variable names, fallback to Upstash legacy names
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!url || !token) {
-    // Create a minimal placeholder that throws when trying to use Redis so imports don't crash during build.
     const missingMsg =
       "Missing Redis credentials. Ensure KV_REST_API_URL or UPSTASH_REDIS_REST_URL is set in your environment.";
     const missing: Partial<Redis> = {
@@ -45,21 +45,52 @@ function keyFor(sessionKey: string) {
   return `${PREFIX}${sessionKey}`;
 }
 
+function ipKeyFor(ip: string) {
+  return `${IP_PREFIX}${ip}`;
+}
+
+/**
+ * Extract the client IP from standard proxy headers.
+ */
+export function extractIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    // x-forwarded-for can be "client, proxy1, proxy2" — take the first
+    return forwarded.split(",")[0].trim();
+  }
+  return req.headers.get("x-real-ip") || "unknown";
+}
+
 export async function createOrReplaceSession(entry: SessionEntry): Promise<SessionEntry> {
   const key = keyFor(entry.sessionKey);
   const value = JSON.stringify(entry);
+  const redis = getRedis();
   try {
-    await getRedis().set(key, value);
+    await redis.set(key, value);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error("Database Error: " + msg);
   }
-  // set TTL to roughly match expiresAt for cleanup
+
+  // Create IP → sessionKey index so the plugin can auto-discover by IP
+  if (entry.clientIp && entry.clientIp !== "unknown") {
+    try {
+      await redis.set(ipKeyFor(entry.clientIp), entry.sessionKey);
+    } catch {
+      // best-effort
+    }
+  }
+
+  // set TTL
   try {
     const ttl = Math.max(0, Math.ceil((entry.expiresAt - Date.now()) / 1000));
-    if (ttl > 0) await getRedis().expire(key, ttl);
+    if (ttl > 0) {
+      await redis.expire(key, ttl);
+      if (entry.clientIp && entry.clientIp !== "unknown") {
+        await redis.expire(ipKeyFor(entry.clientIp), ttl);
+      }
+    }
   } catch (e) {
-    // best-effort; don't fail the operation
     console.warn("Failed to set TTL on session key", e instanceof Error ? e.message : String(e));
   }
   return entry;
@@ -74,6 +105,26 @@ export async function getSession(sessionKey: string): Promise<SessionEntry | und
   } catch (err) {
     console.warn("Failed to parse session JSON", err instanceof Error ? err.message : String(err));
     return undefined;
+  }
+}
+
+/**
+ * Look up a session by the client's IP address.
+ * Returns the sessionKey if found, or null.
+ */
+export async function findSessionKeyByIp(ip: string): Promise<string | null> {
+  if (!ip || ip === "unknown") return null;
+  try {
+    const raw = await getRedis().get(ipKeyFor(ip));
+    if (!raw) return null;
+    const sessionKey = typeof raw === "string" ? raw : String(raw);
+    // Verify the session still exists
+    const session = await getSession(sessionKey);
+    if (!session) return null;
+    if (Date.now() > session.expiresAt) return null;
+    return sessionKey;
+  } catch {
+    return null;
   }
 }
 
@@ -176,10 +227,3 @@ export async function consumeLogs(sessionKey: string) {
     return { ok: false, reason: "error" };
   }
 }
-
-// Note: This implementation uses Upstash Redis. Prefer setting KV_REST_API_URL
-// and KV_REST_API_TOKEN (Vercel KV) or fallback to UPSTASH_REDIS_REST_URL and
-// UPSTASH_REDIS_REST_TOKEN in your environment (.env.local for local dev and
-// in Vercel project settings for production). The keys are stored as JSON strings
-// under the prefix `apple-juice:session:` and consumeCode is implemented
-// using a Lua script (EVAL) to atomically read-and-clear the `hasNewCode` flag.

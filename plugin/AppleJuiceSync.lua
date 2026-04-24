@@ -5,7 +5,6 @@ local TweenService = game:GetService("TweenService")
 local LogService = game:GetService("LogService")
 local RunService = game:GetService("RunService")
 
--- Try to get StudioTestService (may not exist in all Studio versions)
 local StudioTestService = nil
 pcall(function() StudioTestService = game:GetService("StudioTestService") end)
 
@@ -13,6 +12,7 @@ local TOOLBAR_NAME = "Apple Juice AI Sync"
 local WIDGET_TITLE = "Apple Juice AI Sync"
 
 local BASE_URL = "https://apple-juice.vercel.app"
+local CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
 local POLL_ENDPOINT = BASE_URL .. "/api/poll"
 local LOGS_ENDPOINT = BASE_URL .. "/api/logs"
 local POLL_INTERVAL = 2
@@ -21,7 +21,7 @@ local toolbar = plugin:CreateToolbar(TOOLBAR_NAME)
 local toolbarButton = toolbar:CreateButton("AppleJuiceAISyncToggle", "Toggle Apple Juice AI Sync", "rbxassetid://4458901886")
 toolbarButton.ClickableWhenViewportHidden = true
 
-local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 380, 300, 300, 220)
+local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 380, 260, 300, 180)
 local widget = plugin:CreateDockWidgetPluginGui("AppleJuiceAISyncWidget", widgetInfo)
 widget.Title = WIDGET_TITLE
 
@@ -39,17 +39,17 @@ rootCorner.CornerRadius = UDim.new(0, 6)
 rootCorner.Parent = root
 
 local rootPadding = Instance.new("UIPadding")
-rootPadding.PaddingTop = UDim.new(0, 14)
-rootPadding.PaddingBottom = UDim.new(0, 14)
-rootPadding.PaddingLeft = UDim.new(0, 14)
-rootPadding.PaddingRight = UDim.new(0, 14)
+rootPadding.PaddingTop = UDim.new(0, 18)
+rootPadding.PaddingBottom = UDim.new(0, 18)
+rootPadding.PaddingLeft = UDim.new(0, 18)
+rootPadding.PaddingRight = UDim.new(0, 18)
 rootPadding.Parent = root
 
 local layout = Instance.new("UIListLayout")
 layout.FillDirection = Enum.FillDirection.Vertical
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Padding = UDim.new(0, 6)
+layout.Padding = UDim.new(0, 8)
 layout.Parent = root
 
 local function makeLabel(text, order, sizeY, color, font, textSize)
@@ -66,80 +66,58 @@ local function makeLabel(text, order, sizeY, color, font, textSize)
 	return label
 end
 
-local function makeInput(placeholder, order, height, isCodeFont)
-	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(1, 0, 0, height)
-	box.BackgroundColor3 = Color3.fromRGB(32, 35, 42)
-	box.TextColor3 = Color3.fromRGB(235, 239, 245)
-	box.PlaceholderColor3 = Color3.fromRGB(120, 126, 140)
-	box.PlaceholderText = placeholder
-	box.Text = ""
-	box.ClearTextOnFocus = false
-	box.Font = isCodeFont and Enum.Font.Code or Enum.Font.Gotham
-	box.TextSize = isCodeFont and 18 or 14
-	box.TextXAlignment = Enum.TextXAlignment.Left
-	box.BorderSizePixel = 0
-	box.LayoutOrder = order
-	box.Parent = root
+makeLabel("Apple Juice AI Sync", 1, 24, Color3.fromRGB(240, 240, 245), Enum.Font.GothamBold, 17)
+makeLabel("Auto-pairs via IP — just click Connect.", 2, 16, Color3.fromRGB(120, 126, 140), Enum.Font.Gotham, 11)
 
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 6)
-	corner.Parent = box
-	local stroke = Instance.new("UIStroke")
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Color = Color3.fromRGB(50, 50, 55)
-	stroke.Thickness = 1
-	stroke.Parent = box
-	return box
-end
-
-makeLabel("Apple Juice AI Sync", 1, 24, Color3.fromRGB(240, 240, 245), Enum.Font.GothamBold, 16)
-makeLabel(BASE_URL, 2, 16, Color3.fromRGB(120, 126, 140), Enum.Font.Code, 11)
-makeLabel("Session Key (from dashboard)", 3, 18, Color3.fromRGB(165, 170, 180), Enum.Font.Gotham, 12)
-local sessionKeyBox = makeInput("e.g. A3F2B1C9", 4, 34, true)
+-- Spacer
+local spacer = Instance.new("Frame")
+spacer.Size = UDim2.new(1, 0, 0, 4)
+spacer.BackgroundTransparency = 1
+spacer.LayoutOrder = 3
+spacer.Parent = root
 
 local connectButton = Instance.new("TextButton")
 connectButton.Name = "ConnectButton"
-connectButton.Size = UDim2.new(1, 0, 0, 34)
+connectButton.Size = UDim2.new(1, 0, 0, 40)
 local buttonBaseColor = Color3.fromRGB(43, 103, 255)
 local buttonHoverColor = Color3.fromRGB(57, 117, 255)
+local buttonConnectedColor = Color3.fromRGB(220, 38, 38)
 connectButton.BackgroundColor3 = buttonBaseColor
 connectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-connectButton.Font = Enum.Font.GothamMedium
-connectButton.TextSize = 14
+connectButton.Font = Enum.Font.GothamBold
+connectButton.TextSize = 15
 connectButton.Text = "Connect"
 connectButton.AutoButtonColor = false
 connectButton.BorderSizePixel = 0
-connectButton.LayoutOrder = 5
+connectButton.LayoutOrder = 4
 connectButton.Parent = root
 
 local connectButtonCorner = Instance.new("UICorner")
-connectButtonCorner.CornerRadius = UDim.new(0, 6)
+connectButtonCorner.CornerRadius = UDim.new(0, 8)
 connectButtonCorner.Parent = connectButton
-local connectButtonStroke = Instance.new("UIStroke")
-connectButtonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-connectButtonStroke.Color = Color3.fromRGB(50, 50, 55)
-connectButtonStroke.Thickness = 1
-connectButtonStroke.Parent = connectButton
 
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "Status"
-statusLabel.Size = UDim2.new(1, 0, 0, 56)
+statusLabel.Size = UDim2.new(1, 0, 0, 48)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextWrapped = true
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.TextYAlignment = Enum.TextYAlignment.Top
 statusLabel.Font = Enum.Font.GothamSemibold
-statusLabel.TextSize = 13
-statusLabel.LayoutOrder = 6
+statusLabel.TextSize = 12
+statusLabel.LayoutOrder = 5
 statusLabel.Parent = root
 
 local hoverTweenInfo = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 connectButton.MouseEnter:Connect(function()
-	if connectButton.Active then TweenService:Create(connectButton, hoverTweenInfo, { BackgroundColor3 = buttonHoverColor }):Play() end
+	if not running then
+		TweenService:Create(connectButton, hoverTweenInfo, { BackgroundColor3 = buttonHoverColor }):Play()
+	end
 end)
 connectButton.MouseLeave:Connect(function()
-	if connectButton.Active then TweenService:Create(connectButton, hoverTweenInfo, { BackgroundColor3 = buttonBaseColor }):Play() end
+	if not running then
+		TweenService:Create(connectButton, hoverTweenInfo, { BackgroundColor3 = buttonBaseColor }):Play()
+	end
 end)
 
 -- ─── State ────────────────────────────────────────────────────────────────────
@@ -151,14 +129,15 @@ local STATUS_COLORS = {
 	info = Color3.fromRGB(170, 176, 188),
 }
 
-local running = false
+running = false
 local unloading = false
 local lastMessageId = nil
 local isConnected = false
 local isAutoTesting = false
+local currentSessionKey = nil
 
 local function setStatus(message, kind)
-	statusLabel.Text = "Status: " .. message
+	statusLabel.Text = message
 	statusLabel.TextColor3 = STATUS_COLORS[kind] or STATUS_COLORS.info
 end
 
@@ -176,16 +155,13 @@ local function reportLog(sessionKey, logMessage)
 	end)
 end
 
--- Catch runtime errors and forward them to the dashboard
 LogService.MessageOut:Connect(function(message, messageType)
-	if running and isConnected and messageType == Enum.MessageType.MessageError then
-		local currentKey = string.gsub(sessionKeyBox.Text or "", "^%s*(.-)%s*$", "%1")
-		reportLog(currentKey, message)
+	if running and isConnected and currentSessionKey and messageType == Enum.MessageType.MessageError then
+		reportLog(currentSessionKey, message)
 		
 		if isAutoTesting and RunService:IsRunMode() then
 			setStatus("Error caught! Stopping test...", "error")
 			isAutoTesting = false
-			-- End the test session
 			if StudioTestService then
 				pcall(function() StudioTestService:EndTest("error") end)
 			end
@@ -221,7 +197,6 @@ local function injectCode(incomingData)
 	local parentInstance = resolvePath(parentPath)
 	if not parentInstance then
 		parentInstance = game:GetService("ServerScriptService")
-		parentPath = "ServerScriptService"
 	end
 
 	if action == "delete" then
@@ -254,6 +229,42 @@ local function injectCode(incomingData)
 	else return false, "ScriptEditor Error: " .. tostring(err) end
 end
 
+-- ─── Auto-connect via IP ──────────────────────────────────────────────────────
+
+local function autoConnect()
+	setStatus("Connecting via IP...", "waiting")
+	
+	local ok, response = pcall(function()
+		return HttpService:RequestAsync({
+			Url = CONNECT_ENDPOINT,
+			Method = "GET",
+			Headers = { ["Accept"] = "application/json" },
+		})
+	end)
+
+	if not ok then
+		return nil, "Cannot reach dashboard."
+	end
+
+	if not response.Success then
+		local errMsg = "Connection failed (HTTP " .. tostring(response.StatusCode) .. ")"
+		pcall(function()
+			local data = HttpService:JSONDecode(response.Body)
+			if data.error then errMsg = data.error end
+		end)
+		return nil, errMsg
+	end
+
+	local decodeOk, data = pcall(function() return HttpService:JSONDecode(response.Body) end)
+	if not decodeOk then return nil, "Invalid response from server." end
+
+	if data.connected and data.sessionKey then
+		return data.sessionKey, nil
+	end
+
+	return nil, data.error or "No active dashboard found."
+end
+
 -- ─── Polling ──────────────────────────────────────────────────────────────────
 
 local function requestPoll(sessionKey)
@@ -271,15 +282,13 @@ local function requestPoll(sessionKey)
 end
 
 local function stopPlaytest()
-	if RunService:IsRunMode() then
-		if StudioTestService then
-			pcall(function() StudioTestService:EndTest("success") end)
-		end
+	if RunService:IsRunMode() and StudioTestService then
+		pcall(function() StudioTestService:EndTest("success") end)
 	end
 end
 
 local function pollLoop(sessionKey)
-	setStatus("Connecting...", "waiting")
+	currentSessionKey = sessionKey
 	local hasError = false
 
 	while running and not unloading do
@@ -293,7 +302,7 @@ local function pollLoop(sessionKey)
 		end
 
 		if data.paired ~= true then
-			setStatus(data.error or "Invalid session key.", "error")
+			setStatus(data.error or "Session expired.", "error")
 			hasError = true
 			running = false
 			break
@@ -315,10 +324,9 @@ local function pollLoop(sessionKey)
 					task.wait(0.5)
 					if not RunService:IsRunMode() then
 						isAutoTesting = true
-						setStatus("Auto-running test...", "waiting")
+						setStatus("Running playtest...", "waiting")
 						
 						task.spawn(function()
-							-- Success timeout: if 4 seconds pass with no errors, pass the test
 							task.spawn(function()
 								task.wait(4)
 								if isAutoTesting and RunService:IsRunMode() then
@@ -330,12 +338,10 @@ local function pollLoop(sessionKey)
 							end)
 
 							pcall(function() StudioTestService:ExecuteRunModeAsync("AppleJuiceSession") end)
-							-- Test ended (either by success timeout, error handler, or manually)
 							isAutoTesting = false
 						end)
 					end
 				elseif injected then
-					-- No StudioTestService available, just report success immediately
 					reportLog(sessionKey, "[SYSTEM_TEST_SUCCESS]")
 				end
 			end
@@ -350,8 +356,10 @@ local function pollLoop(sessionKey)
 
 	if not unloading then
 		connectButton.Text = "Connect"
+		connectButton.BackgroundColor3 = buttonBaseColor
 		isConnected = false
-		if not hasError then setStatus("Disconnected", "waiting") end
+		currentSessionKey = nil
+		if not hasError then setStatus("Disconnected", "info") end
 	end
 end
 
@@ -361,24 +369,31 @@ toolbarButton.Click:Connect(function() widget.Enabled = not widget.Enabled end)
 
 local httpEnabled = false
 pcall(function() httpEnabled = HttpService.HttpEnabled end)
-if not httpEnabled then setStatus("Enable HTTP Requests in Game Settings.", "error") else setStatus("Disconnected", "waiting") end
+if not httpEnabled then
+	setStatus("Enable HTTP Requests in Game Settings.", "error")
+else
+	setStatus("Ready. Click Connect to pair.", "info")
+end
 
 connectButton.MouseButton1Click:Connect(function()
 	if not httpEnabled then return end
+	
 	if running then
 		running = false
 		return
 	end
 
-	local sessionKey = string.gsub(sessionKeyBox.Text or "", "^%s*(.-)%s*$", "%1")
-
-	if sessionKey == "" or #sessionKey < 4 then
-		setStatus("Enter a valid session key.", "error")
+	-- Auto-connect via IP
+	local sessionKey, err = autoConnect()
+	if not sessionKey then
+		setStatus(err or "Could not auto-connect.", "error")
 		return
 	end
 
+	setStatus("Paired! Starting sync...", "success")
 	running = true
 	connectButton.Text = "Disconnect"
+	connectButton.BackgroundColor3 = buttonConnectedColor
 	task.spawn(function() pollLoop(sessionKey) end)
 end)
 
