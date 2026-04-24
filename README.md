@@ -1,5 +1,7 @@
 # 🧃 Apple Juice
 
+### **The Next-Generation AI Infrastructure for Roblox Developers**
+
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 [![Next.js](https://img.shields.io/badge/Next.js-15+-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue?logo=react)](https://react.dev/)
@@ -92,4 +94,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
-Built with 🧃 by [inetixus](https://github.com/inetixus)
+Built with 🧃 for the Roblox Community by [inetixus](https://github.com/inetixus)
