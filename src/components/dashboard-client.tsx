@@ -61,6 +61,42 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const lastPollRef = useRef<number>(0);
+  const codeConsumedRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (!pairingCode) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/status?code=${encodeURIComponent(pairingCode)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "ok") {
+            // Check if the plugin consumed code
+            if (codeConsumedRef.current && !data.hasNewCode) {
+              codeConsumedRef.current = false;
+              setPluginStatus("Plugin successfully consumed the script.");
+              showToast("Plugin received the script!", "success");
+            } else if (data.hasNewCode) {
+              codeConsumedRef.current = true;
+            }
+
+            // Check if the plugin polled for the first time
+            if (data.lastPollTime > 0 && lastPollRef.current === 0) {
+              lastPollRef.current = data.lastPollTime;
+              setPluginStatus("Plugin connected successfully.");
+              showToast("Plugin connected successfully!", "success");
+            } else if (data.lastPollTime > lastPollRef.current) {
+              lastPollRef.current = data.lastPollTime;
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [pairingCode, showToast]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -97,10 +133,26 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }
     }
 
+    const savedMessages = window.localStorage.getItem("apple-juice-chat-history");
+    if (savedMessages) {
+      try {
+        const parsed = JSON.parse(savedMessages) as ChatMessage[];
+        setMessages(parsed);
+      } catch {
+        setMessages([]);
+      }
+    }
+
     if (effectiveKey) {
       void loadModels(effectiveKey, savedModel);
     }
   }, []);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      window.localStorage.setItem("apple-juice-chat-history", JSON.stringify(messages));
+    }
+  }, [messages]);
 
   async function createPairOnServer() {
     setPluginStatus("Creating pairing session...");
@@ -346,9 +398,26 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       showToast("Script generated successfully!", "success");
     } catch (error) {
       clearInterval(stepInterval);
-      const detail = error instanceof Error ? error.message : "Unknown error";
+      let detail = error instanceof Error ? error.message : "Unknown error";
+      
+      // Try to parse the ugly stringified JSON error
+      try {
+        if (detail.startsWith("{") && detail.includes('"error"')) {
+          const parsed = JSON.parse(detail);
+          if (parsed?.error?.message) {
+            detail = parsed.error.message;
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      if (detail.includes("503") || detail.includes("high demand") || detail.includes("UNAVAILABLE")) {
+        detail = "The AI model is currently experiencing high demand. Please try again in a few moments or switch to a different model in settings.";
+      }
+
       setPluginStatus(`Generation failed: ${detail}`);
-      showToast(`Generation failed: ${detail}`, "error");
+      showToast(detail, "error");
     } finally {
       setTimeout(() => setThinkingSteps([]), 1000);
       setIsGenerating(false);
@@ -420,6 +489,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="text-[#8a8f98] hover:text-red-400 hover:border-red-400/20 hover:bg-red-500/10" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}>
+            <LogOut className="h-4 w-4" /> {/* Just reuse LogOut or Trash icon for clear chat if needed */}
+            Clear Chat
+          </Button>
           <Button variant="outline" onClick={() => setShowSettings((open) => !open)}>
             <Settings2 className="h-4 w-4" />
             Settings
@@ -540,10 +613,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             {pairToken && (
               <div className="mt-5 flex items-center gap-3">
                 <p className="text-sm font-medium text-[#8a8f98]">Pair Token:</p>
-                <pre className="font-mono text-[13px] bg-[#050505] border border-white/5 rounded-lg px-3 py-1.5 text-[#d1d5db]">{pairToken}</pre>
-                <Button variant="ghost" size="sm" onClick={() => copyText(pairToken)}>
-                  Copy Token
-                </Button>
+                <div className="flex flex-1 items-center justify-between bg-[#050505] border border-white/10 rounded-lg pl-3 pr-1.5 py-1.5">
+                  <pre className="font-mono text-[13px] text-[#d1d5db] truncate max-w-[150px]">{pairToken}</pre>
+                  <Button variant="outline" size="sm" className="h-7 text-xs bg-[#111111] border-white/10 hover:bg-[#ccff00]/10 hover:text-[#ccff00] hover:border-[#ccff00]/20" onClick={() => copyText(pairToken)}>
+                    <Copy className="h-3 w-3 mr-1" />
+                    Copy
+                  </Button>
+                </div>
               </div>
             )}
             <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/5 pt-5">

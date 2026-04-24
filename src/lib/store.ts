@@ -8,6 +8,7 @@ export type SessionEntry = {
   hasNewCode: boolean;
   code: string;
   messageId: string;
+  lastPollTime?: number;
 };
 
 const PREFIX = "apple-juice:session:";
@@ -110,6 +111,7 @@ export async function consumeIfAuthorized(pairingCode: string, pairToken: string
     if tonumber(sess.expiresAt) < tonumber(ARGV[2]) then return cjson.encode({ok=false,reason="expired"}) end
     local payload = { hasNewCode = sess.hasNewCode, code = sess.code, messageId = sess.messageId }
     sess.hasNewCode = false
+    sess.lastPollTime = tonumber(ARGV[2])
     redis.call("SET", KEYS[1], cjson.encode(sess))
     return cjson.encode({ok=true,payload=payload})
   `;
