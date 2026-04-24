@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   let code = "";
   let modelUsed = model;
 
-  type PluginPayload = { parent?: string; name?: string; code?: string };
+  type PluginPayload = { parent?: string; name?: string; code?: string; message?: string; suggestions?: string[] };
 
   function tryParsePluginPayload(text?: string): PluginPayload | null {
     if (!text) return null;
@@ -64,13 +64,21 @@ export async function POST(req: Request) {
     return null;
   }
 
+  const SYSTEM_PROMPT = `You are a Roblox Luau scripting assistant called Apple Juice. Output ONLY a JSON object with these fields:
+- "parent": dot path string (e.g. "ServerScriptService", "StarterPlayerScripts", "ReplicatedStorage")
+- "name": script name string (e.g. "AntiSpeedHandler", "DataSaveManager")
+- "code": valid Luau source code as a string
+- "message": a short, friendly conversational explanation of what the script does and how it works (2-4 sentences, no code in this field, speak naturally like a helpful assistant)
+- "suggestions": an array of 3 short strings suggesting what the user could build next that pairs well with this script
+
+Return ONLY the JSON object — no markdown, no backticks, no extra commentary outside the JSON.`;
+
   // Helper to call OpenAI Chat Completions and extract structured payload or raw content
   async function callOpenAI(key: string, modelName: string) {
     const apiMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       {
         role: "system",
-        content:
-          "Output ONLY a JSON object with fields `parent` (dot path), `name` (script name), and `code` (Luau source as a string). Return only the JSON object and nothing else — no markdown, no backticks, no commentary. The `code` field must contain valid Luau code.",
+        content: SYSTEM_PROMPT,
       },
     ];
 
@@ -152,17 +160,16 @@ export async function POST(req: Request) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: (() => {
-              const sysInstruction = "Output ONLY a JSON object with fields `parent` (dot path), `name` (script name), and `code` (Luau source as a string). Return only the JSON object and nothing else — no markdown, no backticks, no commentary. The `code` field must contain valid Luau code.";
               if (body.messages && body.messages.length > 0) {
                 return body.messages.map((m, i) => ({
                   role: m.role === "assistant" ? "model" : "user",
-                  parts: [{ text: (i === 0 && m.role === "user") ? `${sysInstruction}\n\nUser Prompt: ${m.content}` : m.content }]
+                  parts: [{ text: (i === 0 && m.role === "user") ? `${SYSTEM_PROMPT}\n\nUser Prompt: ${m.content}` : m.content }]
                 }));
               }
               return [
                 {
                   role: "user",
-                  parts: [{ text: `${sysInstruction}\n\nUser Prompt: ${prompt}` }]
+                  parts: [{ text: `${SYSTEM_PROMPT}\n\nUser Prompt: ${prompt}` }]
                 }
               ];
             })(),
@@ -253,10 +260,27 @@ export async function POST(req: Request) {
   const finalParent = structuredFinal?.parent ?? "ServerScriptService";
   const finalName = structuredFinal?.name ?? `GeneratedScript_${messageId.slice(0, 8)}`;
   const finalCode = structuredFinal?.code ?? code;
+  const finalMessage = structuredFinal?.message ?? `I've created a script called "${finalName}" and placed it in ${finalParent}. The script is ready to sync to your Studio.`;
+  const finalSuggestions = structuredFinal?.suggestions ?? [
+    "Add error handling and logging",
+    "Create a configuration module",
+    "Build a matching client-side script",
+  ];
+  const lineCount = finalCode.split("\n").length;
 
   const pluginPayload = JSON.stringify({ parent: finalParent, name: finalName, code: finalCode });
 
   await upsertGeneratedCode(pairingCode, pluginPayload, messageId);
 
-  return Response.json({ ok: true, code: finalCode, messageId, model: modelUsed });
+  return Response.json({
+    ok: true,
+    code: finalCode,
+    messageId,
+    model: modelUsed,
+    scriptName: finalName,
+    scriptParent: finalParent,
+    lineCount,
+    message: finalMessage,
+    suggestions: finalSuggestions,
+  });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { Copy, LogOut, RefreshCw, Settings2, WandSparkles } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -8,58 +8,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { ToastContainer, useToasts } from "@/components/ui/toast";
+import { ScriptCard } from "@/components/script-card";
+import { ThinkingFeed, type ThinkingStep } from "@/components/thinking-feed";
 
 type DashboardClientProps = {
   username: string;
   avatarUrl?: string;
 };
 
+type ScriptMeta = { name: string; parent: string; lineCount: number; code: string; };
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
-};
-
-type MessageSegment = {
-  type: "text" | "code";
-  value: string;
-  language?: string;
+  script?: ScriptMeta;
+  suggestions?: string[];
 };
 
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
-
-function parseSegments(content: string): MessageSegment[] {
-  const regex = /```([\w-]+)?\n([\s\S]*?)```/g;
-  const segments: MessageSegment[] = [];
-  let match: RegExpExecArray | null;
-  let lastIndex = 0;
-
-  while ((match = regex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      const text = content.slice(lastIndex, match.index).trim();
-      if (text) {
-        segments.push({ type: "text", value: text });
-      }
-    }
-
-    segments.push({
-      type: "code",
-      value: (match[2] ?? "").trim(),
-      language: match[1] || "luau",
-    });
-
-    lastIndex = regex.lastIndex;
-  }
-
-  if (lastIndex < content.length) {
-    const text = content.slice(lastIndex).trim();
-    if (text) {
-      segments.push({ type: "text", value: text });
-    }
-  }
-
-  return segments.length > 0 ? segments : [{ type: "code", value: content.trim(), language: "luau" }];
-}
 
 export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const getGreeting = () => {
@@ -83,6 +51,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [recentPrompts, setRecentPrompts] = useState<string[]>([]);
   const [pluginStatus, setPluginStatus] = useState("Idle. Pair your plugin using the code below.");
+  const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
+  const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, thinkingSteps]);
 
   useEffect(() => {
     // create pairing session on the server (returns pairing code + token)
@@ -292,6 +267,21 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     setIsGenerating(true);
     setPluginStatus("Generating Luau and syncing it to the pairing session...");
 
+    setThinkingSteps([{ icon: "thinking", label: "Thinking about the request...", done: false }]);
+    
+    // Simulate thinking steps
+    const stepInterval = setInterval(() => {
+      setThinkingSteps(prev => {
+        if (prev.length === 1 && !prev[0].done) {
+          return [{ ...prev[0], done: true }, { icon: "looking", label: "Looking at Roblox API docs...", done: false }];
+        }
+        if (prev.length === 2 && !prev[1].done) {
+          return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: "Writing Luau script...", done: false }];
+        }
+        return prev;
+      });
+    }, 1500);
+
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -307,6 +297,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         }),
       });
 
+      clearInterval(stepInterval);
+      setThinkingSteps(prev => prev.map(s => ({ ...s, done: true })));
+
       if (!response.ok) {
         let errText = response.statusText;
         try {
@@ -318,21 +311,36 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         throw new Error(errText || "Failed to generate code");
       }
 
-      const payload = (await response.json()) as { code?: string; error?: string; detail?: string };
+      const payload = (await response.json()) as { 
+        code?: string; error?: string; detail?: string; 
+        scriptName?: string; scriptParent?: string; lineCount?: number; 
+        message?: string; suggestions?: string[] 
+      };
 
       setMessages((current) => [
         ...current,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: payload.code || "-- No code generated",
+          content: payload.message || "Here is the code you requested.",
+          script: payload.code ? {
+            name: payload.scriptName || "Script",
+            parent: payload.scriptParent || "ServerScriptService",
+            lineCount: payload.lineCount || payload.code.split("\\n").length,
+            code: payload.code
+          } : undefined,
+          suggestions: payload.suggestions,
         },
       ]);
       setPluginStatus(`New code is ready from ${selectedModel}. Plugin can pull it via /api/poll.`);
+      showToast("Script generated successfully!", "success");
     } catch (error) {
+      clearInterval(stepInterval);
       const detail = error instanceof Error ? error.message : "Unknown error";
       setPluginStatus(`Generation failed: ${detail}`);
+      showToast(`Generation failed: ${detail}`, "error");
     } finally {
+      setTimeout(() => setThinkingSteps([]), 1000);
       setIsGenerating(false);
     }
   }
@@ -368,12 +376,14 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
       if (payload.hasNewCode && payload.code) {
         setPluginStatus("Plugin pull successful. New script consumed from session.");
+        showToast("Plugin successfully received the script!", "success");
       } else {
         setPluginStatus("No new script yet. Generate code or poll again.");
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Unknown error";
       setPluginStatus(`Polling failed: ${detail}`);
+      showToast("Polling failed", "error");
     }
   }
 
@@ -585,45 +595,52 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               </div>
             ) : (
               messages.map((message) => (
-                <Card key={message.id} className="p-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <Card key={message.id} className="p-6 animate-in fade-in slide-in-from-bottom-4 duration-300 bg-transparent border-white/5">
                   <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${message.role === 'user' ? 'bg-[#111111] text-[#8a8f98] border border-white/5' : 'bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/20'}`}>
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${message.role === 'user' ? 'bg-[#111111] text-[#8a8f98] border border-white/5' : 'bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/20'}`}>
                       {message.role === "user" ? "U" : "AJ"}
                     </div>
-                    <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">
-                      {message.role === "user" ? "You" : "Apple Juice Assistant"}
-                    </p>
+                    {message.role !== "user" && (
+                      <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">
+                        Apple Juice Assistant
+                      </p>
+                    )}
                   </div>
-                  <div className="mt-4 space-y-4">
-                    {parseSegments(message.content).map((segment, index) =>
-                      segment.type === "code" ? (
-                        <div key={`${message.id}-segment-${index}`} className="group relative">
-                          <div className="mb-2 flex items-center justify-between text-xs font-medium text-[#8a8f98]">
-                            <span className="uppercase tracking-wider">{segment.language || "luau"}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs opacity-0 group-hover:opacity-100 focus:opacity-100"
-                              onClick={() => copyText(segment.value)}
+                  <div className="mt-5 space-y-5">
+                    <p className={`whitespace-pre-wrap leading-relaxed ${message.role === 'user' ? 'text-lg text-white' : 'text-base text-white/90'}`}>
+                      {message.content}
+                    </p>
+                    
+                    {message.script && (
+                      <ScriptCard script={message.script} />
+                    )}
+
+                    {message.suggestions && message.suggestions.length > 0 && (
+                      <div className="mt-6 pt-5 border-t border-white/5">
+                        <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98] mb-3">Suggested Next Steps</p>
+                        <div className="flex flex-wrap gap-2">
+                          {message.suggestions.map((sugg, i) => (
+                            <Button 
+                              key={i} 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-xs bg-white/[0.02] hover:bg-white/[0.05] border-white/10"
+                              onClick={() => setPrompt(sugg)}
                             >
-                              <Copy className="h-3.5 w-3.5" />
-                              Copy
+                              <Sparkles className="h-3 w-3 mr-1.5 text-[#ccff00]" />
+                              {sugg}
                             </Button>
-                          </div>
-                          <pre className="overflow-auto font-mono text-[13px] bg-[#000000] border border-white/5 rounded-lg p-4 text-[#d1d5db]">
-                            <code>{segment.value}</code>
-                          </pre>
+                          ))}
                         </div>
-                      ) : (
-                        <p key={`${message.id}-segment-${index}`} className="whitespace-pre-wrap text-sm leading-relaxed text-white">
-                          {segment.value}
-                        </p>
-                      ),
+                      </div>
                     )}
                   </div>
                 </Card>
               ))
             )}
+            
+            {isGenerating && <ThinkingFeed steps={thinkingSteps} />}
+            <div ref={chatEndRef} className="h-px w-full" />
           </div>
 
           {/* Prompt Input Fixed Bottom */}
@@ -653,6 +670,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           </div>
         </div>
       </div>
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </main>
   );
 }

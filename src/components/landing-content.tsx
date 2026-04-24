@@ -294,7 +294,7 @@ end`,
               </div>
 
               {/* Interactive Tabs */}
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <div className="relative z-10 mt-6 flex flex-wrap items-center justify-center gap-3">
                 {Object.keys(codeSnippets).map((label) => {
                   const isActive = activeTab === label;
                   return (
