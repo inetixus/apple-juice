@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState } from "react";
-import { Copy, LogOut, RefreshCw, Settings2, WandSparkles, Sparkles } from "lucide-react";
+import { LogOut, RefreshCw, Settings2, WandSparkles, Sparkles } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+
 import { ToastContainer, useToasts } from "@/components/ui/toast";
 import { ScriptCard } from "@/components/script-card";
 import { ThinkingFeed, type ThinkingStep } from "@/components/thinking-feed";
@@ -520,43 +520,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     }
   }
 
-  async function pollPluginSession() {
-    if (!sessionKey) {
-      setPluginStatus("No session key. Create one first.");
-      return;
-    }
 
-    setPluginStatus("Checking /api/poll for plugin sync...");
-    try {
-      const response = await fetch(
-        `/api/poll?key=${encodeURIComponent(sessionKey)}`,
-      );
-      if (!response.ok) {
-        let msg = response.statusText;
-        try {
-          const err = await response.json();
-          msg = err?.error || msg;
-        } catch {
-          // ignore
-        }
-        throw new Error(msg || "Poll failed");
-      }
-
-      const payload = (await response.json()) as { hasNewCode?: boolean; code?: string; error?: string };
-
-      if (payload.hasNewCode && payload.code) {
-        setPluginStatus("Plugin pull successful. New script consumed from session.");
-        showToast("Plugin successfully received the script!", "success");
-      } else {
-        setPluginStatus("Plugin connected. No new script yet.");
-        showToast("Plugin connected successfully", "success");
-      }
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : "Unknown error";
-      setPluginStatus(`Polling failed: ${detail}`);
-      showToast("Polling failed", "error");
-    }
-  }
 
   const handleAutoFix = () => {
     if (!lastError) return;
