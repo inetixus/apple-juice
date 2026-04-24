@@ -75,7 +75,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     if (!sessionKey) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/status?key=${encodeURIComponent(sessionKey)}`);
+        const res = await fetch(`/api/status?key=${encodeURIComponent(sessionKey)}&t=${Date.now()}`, { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           if (data.status === "ok") {

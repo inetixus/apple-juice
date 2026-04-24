@@ -8,6 +8,8 @@ import { findSessionKeyByIp, extractIp } from "@/lib/store";
  * looks up the session created from the same IP (the dashboard),
  * and returns the sessionKey for auto-pairing.
  */
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   const clientIp = extractIp(req);
 

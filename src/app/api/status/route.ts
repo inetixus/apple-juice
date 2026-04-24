@@ -1,5 +1,7 @@
 import { getSession, consumeLogs } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const sessionKey = url.searchParams.get("key")?.trim() ?? "";
