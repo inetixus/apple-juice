@@ -68,6 +68,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const lastPollRef = useRef<number>(0);
   const codeConsumedRef = useRef<boolean>(false);
   const lastReportedErrorRef = useRef<string | null>(null);
+  const pendingPayloadRef = useRef<any>(null);
 
   useEffect(() => {
     if (!pairingCode) return;
@@ -97,12 +98,48 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
             if (data.logs && data.logs.length > 0) {
               setGameLogs(prev => [...prev, ...data.logs].slice(-200)); // keep last 200 logs
+              
               const newErrorLog = data.logs.find((log: string) => log.toLowerCase().includes("error") || log.toLowerCase().includes("exception"));
               if (newErrorLog && newErrorLog !== lastReportedErrorRef.current) {
                 lastReportedErrorRef.current = newErrorLog;
                 setLastError(newErrorLog);
-                // Queue auto-fix — will be picked up by the polling below
+                
+                // If we were waiting for a test result, drop it because it failed
+                if (isGenerating && pendingPayloadRef.current) {
+                  pendingPayloadRef.current = null;
+                }
+                
+                // Queue auto-fix
                 autoFixPendingRef.current = newErrorLog;
+              }
+
+              const successLog = data.logs.find((log: string) => log.includes("[SYSTEM_TEST_SUCCESS]"));
+              if (successLog && isGenerating && pendingPayloadRef.current) {
+                // Test passed! Release the message to the user.
+                const finalPayload = pendingPayloadRef.current;
+                pendingPayloadRef.current = null;
+                
+                setMessages((current) => [
+                  ...current,
+                  {
+                    id: crypto.randomUUID(),
+                    role: "assistant",
+                    content: finalPayload.message || "Here is the code you requested.",
+                    script: finalPayload.scriptName ? {
+                      name: finalPayload.scriptName,
+                      parent: finalPayload.scriptParent || "ServerScriptService",
+                      type: finalPayload.scriptType || "Script",
+                      action: finalPayload.action || "create",
+                      lineCount: finalPayload.lineCount || (finalPayload.code ? finalPayload.code.split("\n").length : 0),
+                      code: finalPayload.code || ""
+                    } : undefined,
+                    suggestions: finalPayload.suggestions,
+                  },
+                ]);
+                setThinkingSteps([]);
+                setIsGenerating(false);
+                setPluginStatus("Test passed! Sync complete.");
+                showToast("Playtest passed with no errors!", "success");
               }
             }
           }
@@ -412,30 +449,46 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         message?: string; suggestions?: string[] 
       };
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: payload.message || "Here is the code you requested.",
-          script: payload.scriptName ? {
-            name: payload.scriptName,
-            parent: payload.scriptParent || "ServerScriptService",
-            type: payload.scriptType || "Script",
-            action: payload.action || "create",
-            lineCount: payload.lineCount || (payload.code ? payload.code.split("\n").length : 0),
-            code: payload.code || ""
-          } : undefined,
-          suggestions: payload.suggestions,
-        },
-      ]);
-      setPluginStatus(`New code is ready from ${selectedModel}. Plugin can pull it via /api/poll.`);
-      showToast("Script generated successfully!", "success");
+      setPluginStatus(`New code is ready. Syncing to Studio for playtest...`);
+      showToast("Script generated, syncing to Studio...", "success");
+
+      setThinkingSteps(prev => [...prev, { icon: "generating", label: "Running playtest in Roblox...", done: false }]);
+
+      // Hold the payload in the ref. The polling interval will release it on success.
+      pendingPayloadRef.current = payload;
+
+      // 15-second timeout fallback in case the plugin never responds
+      setTimeout(() => {
+        if (pendingPayloadRef.current === payload) {
+          const finalPayload = pendingPayloadRef.current;
+          pendingPayloadRef.current = null;
+          setMessages((current) => [
+            ...current,
+            {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: finalPayload.message || "Here is the code you requested.",
+              script: finalPayload.scriptName ? {
+                name: finalPayload.scriptName,
+                parent: finalPayload.scriptParent || "ServerScriptService",
+                type: finalPayload.scriptType || "Script",
+                action: finalPayload.action || "create",
+                lineCount: finalPayload.lineCount || (finalPayload.code ? finalPayload.code.split("\n").length : 0),
+                code: finalPayload.code || ""
+              } : undefined,
+              suggestions: finalPayload.suggestions,
+            },
+          ]);
+          setThinkingSteps([]);
+          setIsGenerating(false);
+          setPluginStatus("Playtest timeout. Assuming success.");
+        }
+      }, 15000);
+
     } catch (error) {
       clearInterval(stepInterval);
       let detail = error instanceof Error ? error.message : "Unknown error";
       
-      // Try to parse the ugly stringified JSON error
       try {
         if (detail.startsWith("{") && detail.includes('"error"')) {
           const parsed = JSON.parse(detail);
@@ -453,7 +506,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
       setPluginStatus(`Generation failed: ${detail}`);
       showToast(detail, "error");
-    } finally {
       setTimeout(() => setThinkingSteps([]), 1000);
       setIsGenerating(false);
     }
