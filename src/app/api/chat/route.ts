@@ -127,15 +127,29 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
       const parsed = JSON.parse(raw);
       const content = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
       const structured = tryParsePluginPayload(content) || tryParsePluginPayload(raw);
-      if (structured && structured.code) {
-        code = structured.code;
-        raw = JSON.stringify(structured);
-      } else {
-        code = content;
-      }
-    } catch {
-      code = raw;
-    }
+          if (structured && structured.code) {
+            code = structured.code;
+            raw = JSON.stringify(structured);
+          } else {
+            code = content.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
+            raw = JSON.stringify({
+              action: "create",
+              type: "Script",
+              parent: "ServerScriptService",
+              name: "AIGeneratedFallback",
+              code: code,
+            });
+          }
+        } catch {
+          code = raw.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
+          raw = JSON.stringify({
+            action: "create",
+            type: "Script",
+            parent: "ServerScriptService",
+            name: "AIGeneratedFallback",
+            code: code,
+          });
+        }
     modelUsed = model;
   } else if (provider === "google") {
     const requestedModel = (model || "gemini-3-flash").trim();
@@ -211,6 +225,14 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
 
         if (content) {
           code = content.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
+          // FALLBACK: Construct a valid JSON payload so the plugin doesn't receive an empty string
+          raw = JSON.stringify({
+            action: "create",
+            type: "Script",
+            parent: "ServerScriptService",
+            name: "AIGeneratedFallback",
+            code: code,
+          });
           modelUsed = candidate;
           break;
         }
@@ -233,10 +255,24 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
             code = structured.code;
             raw = JSON.stringify(structured);
           } else {
-            code = content;
+            code = content.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
+            raw = JSON.stringify({
+              action: "create",
+              type: "Script",
+              parent: "ServerScriptService",
+              name: "AIGeneratedFallback",
+              code: code,
+            });
           }
         } catch {
-          code = raw;
+          code = raw.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
+          raw = JSON.stringify({
+            action: "create",
+            type: "Script",
+            parent: "ServerScriptService",
+            name: "AIGeneratedFallback",
+            code: code,
+          });
         }
         modelUsed = "gpt-4o-mini";
       }
