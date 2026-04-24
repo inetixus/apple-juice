@@ -122,12 +122,13 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     }
     modelUsed = model;
   } else if (provider === "google") {
-    const requestedModel = (model || "gemini-2.5-flash").trim();
+    const requestedModel = (model || "gemini-3-flash").trim();
     const GOOGLE_FALLBACK_MODELS = [
+      "models/gemini-3.1-pro",
+      "models/gemini-3-flash",
+      "models/gemini-3.1-flash-lite",
       "models/gemini-2.5-pro",
-      "models/gemini-2.5-flash",
-      "models/gemini-1.5-pro",
-      "models/gemini-1.5-flash",
+      "models/gemini-2.5-flash"
     ];
 
     let availableModels: string[] = [];
