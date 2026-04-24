@@ -9,6 +9,7 @@ export type SessionEntry = {
   code: string;
   messageId: string;
   lastPollTime?: number;
+  logs?: string[];
 };
 
 const PREFIX = "apple-juice:session:";
@@ -125,6 +126,57 @@ export async function consumeIfAuthorized(pairingCode: string, pairToken: string
   } catch (err) {
     console.error("consumeIfAuthorized error", err instanceof Error ? err.message : String(err));
     return { ok: false as const, reason: "not_found" as const };
+  }
+}
+
+export async function appendLogs(pairingCode: string, pairToken: string, newLogs: string[]) {
+  if (!newLogs || newLogs.length === 0) return { ok: true };
+  const key = keyFor(pairingCode);
+  const logsJson = JSON.stringify(newLogs);
+  const lua = `
+    local raw = redis.call("GET", KEYS[1])
+    if not raw then return cjson.encode({ok=false,reason="not_found"}) end
+    local sess = cjson.decode(raw)
+    if sess.pairToken ~= ARGV[1] then return cjson.encode({ok=false,reason="bad_token"}) end
+    if not sess.logs then sess.logs = {} end
+    local newLogs = cjson.decode(ARGV[2])
+    for i=1, #newLogs do
+      table.insert(sess.logs, newLogs[i])
+      if #sess.logs > 100 then
+        table.remove(sess.logs, 1)
+      end
+    end
+    redis.call("SET", KEYS[1], cjson.encode(sess))
+    return cjson.encode({ok=true})
+  `;
+  try {
+    const res = await getRedis().eval(lua, [key], [pairToken, logsJson]);
+    const parsed = typeof res === "string" ? JSON.parse(res) : res;
+    return parsed as { ok: boolean, reason?: string };
+  } catch (err) {
+    console.error("appendLogs error", err);
+    return { ok: false, reason: "error" };
+  }
+}
+
+export async function consumeLogs(pairingCode: string) {
+  const key = keyFor(pairingCode);
+  const lua = `
+    local raw = redis.call("GET", KEYS[1])
+    if not raw then return cjson.encode({ok=false,reason="not_found"}) end
+    local sess = cjson.decode(raw)
+    local logs = sess.logs or {}
+    sess.logs = {}
+    redis.call("SET", KEYS[1], cjson.encode(sess))
+    return cjson.encode({ok=true, logs=logs})
+  `;
+  try {
+    const res = await getRedis().eval(lua, [key], []);
+    const parsed = typeof res === "string" ? JSON.parse(res) : res;
+    return parsed as { ok: boolean, logs?: string[], reason?: string };
+  } catch (err) {
+    console.error("consumeLogs error", err);
+    return { ok: false, reason: "error" };
   }
 }
 

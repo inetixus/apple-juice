@@ -59,8 +59,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [recentPrompts, setRecentPrompts] = useState<string[]>([]);
   const [pluginStatus, setPluginStatus] = useState("Idle. Pair your plugin using the code below.");
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
+  const [gameLogs, setGameLogs] = useState<string[]>([]);
+  const [lastError, setLastError] = useState<string | null>(null);
   const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const logsEndRef = useRef<HTMLDivElement>(null);
   const lastPollRef = useRef<number>(0);
   const codeConsumedRef = useRef<boolean>(false);
 
@@ -89,6 +92,14 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             } else if (data.lastPollTime > lastPollRef.current) {
               lastPollRef.current = data.lastPollTime;
             }
+
+            if (data.logs && data.logs.length > 0) {
+              setGameLogs(prev => [...prev, ...data.logs].slice(-200)); // keep last 200 logs
+              const newErrorLog = data.logs.find((log: string) => log.toLowerCase().includes("error") || log.toLowerCase().includes("exception"));
+              if (newErrorLog) {
+                setLastError(newErrorLog);
+              }
+            }
           }
         }
       } catch {
@@ -101,6 +112,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, thinkingSteps]);
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [gameLogs]);
 
   useEffect(() => {
     // create pairing session on the server (returns pairing code + token)
@@ -302,8 +317,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     window.localStorage.setItem("apple-juice-recent-prompts", JSON.stringify(next));
   }
 
-  async function submitPrompt() {
-    const trimmed = prompt.trim();
+  async function submitPrompt(e?: any, overridePrompt?: string) {
+    const targetPrompt = overridePrompt || prompt;
+    const trimmed = targetPrompt.trim();
     if (!trimmed || !pairingCode) {
       return;
     }
@@ -322,6 +338,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setPrompt("");
+    setLastError(null);
     addRecentPrompt(trimmed);
     setIsGenerating(true);
     setPluginStatus("Generating Luau and syncing it to the pairing session...");
@@ -466,6 +483,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       showToast("Polling failed", "error");
     }
   }
+
+  const handleAutoFix = () => {
+    if (!lastError) return;
+    const fixPrompt = `The previous code failed with this error in Roblox Studio:\n${lastError}\n\nFix it.`;
+    submitPrompt(undefined, fixPrompt);
+  };
 
   return (
     <main className="h-screen bg-[#030303] text-white flex flex-col overflow-hidden">
@@ -655,9 +678,43 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     Copy
                   </Button>
                 </div>
-                <pre className="max-h-56 overflow-auto font-mono text-[13px] bg-[#050505] border border-white/5 rounded-lg p-4 text-[#d1d5db]">
-                  <code>{latestCode}</code>
-                </pre>
+                <div className={lastError ? "border border-red-500/10 bg-red-500/10 p-1.5 rounded-xl" : ""}>
+                  {lastError && (
+                    <p className="mb-2 px-2 pt-1 text-red-400 text-[10px] font-mono break-words">{lastError}</p>
+                  )}
+                  <pre className="max-h-56 overflow-auto font-mono text-[13px] bg-[#050505] border border-white/5 rounded-lg p-4 text-[#d1d5db]">
+                    <code>{latestCode}</code>
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {gameLogs.length > 0 && (
+              <div className="mt-5 border-t border-white/5 pt-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98]">Game Logs</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="text-xs text-red-400 border-red-400/20 hover:bg-red-500/10" onClick={() => setGameLogs([])}>
+                      Clear
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs text-[#ccff00] border-[#ccff00]/20 hover:bg-[#ccff00]/10" onClick={() => {
+                      setPrompt("Please analyze these game logs and help me fix any errors:\n" + gameLogs.join("\n"));
+                      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                    }}>
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Analyze
+                    </Button>
+                  </div>
+                </div>
+                <div className="max-h-64 overflow-auto font-mono text-[11px] bg-[#050505] border border-white/5 rounded-lg p-3 text-[#d1d5db] space-y-1">
+                  {gameLogs.map((log, i) => {
+                    const isError = log.toLowerCase().includes("error") || log.toLowerCase().includes("exception");
+                    return (
+                      <div key={i} className={isError ? "text-red-400" : ""}>{log}</div>
+                    );
+                  })}
+                  <div ref={logsEndRef} />
+                </div>
               </div>
             )}
             </CardContent>
@@ -748,10 +805,17 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               />
               <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-4">
                 <p className="text-sm text-[#8a8f98]">Output target: raw Luau code. Model: <span className="font-medium text-white">{selectedModel}</span></p>
-                <Button onClick={submitPrompt} disabled={isGenerating}>
-                  <WandSparkles className="h-4 w-4" />
-                  {isGenerating ? "Generating..." : "Generate Script"}
-                </Button>
+                <div className="flex items-center gap-3">
+                  {lastError && (
+                    <Button variant="outline" className="border-red-500/20 text-red-500 hover:bg-red-500/10" onClick={handleAutoFix} disabled={isGenerating}>
+                      Repair Script
+                    </Button>
+                  )}
+                  <Button onClick={(e) => submitPrompt(e)} disabled={isGenerating}>
+                    <WandSparkles className="h-4 w-4" />
+                    {isGenerating ? "Generating..." : "Generate Script"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
