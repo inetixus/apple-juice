@@ -2,20 +2,20 @@ import { getSession, consumeLogs } from "@/lib/store";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const code = url.searchParams.get("code")?.trim() ?? "";
+  const sessionKey = url.searchParams.get("key")?.trim() ?? "";
   
-  if (!code) {
-    return Response.json({ error: "Missing code" }, { status: 400 });
+  if (!sessionKey) {
+    return Response.json({ error: "Missing session key" }, { status: 400 });
   }
 
   try {
-    const session = await getSession(code);
+    const session = await getSession(sessionKey);
     if (!session) return Response.json({ status: "not_found" }, { status: 404 });
     
     // Check if there are logs
     let logs: string[] = [];
     if (session.logs && session.logs.length > 0) {
-      const consumed = await consumeLogs(code);
+      const consumed = await consumeLogs(sessionKey);
       if (consumed.ok && consumed.logs) {
         logs = consumed.logs;
       }

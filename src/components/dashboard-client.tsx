@@ -43,8 +43,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     if (hour < 18) return "Good afternoon";
     return "Good evening";
   };
-  const [pairingCode, setPairingCode] = useState("");
-  const [pairToken, setPairToken] = useState("");
+  const [sessionKey, setSessionKey] = useState("");
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [provider, setProvider] = useState<"openai" | "google">("openai");
@@ -57,7 +56,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [recentPrompts, setRecentPrompts] = useState<string[]>([]);
-  const [pluginStatus, setPluginStatus] = useState("Idle. Pair your plugin using the code below.");
+  const [pluginStatus, setPluginStatus] = useState("Idle. Connect your plugin using the session key below.");
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const [gameLogs, setGameLogs] = useState<string[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
@@ -72,10 +71,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const stepTimeoutsRef = useRef<any[]>([]);
 
   useEffect(() => {
-    if (!pairingCode) return;
+    if (!sessionKey) return;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/status?code=${encodeURIComponent(pairingCode)}`);
+        const res = await fetch(`/api/status?key=${encodeURIComponent(sessionKey)}`);
         if (res.ok) {
           const data = await res.json();
           if (data.status === "ok") {
@@ -150,7 +149,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }
     }, 3000);
     return () => clearInterval(interval);
-  }, [pairingCode, showToast]);
+  }, [sessionKey, showToast]);
 
   // Auto-fix polling: checks every second if an auto-fix is pending
   useEffect(() => {
@@ -260,14 +259,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }
 
       const payload = await res.json();
-      const code = (payload?.pairingCode as string) || "";
-      const token = (payload?.pairToken as string) || "";
-      setPairingCode(code);
-      setPairToken(token);
-      setPluginStatus("Pair created. Copy the token and paste it into the plugin.");
+      const key = (payload?.sessionKey as string) || "";
+      setSessionKey(key);
+      setPluginStatus("Session created. Copy the key and paste it into your plugin.");
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
-      setPluginStatus(`Pair creation failed: ${detail}`);
+      setPluginStatus(`Session creation failed: ${detail}`);
     }
   }
 
@@ -376,7 +373,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   async function submitPrompt(overridePrompt?: string | any) {
     const targetPrompt = typeof overridePrompt === "string" ? overridePrompt : prompt;
     const trimmed = targetPrompt.trim();
-    if (!trimmed || !pairingCode) {
+    if (!trimmed || !sessionKey) {
       return;
     }
     if (!apiKey.trim()) {
@@ -430,7 +427,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         body: JSON.stringify({
           prompt: trimmed,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          pairingCode,
+          sessionKey,
           apiKey: apiKey.trim(),
           model: selectedModel,
           provider,
@@ -524,20 +521,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   }
 
   async function pollPluginSession() {
-    if (!pairingCode) {
-      setPluginStatus("No pairing code. Create one first.");
-      return;
-    }
-
-    if (!pairToken) {
-      setPluginStatus("No pair token. Create pairing session and copy token to plugin.");
+    if (!sessionKey) {
+      setPluginStatus("No session key. Create one first.");
       return;
     }
 
     setPluginStatus("Checking /api/poll for plugin sync...");
     try {
       const response = await fetch(
-        `/api/poll?code=${encodeURIComponent(pairingCode)}&token=${encodeURIComponent(pairToken)}`,
+        `/api/poll?key=${encodeURIComponent(sessionKey)}`,
       );
       if (!response.ok) {
         let msg = response.statusText;
@@ -697,11 +689,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             <CardContent className="p-6">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Pairing Session Code</p>
-                <p className="mt-2 text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-[#ccff00] to-emerald-400 drop-shadow-sm">{pairingCode}</p>
+                <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Session Key</p>
+                <p className="mt-2 text-5xl font-black tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-r from-[#ccff00] to-emerald-400 drop-shadow-sm font-mono">{sessionKey}</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => copyText(pairingCode)}>
+                <Button variant="outline" size="sm" onClick={() => copyText(sessionKey)}>
                   <Copy className="h-4 w-4" />
                   Copy
                 </Button>
@@ -712,21 +704,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               </div>
             </div>
             <p className="mt-5 text-sm leading-relaxed text-[#8a8f98]">
-              Enter this code in your Studio plugin. The plugin can poll <code>/api/poll?code=...</code> and receive
-              generated Luau once available.
+              Paste this key into your Studio plugin to connect. That&apos;s it — one key, no tokens needed.
             </p>
-            {pairToken && (
-              <div className="mt-5 flex items-center gap-3">
-                <p className="text-sm font-medium text-[#8a8f98]">Pair Token:</p>
-                <div className="flex flex-1 items-center justify-between bg-[#050505] border border-white/10 rounded-lg pl-3 pr-1.5 py-1.5">
-                  <pre className="font-mono text-[13px] text-[#d1d5db] truncate max-w-[150px]">{pairToken}</pre>
-                  <Button variant="outline" size="sm" className="h-7 text-xs bg-[#111111] border-white/10 hover:bg-[#ccff00]/10 hover:text-[#ccff00] hover:border-[#ccff00]/20" onClick={() => copyText(pairToken)}>
-                    <Copy className="h-3 w-3 mr-1" />
-                    Copy
-                  </Button>
-                </div>
-              </div>
-            )}
             <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/5 pt-5">
               <Badge className="cursor-pointer hover:bg-[#ccff00]/20" onClick={pollPluginSession}>
                 Simulate Plugin Poll

@@ -3,9 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createOrReplaceSession } from "@/lib/store";
 
-function createPairingCode() {
-  const n = Math.floor(100000 + Math.random() * 900000).toString();
-  return `${n.slice(0, 3)}-${n.slice(3)}`;
+function createSessionKey() {
+  // Generate an 8-character alphanumeric key (easy to type)
+  return crypto.randomBytes(4).toString("hex").toUpperCase();
 }
 
 export async function POST() {
@@ -17,15 +17,13 @@ export async function POST() {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const pairingCode = createPairingCode();
-    const pairToken = crypto.randomBytes(24).toString("hex");
-    const expiresAt = Date.now() + 1000 * 60 * 30;
+    const sessionKey = createSessionKey();
+    const expiresAt = Date.now() + 1000 * 60 * 60; // 1 hour
 
     try {
       await createOrReplaceSession({
-        pairingCode,
+        sessionKey,
         ownerUserId,
-        pairToken,
         expiresAt,
         hasNewCode: false,
         code: "",
@@ -33,14 +31,14 @@ export async function POST() {
       });
     } catch (err) {
       const details = err instanceof Error ? err.message : String(err);
-      console.error("Failed to create pairing session", details);
+      console.error("Failed to create session", details);
       return Response.json(
-        { error: "Failed to create pairing session", details },
+        { error: "Failed to create session", details },
         { status: 500 },
       );
     }
 
-    return Response.json({ pairingCode, pairToken, expiresAt });
+    return Response.json({ sessionKey, expiresAt });
   } catch (err) {
     const details = err instanceof Error ? err.message : String(err);
     console.error("/api/pair error", details);

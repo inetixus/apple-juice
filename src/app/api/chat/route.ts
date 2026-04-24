@@ -8,7 +8,7 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 type ChatBody = {
   prompt?: string;
   messages?: ChatMessage[];
-  pairingCode?: string;
+  sessionKey?: string;
   apiKey?: string;
   model?: string;
   provider?: string;
@@ -23,20 +23,20 @@ export async function POST(req: Request) {
 
   const body = (await req.json()) as ChatBody;
   const prompt = body.prompt?.trim() ?? "";
-  const pairingCode = body.pairingCode?.trim() ?? "";
+  const sessionKey = body.sessionKey?.trim() ?? "";
   const apiKey = body.apiKey?.trim() ?? "";
   const model = body.model?.trim() ?? "gpt-4o-mini";
   const provider = (body.provider?.trim() || "openai").toString();
   const openaiKey = body.openaiKey?.trim() ?? "";
 
-  if (!prompt || !pairingCode || !apiKey) {
-    return Response.json({ error: "prompt, pairingCode, and apiKey are required" }, { status: 400 });
+  if (!prompt || !sessionKey || !apiKey) {
+    return Response.json({ error: "prompt, sessionKey, and apiKey are required" }, { status: 400 });
   }
 
-  const pair = await getSession(pairingCode);
-  if (!pair) return Response.json({ error: "Invalid pairing code" }, { status: 404 });
+  const pair = await getSession(sessionKey);
+  if (!pair) return Response.json({ error: "Invalid session key" }, { status: 404 });
   if (pair.ownerUserId !== ownerUserId) return Response.json({ error: "Forbidden" }, { status: 403 });
-  if (Date.now() > pair.expiresAt) return Response.json({ error: "Pairing expired" }, { status: 410 });
+  if (Date.now() > pair.expiresAt) return Response.json({ error: "Session expired" }, { status: 410 });
 
   let raw = "";
   let code = "";
@@ -330,7 +330,7 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     code: finalCode 
   });
 
-  await upsertGeneratedCode(pairingCode, pluginPayload, messageId);
+  await upsertGeneratedCode(sessionKey, pluginPayload, messageId);
 
   return Response.json({
     ok: true,

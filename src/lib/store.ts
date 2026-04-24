@@ -1,9 +1,8 @@
 import { Redis } from "@upstash/redis";
 
 export type SessionEntry = {
-  pairingCode: string;
+  sessionKey: string;
   ownerUserId: string;
-  pairToken: string;
   expiresAt: number;
   hasNewCode: boolean;
   code: string;
@@ -42,12 +41,12 @@ function getRedis(): Redis {
   return _redis;
 }
 
-function keyFor(code: string) {
-  return `${PREFIX}${code}`;
+function keyFor(sessionKey: string) {
+  return `${PREFIX}${sessionKey}`;
 }
 
 export async function createOrReplaceSession(entry: SessionEntry): Promise<SessionEntry> {
-  const key = keyFor(entry.pairingCode);
+  const key = keyFor(entry.sessionKey);
   const value = JSON.stringify(entry);
   try {
     await getRedis().set(key, value);
@@ -66,8 +65,8 @@ export async function createOrReplaceSession(entry: SessionEntry): Promise<Sessi
   return entry;
 }
 
-export async function getSession(pairingCode: string): Promise<SessionEntry | undefined> {
-  const key = keyFor(pairingCode);
+export async function getSession(sessionKey: string): Promise<SessionEntry | undefined> {
+  const key = keyFor(sessionKey);
   const raw = await getRedis().get(key);
   if (!raw) return undefined;
   try {
@@ -78,8 +77,8 @@ export async function getSession(pairingCode: string): Promise<SessionEntry | un
   }
 }
 
-export async function upsertGeneratedCode(pairingCode: string, code: string, messageId: string) {
-  const key = keyFor(pairingCode);
+export async function upsertGeneratedCode(sessionKey: string, code: string, messageId: string) {
+  const key = keyFor(sessionKey);
   const lua = `
     local raw = redis.call("GET", KEYS[1])
     if not raw then return nil end
@@ -101,45 +100,43 @@ export async function upsertGeneratedCode(pairingCode: string, code: string, mes
   }
 }
 
-export async function consumeIfAuthorized(pairingCode: string, pairToken: string) {
-  const key = keyFor(pairingCode);
+export async function consumeCode(sessionKey: string) {
+  const key = keyFor(sessionKey);
   const now = Date.now();
   const lua = `
     local raw = redis.call("GET", KEYS[1])
     if not raw then return cjson.encode({ok=false,reason="not_found"}) end
     local sess = cjson.decode(raw)
-    if sess.pairToken ~= ARGV[1] then return cjson.encode({ok=false,reason="bad_token"}) end
-    if tonumber(sess.expiresAt) < tonumber(ARGV[2]) then return cjson.encode({ok=false,reason="expired"}) end
+    if tonumber(sess.expiresAt) < tonumber(ARGV[1]) then return cjson.encode({ok=false,reason="expired"}) end
     local payload = { hasNewCode = sess.hasNewCode, code = sess.code, messageId = sess.messageId }
     sess.hasNewCode = false
-    sess.lastPollTime = tonumber(ARGV[2])
+    sess.lastPollTime = tonumber(ARGV[1])
     redis.call("SET", KEYS[1], cjson.encode(sess))
     return cjson.encode({ok=true,payload=payload})
   `;
 
   try {
-    const res = await getRedis().eval(lua, [key], [pairToken, String(now)]);
+    const res = await getRedis().eval(lua, [key], [String(now)]);
     if (!res) return { ok: false as const, reason: "not_found" as const };
     const parsed = typeof res === "string" ? JSON.parse(res) : res;
     if (parsed.ok) return { ok: true as const, payload: parsed.payload };
-    return { ok: false as const, reason: parsed.reason as "not_found" | "bad_token" | "expired" };
+    return { ok: false as const, reason: parsed.reason as "not_found" | "expired" };
   } catch (err) {
-    console.error("consumeIfAuthorized error", err instanceof Error ? err.message : String(err));
+    console.error("consumeCode error", err instanceof Error ? err.message : String(err));
     return { ok: false as const, reason: "not_found" as const };
   }
 }
 
-export async function appendLogs(pairingCode: string, pairToken: string, newLogs: string[]) {
+export async function appendLogs(sessionKey: string, newLogs: string[]) {
   if (!newLogs || newLogs.length === 0) return { ok: true };
-  const key = keyFor(pairingCode);
+  const key = keyFor(sessionKey);
   const logsJson = JSON.stringify(newLogs);
   const lua = `
     local raw = redis.call("GET", KEYS[1])
     if not raw then return cjson.encode({ok=false,reason="not_found"}) end
     local sess = cjson.decode(raw)
-    if sess.pairToken ~= ARGV[1] then return cjson.encode({ok=false,reason="bad_token"}) end
     if not sess.logs then sess.logs = {} end
-    local newLogs = cjson.decode(ARGV[2])
+    local newLogs = cjson.decode(ARGV[1])
     for i=1, #newLogs do
       table.insert(sess.logs, newLogs[i])
       if #sess.logs > 100 then
@@ -150,7 +147,7 @@ export async function appendLogs(pairingCode: string, pairToken: string, newLogs
     return cjson.encode({ok=true})
   `;
   try {
-    const res = await getRedis().eval(lua, [key], [pairToken, logsJson]);
+    const res = await getRedis().eval(lua, [key], [logsJson]);
     const parsed = typeof res === "string" ? JSON.parse(res) : res;
     return parsed as { ok: boolean, reason?: string };
   } catch (err) {
@@ -159,8 +156,8 @@ export async function appendLogs(pairingCode: string, pairToken: string, newLogs
   }
 }
 
-export async function consumeLogs(pairingCode: string) {
-  const key = keyFor(pairingCode);
+export async function consumeLogs(sessionKey: string) {
+  const key = keyFor(sessionKey);
   const lua = `
     local raw = redis.call("GET", KEYS[1])
     if not raw then return cjson.encode({ok=false,reason="not_found"}) end
@@ -184,5 +181,5 @@ export async function consumeLogs(pairingCode: string) {
 // and KV_REST_API_TOKEN (Vercel KV) or fallback to UPSTASH_REDIS_REST_URL and
 // UPSTASH_REDIS_REST_TOKEN in your environment (.env.local for local dev and
 // in Vercel project settings for production). The keys are stored as JSON strings
-// under the prefix `apple-juice:session:` and consumeIfAuthorized is implemented
+// under the prefix `apple-juice:session:` and consumeCode is implemented
 // using a Lua script (EVAL) to atomically read-and-clear the `hasNewCode` flag.

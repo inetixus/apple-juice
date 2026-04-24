@@ -1,20 +1,18 @@
-import { consumeIfAuthorized } from "@/lib/store";
+import { consumeCode } from "@/lib/store";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const code = url.searchParams.get("code")?.trim() ?? "";
-  const token = url.searchParams.get("token")?.trim() ?? "";
+  const sessionKey = url.searchParams.get("key")?.trim() ?? "";
 
-  if (!code || !token) {
-    return Response.json({ paired: false, error: "Missing code or token" }, { status: 400 });
+  if (!sessionKey) {
+    return Response.json({ paired: false, error: "Missing session key" }, { status: 400 });
   }
 
   try {
-    const result = await consumeIfAuthorized(code, token);
+    const result = await consumeCode(sessionKey);
 
     if (!result.ok) {
       if (result.reason === "not_found") return Response.json({ paired: false }, { status: 404 });
-      if (result.reason === "bad_token") return Response.json({ paired: false }, { status: 401 });
       if (result.reason === "expired") return Response.json({ paired: false, error: "expired" }, { status: 410 });
     }
 
