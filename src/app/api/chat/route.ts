@@ -13,6 +13,8 @@ type ChatBody = {
   model?: string;
   provider?: string;
   openaiKey?: string;
+  mode?: "fast" | "thinking";
+  fileContents?: { name: string; content: string }[];
 };
 
 export async function POST(req: Request) {
@@ -28,6 +30,8 @@ export async function POST(req: Request) {
   const model = body.model?.trim() ?? "gpt-4o-mini";
   const provider = (body.provider?.trim() || "openai").toString();
   const openaiKey = body.openaiKey?.trim() ?? "";
+  const mode = body.mode ?? "fast";
+  const fileContents = body.fileContents ?? [];
 
   if (!prompt || !sessionKey || !apiKey) {
     return Response.json({ error: "prompt, sessionKey, and apiKey are required" }, { status: 400 });
@@ -39,7 +43,6 @@ export async function POST(req: Request) {
   if (Date.now() > pair.expiresAt) return Response.json({ error: "Session expired" }, { status: 410 });
 
   let raw = "";
-  let code = "";
   let modelUsed = model;
 
   type PluginPayload = { 
@@ -49,14 +52,15 @@ export async function POST(req: Request) {
     name?: string; 
     code?: string; 
     message?: string; 
-    suggestions?: string[] 
+    suggestions?: string[];
+    scripts?: PluginPayload[];
   };
 
   function tryParsePluginPayload(text?: string): PluginPayload | null {
     if (!text) return null;
     try {
       const obj = JSON.parse(text);
-      if (obj && typeof obj === "object" && ("code" in obj || "action" in obj)) return obj as PluginPayload;
+      if (obj && typeof obj === "object" && ("code" in obj || "action" in obj || "scripts" in obj)) return obj as PluginPayload;
     } catch {
       // ignore
     }
@@ -64,7 +68,7 @@ export async function POST(req: Request) {
     if (m) {
       try {
         const obj = JSON.parse(m[0]);
-        if (obj && typeof obj === "object" && ("code" in obj || "action" in obj)) return obj as PluginPayload;
+        if (obj && typeof obj === "object" && ("code" in obj || "action" in obj || "scripts" in obj)) return obj as PluginPayload;
       } catch {
         // ignore
       }
@@ -72,30 +76,54 @@ export async function POST(req: Request) {
     return null;
   }
 
-  const SYSTEM_PROMPT = `You are a Roblox Luau scripting assistant called Apple Juice. Output ONLY a JSON object with these fields:
-- "action": "create" or "delete" (whether to create a new script or delete an existing one)
-- "type": "Script", "LocalScript", or "ModuleScript" (only if creating)
-- "parent": dot path string exactly matching Roblox hierarchy (e.g. "ServerScriptService", "StarterPlayer.StarterPlayerScripts", "ReplicatedStorage", "StarterGui")
-- "name": script name string (e.g. "AntiSpeedHandler", "DataSaveManager")
-- "code": valid Luau source code as a string (empty if deleting)
-- "message": a short, friendly conversational explanation of what you did and how it works (2-4 sentences, no code in this field)
-- "suggestions": an array of 3 short strings suggesting what the user could build next that pairs well with this script
+  // Build file context block
+  let fileContextBlock = "";
+  if (fileContents.length > 0) {
+    fileContextBlock = "\n\nThe user has attached the following files for reference:\n";
+    for (const f of fileContents) {
+      fileContextBlock += `\n--- FILE: ${f.name} ---\n${f.content}\n--- END FILE ---\n`;
+    }
+  }
+
+  const thinkingInstructions = mode === "thinking" 
+    ? `\nBEFORE writing code, think step-by-step in the "thinking" field (a string) about:
+1. What the user wants
+2. Which services and APIs you'll use
+3. Edge cases to handle
+4. How scripts interact if making multiple
+Include "thinking" as a field in your JSON output.`
+    : "";
+
+  const SYSTEM_PROMPT = `You are a Roblox Luau scripting assistant called Apple Juice.${thinkingInstructions}
+
+When the user's request requires MULTIPLE scripts (e.g. a server script AND a client script, or a module AND a consumer), output a JSON object with:
+- "scripts": an array of script objects, each with: action, type, parent, name, code
+- "message": a friendly explanation of everything you created
+- "suggestions": 3 short follow-up ideas
+${mode === "thinking" ? '- "thinking": your step-by-step reasoning (string)' : ""}
+
+When only ONE script is needed, output a JSON object with:
+- "action": "create" or "delete"
+- "type": "Script", "LocalScript", or "ModuleScript"
+- "parent": dot path (e.g. "ServerScriptService", "StarterPlayer.StarterPlayerScripts", "ReplicatedStorage")
+- "name": script name
+- "code": valid Luau source code
+- "message": a short friendly explanation (2-4 sentences)
+- "suggestions": array of 3 short strings
+${mode === "thinking" ? '- "thinking": your step-by-step reasoning (string)' : ""}
 
 CRITICAL RULES FOR SCRIPT TYPE AND PARENT:
 1. DEFAULT to "type": "Script" with "parent": "ServerScriptService". This is the correct choice for the vast majority of requests (game logic, NPC AI, data saving, anti-cheat, round systems, etc.).
 2. Use "LocalScript" ONLY for client-side code (UI, camera, input handling). Place in "StarterPlayer.StarterPlayerScripts" or "StarterGui".
 3. Use "ModuleScript" ONLY when the user explicitly asks for a reusable module/library that returns a table. Place in "ReplicatedStorage" or "ServerStorage". NEVER default to ModuleScript.
 4. The code must be a standalone, runnable script. Do NOT wrap server logic in a module that returns a table unless the user specifically asked for a module.
-
+${fileContextBlock}
 Return ONLY the JSON object — no markdown, no backticks, no extra commentary outside the JSON.`;
 
-  // Helper to call OpenAI Chat Completions and extract structured payload or raw content
+  // Helper to call OpenAI Chat Completions
   async function callOpenAI(key: string, modelName: string) {
     const apiMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
-      {
-        role: "system",
-        content: SYSTEM_PROMPT,
-      },
+      { role: "system", content: SYSTEM_PROMPT },
     ];
 
     if (body.messages && body.messages.length > 0) {
@@ -109,9 +137,9 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
         model: modelName,
-        temperature: 0.2,
+        temperature: mode === "thinking" ? 0.4 : 0.2,
         messages: apiMessages,
-        max_tokens: 4096,
+        max_tokens: mode === "thinking" ? 8192 : 4096,
       }),
     });
 
@@ -119,37 +147,51 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     return { ok: res.ok, text };
   }
 
+  function extractContent(rawResponse: string, isGoogle = false): string {
+    try {
+      const parsed = JSON.parse(rawResponse);
+      if (isGoogle) {
+        return parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+      }
+      return parsed?.choices?.[0]?.message?.content?.trim() ?? "";
+    } catch {
+      return "";
+    }
+  }
+
+  function processResponse(content: string, rawText: string): { code: string; raw: string } {
+    const structured = tryParsePluginPayload(content) || tryParsePluginPayload(rawText);
+    if (structured) {
+      if (structured.scripts && Array.isArray(structured.scripts)) {
+        return { code: "", raw: JSON.stringify(structured) };
+      }
+      if (structured.code) {
+        return { code: structured.code, raw: JSON.stringify(structured) };
+      }
+    }
+    const cleanCode = content.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
+    return {
+      code: cleanCode,
+      raw: JSON.stringify({
+        action: "create",
+        type: "Script",
+        parent: "ServerScriptService",
+        name: "AIGeneratedFallback",
+        code: cleanCode,
+      }),
+    };
+  }
+
+  let code = "";
+
   if (model.toLowerCase().startsWith("gpt-") && openaiKey) {
     const { ok, text } = await callOpenAI(openaiKey, model);
     raw = text;
     if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model }, { status: 502 });
-    try {
-      const parsed = JSON.parse(raw);
-      const content = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
-      const structured = tryParsePluginPayload(content) || tryParsePluginPayload(raw);
-          if (structured && structured.code) {
-            code = structured.code;
-            raw = JSON.stringify(structured);
-          } else {
-            code = content.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
-            raw = JSON.stringify({
-              action: "create",
-              type: "Script",
-              parent: "ServerScriptService",
-              name: "AIGeneratedFallback",
-              code: code,
-            });
-          }
-        } catch {
-          code = raw.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
-          raw = JSON.stringify({
-            action: "create",
-            type: "Script",
-            parent: "ServerScriptService",
-            name: "AIGeneratedFallback",
-            code: code,
-          });
-        }
+    const content = extractContent(raw);
+    const result = processResponse(content, raw);
+    code = result.code;
+    raw = result.raw;
     modelUsed = model;
   } else if (provider === "google") {
     const requestedModel = (model || "gemini-3-flash").trim();
@@ -195,14 +237,12 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
                   parts: [{ text: (i === 0 && m.role === "user") ? `${SYSTEM_PROMPT}\n\nUser Prompt: ${m.content}` : m.content }]
                 }));
               }
-              return [
-                {
-                  role: "user",
-                  parts: [{ text: `${SYSTEM_PROMPT}\n\nUser Prompt: ${prompt}` }]
-                }
-              ];
+              return [{ role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\nUser Prompt: ${prompt}` }] }];
             })(),
-            generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
+            generationConfig: { 
+              temperature: mode === "thinking" ? 0.4 : 0.2, 
+              maxOutputTokens: mode === "thinking" ? 8192 : 4096 
+            },
           }),
         });
 
@@ -213,26 +253,11 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
           continue;
         }
 
-        const parsed = JSON.parse(bodyText);
-        const content = parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
-        const structured = tryParsePluginPayload(content) || tryParsePluginPayload(bodyText);
-        if (structured && structured.code) {
-          code = structured.code;
-          raw = JSON.stringify(structured);
-          modelUsed = candidate;
-          break;
-        }
-
+        const content = extractContent(bodyText, true);
         if (content) {
-          code = content.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
-          // FALLBACK: Construct a valid JSON payload so the plugin doesn't receive an empty string
-          raw = JSON.stringify({
-            action: "create",
-            type: "Script",
-            parent: "ServerScriptService",
-            name: "AIGeneratedFallback",
-            code: code,
-          });
+          const result = processResponse(content, bodyText);
+          code = result.code;
+          raw = result.raw;
           modelUsed = candidate;
           break;
         }
@@ -243,42 +268,19 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
       }
     }
 
-    if (!code && openaiKey) {
+    if (!code && !raw && openaiKey) {
       const { ok, text } = await callOpenAI(openaiKey, "gpt-4o-mini");
       raw = text;
       if (ok) {
-        try {
-          const parsed = JSON.parse(raw);
-          const content = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
-          const structured = tryParsePluginPayload(content) || tryParsePluginPayload(raw);
-          if (structured && structured.code) {
-            code = structured.code;
-            raw = JSON.stringify(structured);
-          } else {
-            code = content.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
-            raw = JSON.stringify({
-              action: "create",
-              type: "Script",
-              parent: "ServerScriptService",
-              name: "AIGeneratedFallback",
-              code: code,
-            });
-          }
-        } catch {
-          code = raw.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
-          raw = JSON.stringify({
-            action: "create",
-            type: "Script",
-            parent: "ServerScriptService",
-            name: "AIGeneratedFallback",
-            code: code,
-          });
-        }
+        const content = extractContent(raw);
+        const result = processResponse(content, raw);
+        code = result.code;
+        raw = result.raw;
         modelUsed = "gpt-4o-mini";
       }
     }
 
-    if (!code) {
+    if (!code && !raw) {
       return Response.json({ error: "LLM request failed", detail: lastResponseBody, attemptedModels, provider, requestedModel }, { status: 502 });
     }
   } else {
@@ -286,29 +288,82 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     const { ok, text } = await callOpenAI(apiKey, model);
     raw = text;
     if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model }, { status: 502 });
-    try {
-      const parsed = JSON.parse(raw);
-      const content = parsed?.choices?.[0]?.message?.content?.trim() ?? "";
-      const structured = tryParsePluginPayload(content) || tryParsePluginPayload(raw);
-      if (structured && structured.code) {
-        code = structured.code;
-        raw = JSON.stringify(structured);
-      } else {
-        code = content;
-      }
-    } catch {
-      code = raw;
-    }
+    const content = extractContent(raw);
+    const result = processResponse(content, raw);
+    code = result.code;
+    raw = result.raw;
     modelUsed = model;
   }
 
   const structuredFinal = tryParsePluginPayload(raw) || null;
-  const isDelete = structuredFinal?.action === "delete";
+  const isMultiScript = structuredFinal?.scripts && Array.isArray(structuredFinal.scripts) && structuredFinal.scripts.length > 0;
+  const isDelete = !isMultiScript && structuredFinal?.action === "delete";
   
-  if (!code && !isDelete) return Response.json({ error: "Model returned empty output", detail: raw }, { status: 502 });
+  if (!code && !isDelete && !isMultiScript) return Response.json({ error: "Model returned empty output", detail: raw }, { status: 502 });
 
   const messageId = crypto.randomUUID();
 
+  if (isMultiScript) {
+    // Multi-script: send each script to the plugin sequentially
+    const scripts = structuredFinal!.scripts!;
+    const scriptResults: any[] = [];
+
+    for (let i = 0; i < scripts.length; i++) {
+      const s = scripts[i];
+      const sName = s.name ?? `GeneratedScript_${i}`;
+      const sType = s.type ?? "Script";
+      const sParent = s.parent ?? "ServerScriptService";
+      const sCode = s.code ?? "";
+      const sAction = s.action ?? "create";
+
+      const pluginPayload = JSON.stringify({
+        action: sAction,
+        type: sType,
+        parent: sParent,
+        name: sName,
+        code: sCode,
+      });
+
+      // Each script gets a unique messageId so the plugin picks them up separately
+      const scriptMsgId = `${messageId}_${i}`;
+      await upsertGeneratedCode(sessionKey, pluginPayload, scriptMsgId);
+
+      // Small delay between scripts so the plugin can poll and consume each one
+      if (i < scripts.length - 1) {
+        await new Promise(r => setTimeout(r, 3000));
+      }
+
+      scriptResults.push({
+        name: sName,
+        parent: sParent,
+        type: sType,
+        action: sAction,
+        lineCount: sCode ? sCode.split("\n").length : 0,
+        code: sCode,
+      });
+    }
+
+    const finalMessage = structuredFinal?.message ?? 
+      `I've created ${scripts.length} scripts for you: ${scriptResults.map(s => s.name).join(", ")}.`;
+    const finalSuggestions = structuredFinal?.suggestions ?? [
+      "Test all scripts together",
+      "Add error handling",
+      "Create a configuration module",
+    ];
+    const thinking = (structuredFinal as any)?.thinking;
+
+    return Response.json({
+      ok: true,
+      messageId,
+      model: modelUsed,
+      message: finalMessage,
+      suggestions: finalSuggestions,
+      scripts: scriptResults,
+      thinking: thinking || undefined,
+    });
+  }
+
+  // Single script path
   const finalParent = structuredFinal?.parent ?? "ServerScriptService";
   const finalName = structuredFinal?.name ?? `GeneratedScript_${messageId.slice(0, 8)}`;
   const finalCode = structuredFinal?.code ?? code;
@@ -321,6 +376,7 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     "Build a matching client-side script",
   ];
   const lineCount = finalCode ? finalCode.split("\n").length : 0;
+  const thinking = (structuredFinal as any)?.thinking;
 
   const pluginPayload = JSON.stringify({ 
     action: isDelete ? "delete" : "create",
@@ -344,5 +400,6 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     lineCount,
     message: finalMessage,
     suggestions: finalSuggestions,
+    thinking: thinking || undefined,
   });
 }

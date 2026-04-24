@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState } from "react";
-import { Copy, LogOut, RefreshCw, Settings2, WandSparkles, Sparkles } from "lucide-react";
+import { Copy, LogOut, RefreshCw, Settings2, WandSparkles, Sparkles, Paperclip, Zap, Brain, X } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,7 +31,10 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   script?: ScriptMeta;
+  scripts?: ScriptMeta[];
   suggestions?: string[];
+  thinking?: string;
+  attachments?: { name: string }[];
 };
 
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
@@ -60,6 +63,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [pluginStatus, setPluginStatus] = useState("Idle. Connect your plugin using the session key below.");
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const [gameLogs, setGameLogs] = useState<string[]>([]);
+  const [mode, setMode] = useState<"fast" | "thinking">("fast");
+  const [attachedFiles, setAttachedFiles] = useState<{ name: string; content: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const autoFixPendingRef = useRef<string | null>(null);
   const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
@@ -126,7 +132,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               const successLog = data.logs.find((log: string) => log.includes("[SYSTEM_TEST_SUCCESS]"));
               if (successLog && isGenerating && pendingPayloadRef.current) {
                 // Test passed! Release the message to the user.
-                const finalPayload = pendingPayloadRef.current;
+                const fp = pendingPayloadRef.current;
                 pendingPayloadRef.current = null;
                 
                 setMessages((current) => [
@@ -134,16 +140,25 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   {
                     id: crypto.randomUUID(),
                     role: "assistant",
-                    content: finalPayload.message || "Here is the code you requested.",
-                    script: finalPayload.scriptName ? {
-                      name: finalPayload.scriptName,
-                      parent: finalPayload.scriptParent || "ServerScriptService",
-                      type: finalPayload.scriptType || "Script",
-                      action: finalPayload.action || "create",
-                      lineCount: finalPayload.lineCount || (finalPayload.code ? finalPayload.code.split("\n").length : 0),
-                      code: finalPayload.code || ""
+                    content: fp.message || "Here is the code you requested.",
+                    script: (!fp.scripts && fp.scriptName) ? {
+                      name: fp.scriptName,
+                      parent: fp.scriptParent || "ServerScriptService",
+                      type: fp.scriptType || "Script",
+                      action: fp.action || "create",
+                      lineCount: fp.lineCount || (fp.code ? fp.code.split("\n").length : 0),
+                      code: fp.code || ""
                     } : undefined,
-                    suggestions: finalPayload.suggestions,
+                    scripts: fp.scripts?.map((s: any) => ({
+                      name: s.name,
+                      parent: s.parent,
+                      type: s.type || "Script",
+                      action: s.action || "create",
+                      lineCount: s.lineCount || 0,
+                      code: s.code || "",
+                    })),
+                    suggestions: fp.suggestions,
+                    thinking: fp.thinking,
                   },
                 ]);
                 setThinkingSteps([]);
@@ -396,6 +411,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       id: crypto.randomUUID(),
       role: "user",
       content: trimmed,
+      attachments: attachedFiles.length > 0 ? attachedFiles.map(f => ({ name: f.name })) : undefined,
     };
 
     const newMessages = [...messages, userMessage];
@@ -442,6 +458,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           model: selectedModel,
           provider,
           openaiKey: openaiKey.trim(),
+          mode,
+          fileContents: attachedFiles.length > 0 ? attachedFiles : undefined,
         }),
       });
 
@@ -464,8 +482,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         code?: string; error?: string; detail?: string; 
         scriptName?: string; scriptParent?: string; lineCount?: number; 
         scriptType?: string; action?: "create" | "delete";
-        message?: string; suggestions?: string[] 
+        message?: string; suggestions?: string[];
+        scripts?: { name: string; parent: string; type: string; action: string; lineCount: number; code: string }[];
+        thinking?: string;
       };
+
+      // Clear attached files after successful send
+      setAttachedFiles([]);
 
       setPluginStatus(`New code is ready. Syncing to Studio for playtest...`);
       showToast("Script generated, syncing to Studio...", "success");
@@ -475,28 +498,38 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       // Hold the payload in the ref. The polling interval will release it on success.
       pendingPayloadRef.current = payload;
 
+      // Helper to build assistant message from payload
+      function buildAssistantMessage(p: typeof payload): ChatMessage {
+        return {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: p.message || "Here is the code you requested.",
+          script: (!p.scripts && p.scriptName) ? {
+            name: p.scriptName,
+            parent: p.scriptParent || "ServerScriptService",
+            type: p.scriptType || "Script",
+            action: p.action || "create",
+            lineCount: p.lineCount || (p.code ? p.code.split("\n").length : 0),
+            code: p.code || ""
+          } : undefined,
+          scripts: p.scripts?.map(s => ({
+            name: s.name,
+            parent: s.parent,
+            type: s.type || "Script",
+            action: (s.action as "create" | "delete") || "create",
+            lineCount: s.lineCount || 0,
+            code: s.code || "",
+          })),
+          suggestions: p.suggestions,
+          thinking: p.thinking,
+        };
+      }
+
       // 15-second timeout fallback in case the plugin never responds
       setTimeout(() => {
         if (pendingPayloadRef.current === payload) {
-          const finalPayload = pendingPayloadRef.current;
           pendingPayloadRef.current = null;
-          setMessages((current) => [
-            ...current,
-            {
-              id: crypto.randomUUID(),
-              role: "assistant",
-              content: finalPayload.message || "Here is the code you requested.",
-              script: finalPayload.scriptName ? {
-                name: finalPayload.scriptName,
-                parent: finalPayload.scriptParent || "ServerScriptService",
-                type: finalPayload.scriptType || "Script",
-                action: finalPayload.action || "create",
-                lineCount: finalPayload.lineCount || (finalPayload.code ? finalPayload.code.split("\n").length : 0),
-                code: finalPayload.code || ""
-              } : undefined,
-              suggestions: finalPayload.suggestions,
-            },
-          ]);
+          setMessages((current) => [...current, buildAssistantMessage(payload)]);
           setThinkingSteps([]);
           setIsGenerating(false);
           setPluginStatus("Playtest timeout. Assuming success.");
@@ -769,12 +802,44 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     )}
                   </div>
                   <div className="mt-5 space-y-5">
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {message.attachments.map((a, i) => (
+                          <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-xs text-[#8a8f98]">
+                            <Paperclip className="h-3 w-3" />
+                            {a.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     <p className={`whitespace-pre-wrap leading-relaxed ${message.role === 'user' ? 'text-lg text-white' : 'text-base text-white/90'}`}>
                       {message.content}
                     </p>
+
+                    {message.thinking && (
+                      <details className="group mt-3">
+                        <summary className="cursor-pointer text-xs text-[#8a8f98] hover:text-white transition-colors flex items-center gap-1.5">
+                          <Brain className="h-3.5 w-3.5 text-purple-400" />
+                          <span>View reasoning</span>
+                        </summary>
+                        <div className="mt-2 p-3 rounded-lg bg-purple-500/5 border border-purple-500/10 text-sm text-[#a0a5b0] whitespace-pre-wrap">
+                          {message.thinking}
+                        </div>
+                      </details>
+                    )}
                     
                     {message.script && (
                       <ScriptCard script={message.script} />
+                    )}
+
+                    {message.scripts && message.scripts.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">{message.scripts.length} Scripts Generated</p>
+                        {message.scripts.map((s, i) => (
+                          <ScriptCard key={i} script={s} />
+                        ))}
+                      </div>
                     )}
 
                     {message.suggestions && message.suggestions.length > 0 && (
@@ -807,8 +872,22 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
           {/* Prompt Input Fixed Bottom */}
           <div className="flex-shrink-0 border-t border-white/5 p-6 bg-[#0a0a0a]">
-            <div className="max-w-4xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both">
-              <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Prompt</p>
+            <div className="max-w-4xl mx-auto space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both">
+              {/* Attached files */}
+              {attachedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {attachedFiles.map((f, i) => (
+                    <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-[#8a8f98]">
+                      <Paperclip className="h-3 w-3" />
+                      {f.name}
+                      <button onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))} className="ml-1 hover:text-white transition-colors">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
               <Textarea
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
@@ -821,8 +900,57 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   }
                 }}
               />
-              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-4">
-                <p className="text-sm text-[#8a8f98]">Output target: raw Luau code. Model: <span className="font-medium text-white">{selectedModel}</span></p>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".lua,.luau,.txt,.json,.md,.csv,.ts,.js"
+                className="hidden"
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (!files) return;
+                  Array.from(files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setAttachedFiles(prev => [...prev, { name: file.name, content: reader.result as string }]);
+                    };
+                    reader.readAsText(file);
+                  });
+                  e.target.value = "";
+                }}
+              />
+
+              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-3">
+                <div className="flex items-center gap-3">
+                  {/* Mode toggle */}
+                  <div className="flex items-center bg-white/5 rounded-lg border border-white/10 p-0.5">
+                    <button
+                      onClick={() => setMode("fast")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === "fast" ? "bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/20" : "text-[#8a8f98] hover:text-white"}`}
+                    >
+                      <Zap className="h-3 w-3" />
+                      Fast
+                    </button>
+                    <button
+                      onClick={() => setMode("thinking")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === "thinking" ? "bg-purple-500/15 text-purple-400 border border-purple-500/20" : "text-[#8a8f98] hover:text-white"}`}
+                    >
+                      <Brain className="h-3 w-3" />
+                      Thinking
+                    </button>
+                  </div>
+
+                  {/* File attach */}
+                  <Button variant="outline" size="sm" className="text-xs" onClick={() => fileInputRef.current?.click()}>
+                    <Paperclip className="h-3.5 w-3.5" />
+                    Attach
+                  </Button>
+
+                  <p className="text-xs text-[#8a8f98] hidden sm:block">Model: <span className="font-medium text-white">{selectedModel}</span></p>
+                </div>
+
                 <div className="flex items-center gap-3">
                   {lastError && (
                     <Button variant="outline" className="border-red-500/20 text-red-500 hover:bg-red-500/10" onClick={handleAutoFix} disabled={isGenerating}>
