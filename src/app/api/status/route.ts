@@ -25,6 +25,7 @@ export async function GET(req: Request) {
       status: "ok",
       hasNewCode: session.hasNewCode,
       lastPollTime: session.lastPollTime || 0,
+      serverTime: Date.now(),
       logs: logs
     });
   } catch (err) {

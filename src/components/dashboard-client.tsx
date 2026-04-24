@@ -54,6 +54,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPluginConnected, setIsPluginConnected] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [recentPrompts, setRecentPrompts] = useState<string[]>([]);
   const [pluginStatus, setPluginStatus] = useState("Idle. Connect your plugin using the session key below.");
@@ -87,13 +88,22 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               codeConsumedRef.current = true;
             }
 
-            // Check if the plugin polled for the first time
-            if (data.lastPollTime > 0 && lastPollRef.current === 0) {
+            // Handle connection status checking
+            if (data.lastPollTime > 0) {
               lastPollRef.current = data.lastPollTime;
-              setPluginStatus("Plugin connected successfully.");
-              showToast("Plugin connected successfully!", "success");
-            } else if (data.lastPollTime > lastPollRef.current) {
-              lastPollRef.current = data.lastPollTime;
+              const serverTime = data.serverTime || Date.now();
+              const timeSinceLastPoll = serverTime - data.lastPollTime;
+              const isNowConnected = timeSinceLastPoll < 8000;
+              
+              setIsPluginConnected(prev => {
+                if (isNowConnected && !prev) {
+                  setPluginStatus("Plugin connected successfully.");
+                  showToast("Plugin connected successfully!", "success");
+                } else if (!isNowConnected && prev) {
+                  setPluginStatus("Plugin disconnected. Waiting for connection...");
+                }
+                return isNowConnected;
+              });
             }
 
             if (data.logs && data.logs.length > 0) {
@@ -655,9 +665,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               <div>
                 <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Plugin Connection</p>
                 <div className="mt-3 flex items-center gap-3">
-                  <div className={`h-3 w-3 rounded-full ${lastPollRef.current > 0 ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.3)]'} animate-pulse`} />
+                  <div className={`h-3 w-3 rounded-full ${isPluginConnected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.3)]'} animate-pulse`} />
                   <p className="text-lg font-semibold text-white">
-                    {lastPollRef.current > 0 ? "Connected" : "Waiting for plugin..."}
+                    {isPluginConnected ? "Connected" : "Waiting for plugin..."}
                   </p>
                 </div>
               </div>
