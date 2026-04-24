@@ -422,29 +422,53 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     setIsGenerating(true);
     setPluginStatus("Generating Luau and syncing it to the pairing session...");
 
-    setThinkingSteps([{ icon: "thinking", label: "Thinking about the request...", done: false }]);
-    
-    // Randomize thinking steps
-    const t1 = setTimeout(() => {
-      setThinkingSteps(prev => {
-        if (prev.length === 1 && !prev[0].done) {
-          return [{ ...prev[0], done: true }, { icon: "looking", label: "Looking at Roblox API docs...", done: false }];
-        }
-        return prev;
-      });
+    if (mode === "thinking") {
+      setThinkingSteps([{ icon: "thinking", label: "Deep reasoning about the request...", done: false }]);
       
-      const t2 = setTimeout(() => {
+      const t1 = setTimeout(() => {
         setThinkingSteps(prev => {
-          if (prev.length === 2 && !prev[1].done) {
-            return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: "Writing Luau script...", done: false }];
+          if (prev.length === 1 && !prev[0].done) {
+            return [{ ...prev[0], done: true }, { icon: "looking", label: "Analyzing architecture and dependencies...", done: false }];
           }
           return prev;
         });
-      }, 1000 + Math.random() * 2000);
-      stepTimeoutsRef.current.push(t2);
-    }, 800 + Math.random() * 1500);
-    
-    stepTimeoutsRef.current.push(t1);
+        
+        const t2 = setTimeout(() => {
+          setThinkingSteps(prev => {
+            if (prev.length === 2 && !prev[1].done) {
+              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: "Writing and verifying Luau scripts...", done: false }];
+            }
+            return prev;
+          });
+        }, 2000 + Math.random() * 3000);
+        stepTimeoutsRef.current.push(t2);
+      }, 1500 + Math.random() * 2500);
+      
+      stepTimeoutsRef.current.push(t1);
+    } else {
+      setThinkingSteps([{ icon: "thinking", label: "Thinking about the request...", done: false }]);
+      
+      const t1 = setTimeout(() => {
+        setThinkingSteps(prev => {
+          if (prev.length === 1 && !prev[0].done) {
+            return [{ ...prev[0], done: true }, { icon: "looking", label: "Looking at Roblox API docs...", done: false }];
+          }
+          return prev;
+        });
+        
+        const t2 = setTimeout(() => {
+          setThinkingSteps(prev => {
+            if (prev.length === 2 && !prev[1].done) {
+              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: "Writing Luau script...", done: false }];
+            }
+            return prev;
+          });
+        }, 1000 + Math.random() * 2000);
+        stepTimeoutsRef.current.push(t2);
+      }, 800 + Math.random() * 1500);
+      
+      stepTimeoutsRef.current.push(t1);
+    }
 
     try {
       const response = await fetch("/api/chat", {
