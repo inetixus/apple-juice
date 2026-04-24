@@ -61,11 +61,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
   const [gameLogs, setGameLogs] = useState<string[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
+  const autoFixPendingRef = useRef<string | null>(null);
   const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const lastPollRef = useRef<number>(0);
   const codeConsumedRef = useRef<boolean>(false);
+  const lastReportedErrorRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!pairingCode) return;
@@ -96,8 +98,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             if (data.logs && data.logs.length > 0) {
               setGameLogs(prev => [...prev, ...data.logs].slice(-200)); // keep last 200 logs
               const newErrorLog = data.logs.find((log: string) => log.toLowerCase().includes("error") || log.toLowerCase().includes("exception"));
-              if (newErrorLog) {
+              if (newErrorLog && newErrorLog !== lastReportedErrorRef.current) {
+                lastReportedErrorRef.current = newErrorLog;
                 setLastError(newErrorLog);
+                // Queue auto-fix — will be picked up by the polling below
+                autoFixPendingRef.current = newErrorLog;
               }
             }
           }
@@ -108,6 +113,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     }, 3000);
     return () => clearInterval(interval);
   }, [pairingCode, showToast]);
+
+  // Auto-fix polling: checks every second if an auto-fix is pending
+  useEffect(() => {
+    const autoFixInterval = setInterval(() => {
+      if (autoFixPendingRef.current && !isGenerating) {
+        const errorMsg = autoFixPendingRef.current;
+        autoFixPendingRef.current = null;
+        const fixPrompt = `The previous code failed with this error in Roblox Studio:\n${errorMsg}\n\nFix it. Make sure to output a regular Script in ServerScriptService (not a ModuleScript) unless the original was specifically a module.`;
+        submitPrompt(fixPrompt);
+      }
+    }, 1500);
+    return () => clearInterval(autoFixInterval);
+  });
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
