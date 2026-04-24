@@ -317,8 +317,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     window.localStorage.setItem("apple-juice-recent-prompts", JSON.stringify(next));
   }
 
-  async function submitPrompt(e?: any, overridePrompt?: string) {
-    const targetPrompt = overridePrompt || prompt;
+  async function submitPrompt(overridePrompt?: string | any) {
+    const targetPrompt = typeof overridePrompt === "string" ? overridePrompt : prompt;
     const trimmed = targetPrompt.trim();
     if (!trimmed || !pairingCode) {
       return;
@@ -487,7 +487,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const handleAutoFix = () => {
     if (!lastError) return;
     const fixPrompt = `The previous code failed with this error in Roblox Studio:\n${lastError}\n\nFix it.`;
-    submitPrompt(undefined, fixPrompt);
+    submitPrompt(fixPrompt);
   };
 
   return (
@@ -811,7 +811,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       Repair Script
                     </Button>
                   )}
-                  <Button onClick={(e) => submitPrompt(e)} disabled={isGenerating}>
+                  <Button onClick={() => submitPrompt()} disabled={isGenerating}>
                     <WandSparkles className="h-4 w-4" />
                     {isGenerating ? "Generating..." : "Generate Script"}
                   </Button>
