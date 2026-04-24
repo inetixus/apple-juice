@@ -388,7 +388,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         setPluginStatus("Plugin pull successful. New script consumed from session.");
         showToast("Plugin successfully received the script!", "success");
       } else {
-        setPluginStatus("No new script yet. Generate code or poll again.");
+        setPluginStatus("Plugin connected. No new script yet.");
+        showToast("Plugin connected successfully", "success");
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Unknown error";

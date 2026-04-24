@@ -81,10 +81,10 @@ export async function POST(req: Request) {
 - "message": a short, friendly conversational explanation of what you did and how it works (2-4 sentences, no code in this field)
 - "suggestions": an array of 3 short strings suggesting what the user could build next that pairs well with this script
 
-IMPORTANT FOR PARENTING:
-- Normal server scripts go in "ServerScriptService" or "Workspace".
-- LocalScripts go in "StarterPlayer.StarterPlayerScripts", "StarterPlayer.StarterCharacterScripts", or inside a GUI in "StarterGui".
-- ModuleScripts go in "ReplicatedStorage" (if shared), "ServerStorage" (if server-only), or wherever relevant.
+IMPORTANT FOR PARENTING AND TYPES:
+- "Script" (Server Scripts): Must go in "ServerScriptService" or "Workspace". Use this for server-side game logic.
+- "LocalScript": Must go in "StarterPlayer.StarterPlayerScripts", "StarterPlayer.StarterCharacterScripts", or inside a GUI in "StarterGui". Use this for client-side logic.
+- "ModuleScript": Must go in "ReplicatedStorage" (if shared) or "ServerStorage" (if server-only). ONLY use ModuleScripts when creating a reusable library that returns a table. Do NOT default to ModuleScripts for standard game logic.
 
 Return ONLY the JSON object — no markdown, no backticks, no extra commentary outside the JSON.`;
 
