@@ -11,7 +11,7 @@ pcall(function() StudioTestService = game:GetService("StudioTestService") end)
 local TOOLBAR_NAME = "Apple Juice AI Sync"
 local WIDGET_TITLE = "Apple Juice AI Sync"
 
-local BASE_URL = "https://apple-juice.vercel.app"
+local BASE_URL = "https://apple-juice.online"
 local CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
 local POLL_ENDPOINT = BASE_URL .. "/api/poll"
 local LOGS_ENDPOINT = BASE_URL .. "/api/logs"

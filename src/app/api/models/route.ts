@@ -18,14 +18,16 @@ export async function POST(request: Request) {
   const apiKey = body.apiKey?.trim() || "";
   const provider = (body.provider || "openai").toString();
 
-  if (!apiKey) {
+  if (!apiKey && provider === "google" && !process.env.GOOGLE_API_KEY) {
     return Response.json({ error: "apiKey is required" }, { status: 400 });
   }
+
+  const effectiveApiKey = apiKey || (provider === "google" ? process.env.GOOGLE_API_KEY : process.env.OPENAI_API_KEY) || "";
 
   if (provider === "google") {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta2/models?key=${encodeURIComponent(
-        apiKey,
+        effectiveApiKey,
       )}`;
       const response = await fetch(url, { method: "GET", headers: { "Content-Type": "application/json" } });
       if (!response.ok) {
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
   const response = await fetch("https://api.openai.com/v1/models", {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${effectiveApiKey}`,
     },
   });
 

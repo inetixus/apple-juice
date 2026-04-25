@@ -39,8 +39,18 @@ export async function POST(req: Request) {
   const clientKey = provider === "google" ? apiKey : (openaiKey || apiKey);
   const isUsingCustomKey = !!clientKey && clientKey !== systemOpenAIKey && clientKey !== systemGoogleKey;
 
-  const finalGoogleKey = (provider === "google" && clientKey) ? clientKey : systemGoogleKey;
-  const finalOpenAIKey = (provider === "openai" && clientKey) ? clientKey : systemOpenAIKey;
+  let effectiveProvider = provider;
+  let effectiveModel = model;
+  
+  if (!isUsingCustomKey) {
+    effectiveProvider = "google";
+    if (effectiveModel.toLowerCase().startsWith("gpt-")) {
+      effectiveModel = "gemini-3-flash";
+    }
+  }
+
+  const finalGoogleKey = (effectiveProvider === "google" && clientKey) ? clientKey : systemGoogleKey;
+  const finalOpenAIKey = (effectiveProvider === "openai" && clientKey) ? clientKey : systemOpenAIKey;
 
   // Check credits only if NOT using a custom key
   if (!isUsingCustomKey) {
@@ -240,18 +250,18 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
   let code = "";
   let tokensUsed = 0;
 
-  if (model.toLowerCase().startsWith("gpt-") && finalOpenAIKey) {
-    const { ok, text, tokens } = await callOpenAI(finalOpenAIKey, model);
+  if (effectiveModel.toLowerCase().startsWith("gpt-") && finalOpenAIKey) {
+    const { ok, text, tokens } = await callOpenAI(finalOpenAIKey, effectiveModel);
     raw = text;
     tokensUsed = tokens;
-    if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model }, { status: 502 });
+    if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model: effectiveModel }, { status: 502 });
     const content = extractContent(raw);
     const result = processResponse(content, raw);
     code = result.code;
     raw = result.raw;
-    modelUsed = model;
-  } else if (provider === "google") {
-    const requestedModel = (model || "gemini-3-flash").trim();
+    modelUsed = effectiveModel;
+  } else if (effectiveProvider === "google") {
+    const requestedModel = (effectiveModel || "gemini-3-flash").trim();
     const GOOGLE_FALLBACK_MODELS = [
       "models/gemini-3.1-pro",
       "models/gemini-3-flash",
@@ -345,19 +355,19 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     }
 
     if (!code && !raw) {
-      return Response.json({ error: "LLM request failed", detail: lastResponseBody, attemptedModels, provider, requestedModel }, { status: 502 });
+      return Response.json({ error: "LLM request failed", detail: lastResponseBody, attemptedModels, provider: effectiveProvider, requestedModel }, { status: 502 });
     }
   } else {
     // Default: OpenAI using provided apiKey
-    const { ok, text, tokens } = await callOpenAI(finalGoogleKey || finalOpenAIKey, model);
+    const { ok, text, tokens } = await callOpenAI(finalGoogleKey || finalOpenAIKey, effectiveModel);
     raw = text;
     tokensUsed = tokens;
-    if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model }, { status: 502 });
+    if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model: effectiveModel }, { status: 502 });
     const content = extractContent(raw);
     const result = processResponse(content, raw);
     code = result.code;
     raw = result.raw;
-    modelUsed = model;
+    modelUsed = effectiveModel;
   }
 
   const structuredFinal = tryParsePluginPayload(raw) || null;

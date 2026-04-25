@@ -57,7 +57,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [gameLogs, setGameLogs] = useState<string[]>([]);
   const [mode, setMode] = useState<"fast" | "thinking">("fast");
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; content: string }[]>([]);
-  const [usage, setUsage] = useState({ usedCredits: 0, totalCredits: 50 });
+  const [usage, setUsage] = useState({ usedTokens: 0, totalTokens: 50000 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const autoFixPendingRef = useRef<string | null>(null);
@@ -243,8 +243,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       if (res.ok) {
         const data = await res.json();
         setUsage({
-          usedCredits: data.usedCredits,
-          totalCredits: data.totalCredits,
+          usedTokens: data.usedTokens,
+          totalTokens: data.totalTokens,
         });
       }
     } catch {
@@ -304,10 +304,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
   async function loadModels(rawApiKey?: string, preferredModel?: string, providerArg?: string) {
     const key = (rawApiKey ?? apiKey).trim();
-    if (!key) {
-      setPluginStatus("Add your API key in Settings to load model choices.");
-      return;
-    }
     setIsLoadingModels(true);
     const usedProvider = providerArg ?? provider;
     try {
@@ -408,11 +404,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const targetPrompt = typeof overridePrompt === "string" ? overridePrompt : prompt;
     const trimmed = targetPrompt.trim();
     if (!trimmed || !sessionKey) {
-      return;
-    }
-    if (!apiKey.trim()) {
-      setPluginStatus("Add your API key in Settings before generating code.");
-      setShowSettings(true);
       return;
     }
 
@@ -615,8 +606,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   };
 
   return (
-    <main className="h-screen bg-[#090a0d] text-white flex flex-col overflow-hidden">
-      <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.04] px-6 py-3 bg-[#090a0d]/80 backdrop-blur-xl">
+    <main className="h-screen bg-[#13151a] text-white flex flex-col overflow-hidden">
+      <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.04] px-6 py-3 bg-[#13151a]/80 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ccff00] shadow-[0_0_12px_rgba(204,255,0,0.25)]">
                   <svg viewBox="0 0 24 24" className="h-6 w-6 text-black" fill="currentColor">
@@ -651,9 +642,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        <div className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 border-r border-white/[0.04] overflow-y-auto p-4 space-y-3 bg-[#090a0d]">
+        <div className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 border-r border-white/[0.04] overflow-y-auto p-4 space-y-3 bg-[#13151a]">
           {showSettings && (
-            <div className="bg-[#0c0d10] border border-white/[0.04] rounded-2xl p-5 space-y-5 animate-in fade-in slide-in-from-top-3 duration-200">
+            <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-5 space-y-5 animate-in fade-in slide-in-from-top-3 duration-200">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-white/30">Settings</p>
               <div>
                 <label className="text-[12px] font-medium text-white/50 mb-2 block">Provider</label>
@@ -673,8 +664,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   }}
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
                 >
-                  <option value="openai" className="bg-[#090a0d]">OpenAI</option>
-                  <option value="google" className="bg-[#090a0d]">Google AI Studio</option>
+                  <option value="openai" className="bg-[#13151a]">OpenAI</option>
+                  <option value="google" className="bg-[#13151a]">Google AI Studio</option>
                 </select>
               </div>
               <div>
@@ -716,7 +707,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
                 >
                   {availableModels.map((model) => (
-                    <option key={model} value={model} className="bg-[#090a0d]">{model}</option>
+                    <option key={model} value={model} className="bg-[#13151a]">{model}</option>
                   ))}
                 </select>
               </div>
@@ -724,7 +715,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           )}
 
           {/* Plugin Status */}
-          <div className="bg-[#0c0d10] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500">
+          <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <span className={`relative flex h-2.5 w-2.5`}>
@@ -741,7 +732,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           </div>
 
           {latestCode && (
-            <div className="bg-[#0c0d10] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-100">
+            <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-100">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[12px] font-semibold text-white/50 uppercase tracking-wider">Latest Script</span>
                 <button className="text-[11px] text-white/30 hover:text-[#ccff00] transition-colors" onClick={() => copyText(latestCode)}>Copy ↗</button>
@@ -758,7 +749,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           )}
 
           {gameLogs.length > 0 && (
-            <div className="bg-[#0c0d10] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-150">
+            <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-150">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[12px] font-semibold text-white/50 uppercase tracking-wider">Game Logs</span>
                 <div className="flex gap-3">
@@ -781,7 +772,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         </div>
 
         {/* RIGHT SIDE (CHAT) */}
-        <div className="flex-1 flex flex-col h-full bg-[#0b0c0f] relative overflow-hidden">
+        <div className="flex-1 flex flex-col h-full bg-[#181a20] relative overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col">
             {messages.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
@@ -870,7 +861,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           </div>
 
           {/* Input Bar */}
-          <div className="flex-shrink-0 border-t border-white/[0.04] p-4 bg-[#090a0d]">
+          <div className="flex-shrink-0 border-t border-white/[0.04] p-4 bg-[#13151a]">
             <div className="w-full space-y-3">
               {attachedFiles.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -957,14 +948,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   </button>
 
                   {(provider === "google" ? googleKey.trim() : openaiKey.trim()).length === 0 ? (
-                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                      <span className="text-[11px] text-white/25">{Math.max(0, usage.totalCredits - usage.usedCredits)}/{usage.totalCredits} credits</span>
-                      <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#ccff00] transition-all duration-700"
-                          style={{ width: `${Math.max(0, Math.min(100, ((usage.totalCredits - usage.usedCredits) / usage.totalCredits) * 100))}%` }}
-                        />
-                      </div>
+                    <div className="hidden sm:flex relative h-7 w-40 bg-white/[0.03] rounded-lg overflow-hidden border border-white/[0.06] items-center justify-center group">
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 transition-all duration-700 animate-wave"
+                        style={{ 
+                          width: `${Math.max(0, Math.min(100, ((usage.totalTokens - usage.usedTokens) / usage.totalTokens) * 100))}%`,
+                          backgroundColor: 'rgba(204, 255, 0, 0.08)',
+                          backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 800 100\' preserveAspectRatio=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0,10 Q100,-10 200,10 T400,10 T600,10 T800,10 L800,100 L0,100 Z\' fill=\'rgba(204,255,0,0.15)\'/%3E%3C/svg%3E")',
+                          backgroundSize: '200% 100%'
+                        }}
+                      />
+                      <span className="relative z-10 text-[10px] font-mono tracking-tight text-white/50">
+                        <span className="text-[#ccff00] font-medium">{Math.max(0, usage.totalTokens - usage.usedTokens).toLocaleString()}</span> / {usage.totalTokens.toLocaleString()}
+                      </span>
                     </div>
                   ) : (
                     <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-[#ccff00]/20">
