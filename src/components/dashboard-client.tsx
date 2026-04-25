@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState } from "react";
-import { Copy, LogOut, RefreshCw, Settings2, WandSparkles, Sparkles, Paperclip, Zap, Brain, X } from "lucide-react";
+import { WandSparkles, Paperclip, Zap, Brain, X } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -658,63 +656,66 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         {/* LEFT SIDEBAR */}
         <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0 border-r border-white/[0.06] overflow-y-auto p-5 space-y-4">
           {showSettings && (
-            <Card className="animate-in fade-in slide-in-from-top-4 duration-300">
-              <CardContent className="p-6 space-y-5">
-              <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">Provider</label>
-              <div className="mt-2 flex items-center gap-3">
-                <select
-                  id="provider-select"
-                  value={provider}
-                  onChange={(e) => {
-                    const val = (e.target.value as "openai" | "google");
-                    const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
-                    const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
-                    setProvider(val);
-                    setOpenaiKey(storedOpen);
-                    setGoogleKey(storedGoogle);
-                    const newKey = val === "google" ? storedGoogle : storedOpen;
-                    setApiKey(newKey);
-                    window.localStorage.setItem("apple-juice-provider", val);
-                  }}
-                  className="w-48 bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
-                >
-                  <option value="openai">OpenAI</option>
-                  <option value="google">Google AI Studio</option>
-                </select>
-                <p className="text-sm text-[#8a8f98]">Select API provider for model calls</p>
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 space-y-5 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div>
+                <label className="text-[11px] uppercase tracking-wider font-semibold text-white/40 mb-1.5 block">Provider</label>
+                <div className="flex items-center gap-3">
+                  <select
+                    id="provider-select"
+                    value={provider}
+                    onChange={(e) => {
+                      const val = (e.target.value as "openai" | "google");
+                      const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
+                      const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
+                      setProvider(val);
+                      setOpenaiKey(storedOpen);
+                      setGoogleKey(storedGoogle);
+                      const newKey = val === "google" ? storedGoogle : storedOpen;
+                      setApiKey(newKey);
+                      window.localStorage.setItem("apple-juice-provider", val);
+                    }}
+                    className="w-48 bg-white/[0.02] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#ccff00]/50 transition-colors"
+                  >
+                    <option value="openai">OpenAI</option>
+                    <option value="google">Google AI Studio</option>
+                  </select>
+                  <p className="text-[12px] text-white/30">Select API provider</p>
+                </div>
               </div>
 
-              <label className="mt-4 block text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1" htmlFor="api-key-input">
-                Provider API Key <span className="text-[#8a8f98] font-normal">(stored in your browser localStorage)</span>
-              </label>
-              <div className="mt-2 flex flex-wrap gap-3">
-                <Input
-                  id="api-key-input"
-                  type="password"
-                  value={provider === "google" ? googleKey : openaiKey}
-                  onChange={(event) => {
-                    const v = event.target.value;
-                    if (provider === "google") setGoogleKey(v);
-                    else setOpenaiKey(v);
-                    setApiKey(v);
-                  }}
-                  placeholder={provider === "google" ? "Google API Key" : "sk-..."}
-                  className="min-w-[280px] flex-1"
-                />
-                <Button onClick={saveApiKey}>
-                  Save Key
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => loadModels()}
-                  disabled={isLoadingModels}
-                >
-                  {isLoadingModels ? "Loading Models..." : "Refresh Models"}
-                </Button>
+              <div>
+                <label className="text-[11px] uppercase tracking-wider font-semibold text-white/40 mb-1.5 block" htmlFor="api-key-input">
+                  Provider API Key <span className="font-normal">(local)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Input
+                    id="api-key-input"
+                    type="password"
+                    value={provider === "google" ? googleKey : openaiKey}
+                    onChange={(event) => {
+                      const v = event.target.value;
+                      if (provider === "google") setGoogleKey(v);
+                      else setOpenaiKey(v);
+                      setApiKey(v);
+                    }}
+                    placeholder={provider === "google" ? "Google API Key" : "sk-..."}
+                    className="min-w-[200px] flex-1 bg-white/[0.02] border-white/[0.06] h-9 text-[13px]"
+                  />
+                  <button onClick={saveApiKey} className="px-3 py-1.5 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.06] rounded-lg text-[12px] font-medium transition-colors">
+                    Save Key
+                  </button>
+                  <button
+                    onClick={() => loadModels()}
+                    disabled={isLoadingModels}
+                    className="px-3 py-1.5 bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] rounded-lg text-[12px] font-medium transition-colors disabled:opacity-50"
+                  >
+                    {isLoadingModels ? "Loading..." : "Refresh"}
+                  </button>
+                </div>
               </div>
 
-              <div className="mt-5">
-                <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1" htmlFor="model-select">
+              <div>
+                <label className="text-[11px] uppercase tracking-wider font-semibold text-white/40 mb-1.5 block" htmlFor="model-select">
                   Model
                 </label>
                 <select
@@ -725,17 +726,16 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     setSelectedModel(value);
                     window.localStorage.setItem("apple-juice-model", value);
                   }}
-                  className="mt-2 w-full bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
+                  className="w-full bg-white/[0.02] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#ccff00]/50 transition-colors"
                 >
                   {availableModels.map((model) => (
-                    <option key={model} value={model}>
+                    <option key={model} value={model} className="bg-[#0c0d10]">
                       {model}
                     </option>
                   ))}
                 </select>
               </div>
-              </CardContent>
-            </Card>
+            </div>
           )}
 
           <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
