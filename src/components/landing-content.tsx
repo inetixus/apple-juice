@@ -100,22 +100,24 @@ const MULTI_SCRIPTS = [
 /* ─── Main Landing Component ─── */
 export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: any; avatarUrl?: string }) {
   return (
-    <div className="min-h-screen bg-[#090a0d] text-white selection:bg-[#ccff00] selection:text-black">
-      {/* ━━━ BACKGROUND GRID ━━━ */}
-      <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/dbuzl20eu/image/upload/v1691456100/grid_wqvngf.png')] bg-[length:32px_32px] opacity-[0.03] pointer-events-none" />
+    <div className="min-h-screen bg-[#05050a] text-white selection:bg-blue-500 selection:text-white relative overflow-hidden">
+      {/* ━━━ BACKGROUND GRID & AMBIENT GRADIENTS ━━━ */}
+      <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/dbuzl20eu/image/upload/v1691456100/grid_wqvngf.png')] bg-[length:32px_32px] opacity-[0.03] pointer-events-none z-0" />
+      <div className="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-blue-900/20 blur-[150px] pointer-events-none z-0" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-red-900/20 blur-[150px] pointer-events-none z-0" />
 
       {/* ━━━ NAVBAR ━━━ */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#090a0d]/50 backdrop-blur-md border-b border-white/10">
-        <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-12 xl:px-20 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-6 w-6 rounded bg-[#ccff00] flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-black" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#05050a]/50 backdrop-blur-md border-b border-white/10">
+        <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-12 xl:px-20 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-xl bg-[#ccff00] flex items-center justify-center shadow-[0_0_15px_rgba(204,255,0,0.3)]">
+              <svg viewBox="0 0 24 24" className="h-6 w-6 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 2v3" />
                 <rect x="5" y="5" width="14" height="17" rx="3" />
                 <path d="M5 10h14" />
               </svg>
             </div>
-            <span className="text-[17px] font-bold tracking-tight text-white">Apple Juice</span>
+            <span className="text-2xl md:text-3xl font-black tracking-[0.1em] font-serif italic text-white drop-shadow-md">Apple Juice</span>
           </div>
 
           <div className="hidden md:flex items-center gap-10">
@@ -134,9 +136,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </nav>
 
       {/* ━━━ HERO & TERMINAL ━━━ */}
-      <section className="relative pt-32 lg:pt-44 pb-32 px-6 lg:px-12 xl:px-20">
+      <section className="relative pt-40 lg:pt-52 pb-32 px-6 lg:px-12 xl:px-20 z-10">
         {/* Deep background glow */}
-        <div className="absolute top-[-10%] lg:top-0 left-1/2 lg:left-[20%] -translate-x-1/2 w-[600px] h-[600px] bg-[#ccff00]/10 rounded-full blur-[150px] pointer-events-none" />
+        <div className="absolute top-[-10%] lg:top-0 left-1/2 lg:left-[20%] -translate-x-1/2 w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-[150px] pointer-events-none" />
 
         <div className="w-full max-w-[1600px] mx-auto relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16 xl:gap-24">
           
@@ -153,7 +155,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             {/* Headline */}
             <h1 className="text-6xl sm:text-7xl lg:text-[4.5rem] xl:text-[5rem] font-extrabold tracking-[-0.04em] leading-[1.05] text-white mb-6 lg:mb-8">
               The first AI Code <br />
-              Tool for <span className="text-[#ccff00]">Roblox</span>
+              Tool for <span className="font-serif italic font-medium text-[#ccff00]">Roblox</span>
             </h1>
 
             {/* Subtext */}
@@ -249,7 +251,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           </div>
 
           {/* Feature cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Card 1 */}
             <div className="group p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
@@ -285,6 +287,42 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 Apple Juice reads your Roblox console output. When an error is detected, it automatically suggests a fix — or repairs the script for you.
               </p>
             </div>
+
+            {/* Card 4 */}
+            <div className="group p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-[50px] group-hover:bg-blue-500/10 transition-colors" />
+              <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
+                <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              </div>
+              <h3 className="text-xl font-bold mb-3 text-white">Instant Sync</h3>
+              <p className="text-[#8a8f98] leading-relaxed">
+                Changes stream directly from your browser to Roblox Studio instantly. No copy-pasting required, just watch your game build itself.
+              </p>
+            </div>
+
+            {/* Card 5 */}
+            <div className="group p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-[50px] group-hover:bg-red-500/10 transition-colors" />
+              <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
+                <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              </div>
+              <h3 className="text-xl font-bold mb-3 text-white">Context-Aware</h3>
+              <p className="text-[#8a8f98] leading-relaxed">
+                Upload your existing scripts or let the AI analyze your codebase context so it generates code that perfectly fits your project's unique style.
+              </p>
+            </div>
+
+            {/* Card 6 */}
+            <div className="group p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-[50px] group-hover:bg-purple-500/10 transition-colors" />
+              <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
+                <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <h3 className="text-xl font-bold mb-3 text-white">Secure by Design</h3>
+              <p className="text-[#8a8f98] leading-relaxed">
+                Your API keys never touch our servers. All processing and requests happen directly from your browser, ensuring maximum privacy and security.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -312,7 +350,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       {/* ━━━ BOTTOM CTA ━━━ */}
       <section className="px-6 pb-40">
         <div className="max-w-[800px] mx-auto text-center p-16 rounded-[2rem] bg-[#0a0a0a] border border-white/10 relative overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-[#ccff00]/5 rounded-full blur-[100px] pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-red-600/10 rounded-full blur-[100px] pointer-events-none" />
           
           <div className="relative z-10">
             <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-6">
@@ -343,15 +381,15 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       {/* ━━━ FOOTER ━━━ */}
       <footer className="border-t border-white/10 px-6 py-12 bg-[#090a0d]">
         <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="h-5 w-5 rounded bg-[#ccff00] flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="h-2.5 w-2.5 text-black" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <div className="flex items-center gap-4">
+            <div className="h-7 w-7 rounded-lg bg-[#ccff00] flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 2v3" />
                 <rect x="5" y="5" width="14" height="17" rx="3" />
                 <path d="M5 10h14" />
               </svg>
             </div>
-            <span className="text-sm font-bold text-[#8a8f98]">Apple Juice</span>
+            <span className="text-lg font-black tracking-[0.1em] font-serif italic text-[#8a8f98]">Apple Juice</span>
           </div>
           
           <div className="flex items-center gap-6">
