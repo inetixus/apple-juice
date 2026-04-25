@@ -387,6 +387,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Twitter</a>
             <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">GitHub</a>
             <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Discord</a>
+            <a href="/tos" className="text-sm text-[#8a8f98] hover:text-white transition-colors">TOS</a>
+            <a href="/eula" className="text-sm text-[#8a8f98] hover:text-white transition-colors">EULA</a>
           </div>
 
           <p className="text-[11px] text-[#8a8f98]">

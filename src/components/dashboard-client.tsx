@@ -158,6 +158,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 setIsGenerating(false);
                 setPluginStatus("Test passed! Sync complete.");
                 showToast("Playtest passed with no errors!", "success");
+                void fetchUsage();
               }
             }
           }
@@ -433,7 +434,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       const t1 = setTimeout(() => {
         setThinkingSteps(prev => {
           if (prev.length === 1 && !prev[0].done) {
-            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Cross-referencing ${fileNames} with architecture...` : "Structuring client-server architecture & security boundaries...", done: false }];
+            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Reading ${fileNames}...` : "Planning architecture...", done: false }];
           }
           return prev;
         });
@@ -441,7 +442,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         const t2 = setTimeout(() => {
           setThinkingSteps(prev => {
             if (prev.length === 2 && !prev[1].done) {
-              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: isAsset ? "Locating and validating asset bundles..." : "Drafting and optimizing Luau logic...", done: false }];
+              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: isAsset ? "Locating asset..." : "Writing code...", done: false }];
             }
             return prev;
           });
@@ -458,7 +459,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       const t1 = setTimeout(() => {
         setThinkingSteps(prev => {
           if (prev.length === 1 && !prev[0].done) {
-            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Reading ${fileNames} context...` : "Mapping optimal Roblox services...", done: false }];
+            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Reading ${fileNames}...` : "Checking workspace folders...", done: false }];
           }
           return prev;
         });
@@ -467,8 +468,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           setThinkingSteps(prev => {
             if (prev.length === 2 && !prev[1].done) {
               const scriptTypes = ["LocalScript", "ModuleScript", "ServerScript"];
-              const typeFound = scriptTypes.find(t => trimmed.toLowerCase().includes(t.toLowerCase())) || "game logic";
-              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: isAsset ? "Preparing asset payload..." : `Writing production-ready ${typeFound}...`, done: false }];
+              const typeFound = scriptTypes.find(t => trimmed.toLowerCase().includes(t.toLowerCase())) || "code";
+              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: isAsset ? "Preparing asset..." : `Writing ${typeFound}...`, done: false }];
             }
             return prev;
           });
@@ -566,6 +567,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           setThinkingSteps([]);
           setIsGenerating(false);
           setPluginStatus("Playtest timeout. Assuming success.");
+          void fetchUsage();
         }
       }, 15000);
 
@@ -626,7 +628,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               {username.charAt(0)}
             </div>
           )}
-          <span className="hidden sm:block text-[13px] text-white/50">{username}</span>
+          <span className="hidden sm:block text-[13px] text-white/50">
+            {new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening"}, {username}
+          </span>
         </div>
         <div className="flex items-center gap-1">
           <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}>

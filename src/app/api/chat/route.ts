@@ -77,7 +77,7 @@ export async function POST(req: Request) {
   let modelUsed = model;
 
   type PluginPayload = { 
-    action?: "create" | "delete" | "insert_asset";
+    action?: "create" | "delete" | "insert_asset" | "stop_playtest";
     type?: "Script" | "LocalScript" | "ModuleScript" | "Asset";
     parent?: string; 
     name?: string; 
@@ -161,7 +161,7 @@ When the user's request requires MULTIPLE scripts (e.g. a server script AND a cl
 ${mode === "thinking" ? '- "thinking": your step-by-step reasoning (string)' : ""}
 
 When ONLY ONE script or action is needed, output a JSON object with:
-- "action": "create", "delete", or "insert_asset"
+- "action": "create", "delete", "insert_asset", or "stop_playtest"
 - "type": "Script", "LocalScript", "ModuleScript", or "Asset"
 - "parent": dot path (e.g. "ServerScriptService", "StarterPlayer.StarterPlayerScripts", "Workspace")
 - "name": script name

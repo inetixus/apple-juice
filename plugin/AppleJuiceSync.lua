@@ -11,6 +11,17 @@ pcall(function() StudioTestService = game:GetService("StudioTestService") end)
 local TOOLBAR_NAME = "Apple Juice AI Sync"
 local WIDGET_TITLE = "Apple Juice AI Sync"
 
+if RunService:IsRunMode() and StudioTestService then
+	pcall(function()
+		if StudioTestService:GetTestArgs() == "AppleJuiceSession" then
+			task.spawn(function()
+				task.wait(4)
+				StudioTestService:EndTest("success")
+			end)
+		end
+	end)
+end
+
 local BASE_URL = "https://apple-juice.online"
 local CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
 local POLL_ENDPOINT = BASE_URL .. "/api/poll"
@@ -224,6 +235,15 @@ local function injectSingleScript(scriptData)
 		end
 	end
 
+	if action == "stop_playtest" then
+		if RunService:IsRunMode() and StudioTestService then
+			pcall(function() StudioTestService:EndTest("success") end)
+			return true, "Playtest stopped."
+		else
+			return false, "No playtest is currently running in this context."
+		end
+	end
+
 	if scriptClass ~= "Script" and scriptClass ~= "LocalScript" and scriptClass ~= "ModuleScript" then
 		scriptClass = "Script"
 	end
@@ -376,18 +396,15 @@ local function pollLoop(sessionKey)
 						setStatus("Running playtest...", "waiting")
 						
 						task.spawn(function()
-							task.spawn(function()
-								task.wait(4)
-								if isAutoTesting and RunService:IsRunMode() then
-									setStatus("Test passed!", "success")
-									isAutoTesting = false
-									stopPlaytest()
-									reportLog(sessionKey, "[SYSTEM_TEST_SUCCESS]")
-								end
-							end)
-
-							pcall(function() StudioTestService:ExecuteRunModeAsync("AppleJuiceSession") end)
+							local ok, err = pcall(function() StudioTestService:ExecuteRunModeAsync("AppleJuiceSession") end)
 							isAutoTesting = false
+							
+							if ok then
+								setStatus("Test passed!", "success")
+								reportLog(sessionKey, "[SYSTEM_TEST_SUCCESS]")
+							else
+								setStatus("Test ended.", "info")
+							end
 						end)
 					end
 				elseif injected then
