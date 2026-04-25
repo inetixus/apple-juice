@@ -133,100 +133,102 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
         </div>
       </nav>
 
-      {/* ━━━ HERO ━━━ */}
-      <section className="relative pt-44 pb-32 px-6 flex flex-col items-center justify-center">
+      {/* ━━━ HERO & TERMINAL ━━━ */}
+      <section className="relative pt-32 lg:pt-44 pb-32 px-6">
         {/* Deep background glow */}
-        <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#ccff00]/10 rounded-full blur-[150px] pointer-events-none" />
+        <div className="absolute top-[-10%] lg:top-0 left-1/2 lg:left-[20%] -translate-x-1/2 w-[600px] h-[600px] bg-[#ccff00]/10 rounded-full blur-[150px] pointer-events-none" />
 
-        <div className="relative max-w-[900px] mx-auto text-center z-10 flex flex-col items-center">
-          {/* Eyebrow */}
-          <div className="inline-flex items-center px-4 py-2 rounded-full border border-white/10 bg-[#0a0a0a] mb-10 shadow-[0_0_20px_rgba(204,255,0,0.05)]">
-            <Sparkles className="h-3.5 w-3.5 text-[#ccff00] mr-2" />
-            <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98]">
-              Open Source · Free Forever
-            </span>
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-6xl sm:text-7xl lg:text-[5rem] font-extrabold tracking-[-0.04em] leading-[1.05] text-white mb-8">
-            The first AI Code <br />
-            Tool for <span className="text-[#ccff00]">Roblox</span>
-          </h1>
-
-          {/* Subtext */}
-          <p className="max-w-2xl mx-auto text-lg sm:text-xl text-[#8a8f98] leading-relaxed mb-12">
-            Describe what you want to build. Get production-ready Luau code injected directly into Roblox Studio — in seconds.
-          </p>
-
-          {/* Lemonade-style Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
-            {/* Primary Shine Button */}
-            <button
-              onClick={() => signIn("", { callbackUrl: "/dashboard" })}
-              className="relative inline-flex h-14 w-full sm:w-auto items-center justify-center px-10 py-2 font-bold text-white transition-all rounded-xl bg-[#101317] border border-white/10 hover:border-white/20 hover:shadow-[0_0_30px_rgba(204,255,0,0.1)] group overflow-hidden"
-              style={{
-                backgroundImage: 'linear-gradient(110deg, #101317 40%, rgba(204, 255, 0, 0.15) 50%, #101317 60%)',
-                backgroundSize: '200% auto',
-              }}
-            >
-              <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.1)_30%,rgba(204,255,0,0.1)_40%,transparent_50%)] bg-[length:200%_auto]" />
-              <span className="relative z-10 flex items-center gap-2">
-                Start Prototyping
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+        <div className="max-w-[1200px] mx-auto relative z-10 flex flex-col lg:flex-row items-center gap-16 lg:gap-12">
+          
+          {/* Hero Content */}
+          <div className="flex-1 text-center lg:text-left flex flex-col items-center lg:items-start">
+            {/* Eyebrow */}
+            <div className="inline-flex items-center px-4 py-2 rounded-full border border-white/10 bg-[#0a0a0a] mb-8 lg:mb-10 shadow-[0_0_20px_rgba(204,255,0,0.05)]">
+              <Sparkles className="h-3.5 w-3.5 text-[#ccff00] mr-2" />
+              <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98]">
+                Open Source · Free Forever
               </span>
-            </button>
-
-            {/* Secondary Link Button */}
-            <button className="h-14 px-8 text-sm font-semibold text-[#8a8f98] hover:text-white transition-colors flex items-center gap-2">
-              Watch Demo <span className="text-lg leading-none">→</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ━━━ TERMINAL MOCKUP ━━━ */}
-      <section id="terminal" className="relative px-6 pb-40">
-        <div className="max-w-5xl mx-auto">
-          {/* macOS-style window chrome */}
-          <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-black/50 overflow-hidden relative z-10">
-            {/* Title bar */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#0a0a0a]">
-              <div className="flex gap-1.5">
-                <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-                <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
-                <div className="h-3 w-3 rounded-full bg-[#28c840]" />
-              </div>
-              <span className="ml-3 text-[11px] text-[#8a8f98] font-mono">Apple Juice — AI Output</span>
             </div>
 
-            {/* Content */}
-            <div className="flex flex-col lg:flex-row">
-              {/* Code panel */}
-              <div className="flex-1 p-5 border-b lg:border-b-0 lg:border-r border-white/10 overflow-x-auto">
-                <pre className="font-mono text-[13px] leading-[1.8] text-[#a1a1aa]">
-                  <code>{TERMINAL_CODE}</code>
-                </pre>
+            {/* Headline */}
+            <h1 className="text-6xl sm:text-7xl lg:text-[4.5rem] xl:text-[5rem] font-extrabold tracking-[-0.04em] leading-[1.05] text-white mb-6 lg:mb-8">
+              The first AI Code <br />
+              Tool for <span className="text-[#ccff00]">Roblox</span>
+            </h1>
+
+            {/* Subtext */}
+            <p className="max-w-xl lg:max-w-lg text-lg sm:text-xl text-[#8a8f98] leading-relaxed mb-10 lg:mb-12 mx-auto lg:mx-0">
+              Describe what you want to build. Get production-ready Luau code injected directly into Roblox Studio — in seconds.
+            </p>
+
+            {/* Lemonade-style Buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto">
+              {/* Primary Shine Button */}
+              <button
+                onClick={() => signIn("", { callbackUrl: "/dashboard" })}
+                className="relative inline-flex h-14 w-full sm:w-auto items-center justify-center px-10 py-2 font-bold text-white transition-all rounded-xl bg-[#101317] border border-white/10 hover:border-white/20 hover:shadow-[0_0_30px_rgba(204,255,0,0.1)] group overflow-hidden"
+                style={{
+                  backgroundImage: 'linear-gradient(110deg, #101317 40%, rgba(204, 255, 0, 0.15) 50%, #101317 60%)',
+                  backgroundSize: '200% auto',
+                }}
+              >
+                <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.1)_30%,rgba(204,255,0,0.1)_40%,transparent_50%)] bg-[length:200%_auto]" />
+                <span className="relative z-10 flex items-center gap-2">
+                  Start Prototyping
+                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </span>
+              </button>
+
+              {/* Secondary Link Button */}
+              <button className="h-14 px-8 text-sm font-semibold text-[#8a8f98] hover:text-white transition-colors flex items-center justify-center gap-2 w-full sm:w-auto">
+                Watch Demo <span className="text-lg leading-none">→</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Terminal Mockup */}
+          <div id="terminal" className="flex-1 w-full max-w-2xl lg:max-w-none">
+            {/* macOS-style window chrome */}
+            <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-black/50 overflow-hidden relative z-10">
+              {/* Title bar */}
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#0a0a0a]">
+                <div className="flex gap-1.5">
+                  <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+                  <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
+                  <div className="h-3 w-3 rounded-full bg-[#28c840]" />
+                </div>
+                <span className="ml-3 text-[11px] text-[#8a8f98] font-mono">Apple Juice — AI Output</span>
               </div>
 
-              {/* File list panel */}
-              <div className="w-full lg:w-72 p-5 space-y-3 bg-[#050505]">
-                <p className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98] mb-5">
-                  Generated Files
-                </p>
-                {MULTI_SCRIPTS.map((s, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-3.5 rounded-xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-colors duration-200"
-                  >
-                    <div>
-                      <p className="text-[13px] font-semibold text-white/90">{s.name}</p>
-                      <p className="text-[11px] text-[#8a8f98] mt-1">
-                        {s.type} · {s.parent}
-                      </p>
+              {/* Content */}
+              <div className="flex flex-col xl:flex-row">
+                {/* Code panel */}
+                <div className="flex-1 p-5 border-b xl:border-b-0 xl:border-r border-white/10 overflow-x-auto">
+                  <pre className="font-mono text-[12px] xl:text-[13px] leading-[1.8] text-[#a1a1aa]">
+                    <code>{TERMINAL_CODE}</code>
+                  </pre>
+                </div>
+
+                {/* File list panel */}
+                <div className="w-full xl:w-64 p-5 space-y-3 bg-[#050505] flex-shrink-0">
+                  <p className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98] mb-5">
+                    Generated Files
+                  </p>
+                  {MULTI_SCRIPTS.map((s, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between p-3.5 rounded-xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-colors duration-200"
+                    >
+                      <div className="truncate pr-2">
+                        <p className="text-[13px] font-semibold text-white/90 truncate">{s.name}</p>
+                        <p className="text-[11px] text-[#8a8f98] mt-1 truncate">
+                          {s.type} · {s.parent}
+                        </p>
+                      </div>
+                      <span className="text-[11px] text-white/20 font-mono flex-shrink-0">{s.lines}L</span>
                     </div>
-                    <span className="text-[11px] text-white/20 font-mono">{s.lines}L</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>
