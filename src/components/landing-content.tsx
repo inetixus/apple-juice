@@ -113,7 +113,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           </div>
 
           <button
-            onClick={() => signIn("", { callbackUrl: "/dashboard" })}
+            onClick={() => session ? window.location.href = "/dashboard" : signIn("", { callbackUrl: "/dashboard" })}
             className="h-11 px-7 rounded-xl bg-white text-black text-base font-bold hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)]"
           >
             {session ? "Dashboard" : "Sign In"}
@@ -153,7 +153,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             <div className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto">
               {/* Primary Shine Button */}
               <button
-                onClick={() => signIn("", { callbackUrl: "/dashboard" })}
+                onClick={() => session ? window.location.href = "/dashboard" : signIn("", { callbackUrl: "/dashboard" })}
                 className="relative inline-flex h-14 w-full sm:w-auto items-center justify-center px-10 py-2 font-bold text-white transition-all rounded-xl bg-[#101317] border border-white/10 hover:border-white/20 hover:shadow-[0_0_30px_rgba(204,255,0,0.1)] group overflow-hidden"
                 style={{
                   backgroundImage: 'linear-gradient(110deg, #101317 40%, rgba(204, 255, 0, 0.15) 50%, #101317 60%)',
@@ -352,7 +352,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </p>
             
             <button
-              onClick={() => signIn("", { callbackUrl: "/dashboard" })}
+              onClick={() => session ? window.location.href = "/dashboard" : signIn("", { callbackUrl: "/dashboard" })}
               className="relative inline-flex h-14 items-center justify-center px-10 py-2 font-bold text-white transition-all rounded-xl bg-[#101317] border border-white/10 hover:border-white/20 hover:shadow-[0_0_30px_rgba(204,255,0,0.1)] group overflow-hidden"
               style={{
                 backgroundImage: 'linear-gradient(110deg, #101317 40%, rgba(204, 255, 0, 0.15) 50%, #101317 60%)',
