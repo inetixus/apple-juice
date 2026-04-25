@@ -205,6 +205,25 @@ local function injectSingleScript(scriptData)
 		end
 	end
 
+	if action == "insert_asset" then
+		local assetId = scriptData.assetId
+		if not assetId then return false, "No assetId provided" end
+		local InsertService = game:GetService("InsertService")
+		local ok, model = pcall(function()
+			return InsertService:LoadAsset(tonumber(assetId))
+		end)
+		if ok and model then
+			local actualParent = resolvePath(parentPath) or workspace
+			for _, child in ipairs(model:GetChildren()) do
+				child.Parent = actualParent
+			end
+			model:Destroy()
+			return true, "Inserted Asset " .. tostring(assetId) .. " into " .. parentPath
+		else
+			return false, "Failed to load asset " .. tostring(assetId)
+		end
+	end
+
 	if scriptClass ~= "Script" and scriptClass ~= "LocalScript" and scriptClass ~= "ModuleScript" then
 		scriptClass = "Script"
 	end
@@ -335,6 +354,13 @@ local function pollLoop(sessionKey)
 			local messageId = data.messageId and tostring(data.messageId) or nil
 			if messageId ~= lastMessageId then
 				lastMessageId = messageId
+
+				if RunService:IsRunMode() then
+					setStatus("Stopping playtest...", "waiting")
+					stopPlaytest()
+					task.wait(1.5)
+				end
+
 				local injected, msg, scriptCount = injectCode(data.code)
 				
 				if scriptCount > 1 then

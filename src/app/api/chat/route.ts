@@ -65,11 +65,12 @@ export async function POST(req: Request) {
   let modelUsed = model;
 
   type PluginPayload = { 
-    action?: "create" | "delete";
-    type?: "Script" | "LocalScript" | "ModuleScript";
+    action?: "create" | "delete" | "insert_asset";
+    type?: "Script" | "LocalScript" | "ModuleScript" | "Asset";
     parent?: string; 
     name?: string; 
     code?: string; 
+    assetId?: number | string;
     message?: string; 
     suggestions?: string[];
     scripts?: PluginPayload[];
@@ -129,28 +130,31 @@ export async function POST(req: Request) {
   }
 
   const thinkingInstructions = mode === "thinking" 
-    ? `\nBEFORE writing code, think step-by-step in the "thinking" field (a string) about:
-1. What the user wants
-2. Which services and APIs you'll use
-3. Edge cases to handle
-4. How scripts interact if making multiple
+    ? `\nBEFORE writing code, think step-by-step IN EXTENSIVE DETAIL in the "thinking" field (a string) about:
+1. What the user wants conceptually and mechanically
+2. Which Roblox services, APIs, and physics constraints you'll use
+3. Edge cases, potential bugs, server/client boundary security, and performance optimizations
+4. Exactly how multiple scripts will interact (RemoteEvents, BindableEvents)
+5. A comprehensive architectural plan
+You MUST write a very long, thorough chain of thought (at least 300 words) before writing any code. Do not skip this.
 Include "thinking" as a field in your JSON output.`
     : "";
 
   const SYSTEM_PROMPT = `You are a Roblox Luau scripting assistant called Apple Juice.${thinkingInstructions}
 
 When the user's request requires MULTIPLE scripts (e.g. a server script AND a client script, or a module AND a consumer), output a JSON object with:
-- "scripts": an array of script objects, each with: action, type, parent, name, code
+- "scripts": an array of script objects, each with: action, type, parent, name, code, assetId
 - "message": a friendly explanation of everything you created
 - "suggestions": 3 short follow-up ideas
 ${mode === "thinking" ? '- "thinking": your step-by-step reasoning (string)' : ""}
 
-When only ONE script is needed, output a JSON object with:
-- "action": "create" or "delete"
-- "type": "Script", "LocalScript", or "ModuleScript"
-- "parent": dot path (e.g. "ServerScriptService", "StarterPlayer.StarterPlayerScripts", "ReplicatedStorage")
+When ONLY ONE script or action is needed, output a JSON object with:
+- "action": "create", "delete", or "insert_asset"
+- "type": "Script", "LocalScript", "ModuleScript", or "Asset"
+- "parent": dot path (e.g. "ServerScriptService", "StarterPlayer.StarterPlayerScripts", "Workspace")
 - "name": script name
-- "code": valid Luau source code
+- "code": valid Luau source code (leave empty if action is "insert_asset")
+- "assetId": numeric Roblox asset ID (ONLY if action is "insert_asset")
 - "message": a short friendly explanation (2-4 sentences)
 - "suggestions": array of 3 short strings
 ${mode === "thinking" ? '- "thinking": your step-by-step reasoning (string)' : ""}
@@ -160,6 +164,7 @@ CRITICAL RULES FOR SCRIPT TYPE AND PARENT:
 2. Use "LocalScript" ONLY for client-side code (UI, camera, input handling). Place in "StarterPlayer.StarterPlayerScripts" or "StarterGui".
 3. Use "ModuleScript" ONLY when the user explicitly asks for a reusable module/library that returns a table. Place in "ReplicatedStorage" or "ServerStorage". NEVER default to ModuleScript.
 4. The code must be a standalone, runnable script. Do NOT wrap server logic in a module that returns a table unless the user specifically asked for a module.
+5. If the user asks to "make a build", "build a car", or "insert a [thing]", you can either generate a script that builds it via Instance.new, OR you can use "action": "insert_asset" with an appropriate Roblox Toolbox assetId if you know one. Set "parent": "Workspace" when inserting physical assets.
 ${fileContextBlock}
 Return ONLY the JSON object — no markdown, no backticks, no extra commentary outside the JSON.`;
 
@@ -390,6 +395,7 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
       parent: s.parent,
       name: s.name,
       code: s.code,
+      assetId: (s as any).assetId,
     }))});
     await upsertGeneratedCode(sessionKey, pluginPayload, messageId);
 
@@ -429,11 +435,12 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
   const thinking = (structuredFinal as any)?.thinking;
 
   const pluginPayload = JSON.stringify({ 
-    action: isDelete ? "delete" : "create",
+    action: isDelete ? "delete" : (structuredFinal?.action || "create"),
     type: finalType,
     parent: finalParent, 
     name: finalName, 
-    code: finalCode 
+    code: finalCode,
+    assetId: structuredFinal?.assetId 
   });
 
   await upsertGeneratedCode(sessionKey, pluginPayload, messageId);
