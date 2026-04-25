@@ -625,9 +625,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       <header className="flex-shrink-0 flex items-center justify-between gap-4 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#161b22] px-6 py-3 shadow-sm z-10">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 bg-[#fbcc05] rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white font-black text-xs italic">AJ</span>
-            </div>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full border border-gray-200 dark:border-white/10" />
+            ) : (
+              <div className="h-8 w-8 bg-[#fbcc05] rounded-lg flex items-center justify-center shadow-sm">
+                <span className="text-white font-black text-xs">{username.charAt(0).toUpperCase()}</span>
+              </div>
+            )}
             <h1 className="text-lg font-medium tracking-tight text-[#202124] dark:text-white">Apple Juice <span className="text-gray-400 font-normal">/</span> <span className="text-gray-500 dark:text-gray-400">{username}</span></h1>
           </div>
         </div>
