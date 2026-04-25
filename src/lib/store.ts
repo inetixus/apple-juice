@@ -14,6 +14,11 @@ export type SessionEntry = {
 
 const PREFIX = "apple-juice:session:";
 const IP_PREFIX = "apple-juice:ip:";
+const USAGE_PREFIX = "apple-juice:usage:";
+
+export const MAX_CREDITS_PER_DAY = 50;
+export const TOKENS_PER_CREDIT = 1000;
+export const MAX_TOKENS_PER_DAY = MAX_CREDITS_PER_DAY * TOKENS_PER_CREDIT;
 
 let _redis: Redis | null = null;
 function getRedis(): Redis {
@@ -225,5 +230,34 @@ export async function consumeLogs(sessionKey: string) {
   } catch (err) {
     console.error("consumeLogs error", err);
     return { ok: false, reason: "error" };
+  }
+}
+
+function usageKeyFor(userId: string) {
+  const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  return `${USAGE_PREFIX}${userId}:${date}`;
+}
+
+export async function getUserUsage(userId: string) {
+  const key = usageKeyFor(userId);
+  const used = await getRedis().get<number>(key);
+  return {
+    usedTokens: used || 0,
+    totalTokens: MAX_TOKENS_PER_DAY,
+    usedCredits: Math.floor((used || 0) / TOKENS_PER_CREDIT),
+    totalCredits: MAX_CREDITS_PER_DAY,
+  };
+}
+
+export async function trackUserUsage(userId: string, tokens: number) {
+  if (tokens <= 0) return;
+  const key = usageKeyFor(userId);
+  const redis = getRedis();
+  try {
+    await redis.incrby(key, tokens);
+    // Set expiry to 48 hours to clean up old keys
+    await redis.expire(key, 60 * 60 * 48);
+  } catch (err) {
+    console.error("trackUserUsage error", err);
   }
 }

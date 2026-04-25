@@ -65,6 +65,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [gameLogs, setGameLogs] = useState<string[]>([]);
   const [mode, setMode] = useState<"fast" | "thinking">("fast");
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; content: string }[]>([]);
+  const [usage, setUsage] = useState({ usedCredits: 0, totalCredits: 50 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const autoFixPendingRef = useRef<string | null>(null);
@@ -241,7 +242,23 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     if (effectiveKey) {
       void loadModels(effectiveKey, savedModel);
     }
+    void fetchUsage();
   }, []);
+
+  async function fetchUsage() {
+    try {
+      const res = await fetch("/api/usage");
+      if (res.ok) {
+        const data = await res.json();
+        setUsage({
+          usedCredits: data.usedCredits,
+          totalCredits: data.totalCredits,
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -584,6 +601,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       showToast(detail, "error");
       setTimeout(() => setThinkingSteps([]), 1000);
       setIsGenerating(false);
+      void fetchUsage();
     }
   }
 
@@ -616,19 +634,33 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="text-[#8a8f98] hover:text-red-400 hover:border-red-400/20 hover:bg-red-500/10" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}>
-            <LogOut className="h-4 w-4" /> {/* Just reuse LogOut or Trash icon for clear chat if needed */}
-            Clear Chat
-          </Button>
-          <Button variant="outline" onClick={() => setShowSettings((open) => !open)}>
-            <Settings2 className="h-4 w-4" />
-            Settings
-          </Button>
-          <Button variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
+        <div className="flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-4 bg-white/5 px-4 py-2.5 rounded-xl border border-white/5">
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] uppercase tracking-widest font-black text-[#8a8f98]">Daily Credits</span>
+              <span className="text-sm font-black text-white">{usage.usedCredits} <span className="text-[#8a8f98]">/</span> {usage.totalCredits}</span>
+            </div>
+            <div className="w-20 h-2 bg-white/10 rounded-full overflow-hidden">
+              <div 
+                className={`h-full bg-gradient-to-r from-[#ccff00] to-emerald-400 transition-all duration-1000 ${usage.usedCredits >= usage.totalCredits ? 'from-red-500 to-orange-500' : ''}`}
+                style={{ width: `${Math.min(100, (usage.usedCredits / usage.totalCredits) * 100)}%` }}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="text-[#8a8f98] hover:text-red-400 hover:border-red-400/20 hover:bg-red-500/10" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}>
+              <LogOut className="h-4 w-4" />
+              Clear Chat
+            </Button>
+            <Button variant="outline" onClick={() => setShowSettings((open) => !open)}>
+              <Settings2 className="h-4 w-4" />
+              Settings
+            </Button>
+            <Button variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 

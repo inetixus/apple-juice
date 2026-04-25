@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getSession, upsertGeneratedCode } from "@/lib/store";
+import { getSession, upsertGeneratedCode, getUserUsage, trackUserUsage } from "@/lib/store";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -32,6 +32,25 @@ export async function POST(req: Request) {
   const openaiKey = body.openaiKey?.trim() ?? "";
   const mode = body.mode ?? "fast";
   const fileContents = body.fileContents ?? [];
+
+  // Determine if using custom API key (bypass credits)
+  const systemOpenAIKey = process.env.OPENAI_API_KEY || "";
+  const systemGoogleKey = process.env.GOOGLE_API_KEY || "";
+  
+  const activeKey = provider === "google" ? apiKey : (openaiKey || apiKey);
+  const isUsingCustomKey = !!activeKey && activeKey !== systemOpenAIKey && activeKey !== systemGoogleKey;
+
+  // Check credits only if NOT using a custom key
+  if (!isUsingCustomKey) {
+    const usage = await getUserUsage(ownerUserId);
+    if (usage.usedTokens >= usage.totalTokens) {
+      return Response.json({ 
+        error: "Daily limit reached", 
+        message: "You have used all 50 apple credits for today. Credits will reset tomorrow. To continue without limits, use your own API key in Settings.",
+        usage 
+      }, { status: 429 });
+    }
+  }
 
   if (!prompt || !sessionKey || !apiKey) {
     return Response.json({ error: "prompt, sessionKey, and apiKey are required" }, { status: 400 });
@@ -144,7 +163,12 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     });
 
     const text = await res.text();
-    return { ok: res.ok, text };
+    let tokens = 0;
+    try {
+      const parsed = JSON.parse(text);
+      tokens = parsed?.usage?.total_tokens || 0;
+    } catch { /* ignore */ }
+    return { ok: res.ok, text, tokens };
   }
 
   function extractContent(rawResponse: string, isGoogle = false): string {
@@ -183,10 +207,12 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
   }
 
   let code = "";
+  let tokensUsed = 0;
 
   if (model.toLowerCase().startsWith("gpt-") && openaiKey) {
-    const { ok, text } = await callOpenAI(openaiKey, model);
+    const { ok, text, tokens } = await callOpenAI(openaiKey, model);
     raw = text;
+    tokensUsed = tokens;
     if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model }, { status: 502 });
     const content = extractContent(raw);
     const result = processResponse(content, raw);
@@ -259,6 +285,12 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
           code = result.code;
           raw = result.raw;
           modelUsed = candidate;
+          
+          try {
+            const parsed = JSON.parse(bodyText);
+            tokensUsed = parsed?.usageMetadata?.totalTokenCount || 0;
+          } catch { /* ignore */ }
+          
           break;
         }
       } catch (err) {
@@ -269,7 +301,7 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     }
 
     if (!code && !raw && openaiKey) {
-      const { ok, text } = await callOpenAI(openaiKey, "gpt-4o-mini");
+      const { ok, text, tokens } = await callOpenAI(openaiKey, "gpt-4o-mini");
       raw = text;
       if (ok) {
         const content = extractContent(raw);
@@ -277,6 +309,7 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
         code = result.code;
         raw = result.raw;
         modelUsed = "gpt-4o-mini";
+        tokensUsed = tokens;
       }
     }
 
@@ -285,8 +318,9 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     }
   } else {
     // Default: OpenAI using provided apiKey
-    const { ok, text } = await callOpenAI(apiKey, model);
+    const { ok, text, tokens } = await callOpenAI(apiKey, model);
     raw = text;
+    tokensUsed = tokens;
     if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model }, { status: 502 });
     const content = extractContent(raw);
     const result = processResponse(content, raw);
@@ -302,6 +336,17 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
   if (!code && !isDelete && !isMultiScript) return Response.json({ error: "Model returned empty output", detail: raw }, { status: 502 });
 
   const messageId = crypto.randomUUID();
+
+  // Track usage only if NOT using a custom key
+  if (!isUsingCustomKey) {
+    if (tokensUsed > 0) {
+      await trackUserUsage(ownerUserId, tokensUsed);
+    } else {
+      // Fallback estimation if tokens not returned (approx 1 token per 4 chars)
+      const estimatedTokens = Math.ceil((raw.length + (prompt?.length || 0)) / 4);
+      await trackUserUsage(ownerUserId, estimatedTokens);
+    }
+  }
 
   if (isMultiScript) {
     const scripts = structuredFinal!.scripts!;
