@@ -614,74 +614,72 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   };
 
   return (
-    <main className="h-screen bg-[#0c0d10] text-white flex flex-col overflow-hidden">
-      <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.06] px-6 py-3">
+    <main className="h-screen bg-[#090a0d] text-white flex flex-col overflow-hidden">
+      <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.06] px-6 py-3 bg-[#090a0d]/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#ccff00]">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ccff00] shadow-[0_0_12px_rgba(204,255,0,0.25)]">
             <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M10 2v3" />
               <rect x="5" y="5" width="14" height="17" rx="3" />
               <path d="M5 10h14" />
             </svg>
           </div>
+          <span className="text-sm font-bold text-white tracking-tight">Apple Juice</span>
+          <span className="hidden sm:block text-white/20 text-xs">·</span>
           {avatarUrl ? (
-            <img src={avatarUrl} alt="Avatar" className="h-7 w-7 rounded-full ring-1 ring-white/10" />
+            <img src={avatarUrl} alt="Avatar" className="h-6 w-6 rounded-full ring-1 ring-white/20" />
           ) : (
-            <div className="h-7 w-7 rounded-full bg-white/[0.06] flex items-center justify-center text-xs font-medium text-white/40">
+            <div className="h-6 w-6 rounded-full bg-[#ccff00]/20 flex items-center justify-center text-[10px] font-bold text-[#ccff00]">
               {username.charAt(0)}
             </div>
           )}
-          <span className="text-sm font-medium text-white/70">{username}</span>
+          <span className="hidden sm:block text-[13px] text-white/50">{username}</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}>
+        <div className="flex items-center gap-1">
+          <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}>
             Clear
           </button>
-          <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors" onClick={() => setShowSettings((open) => !open)}>
+          <button className={`px-3 py-1.5 rounded-lg text-[13px] transition-all ${showSettings ? 'text-[#ccff00] bg-[#ccff00]/10' : 'text-white/40 hover:text-white/80 hover:bg-white/[0.06]'}`} onClick={() => setShowSettings((open) => !open)}>
             Settings
           </button>
-          <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors" onClick={() => signOut({ callbackUrl: "/" })}>
+          <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all" onClick={() => signOut({ callbackUrl: "/" })}>
             Sign Out
           </button>
         </div>
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* LEFT SIDEBAR */}
-        <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0 border-r border-white/[0.06] overflow-y-auto p-5 space-y-4">
+        <div className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 border-r border-white/[0.06] overflow-y-auto p-4 space-y-3 bg-[#090a0d]">
           {showSettings && (
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-5 space-y-5 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5 space-y-5 animate-in fade-in slide-in-from-top-3 duration-200">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-white/30">Settings</p>
               <div>
-                <label className="text-[11px] uppercase tracking-wider font-semibold text-white/40 mb-1.5 block">Provider</label>
-                <div className="flex items-center gap-3">
-                  <select
-                    id="provider-select"
-                    value={provider}
-                    onChange={(e) => {
-                      const val = (e.target.value as "openai" | "google");
-                      const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
-                      const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
-                      setProvider(val);
-                      setOpenaiKey(storedOpen);
-                      setGoogleKey(storedGoogle);
-                      const newKey = val === "google" ? storedGoogle : storedOpen;
-                      setApiKey(newKey);
-                      window.localStorage.setItem("apple-juice-provider", val);
-                    }}
-                    className="w-48 bg-white/[0.02] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#ccff00]/50 transition-colors"
-                  >
-                    <option value="openai">OpenAI</option>
-                    <option value="google">Google AI Studio</option>
-                  </select>
-                  <p className="text-[12px] text-white/30">Select API provider</p>
-                </div>
+                <label className="text-[12px] font-medium text-white/50 mb-2 block">Provider</label>
+                <select
+                  id="provider-select"
+                  value={provider}
+                  onChange={(e) => {
+                    const val = (e.target.value as "openai" | "google");
+                    const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
+                    const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
+                    setProvider(val);
+                    setOpenaiKey(storedOpen);
+                    setGoogleKey(storedGoogle);
+                    const newKey = val === "google" ? storedGoogle : storedOpen;
+                    setApiKey(newKey);
+                    window.localStorage.setItem("apple-juice-provider", val);
+                  }}
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
+                >
+                  <option value="openai" className="bg-[#090a0d]">OpenAI</option>
+                  <option value="google" className="bg-[#090a0d]">Google AI Studio</option>
+                </select>
               </div>
-
               <div>
-                <label className="text-[11px] uppercase tracking-wider font-semibold text-white/40 mb-1.5 block" htmlFor="api-key-input">
-                  Provider API Key <span className="font-normal">(local)</span>
+                <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
+                  API Key <span className="text-white/25 font-normal">(saved locally)</span>
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-2">
                   <Input
                     id="api-key-input"
                     type="password"
@@ -693,25 +691,18 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       setApiKey(v);
                     }}
                     placeholder={provider === "google" ? "Google API Key" : "sk-..."}
-                    className="min-w-[200px] flex-1 bg-white/[0.02] border-white/[0.06] h-9 text-[13px]"
+                    className="flex-1 bg-white/[0.04] border-white/[0.08] h-9 text-sm focus:border-[#ccff00]/40"
                   />
-                  <button onClick={saveApiKey} className="px-3 py-1.5 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.06] rounded-lg text-[12px] font-medium transition-colors">
-                    Save Key
-                  </button>
-                  <button
-                    onClick={() => loadModels()}
-                    disabled={isLoadingModels}
-                    className="px-3 py-1.5 bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] rounded-lg text-[12px] font-medium transition-colors disabled:opacity-50"
-                  >
-                    {isLoadingModels ? "Loading..." : "Refresh"}
+                  <button onClick={saveApiKey} className="px-3 py-2 bg-[#ccff00] text-black text-[12px] font-semibold rounded-xl hover:bg-[#d4ff33] transition-colors whitespace-nowrap">
+                    Save
                   </button>
                 </div>
+                <button onClick={() => loadModels()} disabled={isLoadingModels} className="mt-2 text-[12px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40">
+                  {isLoadingModels ? "Loading models..." : "↻ Refresh models"}
+                </button>
               </div>
-
               <div>
-                <label className="text-[11px] uppercase tracking-wider font-semibold text-white/40 mb-1.5 block" htmlFor="model-select">
-                  Model
-                </label>
+                <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="model-select">Model</label>
                 <select
                   id="model-select"
                   value={selectedModel}
@@ -720,66 +711,66 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     setSelectedModel(value);
                     window.localStorage.setItem("apple-juice-model", value);
                   }}
-                  className="w-full bg-white/[0.02] border border-white/[0.06] rounded-lg px-3 py-2 text-[13px] text-white/80 focus:outline-none focus:border-[#ccff00]/50 transition-colors"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
                 >
                   {availableModels.map((model) => (
-                    <option key={model} value={model} className="bg-[#0c0d10]">
-                      {model}
-                    </option>
+                    <option key={model} value={model} className="bg-[#090a0d]">{model}</option>
                   ))}
                 </select>
               </div>
             </div>
           )}
 
-          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+          {/* Plugin Status */}
+          <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`h-2 w-2 rounded-full ${isPluginConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                <span className="text-[13px] font-medium text-white/80">
-                  {isPluginConnected ? "Plugin connected" : "Waiting for plugin..."}
+              <div className="flex items-center gap-2.5">
+                <span className={`relative flex h-2.5 w-2.5`}>
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${isPluginConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isPluginConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                </span>
+                <span className="text-sm font-medium text-white/80">
+                  {isPluginConnected ? "Plugin connected" : "Waiting for plugin"}
                 </span>
               </div>
-              <button className="text-[12px] text-white/30 hover:text-white/60 transition-colors" onClick={() => void createPairOnServer()}>Reset</button>
+              <button className="text-[11px] text-white/25 hover:text-white/60 transition-colors px-2 py-1 rounded-lg hover:bg-white/[0.04]" onClick={() => void createPairOnServer()}>Reset</button>
             </div>
-            <p className="mt-2 text-[12px] text-white/30">{pluginStatus}</p>
+            <p className="mt-2 text-[12px] text-white/30 leading-relaxed">{pluginStatus}</p>
           </div>
 
           {latestCode && (
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-100">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-medium text-white/40">Latest Script</span>
-                <button className="text-[12px] text-white/30 hover:text-white/60 transition-colors" onClick={() => copyText(latestCode)}>Copy</button>
+                <span className="text-[12px] font-semibold text-white/50 uppercase tracking-wider">Latest Script</span>
+                <button className="text-[11px] text-white/30 hover:text-[#ccff00] transition-colors" onClick={() => copyText(latestCode)}>Copy ↗</button>
               </div>
-              <div className={lastError ? "border border-red-500/[0.15] bg-red-500/[0.05] p-2 rounded-lg" : ""}>
-                {lastError && (
-                  <p className="mb-2 text-red-400/80 text-[11px] font-mono break-words">{lastError}</p>
-                )}
-                <pre className="max-h-48 overflow-auto font-mono text-[12px] bg-[#0c0d10] border border-white/[0.06] rounded-lg p-3 text-white/50">
-                  <code>{latestCode}</code>
-                </pre>
-              </div>
+              {lastError && (
+                <div className="mb-3 p-2.5 rounded-xl bg-red-500/[0.08] border border-red-500/20">
+                  <p className="text-red-400/90 text-[11px] font-mono break-words leading-relaxed">{lastError}</p>
+                </div>
+              )}
+              <pre className="max-h-44 overflow-auto font-mono text-[11px] bg-black/40 border border-white/[0.06] rounded-xl p-3 text-white/50 leading-relaxed">
+                <code>{latestCode}</code>
+              </pre>
             </div>
           )}
 
           {gameLogs.length > 0 && (
-            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-150">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-medium text-white/40">Game Logs</span>
-                <div className="flex gap-2">
-                  <button className="text-[11px] text-red-400/60 hover:text-red-400 transition-colors" onClick={() => setGameLogs([])}>Clear</button>
+                <span className="text-[12px] font-semibold text-white/50 uppercase tracking-wider">Game Logs</span>
+                <div className="flex gap-3">
+                  <button className="text-[11px] text-white/25 hover:text-red-400 transition-colors" onClick={() => setGameLogs([])}>Clear</button>
                   <button className="text-[11px] text-[#ccff00]/60 hover:text-[#ccff00] transition-colors" onClick={() => {
                     submitPrompt("Please analyze these game logs and help me fix any errors:\n" + gameLogs.join("\n"));
                     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-                  }}>Analyze</button>
+                  }}>✦ Analyze</button>
                 </div>
               </div>
-              <div className="max-h-48 overflow-auto font-mono text-[11px] bg-[#0c0d10] border border-white/[0.06] rounded-lg p-3 text-white/40 space-y-0.5">
+              <div className="max-h-44 overflow-auto font-mono text-[11px] bg-black/40 border border-white/[0.06] rounded-xl p-3 text-white/40 space-y-0.5 leading-relaxed">
                 {gameLogs.map((log, i) => {
                   const isError = log.toLowerCase().includes("error") || log.toLowerCase().includes("exception");
-                  return (
-                    <div key={i} className={isError ? "text-red-400/80" : ""}>{log}</div>
-                  );
+                  return <div key={i} className={isError ? "text-red-400" : ""}>{log}</div>;
                 })}
                 <div ref={logsEndRef} />
               </div>
@@ -788,28 +779,27 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         </div>
 
         {/* RIGHT SIDE (CHAT) */}
-        <div className="flex-1 flex flex-col h-full bg-[#0a0b0e] relative overflow-hidden">
-          {/* Chat History */}
+        <div className="flex-1 flex flex-col h-full bg-[#0b0c0f] relative overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col">
             {messages.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
-                <div className="max-w-sm text-center">
-                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.06] text-white/30 mb-4">
-                    <WandSparkles className="h-5 w-5" />
+                <div className="max-w-md text-center animate-in fade-in zoom-in-95 duration-700">
+                  <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ccff00]/10 border border-[#ccff00]/20 text-[#ccff00]">
+                    <WandSparkles className="h-7 w-7" />
                   </div>
-                  <h2 className="text-lg font-semibold text-white/80 mb-2">What do you want to build?</h2>
-                  <p className="text-[13px] text-white/30">
-                    Describe your idea and get working Luau code synced to Studio.
+                  <h2 className="text-2xl font-bold tracking-tight text-white mb-2">What do you want to build?</h2>
+                  <p className="text-sm text-white/40 leading-relaxed">
+                    Describe your idea and get working Luau code synced directly to Roblox Studio.
                   </p>
                 </div>
               </div>
             ) : (
               messages.map((message) => (
-                <div key={message.id} className={`flex w-full ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] sm:max-w-[75%] px-4 py-3 rounded-xl text-[14px] ${
-                    message.role === 'user' 
-                      ? 'bg-white/[0.06] text-white/90 border border-white/[0.06]' 
-                      : 'bg-white/[0.02] text-white/70 border border-white/[0.06]'
+                <div key={message.id} className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-2xl text-[14px] leading-relaxed ${
+                    message.role === 'user'
+                      ? 'bg-[#ccff00]/[0.08] text-white border border-[#ccff00]/[0.12] rounded-br-sm'
+                      : 'bg-white/[0.04] text-white/85 border border-white/[0.07] rounded-bl-sm'
                   }`}>
                     <div className="space-y-3">
                     {message.attachments && message.attachments.length > 0 && (
@@ -877,16 +867,16 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             <div ref={chatEndRef} className="h-px w-full" />
           </div>
 
-          {/* Prompt Input */}
-          <div className="flex-shrink-0 border-t border-white/[0.06] p-4 bg-[#0c0d10]">
-            <div className="max-w-3xl mx-auto space-y-2">
+          {/* Input Bar */}
+          <div className="flex-shrink-0 border-t border-white/[0.06] p-4 bg-[#090a0d]">
+            <div className="max-w-3xl mx-auto space-y-3">
               {attachedFiles.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {attachedFiles.map((f, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/40">
+                    <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#ccff00]/[0.06] border border-[#ccff00]/[0.12] text-[11px] text-[#ccff00]/80">
                       <Paperclip className="h-2.5 w-2.5" />
                       {f.name}
-                      <button onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))} className="ml-0.5 hover:text-white/70 transition-colors">
+                      <button onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))} className="ml-0.5 hover:text-white transition-colors">
                         <X className="h-2.5 w-2.5" />
                       </button>
                     </span>
@@ -897,15 +887,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               <Textarea
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Describe what you want to build..."
-                rows={2}
+                placeholder="Describe what you want to build... (Enter to send, Shift+Enter for newline)"
+                rows={3}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     submitPrompt();
                   }
                 }}
-                className="bg-white/[0.02] border-white/[0.06] text-[14px] placeholder:text-white/20 resize-none"
+                className="bg-white/[0.03] border-white/[0.07] text-[14px] placeholder:text-white/20 resize-none rounded-xl focus:border-[#ccff00]/30 focus:ring-0 transition-colors"
               />
 
               <input
@@ -928,46 +918,67 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 }}
               />
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-white/[0.03] rounded-lg border border-white/[0.06] p-0.5">
+                  {/* Mode toggle */}
+                  <div className="flex items-center bg-white/[0.04] rounded-xl border border-white/[0.07] p-0.5">
                     <button
                       onClick={() => setMode("fast")}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors ${mode === "fast" ? "bg-white/[0.06] text-white/80" : "text-white/30 hover:text-white/50"}`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                        mode === "fast"
+                          ? "bg-[#ccff00]/15 text-[#ccff00] shadow-sm"
+                          : "text-white/40 hover:text-white/70"
+                      }`}
                     >
                       <Zap className="h-3 w-3" />
                       Fast
                     </button>
                     <button
                       onClick={() => setMode("thinking")}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors ${mode === "thinking" ? "bg-white/[0.06] text-white/80" : "text-white/30 hover:text-white/50"}`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                        mode === "thinking"
+                          ? "bg-violet-500/15 text-violet-400 shadow-sm"
+                          : "text-white/40 hover:text-white/70"
+                      }`}
                     >
                       <Brain className="h-3 w-3" />
                       Thinking
                     </button>
                   </div>
 
-                  <button className="px-2.5 py-1 rounded-lg text-[12px] text-white/30 hover:text-white/50 bg-white/[0.03] border border-white/[0.06] transition-colors" onClick={() => fileInputRef.current?.click()}>
+                  <button
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/40 hover:text-white/70 hover:bg-white/[0.05] border border-white/[0.07] transition-all"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip className="h-3 w-3" />
                     Attach
                   </button>
 
-                  <span className="text-[11px] text-white/20 hidden sm:block">{selectedModel}</span>
-
-                  <span className="text-[11px] text-white/20">
-                    {Math.max(0, usage.totalCredits - usage.usedCredits)}/{usage.totalCredits} credits
-                  </span>
+                  <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <span className="text-[11px] text-white/25">{Math.max(0, usage.totalCredits - usage.usedCredits)}/{usage.totalCredits} credits</span>
+                    <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#ccff00] transition-all duration-700"
+                        style={{ width: `${Math.max(0, Math.min(100, ((usage.totalCredits - usage.usedCredits) / usage.totalCredits) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
                   {lastError && (
-                    <button className="px-3 py-1.5 rounded-lg text-[12px] text-red-400/70 hover:text-red-400 bg-red-500/[0.05] border border-red-500/[0.1] transition-colors" onClick={handleAutoFix} disabled={isGenerating}>
+                    <button
+                      className="px-3 py-2 rounded-xl text-[12px] font-medium text-red-400 bg-red-500/[0.08] border border-red-500/20 hover:bg-red-500/15 transition-all"
+                      onClick={handleAutoFix}
+                      disabled={isGenerating}
+                    >
                       Repair
                     </button>
                   )}
                   <button
                     onClick={() => submitPrompt()}
                     disabled={isGenerating}
-                    className="px-4 py-1.5 rounded-lg text-[13px] font-medium bg-[#ccff00] text-black hover:opacity-90 disabled:opacity-40 transition-opacity"
+                    className="px-5 py-2 rounded-xl text-[13px] font-semibold bg-[#ccff00] text-black hover:bg-[#d4ff33] disabled:opacity-40 transition-all shadow-[0_0_16px_rgba(204,255,0,0.2)] hover:shadow-[0_0_24px_rgba(204,255,0,0.35)] disabled:shadow-none"
                   >
                     {isGenerating ? "Generating..." : "Generate"}
                   </button>
