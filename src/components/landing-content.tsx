@@ -96,10 +96,11 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
         <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-12 xl:px-20 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-[#ccff00] flex items-center justify-center shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-              <svg viewBox="0 0 24 24" className="h-6 w-6 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10 2v3" />
-                <rect x="5" y="5" width="14" height="17" rx="3" />
-                <path d="M5 10h14" />
+              <svg viewBox="0 0 24 24" className="h-6 w-6 text-black" fill="currentColor">
+                <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
+                <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
+                <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
               </svg>
             </div>
             <span className="text-xl md:text-2xl font-black tracking-[0.2em] uppercase font-sans text-white drop-shadow-md">Apple Juice</span>

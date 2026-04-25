@@ -431,15 +431,18 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     setIsGenerating(true);
     setPluginStatus("Generating Luau and syncing it to the pairing session...");
 
+    const promptSnippet = trimmed.length > 25 ? trimmed.substring(0, 25) + "..." : trimmed;
+    const isAsset = trimmed.toLowerCase().includes("insert") || trimmed.toLowerCase().includes("build") || trimmed.toLowerCase().includes("model") || trimmed.toLowerCase().includes("part");
+    
     if (mode === "thinking") {
-      setThinkingSteps([{ icon: "thinking", label: "Deep reasoning about the request...", done: false }]);
+      setThinkingSteps([{ icon: "thinking", label: `Deep reasoning about "${promptSnippet}"...`, done: false }]);
       
       const fileNames = attachedFiles.map(f => f.name).join(", ");
       
       const t1 = setTimeout(() => {
         setThinkingSteps(prev => {
           if (prev.length === 1 && !prev[0].done) {
-            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Analyzing attached files: ${fileNames}...` : "Analyzing architecture and dependencies...", done: false }];
+            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Cross-referencing ${fileNames} with architecture...` : "Structuring client-server architecture & security boundaries...", done: false }];
           }
           return prev;
         });
@@ -447,26 +450,24 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         const t2 = setTimeout(() => {
           setThinkingSteps(prev => {
             if (prev.length === 2 && !prev[1].done) {
-              const keywords = ["ServerScriptService", "StarterPlayer", "ReplicatedStorage", "GUI", "LocalScript", "Module"];
-              const found = keywords.find(k => trimmed.toLowerCase().includes(k.toLowerCase()));
-              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: found ? `Drafting scripts for ${found}...` : "Writing and verifying Luau scripts...", done: false }];
+              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: isAsset ? "Locating and validating asset bundles..." : "Drafting and optimizing Luau logic...", done: false }];
             }
             return prev;
           });
-        }, 2000 + Math.random() * 3000);
+        }, 2500 + Math.random() * 3000);
         stepTimeoutsRef.current.push(t2);
-      }, 1500 + Math.random() * 2500);
+      }, 2000 + Math.random() * 2500);
       
       stepTimeoutsRef.current.push(t1);
     } else {
-      setThinkingSteps([{ icon: "thinking", label: "Thinking about the request...", done: false }]);
+      setThinkingSteps([{ icon: "thinking", label: `Analyzing request: "${promptSnippet}"...`, done: false }]);
       
       const fileNames = attachedFiles.map(f => f.name).join(", ");
       
       const t1 = setTimeout(() => {
         setThinkingSteps(prev => {
           if (prev.length === 1 && !prev[0].done) {
-            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Reading ${fileNames}...` : "Looking at Roblox API docs...", done: false }];
+            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Reading ${fileNames} context...` : "Mapping optimal Roblox services...", done: false }];
           }
           return prev;
         });
@@ -474,15 +475,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         const t2 = setTimeout(() => {
           setThinkingSteps(prev => {
             if (prev.length === 2 && !prev[1].done) {
-              const scriptTypes = ["LocalScript", "ModuleScript"];
-              const typeFound = scriptTypes.find(t => trimmed.includes(t)) || "Script";
-              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: `Writing ${typeFound}...`, done: false }];
+              const scriptTypes = ["LocalScript", "ModuleScript", "ServerScript"];
+              const typeFound = scriptTypes.find(t => trimmed.toLowerCase().includes(t.toLowerCase())) || "game logic";
+              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: isAsset ? "Preparing asset payload..." : `Writing production-ready ${typeFound}...`, done: false }];
             }
             return prev;
           });
-        }, 1000 + Math.random() * 2000);
+        }, 1500 + Math.random() * 2000);
         stepTimeoutsRef.current.push(t2);
-      }, 800 + Math.random() * 1500);
+      }, 1000 + Math.random() * 1500);
       
       stepTimeoutsRef.current.push(t1);
     }
@@ -618,11 +619,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.04] px-6 py-3 bg-[#090a0d]/80 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ccff00] shadow-[0_0_12px_rgba(204,255,0,0.25)]">
-            <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10 2v3" />
-              <rect x="5" y="5" width="14" height="17" rx="3" />
-              <path d="M5 10h14" />
-            </svg>
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 text-black" fill="currentColor">
+                    <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
+                    <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
+                    <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
+                  </svg>
           </div>
           <span className="text-sm font-bold text-white tracking-tight">Apple Juice</span>
           <span className="hidden sm:block text-white/20 text-xs">·</span>
@@ -954,15 +956,21 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     Attach
                   </button>
 
-                  <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                    <span className="text-[11px] text-white/25">{Math.max(0, usage.totalCredits - usage.usedCredits)}/{usage.totalCredits} credits</span>
-                    <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[#ccff00] transition-all duration-700"
-                        style={{ width: `${Math.max(0, Math.min(100, ((usage.totalCredits - usage.usedCredits) / usage.totalCredits) * 100))}%` }}
-                      />
+                  {(provider === "google" ? googleKey.trim() : openaiKey.trim()).length === 0 ? (
+                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <span className="text-[11px] text-white/25">{Math.max(0, usage.totalCredits - usage.usedCredits)}/{usage.totalCredits} credits</span>
+                      <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#ccff00] transition-all duration-700"
+                          style={{ width: `${Math.max(0, Math.min(100, ((usage.totalCredits - usage.usedCredits) / usage.totalCredits) * 100))}%` }}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-[#ccff00]/20">
+                      <span className="text-[11px] font-medium text-[#ccff00]">Custom Key Active</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">

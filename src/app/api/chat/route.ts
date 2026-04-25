@@ -33,12 +33,14 @@ export async function POST(req: Request) {
   const mode = body.mode ?? "fast";
   const fileContents = body.fileContents ?? [];
 
-  // Determine if using custom API key (bypass credits)
   const systemOpenAIKey = process.env.OPENAI_API_KEY || "";
   const systemGoogleKey = process.env.GOOGLE_API_KEY || "";
   
-  const activeKey = provider === "google" ? apiKey : (openaiKey || apiKey);
-  const isUsingCustomKey = !!activeKey && activeKey !== systemOpenAIKey && activeKey !== systemGoogleKey;
+  const clientKey = provider === "google" ? apiKey : (openaiKey || apiKey);
+  const isUsingCustomKey = !!clientKey && clientKey !== systemOpenAIKey && clientKey !== systemGoogleKey;
+
+  const finalGoogleKey = (provider === "google" && clientKey) ? clientKey : systemGoogleKey;
+  const finalOpenAIKey = (provider === "openai" && clientKey) ? clientKey : systemOpenAIKey;
 
   // Check credits only if NOT using a custom key
   if (!isUsingCustomKey) {
@@ -52,8 +54,8 @@ export async function POST(req: Request) {
     }
   }
 
-  if (!prompt || !sessionKey || !apiKey) {
-    return Response.json({ error: "prompt, sessionKey, and apiKey are required" }, { status: 400 });
+  if (!prompt || !sessionKey) {
+    return Response.json({ error: "prompt and sessionKey are required" }, { status: 400 });
   }
 
   const pair = await getSession(sessionKey);
@@ -238,8 +240,8 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
   let code = "";
   let tokensUsed = 0;
 
-  if (model.toLowerCase().startsWith("gpt-") && openaiKey) {
-    const { ok, text, tokens } = await callOpenAI(openaiKey, model);
+  if (model.toLowerCase().startsWith("gpt-") && finalOpenAIKey) {
+    const { ok, text, tokens } = await callOpenAI(finalOpenAIKey, model);
     raw = text;
     tokensUsed = tokens;
     if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model }, { status: 502 });
@@ -260,7 +262,7 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
 
     let availableModels: string[] = [];
     try {
-      const listUrl = `https://generativelanguage.googleapis.com/v1beta2/models?key=${encodeURIComponent(apiKey)}`;
+      const listUrl = `https://generativelanguage.googleapis.com/v1beta2/models?key=${encodeURIComponent(finalGoogleKey)}`;
       const listRes = await fetch(listUrl, { method: "GET", headers: { "Content-Type": "application/json" } });
       const listRaw = await listRes.text();
       if (listRes.ok) {
@@ -279,7 +281,7 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     let lastResponseBody = "";
     for (const candidate of candidatePool) {
       attemptedModels.push(candidate);
-      const url = `https://generativelanguage.googleapis.com/v1beta/${candidate}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/${candidate}:generateContent?key=${encodeURIComponent(finalGoogleKey)}`;
       try {
         const llmRes = await fetch(url, {
           method: "POST",
@@ -329,8 +331,8 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
       }
     }
 
-    if (!code && !raw && openaiKey) {
-      const { ok, text, tokens } = await callOpenAI(openaiKey, "gpt-4o-mini");
+    if (!code && !raw && finalOpenAIKey) {
+      const { ok, text, tokens } = await callOpenAI(finalOpenAIKey, "gpt-4o-mini");
       raw = text;
       if (ok) {
         const content = extractContent(raw);
@@ -347,7 +349,7 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
     }
   } else {
     // Default: OpenAI using provided apiKey
-    const { ok, text, tokens } = await callOpenAI(apiKey, model);
+    const { ok, text, tokens } = await callOpenAI(finalGoogleKey || finalOpenAIKey, model);
     raw = text;
     tokensUsed = tokens;
     if (!ok) return Response.json({ error: "LLM request failed", detail: raw, model }, { status: 502 });
