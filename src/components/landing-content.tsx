@@ -29,34 +29,29 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="border-b border-white/10 py-5">
+    <div className="border-b border-white/[0.06] last:border-b-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between text-left text-lg font-semibold text-white transition-colors hover:text-[#ccff00]"
+        className="flex w-full items-center justify-between text-left py-5 text-[15px] font-medium text-white/90 transition-colors hover:text-white"
       >
         {question}
-        <motion.div animate={{ rotate: isOpen ? 180 : 0 }}>
-          <ChevronDown className="h-5 w-5 text-[#8a8f98]" />
+        <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown className="h-4 w-4 text-white/30 flex-shrink-0 ml-4" />
         </motion.div>
       </button>
       <motion.div
         initial={false}
         animate={{ height: isOpen ? "auto" : 0, opacity: isOpen ? 1 : 0 }}
+        transition={{ duration: 0.2 }}
         className="overflow-hidden"
       >
-        <p className="pt-4 text-base leading-relaxed text-[#a0a5b0]">{answer}</p>
+        <p className="pb-5 text-sm leading-relaxed text-white/50">{answer}</p>
       </motion.div>
     </div>
   );
 }
 
 export function LandingContent({ session, avatarUrl }: { session: any, avatarUrl?: string }) {
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  };
   const [activeTab, setActiveTab] = useState("Door System");
 
   const codeSnippets: Record<string, { code: string; desc: string }> = {
@@ -70,7 +65,7 @@ local closeTween = TweenService:Create(Door, TweenInfo.new(0.35), { Transparency
 return function(open)
   if open then openTween:Play() else closeTween:Play() end
 end`,
-      desc: "Create a door that tweens open and closed...",
+      desc: "Smooth door system with tweening",
     },
     "NPC AI": {
       code: `local NPC = script.Parent
@@ -85,7 +80,7 @@ local function moveToTarget(targetPos)
     NPC.Humanoid.MoveToFinished:Wait()
   end
 end`,
-      desc: "Basic pathfinding for an NPC character...",
+      desc: "Pathfinding NPC with waypoint movement",
     },
     "Shop UI": {
       code: `local Player = game.Players.LocalPlayer
@@ -97,7 +92,7 @@ Button.MouseButton1Click:Connect(function()
     gui.Enabled = not gui.Enabled
   end
 end)`,
-      desc: "Toggle a shop menu GUI on click...",
+      desc: "Toggle shop menu on click",
     },
     "Inventory": {
       code: `local Inventory = {}
@@ -112,388 +107,357 @@ function Inventory:AddItem(itemName)
   table.insert(self.Items, itemName)
   print(itemName .. " added!")
 end`,
-      desc: "Simple object-oriented inventory module...",
+      desc: "OOP inventory module",
     },
   };
 
   return (
-    <main className="min-h-screen bg-[#0a0c14] text-white relative overflow-hidden">
-      {/* ── Colorful Ambient Background ── */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-[800px] h-[800px] bg-[#ccff00]/15 blur-[160px] rounded-full mix-blend-screen" />
-        <div className="absolute top-20 -right-40 w-[900px] h-[900px] bg-[#6366f1]/20 blur-[180px] rounded-full mix-blend-screen" />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-[#0ea5e9]/15 blur-[180px] rounded-full mix-blend-screen" />
-      </div>
-
-      <div className="relative z-10">
-        {/* ── Navbar ── */}
-        <header className="fixed inset-x-0 top-0 z-50 border-b border-white/5 bg-[#0a0c14]/60 backdrop-blur-md">
-          <div className="mx-auto flex h-16 w-full max-w-[120rem] items-center justify-between px-6 lg:px-12">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#ccff00] to-emerald-400 shadow-lg shadow-[#ccff00]/20">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10 2v3" />
-                  <rect x="5" y="5" width="14" height="17" rx="3" />
-                  <path d="M5 10h14" />
-                </svg>
-              </span>
-              <span className="text-lg font-bold text-white tracking-tight">Apple Juice</span>
+    <main className="min-h-screen bg-[#0c0d10] text-white">
+      {/* ── Navbar ── */}
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.06] bg-[#0c0d10]/80 backdrop-blur-lg">
+        <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-6">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#ccff00]">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 2v3" />
+                <rect x="5" y="5" width="14" height="17" rx="3" />
+                <path d="M5 10h14" />
+              </svg>
             </div>
-
-            <nav className="hidden items-center gap-8 text-sm font-semibold text-[#a0a5b0] md:flex">
-              <a href="#features" className="transition-colors hover:text-white">Features</a>
-              <a href="#how-it-works" className="transition-colors hover:text-white">How it Works</a>
-              <a href="#faq" className="transition-colors hover:text-white">FAQ</a>
-              <a href="https://github.com/inetixus/apple-juice" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub</a>
-            </nav>
-
-            <div className="flex items-center gap-3">
-              {session ? (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className="hidden bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_20px_rgba(204,255,0,0.3)] font-bold transition-colors rounded-xl px-8 py-3.5 text-base sm:inline-flex"
-                  >
-                    Dashboard
-                  </Link>
-                  <a
-                    href="/api/auth/signout"
-                    className="hidden bg-transparent border border-white/10 text-white hover:bg-white/5 font-semibold transition-colors rounded-xl px-6 py-3.5 text-base sm:inline-flex"
-                  >
-                    Log out
-                  </a>
-                </>
-              ) : (
-                <button
-                  onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
-                  className="hidden bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_20px_rgba(204,255,0,0.3)] font-bold transition-colors rounded-xl px-8 py-3.5 text-base sm:inline-flex"
-                >
-                  Sign in with Roblox
-                </button>
-              )}
-            </div>
+            <span className="text-sm font-semibold text-white">Apple Juice</span>
           </div>
-        </header>
 
-        {/* ── Hero ── */}
-        <section className="pt-36 pb-20 lg:pt-48 lg:pb-32">
-          <div className="mx-auto grid w-full max-w-[120rem] items-center gap-16 px-6 lg:px-12 lg:grid-cols-[1.2fr_1fr]">
+          <nav className="hidden items-center gap-6 text-[13px] text-white/50 md:flex">
+            <a href="#features" className="transition-colors hover:text-white">Features</a>
+            <a href="#how-it-works" className="transition-colors hover:text-white">How it Works</a>
+            <a href="#faq" className="transition-colors hover:text-white">FAQ</a>
+            <a href="https://github.com/inetixus/apple-juice" target="_blank" rel="noreferrer" className="transition-colors hover:text-white">GitHub</a>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            {session ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center gap-1.5 bg-[#ccff00] text-black font-semibold transition-opacity hover:opacity-90 rounded-lg px-4 py-2 text-[13px]"
+                >
+                  Dashboard
+                </Link>
+                <a
+                  href="/api/auth/signout"
+                  className="inline-flex items-center bg-white/[0.06] border border-white/[0.06] text-white/70 hover:text-white hover:bg-white/[0.08] font-medium transition-colors rounded-lg px-4 py-2 text-[13px]"
+                >
+                  Log out
+                </a>
+              </>
+            ) : (
+              <button
+                onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
+                className="inline-flex items-center gap-1.5 bg-[#ccff00] text-black font-semibold transition-opacity hover:opacity-90 rounded-lg px-4 py-2 text-[13px]"
+              >
+                Sign in with Roblox
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* ── Hero ── */}
+      <section className="pt-32 pb-20 lg:pt-40 lg:pb-28">
+        <div className="mx-auto w-full max-w-5xl px-6">
+          <div className="grid items-center gap-14 lg:grid-cols-[1.1fr_1fr]">
             <motion.div 
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
+              transition={{ duration: 0.5 }}
             >
               {session ? (
                 <>
-                  <div className="flex items-center gap-6 mb-6">
+                  <div className="flex items-center gap-4 mb-5">
                     {avatarUrl ? (
-                      <div className="relative h-24 w-24 rounded-full p-1 bg-gradient-to-br from-[#ccff00] to-emerald-400 shadow-[0_0_30px_rgba(204,255,0,0.3)]">
-                        <img src={avatarUrl} alt="Avatar" className="rounded-full w-full h-full object-cover bg-[#0a0c14]" />
+                      <div className="h-16 w-16 rounded-full overflow-hidden ring-2 ring-white/10">
+                        <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <div className="h-24 w-24 rounded-full bg-[#1e212b] border border-white/10 flex items-center justify-center text-3xl font-bold text-[#8a8f98]">
+                      <div className="h-16 w-16 rounded-full bg-white/[0.06] flex items-center justify-center text-xl font-semibold text-white/40">
                         {session.user?.name?.charAt(0) || "U"}
                       </div>
                     )}
-                    <div className="flex flex-col">
-                      <span className="text-[#ccff00] font-bold tracking-widest uppercase text-sm mb-1">{getGreeting()}</span>
-                      <h1 className="text-[3rem] font-extrabold leading-[1.05] tracking-tight text-white lg:text-[4.5rem]">
+                    <div>
+                      <p className="text-[13px] font-medium text-[#ccff00]">Welcome back</p>
+                      <h1 className="text-3xl font-bold tracking-tight text-white lg:text-4xl">
                         {session.user?.name}
                       </h1>
                     </div>
                   </div>
-                  <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#a0a5b0]">
+                  <p className="max-w-md text-[15px] leading-relaxed text-white/50">
                     Jump back into your dashboard to generate more Luau scripts and sync them instantly to Studio.
                   </p>
                 </>
               ) : (
                 <>
-                  <h1 className="text-[4rem] font-extrabold leading-[1.05] tracking-tight text-white lg:text-[6.5rem]">
-                    The first{" "}
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#ccff00] via-emerald-400 to-cyan-400 drop-shadow-sm">
-                      AI Code Tool
+                  <div className="mb-5">
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#ccff00] bg-[#ccff00]/[0.08] border border-[#ccff00]/[0.12] px-2.5 py-1 rounded-md">
+                      <Zap className="h-3 w-3" /> Open Source
                     </span>
-                    <br />
-                    for Roblox.
+                  </div>
+                  <h1 className="text-4xl font-bold tracking-tight text-white lg:text-[3.5rem] lg:leading-[1.1]">
+                    The AI code tool<br />
+                    <span className="text-[#ccff00]">for Roblox.</span>
                   </h1>
-                  <p className="mt-8 max-w-xl text-lg leading-relaxed text-[#a0a5b0]">
-                    Join creators using Apple Juice to quickly turn dream ideas into working Luau prototypes — with instant Studio sync.
+                  <p className="mt-5 max-w-md text-[15px] leading-relaxed text-white/50">
+                    Turn ideas into working Luau scripts with AI — then sync them directly to Roblox Studio in real time.
                   </p>
                 </>
               )}
 
-              <div className="mt-10 flex flex-wrap items-center gap-4">
+              <div className="mt-8 flex flex-wrap items-center gap-3">
                 {session ? (
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-2 bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_30px_rgba(204,255,0,0.4)] font-bold transition-all hover:scale-105 rounded-xl px-8 py-4 text-base"
+                    className="inline-flex items-center gap-2 bg-[#ccff00] text-black font-semibold transition-opacity hover:opacity-90 rounded-lg px-5 py-2.5 text-sm"
                   >
-                    Start Prototyping
-                    <ArrowRight className="h-5 w-5" />
+                    Open Dashboard
+                    <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : (
                   <button
                     onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
-                    className="inline-flex items-center gap-2 bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_30px_rgba(204,255,0,0.4)] font-bold transition-all hover:scale-105 rounded-xl px-8 py-4 text-base"
+                    className="inline-flex items-center gap-2 bg-[#ccff00] text-black font-semibold transition-opacity hover:opacity-90 rounded-lg px-5 py-2.5 text-sm"
                   >
                     Start Prototyping
-                    <ArrowRight className="h-5 w-5" />
+                    <ArrowRight className="h-4 w-4" />
                   </button>
                 )}
                 <a
                   href="https://github.com/inetixus/apple-juice"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-white hover:bg-white/10 backdrop-blur-sm transition-all hover:scale-105 rounded-xl px-8 py-4 text-base font-semibold"
+                  className="inline-flex items-center gap-2 bg-white/[0.06] border border-white/[0.06] text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors rounded-lg px-5 py-2.5 text-sm font-medium"
                 >
-                  Watch Demo
-                  <ArrowRight className="h-5 w-5" />
+                  View on GitHub
                 </a>
               </div>
             </motion.div>
 
-            {/* Code editor mockup */}
+            {/* Code editor */}
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, rotate: -2 }}
-              animate={{ opacity: 1, scale: 1, rotate: 0 }}
-              transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
-              className="relative"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
             >
-              <div className="absolute -left-4 -top-4 h-full w-full rounded-2xl border border-white/5 bg-[#0a0c14]/40 backdrop-blur-xl" />
-              <div className="absolute -left-2 -top-2 h-full w-full rounded-2xl border border-white/5 bg-[#12141d]/60 backdrop-blur-xl" />
-
-              <div className="relative bg-[#161822] shadow-2xl shadow-black/50 border border-white/10 rounded-2xl overflow-hidden">
-                <div className="flex items-center gap-2 border-b border-white/5 bg-[#1e212b] px-5 py-4">
-                  <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-                  <span className="h-3 w-3 rounded-full bg-[#ffbd2e]" />
-                  <span className="h-3 w-3 rounded-full bg-[#28c840]" />
-                  <span className="ml-3 text-xs font-semibold text-[#a0a5b0]">apple-juice-assistant.lua</span>
+              <div className="bg-[#141518] border border-white/[0.06] rounded-xl overflow-hidden">
+                <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
+                  <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+                  <span className="ml-2 text-[11px] text-white/30">generated.lua</span>
                 </div>
 
                 <motion.pre 
                   key={activeTab}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="font-mono text-sm bg-[#0c0d12] p-6 text-[#d1d5db] overflow-x-auto min-h-[250px]"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className="font-mono text-[13px] p-5 text-white/70 overflow-x-auto min-h-[220px] leading-relaxed"
                 >
                   <code>{codeSnippets[activeTab].code}</code>
                 </motion.pre>
 
-                <div className="flex items-center gap-3 border-t border-white/5 bg-[#1e212b] px-5 py-4">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#ccff00] animate-pulse shadow-[0_0_10px_rgba(204,255,0,0.8)]" />
-                  <motion.span 
-                    key={activeTab + "desc"}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-sm font-medium text-[#a0a5b0]"
-                  >
-                    {codeSnippets[activeTab].desc}
-                  </motion.span>
+                <div className="flex items-center gap-2 border-t border-white/[0.06] px-4 py-3">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#ccff00]" />
+                  <span className="text-[12px] text-white/40">{codeSnippets[activeTab].desc}</span>
                 </div>
               </div>
 
-              {/* Interactive Tabs */}
-              <div className="relative z-10 mt-6 flex flex-wrap items-center justify-center gap-3">
+              {/* Tabs */}
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 {Object.keys(codeSnippets).map((label) => {
                   const isActive = activeTab === label;
                   return (
-                    <motion.button
+                    <button
                       key={label}
                       onClick={() => setActiveTab(label)}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className={`rounded-lg px-4 py-2 text-sm font-bold transition-all ${
+                      className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
                         isActive
-                          ? "bg-[#ccff00] text-black shadow-[0_0_20px_rgba(204,255,0,0.4)] border border-[#ccff00]"
-                          : "bg-[#1e212b] text-[#a0a5b0] border border-white/10 hover:border-[#ccff00]/50 hover:text-white"
+                          ? "bg-[#ccff00]/[0.1] text-[#ccff00] border border-[#ccff00]/[0.15]"
+                          : "bg-white/[0.04] text-white/40 border border-transparent hover:text-white/60"
                       }`}
                     >
                       {label}
-                    </motion.button>
+                    </button>
                   );
                 })}
               </div>
             </motion.div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* ── Features ── */}
-        <section id="features" className="py-24 lg:py-32 relative">
-          <div className="mx-auto w-full max-w-[120rem] px-6 lg:px-12">
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.7 }}
-              className="text-center"
-            >
-              <span className="inline-flex items-center gap-2 text-sm font-bold text-[#ccff00] bg-[#ccff00]/10 border border-[#ccff00]/20 px-3 py-1.5 rounded-lg shadow-[0_0_15px_rgba(204,255,0,0.15)]">
-                <Zap className="h-4 w-4" /> Features
-              </span>
-              <h2 className="mt-6 text-3xl font-extrabold tracking-tight text-white lg:text-5xl">
-                Everything you need to build faster.
-              </h2>
-              <p className="mx-auto mt-5 max-w-2xl text-lg text-[#a0a5b0]">
-                From generating Luau scripts to syncing them live with Studio — all powered by your own API keys.
-              </p>
-            </motion.div>
+      {/* ── Features ── */}
+      <section id="features" className="py-20 lg:py-28">
+        <div className="mx-auto w-full max-w-5xl px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-14"
+          >
+            <h2 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
+              Everything you need to build faster
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-[15px] text-white/40">
+              Generate Luau scripts and sync them live with Studio — all powered by your own API keys.
+            </p>
+          </motion.div>
 
-            <div className="mt-20 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                { icon: Code2, title: "AI Code Generation", desc: "Generate production-ready Luau scripts from natural language prompts using GPT-4 or Gemini." },
-                { icon: RefreshCw, title: "Instant Studio Sync", desc: "Your generated code is instantly available to your Roblox Studio plugin via a simple poll endpoint." },
-                { icon: Shield, title: "BYOK — Your Keys, Your Data", desc: "Apple Juice never stores your API keys server-side. They live in your browser, always." },
-                { icon: Zap, title: "Multi-Provider Support", desc: "Switch between OpenAI and Google AI Studio with one click. Use whatever models you prefer." },
-                { icon: Sparkles, title: "Conversation Memory", desc: "Full conversation history is sent with each request, so the AI remembers context across prompts." },
-                { icon: ArrowRight, title: "Open Source", desc: "Fork it, self-host it, extend it. Apple Juice is 100% open source under the MIT license." },
-              ].map((feature, i) => (
-                <motion.div 
-                  key={feature.title} 
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-50px" }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                  whileHover={{ y: -5, scale: 1.02 }}
-                  className="bg-[#12141d]/80 backdrop-blur-sm border border-white/10 rounded-2xl p-8 transition-colors hover:border-[#ccff00]/30 hover:shadow-[0_0_30px_rgba(204,255,0,0.05)]"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#1e212b] to-[#12141d] border border-white/5 text-[#ccff00] shadow-inner">
-                    <feature.icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="mt-6 text-xl font-bold text-white">{feature.title}</h3>
-                  <p className="mt-3 text-base leading-relaxed text-[#a0a5b0]">{feature.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── How It Works ── */}
-        <section id="how-it-works" className="py-24 lg:py-32">
-          <div className="mx-auto w-full max-w-[120rem] px-6 lg:px-12">
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-              className="text-center"
-            >
-              <h2 className="text-3xl font-extrabold tracking-tight text-white lg:text-5xl">
-                From prompt to Studio in 3 steps.
-              </h2>
-            </motion.div>
-
-            <div className="relative mt-20 grid gap-10 md:gap-0 md:grid-cols-3">
-              <div className="absolute left-1/6 right-1/6 top-10 hidden h-0.5 bg-gradient-to-r from-transparent via-[#ccff00]/20 to-transparent md:block" />
-
-              {[
-                { step: "1", title: "Connect", desc: "Pair your session code and connect your Studio plugin in seconds." },
-                { step: "2", title: "Configure", desc: "Add your API key locally. We never store it — it stays in your browser." },
-                { step: "3", title: "Generate", desc: "Describe what you want. Get working Luau code synced to Studio instantly." },
-              ].map((item, i) => (
-                <motion.div 
-                  key={item.step} 
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: i * 0.2 }}
-                  className="relative flex flex-col items-center text-center px-6"
-                >
-                  <div className="relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-[#12141d] border-2 border-[#ccff00]/30 text-3xl font-black text-[#ccff00] shadow-[0_0_30px_rgba(204,255,0,0.15)]">
-                    {item.step}
-                  </div>
-                  <h3 className="mt-8 text-2xl font-bold text-white">{item.title}</h3>
-                  <p className="mt-4 text-base leading-relaxed text-[#a0a5b0] max-w-sm">{item.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ── FAQ ── */}
-        <section id="faq" className="py-24 lg:py-32">
-          <div className="mx-auto w-full max-w-3xl px-6">
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-              className="text-center mb-16"
-            >
-              <h2 className="text-3xl font-extrabold tracking-tight text-white lg:text-5xl">
-                Frequently Asked Questions
-              </h2>
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: 0.2 }}
-              className="space-y-2"
-            >
-              {FAQ_ITEMS.map((item, i) => (
-                <FaqItem key={i} question={item.question} answer={item.answer} />
-              ))}
-            </motion.div>
-          </div>
-        </section>
-
-        {/* ── CTA ── */}
-        <section className="py-24 lg:py-32">
-          <div className="mx-auto max-w-[120rem] px-6 lg:px-12 text-center">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="bg-gradient-to-br from-[#12141d] to-[#0a0c14] border border-[#ccff00]/20 rounded-3xl px-8 py-20 sm:px-16 relative overflow-hidden shadow-[0_0_50px_rgba(204,255,0,0.05)]"
-            >
-              <div className="absolute top-0 right-0 w-64 h-64 bg-[#ccff00]/10 blur-[100px] rounded-full pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#0ea5e9]/10 blur-[100px] rounded-full pointer-events-none" />
-              
-              <div className="relative z-10">
-                <h2 className="text-3xl font-extrabold tracking-tight text-white lg:text-5xl">
-                  Ready to build faster?
-                </h2>
-                <p className="mx-auto mt-6 max-w-xl text-lg text-[#a0a5b0]">
-                  Join the open-source community and start prototyping Roblox experiences with AI today.
-                </p>
-                <div className="mt-10">
-                  {session ? (
-                    <Link
-                      href="/dashboard"
-                      className="inline-flex items-center gap-3 bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_30px_rgba(204,255,0,0.3)] font-bold transition-all hover:scale-105 rounded-xl px-10 py-5 text-lg"
-                    >
-                      Get Started Free
-                      <ArrowRight className="h-5 w-5" />
-                    </Link>
-                  ) : (
-                    <button
-                      onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
-                      className="inline-flex items-center gap-3 bg-[#ccff00] text-black hover:bg-[#bbf000] shadow-[0_0_30px_rgba(204,255,0,0.3)] font-bold transition-all hover:scale-105 rounded-xl px-10 py-5 text-lg"
-                    >
-                      Get Started Free
-                      <ArrowRight className="h-5 w-5" />
-                    </button>
-                  )}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { icon: Code2, title: "AI Code Generation", desc: "Generate production-ready Luau scripts from natural language prompts using GPT-4 or Gemini." },
+              { icon: RefreshCw, title: "Instant Studio Sync", desc: "Your generated code is instantly available to your Roblox Studio plugin via a simple poll endpoint." },
+              { icon: Shield, title: "BYOK — Your Keys", desc: "Apple Juice never stores your API keys server-side. They live in your browser, always." },
+              { icon: Zap, title: "Multi-Provider", desc: "Switch between OpenAI and Google AI Studio with one click. Use whatever models you prefer." },
+              { icon: Sparkles, title: "Conversation Memory", desc: "Full conversation history is sent with each request, so the AI remembers context across prompts." },
+              { icon: ArrowRight, title: "Open Source", desc: "Fork it, self-host it, extend it. Apple Juice is 100% open source under the MIT license." },
+            ].map((feature, i) => (
+              <motion.div 
+                key={feature.title} 
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ duration: 0.4, delay: i * 0.06 }}
+                className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-6 transition-colors hover:bg-white/[0.04]"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.06] text-white/50">
+                  <feature.icon className="h-4 w-4" />
                 </div>
-              </div>
-            </motion.div>
+                <h3 className="mt-4 text-[15px] font-semibold text-white">{feature.title}</h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-white/40">{feature.desc}</p>
+              </motion.div>
+            ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* ── Footer ── */}
-        <footer className="border-t border-white/5 py-12 bg-[#05060a]">
-          <div className="mx-auto flex w-full max-w-[120rem] flex-wrap items-center justify-between gap-6 px-6 lg:px-12 text-sm text-[#a0a5b0]">
-            <p className="font-medium">&copy; {new Date().getFullYear()} Apple Juice. Open source under MIT.</p>
-            <div className="flex gap-8 font-semibold">
-              <a href="https://github.com/inetixus/apple-juice" target="_blank" rel="noreferrer" className="transition-colors hover:text-[#ccff00]">GitHub</a>
-              <a href="#features" className="transition-colors hover:text-[#ccff00]">Features</a>
-            </div>
+      {/* ── How It Works ── */}
+      <section id="how-it-works" className="py-20 lg:py-28">
+        <div className="mx-auto w-full max-w-5xl px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-14"
+          >
+            <h2 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
+              From prompt to Studio in 3 steps
+            </h2>
+          </motion.div>
+
+          <div className="grid gap-8 md:grid-cols-3">
+            {[
+              { step: "1", title: "Connect", desc: "Pair your session code and connect your Studio plugin in seconds." },
+              { step: "2", title: "Configure", desc: "Add your API key locally. We never store it — it stays in your browser." },
+              { step: "3", title: "Generate", desc: "Describe what you want. Get working Luau code synced to Studio instantly." },
+            ].map((item, i) => (
+              <motion.div 
+                key={item.step} 
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.1 }}
+                className="text-center"
+              >
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#ccff00]/[0.08] border border-[#ccff00]/[0.12] text-sm font-bold text-[#ccff00]">
+                  {item.step}
+                </div>
+                <h3 className="mt-4 text-base font-semibold text-white">{item.title}</h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-white/40 max-w-xs mx-auto">{item.desc}</p>
+              </motion.div>
+            ))}
           </div>
-        </footer>
-      </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section id="faq" className="py-20 lg:py-28">
+        <div className="mx-auto w-full max-w-2xl px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
+              FAQ
+            </h2>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="bg-white/[0.02] border border-white/[0.06] rounded-xl px-6"
+          >
+            {FAQ_ITEMS.map((item, i) => (
+              <FaqItem key={i} question={item.question} answer={item.answer} />
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="py-20 lg:py-28">
+        <div className="mx-auto max-w-5xl px-6 text-center">
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="bg-white/[0.02] border border-white/[0.06] rounded-2xl px-8 py-16 sm:px-16"
+          >
+            <h2 className="text-2xl font-bold tracking-tight text-white lg:text-3xl">
+              Ready to build faster?
+            </h2>
+            <p className="mx-auto mt-4 max-w-md text-[15px] text-white/40">
+              Join the open-source community and start prototyping Roblox experiences with AI today.
+            </p>
+            <div className="mt-8">
+              {session ? (
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center gap-2 bg-[#ccff00] text-black font-semibold transition-opacity hover:opacity-90 rounded-lg px-6 py-3 text-sm"
+                >
+                  Get Started Free
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              ) : (
+                <button
+                  onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
+                  className="inline-flex items-center gap-2 bg-[#ccff00] text-black font-semibold transition-opacity hover:opacity-90 rounded-lg px-6 py-3 text-sm"
+                >
+                  Get Started Free
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="border-t border-white/[0.06] py-8">
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-4 px-6 text-[13px] text-white/30">
+          <p>&copy; {new Date().getFullYear()} Apple Juice. Open source under MIT.</p>
+          <div className="flex gap-6">
+            <a href="https://github.com/inetixus/apple-juice" target="_blank" rel="noreferrer" className="transition-colors hover:text-white/60">GitHub</a>
+            <a href="#features" className="transition-colors hover:text-white/60">Features</a>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }

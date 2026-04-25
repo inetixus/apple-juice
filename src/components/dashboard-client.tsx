@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState } from "react";
-import { LogOut, RefreshCw, Settings2, Sparkles, Paperclip, X, Trash2 } from "lucide-react";
+import { Copy, LogOut, RefreshCw, Settings2, WandSparkles, Sparkles, Paperclip, Zap, Brain, X } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -621,311 +622,366 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   };
 
   return (
-    <main className="h-screen bg-[#f1f3f4] dark:bg-[#0b0e14] text-[#3c4043] dark:text-[#e8eaed] flex flex-col overflow-hidden font-sans">
-      <header className="flex-shrink-0 flex items-center justify-between gap-4 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#161b22] px-6 py-3 shadow-sm z-10">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full border border-gray-200 dark:border-white/10" />
-            ) : (
-              <div className="h-8 w-8 bg-[#fbcc05] rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-white font-black text-xs">{username.charAt(0).toUpperCase()}</span>
-              </div>
-            )}
-            <h1 className="text-lg font-medium tracking-tight text-[#202124] dark:text-white">Apple Juice <span className="text-gray-400 font-normal">/</span> <span className="text-gray-500 dark:text-gray-400">{username}</span></h1>
-          </div>
-        </div>
+    <main className="h-screen bg-[#0c0d10] text-white flex flex-col overflow-hidden">
+      <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.06] px-6 py-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" className="text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5" onClick={() => setShowSettings((open) => !open)}>
-            <Settings2 className="h-4 w-4 mr-2" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#ccff00]">
+            <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 2v3" />
+              <rect x="5" y="5" width="14" height="17" rx="3" />
+              <path d="M5 10h14" />
+            </svg>
+          </div>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Avatar" className="h-7 w-7 rounded-full ring-1 ring-white/10" />
+          ) : (
+            <div className="h-7 w-7 rounded-full bg-white/[0.06] flex items-center justify-center text-xs font-medium text-white/40">
+              {username.charAt(0)}
+            </div>
+          )}
+          <span className="text-sm font-medium text-white/70">{username}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}>
+            Clear
+          </button>
+          <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors" onClick={() => setShowSettings((open) => !open)}>
             Settings
-          </Button>
-          <Button variant="ghost" className="text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5" onClick={() => signOut({ callbackUrl: "/" })}>
-            <LogOut className="h-4 w-4 mr-2" />
+          </button>
+          <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors" onClick={() => signOut({ callbackUrl: "/" })}>
             Sign Out
-          </Button>
+          </button>
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* LEFT SIDEBAR */}
-        <div className="w-[320px] lg:w-[380px] flex-shrink-0 bg-white dark:bg-[#161b22] border-r border-gray-200 dark:border-white/10 overflow-y-auto flex flex-col">
-          <div className="p-6 space-y-6">
-            <div className="space-y-1">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Connection Status</p>
-              <div className="flex items-center justify-between bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-100 dark:border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className={`h-2.5 w-2.5 rounded-full ${isPluginConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  <span className="font-medium text-sm">{isPluginConnected ? "Connected" : "Idle"}</span>
-                </div>
-                <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-500" onClick={() => void createPairOnServer()}>
-                  <RefreshCw className="h-3 w-3 mr-1" />
-                  Reset
+        <div className="w-full lg:w-[380px] xl:w-[420px] flex-shrink-0 border-r border-white/[0.06] overflow-y-auto p-5 space-y-4">
+          {showSettings && (
+            <Card className="animate-in fade-in slide-in-from-top-4 duration-300">
+              <CardContent className="p-6 space-y-5">
+              <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">Provider</label>
+              <div className="mt-2 flex items-center gap-3">
+                <select
+                  id="provider-select"
+                  value={provider}
+                  onChange={(e) => {
+                    const val = (e.target.value as "openai" | "google");
+                    const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
+                    const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
+                    setProvider(val);
+                    setOpenaiKey(storedOpen);
+                    setGoogleKey(storedGoogle);
+                    const newKey = val === "google" ? storedGoogle : storedOpen;
+                    setApiKey(newKey);
+                    window.localStorage.setItem("apple-juice-provider", val);
+                  }}
+                  className="w-48 bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
+                >
+                  <option value="openai">OpenAI</option>
+                  <option value="google">Google AI Studio</option>
+                </select>
+                <p className="text-sm text-[#8a8f98]">Select API provider for model calls</p>
+              </div>
+
+              <label className="mt-4 block text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1" htmlFor="api-key-input">
+                Provider API Key <span className="text-[#8a8f98] font-normal">(stored in your browser localStorage)</span>
+              </label>
+              <div className="mt-2 flex flex-wrap gap-3">
+                <Input
+                  id="api-key-input"
+                  type="password"
+                  value={provider === "google" ? googleKey : openaiKey}
+                  onChange={(event) => {
+                    const v = event.target.value;
+                    if (provider === "google") setGoogleKey(v);
+                    else setOpenaiKey(v);
+                    setApiKey(v);
+                  }}
+                  placeholder={provider === "google" ? "Google API Key" : "sk-..."}
+                  className="min-w-[280px] flex-1"
+                />
+                <Button onClick={saveApiKey}>
+                  Save Key
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => loadModels()}
+                  disabled={isLoadingModels}
+                >
+                  {isLoadingModels ? "Loading Models..." : "Refresh Models"}
                 </Button>
               </div>
-              <p className="text-[10px] text-gray-400 mt-2 px-1">{pluginStatus}</p>
-            </div>
 
-            {gameLogs.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Live Game Logs</p>
-                  <Button variant="ghost" size="sm" className="h-7 text-[10px] text-blue-500" onClick={() => {
-                    submitPrompt("Analyze these logs:\n" + gameLogs.join("\n"));
-                  }}>
-                    Analyze
-                  </Button>
-                </div>
-                <div className="bg-gray-900 rounded-xl p-3 h-[200px] overflow-y-auto font-mono text-[10px] text-gray-400 border border-black shadow-inner">
-                  {gameLogs.map((log, i) => (
-                    <div key={i} className={log.toLowerCase().includes("error") ? "text-red-400" : ""}>{log}</div>
+              <div className="mt-5">
+                <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1" htmlFor="model-select">
+                  Model
+                </label>
+                <select
+                  id="model-select"
+                  value={selectedModel}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setSelectedModel(value);
+                    window.localStorage.setItem("apple-juice-model", value);
+                  }}
+                  className="mt-2 w-full bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
+                >
+                  {availableModels.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
                   ))}
-                  <div ref={logsEndRef} />
-                </div>
+                </select>
               </div>
-            )}
+              </CardContent>
+            </Card>
+          )}
 
-            {latestCode && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Latest Script</p>
-                  <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => copyText(latestCode)}>
-                    Copy
-                  </Button>
-                </div>
-                <div className="bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5 overflow-hidden">
-                  <pre className="p-4 text-[12px] font-mono overflow-x-auto max-h-[300px]">
-                    <code>{latestCode}</code>
-                  </pre>
+          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`h-2 w-2 rounded-full ${isPluginConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                <span className="text-[13px] font-medium text-white/80">
+                  {isPluginConnected ? "Plugin connected" : "Waiting for plugin..."}
+                </span>
+              </div>
+              <button className="text-[12px] text-white/30 hover:text-white/60 transition-colors" onClick={() => void createPairOnServer()}>Reset</button>
+            </div>
+            <p className="mt-2 text-[12px] text-white/30">{pluginStatus}</p>
+          </div>
+
+          {latestCode && (
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[12px] font-medium text-white/40">Latest Script</span>
+                <button className="text-[12px] text-white/30 hover:text-white/60 transition-colors" onClick={() => copyText(latestCode)}>Copy</button>
+              </div>
+              <div className={lastError ? "border border-red-500/[0.15] bg-red-500/[0.05] p-2 rounded-lg" : ""}>
+                {lastError && (
+                  <p className="mb-2 text-red-400/80 text-[11px] font-mono break-words">{lastError}</p>
+                )}
+                <pre className="max-h-48 overflow-auto font-mono text-[12px] bg-[#0c0d10] border border-white/[0.06] rounded-lg p-3 text-white/50">
+                  <code>{latestCode}</code>
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {gameLogs.length > 0 && (
+            <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[12px] font-medium text-white/40">Game Logs</span>
+                <div className="flex gap-2">
+                  <button className="text-[11px] text-red-400/60 hover:text-red-400 transition-colors" onClick={() => setGameLogs([])}>Clear</button>
+                  <button className="text-[11px] text-[#ccff00]/60 hover:text-[#ccff00] transition-colors" onClick={() => {
+                    submitPrompt("Please analyze these game logs and help me fix any errors:\n" + gameLogs.join("\n"));
+                    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                  }}>Analyze</button>
                 </div>
               </div>
-            )}
-          </div>
+              <div className="max-h-48 overflow-auto font-mono text-[11px] bg-[#0c0d10] border border-white/[0.06] rounded-lg p-3 text-white/40 space-y-0.5">
+                {gameLogs.map((log, i) => {
+                  const isError = log.toLowerCase().includes("error") || log.toLowerCase().includes("exception");
+                  return (
+                    <div key={i} className={isError ? "text-red-400/80" : ""}>{log}</div>
+                  );
+                })}
+                <div ref={logsEndRef} />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* MAIN CHAT AREA */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-[#0b0e14] relative overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8">
-            <div className="max-w-4xl mx-auto w-full space-y-8">
+        {/* RIGHT SIDE (CHAT) */}
+        <div className="flex-1 flex flex-col h-full bg-[#0a0b0e] relative overflow-hidden">
+          {/* Chat History */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col">
             {messages.length === 0 ? (
-              <div className="h-full flex items-center justify-center py-20">
-                <div className="text-center space-y-4 max-w-sm">
-                  <div className="h-16 w-16 bg-[#fbcc05]/10 text-[#fbcc05] rounded-3xl flex items-center justify-center mx-auto mb-6">
-                    <Sparkles className="h-8 w-8" />
+              <div className="flex-1 flex items-center justify-center">
+                <div className="max-w-sm text-center">
+                  <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.06] text-white/30 mb-4">
+                    <WandSparkles className="h-5 w-5" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">How can I help you build?</h2>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">Describe a script or a feature you want to add to your Roblox game.</p>
+                  <h2 className="text-lg font-semibold text-white/80 mb-2">What do you want to build?</h2>
+                  <p className="text-[13px] text-white/30">
+                    Describe your idea and get working Luau code synced to Studio.
+                  </p>
                 </div>
               </div>
             ) : (
               messages.map((message) => (
-                <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                  <div className={`max-w-[85%] p-4 rounded-2xl ${
+                <div key={message.id} className={`flex w-full ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] sm:max-w-[75%] px-4 py-3 rounded-xl text-[14px] ${
                     message.role === 'user' 
-                      ? 'bg-[#fbcc05] text-white shadow-sm rounded-br-sm' 
-                      : 'bg-[#f1f3f4] dark:bg-[#1d2127] text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-white/5 rounded-bl-sm'
+                      ? 'bg-white/[0.06] text-white/90 border border-white/[0.06]' 
+                      : 'bg-white/[0.02] text-white/70 border border-white/[0.06]'
                   }`}>
-                    <div className="space-y-4">
-                      {message.attachments && message.attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {message.attachments.map((a, i) => (
-                            <span key={i} className="text-[10px] bg-white/20 px-2 py-1 rounded-md flex items-center gap-1">
-                              <Paperclip className="h-2.5 w-2.5" />
-                              {a.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                      
-                      {message.thinking && (
-                        <details className="mt-4 border-t border-black/5 dark:border-white/5 pt-4">
-                          <summary className="text-[11px] font-bold uppercase tracking-wider text-gray-400 cursor-pointer hover:text-gray-600 transition-colors">Internal Reasoning</summary>
-                          <div className="mt-2 text-sm text-gray-500 dark:text-gray-400 font-mono italic leading-relaxed">
-                            {message.thinking}
-                          </div>
-                        </details>
-                      )}
+                    <div className="space-y-3">
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {message.attachments.map((a, i) => (
+                          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/40">
+                            <Paperclip className="h-2.5 w-2.5" />
+                            {a.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
-                      {(message.script || (message.scripts && message.scripts.length > 0)) && (
-                        <div className="mt-4 space-y-3">
-                          {message.script && <ScriptCard script={message.script} />}
-                          {message.scripts?.map((s, i) => <ScriptCard key={i} script={s} />)}
-                        </div>
-                      )}
+                    <p className="whitespace-pre-wrap leading-relaxed">
+                      {message.content}
+                    </p>
 
-                      {message.suggestions && message.suggestions.length > 0 && (
-                        <div className="mt-6 flex flex-wrap gap-2 border-t border-black/5 dark:border-white/5 pt-4">
-                          {message.suggestions.map((s, i) => (
+                    {message.thinking && (
+                      <details className="group mt-2">
+                        <summary className="cursor-pointer text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1">
+                          <Brain className="h-3 w-3" />
+                          <span>View reasoning</span>
+                        </summary>
+                        <div className="mt-2 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] text-[13px] text-white/40 whitespace-pre-wrap">
+                          {message.thinking}
+                        </div>
+                      </details>
+                    )}
+                    
+                    {message.script && (
+                      <ScriptCard script={message.script} />
+                    )}
+
+                    {message.scripts && message.scripts.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[12px] font-medium text-white/30">{message.scripts.length} scripts generated</p>
+                        {message.scripts.map((s, i) => (
+                          <ScriptCard key={i} script={s} />
+                        ))}
+                      </div>
+                    )}
+
+                    {message.suggestions && message.suggestions.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                        <div className="flex flex-wrap gap-1.5">
+                          {message.suggestions.map((sugg, i) => (
                             <button 
                               key={i} 
-                              onClick={() => setPrompt(s)}
-                              className="text-[11px] bg-white/50 dark:bg-black/20 hover:bg-white dark:hover:bg-black/40 border border-black/5 dark:border-white/10 px-3 py-1.5 rounded-full transition-all text-gray-600 dark:text-gray-300"
+                              className="text-[12px] px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                              onClick={() => setPrompt(sugg)}
                             >
-                              {s}
+                              {sugg}
                             </button>
                           ))}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
             )}
+            
             {isGenerating && <ThinkingFeed steps={thinkingSteps} />}
-            <div ref={chatEndRef} />
-            </div>
+            <div ref={chatEndRef} className="h-px w-full" />
           </div>
 
-          {/* Prompt Input Fixed Bottom */}
-          {/* INPUT AREA */}
-          <div className="p-6 border-t border-gray-100 dark:border-white/10 bg-white dark:bg-[#161b22]">
-            <div className="max-w-4xl mx-auto">
-              <div className="relative bg-[#f8fafc] dark:bg-[#0b0e14] border border-gray-200 dark:border-white/10 rounded-2xl shadow-sm focus-within:ring-2 focus-within:ring-[#fbcc05]/20 focus-within:border-[#fbcc05] transition-all overflow-hidden">
-                {attachedFiles.length > 0 && (
-                  <div className="px-4 py-2 flex flex-wrap gap-2 border-b border-gray-100 dark:border-white/5">
-                    {attachedFiles.map((f, i) => (
-                      <span key={i} className="text-[10px] bg-gray-200 dark:bg-white/10 px-2 py-1 rounded flex items-center gap-2">
-                        {f.name}
-                        <button onClick={() => setAttachedFiles(p => p.filter((_, idx) => idx !== i))} className="hover:text-red-500">×</button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <Textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Ask for a Roblox script..."
-                  className="w-full bg-transparent border-none focus:ring-0 min-h-[100px] p-4 text-[15px]"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      submitPrompt();
-                    }
-                  }}
-                />
-                <div className="px-4 py-3 flex items-center justify-between bg-white/50 dark:bg-black/10 border-t border-gray-100 dark:border-white/5">
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="h-8 text-[11px]" onClick={() => fileInputRef.current?.click()}>
-                      <Paperclip className="h-3.5 w-3.5 mr-1.5" />
-                      Attach
-                    </Button>
-                    <div className="h-4 w-px bg-gray-200 dark:bg-white/10 mx-1" />
-                    <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-lg">
-                      <button onClick={() => setMode("fast")} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${mode === "fast" ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white" : "text-gray-400"}`}>FAST</button>
-                      <button onClick={() => setMode("thinking")} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${mode === "thinking" ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white" : "text-gray-400"}`}>THINKING</button>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-end">
-                      <span className="text-[11px] font-black text-gray-900 dark:text-white">
-                        {Math.max(0, usage.totalCredits - usage.usedCredits)} <span className="text-gray-400">/ {usage.totalCredits}</span>
-                      </span>
-                      <div className="w-16 h-1 bg-gray-100 dark:bg-white/10 rounded-full mt-1 overflow-hidden">
-                        <div className="h-full bg-[#fbcc05]" style={{ width: `${Math.max(0, Math.min(100, ((usage.totalCredits - usage.usedCredits) / usage.totalCredits) * 100))}%` }} />
-                      </div>
-                    </div>
-                    <Button 
-                      onClick={() => submitPrompt()} 
-                      disabled={isGenerating || !prompt.trim()} 
-                      className="bg-[#fbcc05] hover:bg-[#e6b800] text-white font-bold px-6"
+          {/* Prompt Input */}
+          <div className="flex-shrink-0 border-t border-white/[0.06] p-4 bg-[#0c0d10]">
+            <div className="max-w-3xl mx-auto space-y-2">
+              {attachedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {attachedFiles.map((f, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/40">
+                      <Paperclip className="h-2.5 w-2.5" />
+                      {f.name}
+                      <button onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))} className="ml-0.5 hover:text-white/70 transition-colors">
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <Textarea
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder="Describe what you want to build..."
+                rows={2}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    submitPrompt();
+                  }
+                }}
+                className="bg-white/[0.02] border-white/[0.06] text-[14px] placeholder:text-white/20 resize-none"
+              />
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".lua,.luau,.txt,.json,.md,.csv,.ts,.js"
+                className="hidden"
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (!files) return;
+                  Array.from(files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setAttachedFiles(prev => [...prev, { name: file.name, content: reader.result as string }]);
+                    };
+                    reader.readAsText(file);
+                  });
+                  e.target.value = "";
+                }}
+              />
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-white/[0.03] rounded-lg border border-white/[0.06] p-0.5">
+                    <button
+                      onClick={() => setMode("fast")}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors ${mode === "fast" ? "bg-white/[0.06] text-white/80" : "text-white/30 hover:text-white/50"}`}
                     >
-                      {isGenerating ? "..." : "Send"}
-                    </Button>
+                      <Zap className="h-3 w-3" />
+                      Fast
+                    </button>
+                    <button
+                      onClick={() => setMode("thinking")}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors ${mode === "thinking" ? "bg-white/[0.06] text-white/80" : "text-white/30 hover:text-white/50"}`}
+                    >
+                      <Brain className="h-3 w-3" />
+                      Thinking
+                    </button>
                   </div>
+
+                  <button className="px-2.5 py-1 rounded-lg text-[12px] text-white/30 hover:text-white/50 bg-white/[0.03] border border-white/[0.06] transition-colors" onClick={() => fileInputRef.current?.click()}>
+                    Attach
+                  </button>
+
+                  <span className="text-[11px] text-white/20 hidden sm:block">{selectedModel}</span>
+
+                  <span className="text-[11px] text-white/20">
+                    {Math.max(0, usage.totalCredits - usage.usedCredits)}/{usage.totalCredits} credits
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {lastError && (
+                    <button className="px-3 py-1.5 rounded-lg text-[12px] text-red-400/70 hover:text-red-400 bg-red-500/[0.05] border border-red-500/[0.1] transition-colors" onClick={handleAutoFix} disabled={isGenerating}>
+                      Repair
+                    </button>
+                  )}
+                  <button
+                    onClick={() => submitPrompt()}
+                    disabled={isGenerating}
+                    className="px-4 py-1.5 rounded-lg text-[13px] font-medium bg-[#ccff00] text-black hover:opacity-90 disabled:opacity-40 transition-opacity"
+                  >
+                    {isGenerating ? "Generating..." : "Generate"}
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#161b22] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
-              <h3 className="text-lg font-bold">Dashboard Settings</h3>
-              <Button variant="ghost" size="icon" onClick={() => setShowSettings(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="p-6 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">AI Provider</label>
-                <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
-                  <button 
-                    onClick={() => {
-                      setProvider("openai");
-                      const k = window.localStorage.getItem("apple-juice-openai-key") || "";
-                      setOpenaiKey(k);
-                      setApiKey(k);
-                    }} 
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${provider === "openai" ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white" : "text-gray-400"}`}
-                  >
-                    OpenAI
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setProvider("google");
-                      const k = window.localStorage.getItem("apple-juice-google-key") || "";
-                      setGoogleKey(k);
-                      setApiKey(k);
-                    }} 
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${provider === "google" ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white" : "text-gray-400"}`}
-                  >
-                    Google Gemini
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">API Key</label>
-                <div className="flex gap-2">
-                  <Input 
-                    type="password"
-                    value={provider === "google" ? googleKey : openaiKey}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (provider === "google") setGoogleKey(v);
-                      else setOpenaiKey(v);
-                    }}
-                    placeholder={provider === "google" ? "Paste Google API Key..." : "sk-..."}
-                    className="flex-1 bg-gray-50 dark:bg-black/20 border-gray-100 dark:border-white/5"
-                  />
-                  <Button onClick={saveApiKey} className="bg-blue-600 hover:bg-blue-700 text-white">Save</Button>
-                </div>
-                <p className="text-[10px] text-gray-400 italic">Keys are stored locally in your browser.</p>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Model Selection</label>
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px] text-blue-500" onClick={() => loadModels()} disabled={isLoadingModels}>
-                    {isLoadingModels ? "..." : "Refresh List"}
-                  </Button>
-                </div>
-                <select
-                  value={selectedModel}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setSelectedModel(v);
-                    window.localStorage.setItem("apple-juice-model", v);
-                  }}
-                  className="w-full bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-white/5 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-
-              <div className="pt-4 border-t border-gray-100 dark:border-white/5">
-                <Button variant="outline" className="w-full text-red-500 border-red-500/10 hover:bg-red-500/5" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); setShowSettings(false); }}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clear Chat History
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </main>
   );
