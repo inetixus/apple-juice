@@ -614,8 +614,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   };
 
   return (
-    <main className="h-screen bg-black text-white flex flex-col overflow-hidden">
-      <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.04] px-6 py-3 bg-black/60 backdrop-blur-xl">
+    <main className="h-screen bg-[#090a0d] text-white flex flex-col overflow-hidden">
+      <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.04] px-6 py-3 bg-[#090a0d]/80 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ccff00] shadow-[0_0_12px_rgba(204,255,0,0.25)]">
             <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -649,9 +649,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        <div className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 border-r border-white/[0.04] overflow-y-auto p-4 space-y-3 bg-black">
+        <div className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 border-r border-white/[0.04] overflow-y-auto p-4 space-y-3 bg-[#090a0d]">
           {showSettings && (
-            <div className="bg-black border border-white/[0.04] rounded-2xl p-5 space-y-5 animate-in fade-in slide-in-from-top-3 duration-200">
+            <div className="bg-[#0c0d10] border border-white/[0.04] rounded-2xl p-5 space-y-5 animate-in fade-in slide-in-from-top-3 duration-200">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-white/30">Settings</p>
               <div>
                 <label className="text-[12px] font-medium text-white/50 mb-2 block">Provider</label>
@@ -722,7 +722,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           )}
 
           {/* Plugin Status */}
-          <div className="bg-[#0a0a0a] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500">
+          <div className="bg-[#0c0d10] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <span className={`relative flex h-2.5 w-2.5`}>
@@ -739,7 +739,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           </div>
 
           {latestCode && (
-            <div className="bg-[#0a0a0a] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-100">
+            <div className="bg-[#0c0d10] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-100">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[12px] font-semibold text-white/50 uppercase tracking-wider">Latest Script</span>
                 <button className="text-[11px] text-white/30 hover:text-[#ccff00] transition-colors" onClick={() => copyText(latestCode)}>Copy ↗</button>
@@ -756,7 +756,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           )}
 
           {gameLogs.length > 0 && (
-            <div className="bg-[#0a0a0a] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-150">
+            <div className="bg-[#0c0d10] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-150">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[12px] font-semibold text-white/50 uppercase tracking-wider">Game Logs</span>
                 <div className="flex gap-3">
@@ -779,7 +779,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         </div>
 
         {/* RIGHT SIDE (CHAT) */}
-        <div className="flex-1 flex flex-col h-full bg-[#050505] relative overflow-hidden">
+        <div className="flex-1 flex flex-col h-full bg-[#0b0c0f] relative overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col">
             {messages.length === 0 ? (
               <div className="flex-1 flex items-center justify-center">
@@ -868,8 +868,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           </div>
 
           {/* Input Bar */}
-          <div className="flex-shrink-0 border-t border-white/[0.04] p-4 bg-black">
-            <div className="max-w-3xl mx-auto space-y-3">
+          <div className="flex-shrink-0 border-t border-white/[0.04] p-4 bg-[#090a0d]">
+            <div className="w-full space-y-3">
               {attachedFiles.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {attachedFiles.map((f, i) => (

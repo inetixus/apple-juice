@@ -100,12 +100,12 @@ const MULTI_SCRIPTS = [
 /* ─── Main Landing Component ─── */
 export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: any; avatarUrl?: string }) {
   return (
-    <div className="min-h-screen bg-[#02040a] text-white selection:bg-[#ccff00] selection:text-black">
+    <div className="min-h-screen bg-[#090a0d] text-white selection:bg-[#ccff00] selection:text-black">
       {/* ━━━ BACKGROUND GRID ━━━ */}
       <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/dbuzl20eu/image/upload/v1691456100/grid_wqvngf.png')] bg-[length:32px_32px] opacity-[0.03] pointer-events-none" />
 
       {/* ━━━ NAVBAR ━━━ */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#02040a]/50 backdrop-blur-md border-b border-white/10">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#090a0d]/50 backdrop-blur-md border-b border-white/10">
         <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-6 w-6 rounded bg-[#ccff00] flex items-center justify-center">
@@ -339,7 +339,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </section>
 
       {/* ━━━ FOOTER ━━━ */}
-      <footer className="border-t border-white/10 px-6 py-12 bg-[#02040a]">
+      <footer className="border-t border-white/10 px-6 py-12 bg-[#090a0d]">
         <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <div className="h-5 w-5 rounded bg-[#ccff00] flex items-center justify-center">
