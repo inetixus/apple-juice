@@ -106,7 +106,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
       {/* ━━━ NAVBAR ━━━ */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#090a0d]/50 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-[1200px] mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-12 xl:px-20 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-6 w-6 rounded bg-[#ccff00] flex items-center justify-center">
               <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-black" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -134,11 +134,11 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </nav>
 
       {/* ━━━ HERO & TERMINAL ━━━ */}
-      <section className="relative pt-32 lg:pt-44 pb-32 px-6">
+      <section className="relative pt-32 lg:pt-44 pb-32 px-6 lg:px-12 xl:px-20">
         {/* Deep background glow */}
         <div className="absolute top-[-10%] lg:top-0 left-1/2 lg:left-[20%] -translate-x-1/2 w-[600px] h-[600px] bg-[#ccff00]/10 rounded-full blur-[150px] pointer-events-none" />
 
-        <div className="max-w-[1200px] mx-auto relative z-10 flex flex-col lg:flex-row items-center gap-16 lg:gap-12">
+        <div className="w-full max-w-[1600px] mx-auto relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16 xl:gap-24">
           
           {/* Hero Content */}
           <div className="flex-1 text-center lg:text-left flex flex-col items-center lg:items-start">
