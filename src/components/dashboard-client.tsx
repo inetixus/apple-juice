@@ -442,10 +442,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     if (mode === "thinking") {
       setThinkingSteps([{ icon: "thinking", label: "Deep reasoning about the request...", done: false }]);
       
+      const fileNames = attachedFiles.map(f => f.name).join(", ");
+      
       const t1 = setTimeout(() => {
         setThinkingSteps(prev => {
           if (prev.length === 1 && !prev[0].done) {
-            return [{ ...prev[0], done: true }, { icon: "looking", label: "Analyzing architecture and dependencies...", done: false }];
+            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Analyzing attached files: ${fileNames}...` : "Analyzing architecture and dependencies...", done: false }];
           }
           return prev;
         });
@@ -453,7 +455,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         const t2 = setTimeout(() => {
           setThinkingSteps(prev => {
             if (prev.length === 2 && !prev[1].done) {
-              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: "Writing and verifying Luau scripts...", done: false }];
+              const keywords = ["ServerScriptService", "StarterPlayer", "ReplicatedStorage", "GUI", "LocalScript", "Module"];
+              const found = keywords.find(k => trimmed.toLowerCase().includes(k.toLowerCase()));
+              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: found ? `Drafting scripts for ${found}...` : "Writing and verifying Luau scripts...", done: false }];
             }
             return prev;
           });
@@ -465,10 +469,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     } else {
       setThinkingSteps([{ icon: "thinking", label: "Thinking about the request...", done: false }]);
       
+      const fileNames = attachedFiles.map(f => f.name).join(", ");
+      
       const t1 = setTimeout(() => {
         setThinkingSteps(prev => {
           if (prev.length === 1 && !prev[0].done) {
-            return [{ ...prev[0], done: true }, { icon: "looking", label: "Looking at Roblox API docs...", done: false }];
+            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Reading ${fileNames}...` : "Looking at Roblox API docs...", done: false }];
           }
           return prev;
         });
@@ -476,7 +482,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         const t2 = setTimeout(() => {
           setThinkingSteps(prev => {
             if (prev.length === 2 && !prev[1].done) {
-              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: "Writing Luau script...", done: false }];
+              const scriptTypes = ["LocalScript", "ModuleScript"];
+              const typeFound = scriptTypes.find(t => trimmed.includes(t)) || "Script";
+              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: `Writing ${typeFound}...`, done: false }];
             }
             return prev;
           });
@@ -614,409 +622,214 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   };
 
   return (
-    <main className="h-screen bg-[#030303] text-white flex flex-col overflow-hidden">
-      <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/5 px-6 lg:px-10 py-5">
-        <div>
-          <p className="text-base uppercase tracking-widest font-extrabold text-[#ccff00]">Apple Juice Dashboard</p>
-          <div className="mt-2 flex items-center gap-4">
-            {avatarUrl ? (
-              <div className="relative h-12 w-12 rounded-full p-0.5 bg-gradient-to-br from-[#ccff00] to-emerald-400 shadow-[0_0_15px_rgba(204,255,0,0.2)]">
-                <img src={avatarUrl} alt="Avatar" className="rounded-full w-full h-full object-cover bg-[#0a0c14]" />
-              </div>
-            ) : (
-              <div className="h-12 w-12 rounded-full bg-[#1e212b] border border-white/10 flex items-center justify-center text-lg font-bold text-[#8a8f98]">
-                {username.charAt(0)}
-              </div>
-            )}
-            <div className="flex flex-col">
-              <span className="text-[#ccff00] font-bold tracking-widest uppercase text-[10px] mb-0.5">{getGreeting()}</span>
-              <h1 className="text-2xl font-bold tracking-tight text-white">{username}</h1>
+    <main className="h-screen bg-[#f1f3f4] dark:bg-[#0b0e14] text-[#3c4043] dark:text-[#e8eaed] flex flex-col overflow-hidden font-sans">
+      <header className="flex-shrink-0 flex items-center justify-between gap-4 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#161b22] px-6 py-3 shadow-sm z-10">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 bg-[#fbcc05] rounded-lg flex items-center justify-center shadow-sm">
+              <span className="text-white font-black text-xs italic">AJ</span>
             </div>
+            <h1 className="text-lg font-medium tracking-tight text-[#202124] dark:text-white">Apple Juice <span className="text-gray-400 font-normal">/</span> <span className="text-gray-500 dark:text-gray-400">{username}</span></h1>
           </div>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="hidden md:flex items-center gap-4 bg-white/5 px-4 py-2.5 rounded-xl border border-white/5">
-            <div className="flex flex-col items-end">
-              <span className="text-[9px] uppercase tracking-widest font-black text-[#8a8f98]">Daily Credits</span>
-              <span className="text-sm font-black text-white">{usage.usedCredits} <span className="text-[#8a8f98]">/</span> {usage.totalCredits}</span>
-            </div>
-            <div className="w-20 h-2 bg-white/10 rounded-full overflow-hidden">
-              <div 
-                className={`h-full bg-gradient-to-r from-[#ccff00] to-emerald-400 transition-all duration-1000 ${usage.usedCredits >= usage.totalCredits ? 'from-red-500 to-orange-500' : ''}`}
-                style={{ width: `${Math.min(100, (usage.usedCredits / usage.totalCredits) * 100)}%` }}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="text-[#8a8f98] hover:text-red-400 hover:border-red-400/20 hover:bg-red-500/10" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}>
-              <LogOut className="h-4 w-4" />
-              Clear Chat
-            </Button>
-            <Button variant="outline" onClick={() => setShowSettings((open) => !open)}>
-              <Settings2 className="h-4 w-4" />
-              Settings
-            </Button>
-            <Button variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </Button>
-          </div>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" className="text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5" onClick={() => setShowSettings((open) => !open)}>
+            <Settings2 className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+          <Button variant="ghost" className="text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5" onClick={() => signOut({ callbackUrl: "/" })}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
       </header>
 
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className="flex-1 flex overflow-hidden">
         {/* LEFT SIDEBAR */}
-        <div className="w-full lg:w-[450px] xl:w-[500px] flex-shrink-0 border-r border-white/5 overflow-y-auto p-6 lg:p-8 space-y-6">
-          {showSettings && (
-            <Card className="animate-in fade-in slide-in-from-top-4 duration-300">
-              <CardContent className="p-6 space-y-5">
-              <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">Provider</label>
-              <div className="mt-2 flex items-center gap-3">
-                <select
-                  id="provider-select"
-                  value={provider}
-                  onChange={(e) => {
-                    const val = (e.target.value as "openai" | "google");
-                    const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
-                    const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
-                    setProvider(val);
-                    setOpenaiKey(storedOpen);
-                    setGoogleKey(storedGoogle);
-                    const newKey = val === "google" ? storedGoogle : storedOpen;
-                    setApiKey(newKey);
-                    window.localStorage.setItem("apple-juice-provider", val);
-                  }}
-                  className="w-48 bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
-                >
-                  <option value="openai">OpenAI</option>
-                  <option value="google">Google AI Studio</option>
-                </select>
-                <p className="text-sm text-[#8a8f98]">Select API provider for model calls</p>
-              </div>
-
-              <label className="mt-4 block text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1" htmlFor="api-key-input">
-                Provider API Key <span className="text-[#8a8f98] font-normal">(stored in your browser localStorage)</span>
-              </label>
-              <div className="mt-2 flex flex-wrap gap-3">
-                <Input
-                  id="api-key-input"
-                  type="password"
-                  value={provider === "google" ? googleKey : openaiKey}
-                  onChange={(event) => {
-                    const v = event.target.value;
-                    if (provider === "google") setGoogleKey(v);
-                    else setOpenaiKey(v);
-                    setApiKey(v);
-                  }}
-                  placeholder={provider === "google" ? "Google API Key" : "sk-..."}
-                  className="min-w-[280px] flex-1"
-                />
-                <Button onClick={saveApiKey}>
-                  Save Key
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => loadModels()}
-                  disabled={isLoadingModels}
-                >
-                  {isLoadingModels ? "Loading Models..." : "Refresh Models"}
+        <div className="w-[320px] lg:w-[380px] flex-shrink-0 bg-white dark:bg-[#161b22] border-r border-gray-200 dark:border-white/10 overflow-y-auto flex flex-col">
+          <div className="p-6 space-y-6">
+            <div className="space-y-1">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Connection Status</p>
+              <div className="flex items-center justify-between bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className={`h-2.5 w-2.5 rounded-full ${isPluginConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className="font-medium text-sm">{isPluginConnected ? "Connected" : "Idle"}</span>
+                </div>
+                <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-500" onClick={() => void createPairOnServer()}>
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Reset
                 </Button>
               </div>
+              <p className="text-[10px] text-gray-400 mt-2 px-1">{pluginStatus}</p>
+            </div>
 
-              <div className="mt-5">
-                <label className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1" htmlFor="model-select">
-                  Model
-                </label>
-                <select
-                  id="model-select"
-                  value={selectedModel}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setSelectedModel(value);
-                    window.localStorage.setItem("apple-juice-model", value);
-                  }}
-                  className="mt-2 w-full bg-transparent border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all"
-                >
-                  {availableModels.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
+            {gameLogs.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Live Game Logs</p>
+                  <Button variant="ghost" size="sm" className="h-7 text-[10px] text-blue-500" onClick={() => {
+                    submitPrompt("Analyze these logs:\n" + gameLogs.join("\n"));
+                  }}>
+                    Analyze
+                  </Button>
+                </div>
+                <div className="bg-gray-900 rounded-xl p-3 h-[200px] overflow-y-auto font-mono text-[10px] text-gray-400 border border-black shadow-inner">
+                  {gameLogs.map((log, i) => (
+                    <div key={i} className={log.toLowerCase().includes("error") ? "text-red-400" : ""}>{log}</div>
                   ))}
-                </select>
-              </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="animate-in fade-in slide-in-from-left-4 duration-500 delay-100 fill-mode-both">
-            <CardContent className="p-6">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">Plugin Connection</p>
-                <div className="mt-3 flex items-center gap-3">
-                  <div className={`h-3 w-3 rounded-full ${isPluginConnected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.3)]'} animate-pulse`} />
-                  <p className="text-lg font-semibold text-white">
-                    {isPluginConnected ? "Connected" : "Waiting for plugin..."}
-                  </p>
+                  <div ref={logsEndRef} />
                 </div>
               </div>
-              <Button variant="outline" size="sm" onClick={() => void createPairOnServer()}>
-                <RefreshCw className="h-4 w-4" />
-                Reset Session
-              </Button>
-            </div>
-            <p className="mt-4 text-sm leading-relaxed text-[#8a8f98]">
-              Just click <strong className="text-white">Connect</strong> in your Studio plugin — it auto-pairs via IP. No codes needed.
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/5 pt-4">
-              <p className="text-sm text-[#8a8f98]">{pluginStatus}</p>
-            </div>
-            </CardContent>
-          </Card>
+            )}
 
-          <Card className="animate-in fade-in slide-in-from-left-4 duration-500 delay-200 fill-mode-both">
-            <CardContent className="p-6">
             {latestCode && (
-              <div className="mt-5 border-t border-white/5 pt-5">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98]">Latest Script</p>
-                  <Button variant="outline" size="sm" className="text-xs" onClick={() => copyText(latestCode)}>
-                    <Copy className="h-3.5 w-3.5" />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Latest Script</p>
+                  <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => copyText(latestCode)}>
                     Copy
                   </Button>
                 </div>
-                <div className={lastError ? "border border-red-500/10 bg-red-500/10 p-1.5 rounded-xl" : ""}>
-                  {lastError && (
-                    <p className="mb-2 px-2 pt-1 text-red-400 text-[10px] font-mono break-words">{lastError}</p>
-                  )}
-                  <pre className="max-h-56 overflow-auto font-mono text-[13px] bg-[#050505] border border-white/5 rounded-lg p-4 text-[#d1d5db]">
+                <div className="bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5 overflow-hidden">
+                  <pre className="p-4 text-[12px] font-mono overflow-x-auto max-h-[300px]">
                     <code>{latestCode}</code>
                   </pre>
                 </div>
               </div>
             )}
-
-            {gameLogs.length > 0 && (
-              <div className="mt-5 border-t border-white/5 pt-5">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98]">Game Logs</p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="text-xs text-red-400 border-red-400/20 hover:bg-red-500/10" onClick={() => setGameLogs([])}>
-                      Clear
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs text-[#ccff00] border-[#ccff00]/20 hover:bg-[#ccff00]/10" onClick={() => {
-                      submitPrompt("Please analyze these game logs and help me fix any errors:\n" + gameLogs.join("\n"));
-                      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-                    }}>
-                      <Sparkles className="h-3 w-3 mr-1" />
-                      Analyze
-                    </Button>
-                  </div>
-                </div>
-                <div className="max-h-64 overflow-auto font-mono text-[11px] bg-[#050505] border border-white/5 rounded-lg p-3 text-[#d1d5db] space-y-1">
-                  {gameLogs.map((log, i) => {
-                    const isError = log.toLowerCase().includes("error") || log.toLowerCase().includes("exception");
-                    return (
-                      <div key={i} className={isError ? "text-red-400" : ""}>{log}</div>
-                    );
-                  })}
-                  <div ref={logsEndRef} />
-                </div>
-              </div>
-            )}
-            </CardContent>
-          </Card>
+          </div>
         </div>
 
-        {/* RIGHT SIDE (CHAT) */}
-        <div className="flex-1 flex flex-col h-full bg-[#050505] relative overflow-hidden">
-          {/* Chat History */}
-          <div className="flex-1 overflow-y-auto p-6 lg:p-10 space-y-6 flex flex-col">
+        {/* MAIN CHAT AREA */}
+        <div className="flex-1 flex flex-col bg-white dark:bg-[#0b0e14] relative overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8">
+            <div className="max-w-4xl mx-auto w-full space-y-8">
             {messages.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="max-w-md text-center animate-in fade-in zoom-in-95 duration-500">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#ccff00]/10 border border-[#ccff00]/20 text-[#ccff00] mb-4">
-                    <WandSparkles className="h-8 w-8" />
+              <div className="h-full flex items-center justify-center py-20">
+                <div className="text-center space-y-4 max-w-sm">
+                  <div className="h-16 w-16 bg-[#fbcc05]/10 text-[#fbcc05] rounded-3xl flex items-center justify-center mx-auto mb-6">
+                    <Sparkles className="h-8 w-8" />
                   </div>
-                  <h2 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 mb-3">How can I help you build?</h2>
-                  <p className="text-sm text-[#8a8f98]">
-                    Write a prompt below to generate Luau code. Your responses will be stored here and can be synced directly to Studio.
-                  </p>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">How can I help you build?</h2>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">Describe a script or a feature you want to add to your Roblox game.</p>
                 </div>
               </div>
             ) : (
               messages.map((message) => (
-                <Card key={message.id} className="p-6 animate-in fade-in slide-in-from-bottom-4 duration-300 bg-transparent border-white/5">
-                  <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${message.role === 'user' ? 'bg-[#111111] text-[#8a8f98] border border-white/5' : 'bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/20'}`}>
-                      {message.role === "user" ? "U" : "AJ"}
-                    </div>
-                    {message.role !== "user" && (
-                      <p className="text-[11px] uppercase tracking-wider font-semibold text-[#8a8f98] mb-1">
-                        Apple Juice Assistant
-                      </p>
-                    )}
-                  </div>
-                  <div className="mt-5 space-y-5">
-                    {message.attachments && message.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {message.attachments.map((a, i) => (
-                          <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-xs text-[#8a8f98]">
-                            <Paperclip className="h-3 w-3" />
-                            {a.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <p className={`whitespace-pre-wrap leading-relaxed ${message.role === 'user' ? 'text-lg text-white' : 'text-base text-white/90'}`}>
-                      {message.content}
-                    </p>
-
-                    {message.thinking && (
-                      <details className="group mt-3">
-                        <summary className="cursor-pointer text-xs text-[#8a8f98] hover:text-white transition-colors flex items-center gap-1.5">
-                          <Brain className="h-3.5 w-3.5 text-purple-400" />
-                          <span>View reasoning</span>
-                        </summary>
-                        <div className="mt-2 p-3 rounded-lg bg-purple-500/5 border border-purple-500/10 text-sm text-[#a0a5b0] whitespace-pre-wrap">
-                          {message.thinking}
-                        </div>
-                      </details>
-                    )}
-                    
-                    {message.script && (
-                      <ScriptCard script={message.script} />
-                    )}
-
-                    {message.scripts && message.scripts.length > 0 && (
-                      <div className="space-y-3">
-                        <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98]">{message.scripts.length} Scripts Generated</p>
-                        {message.scripts.map((s, i) => (
-                          <ScriptCard key={i} script={s} />
-                        ))}
-                      </div>
-                    )}
-
-                    {message.suggestions && message.suggestions.length > 0 && (
-                      <div className="mt-6 pt-5 border-t border-white/5">
-                        <p className="text-[11px] uppercase tracking-widest font-bold text-[#8a8f98] mb-3">Suggested Next Steps</p>
-                        <div className="flex flex-wrap gap-2">
-                          {message.suggestions.map((sugg, i) => (
-                            <Button 
-                              key={i} 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-xs bg-white/[0.02] hover:bg-white/[0.05] border-white/10"
-                              onClick={() => setPrompt(sugg)}
-                            >
-                              <Sparkles className="h-3 w-3 mr-1.5 text-[#ccff00]" />
-                              {sugg}
-                            </Button>
+                <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                  <div className={`max-w-[85%] p-4 rounded-2xl ${
+                    message.role === 'user' 
+                      ? 'bg-[#fbcc05] text-white shadow-sm rounded-br-sm' 
+                      : 'bg-[#f1f3f4] dark:bg-[#1d2127] text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-white/5 rounded-bl-sm'
+                  }`}>
+                    <div className="space-y-4">
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {message.attachments.map((a, i) => (
+                            <span key={i} className="text-[10px] bg-white/20 px-2 py-1 rounded-md flex items-center gap-1">
+                              <Paperclip className="h-2.5 w-2.5" />
+                              {a.name}
+                            </span>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      )}
+                      <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                      
+                      {message.thinking && (
+                        <details className="mt-4 border-t border-black/5 dark:border-white/5 pt-4">
+                          <summary className="text-[11px] font-bold uppercase tracking-wider text-gray-400 cursor-pointer hover:text-gray-600 transition-colors">Internal Reasoning</summary>
+                          <div className="mt-2 text-sm text-gray-500 dark:text-gray-400 font-mono italic leading-relaxed">
+                            {message.thinking}
+                          </div>
+                        </details>
+                      )}
+
+                      {(message.script || (message.scripts && message.scripts.length > 0)) && (
+                        <div className="mt-4 space-y-3">
+                          {message.script && <ScriptCard script={message.script} />}
+                          {message.scripts?.map((s, i) => <ScriptCard key={i} script={s} />)}
+                        </div>
+                      )}
+
+                      {message.suggestions && message.suggestions.length > 0 && (
+                        <div className="mt-6 flex flex-wrap gap-2 border-t border-black/5 dark:border-white/5 pt-4">
+                          {message.suggestions.map((s, i) => (
+                            <button 
+                              key={i} 
+                              onClick={() => setPrompt(s)}
+                              className="text-[11px] bg-white/50 dark:bg-black/20 hover:bg-white dark:hover:bg-black/40 border border-black/5 dark:border-white/10 px-3 py-1.5 rounded-full transition-all text-gray-600 dark:text-gray-300"
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </Card>
+                </div>
               ))
             )}
-            
             {isGenerating && <ThinkingFeed steps={thinkingSteps} />}
-            <div ref={chatEndRef} className="h-px w-full" />
+            <div ref={chatEndRef} />
+            </div>
           </div>
 
           {/* Prompt Input Fixed Bottom */}
-          <div className="flex-shrink-0 border-t border-white/5 p-6 bg-[#0a0a0a]">
-            <div className="max-w-4xl mx-auto space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both">
-              {/* Attached files */}
-              {attachedFiles.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {attachedFiles.map((f, i) => (
-                    <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-[#8a8f98]">
-                      <Paperclip className="h-3 w-3" />
-                      {f.name}
-                      <button onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))} className="ml-1 hover:text-white transition-colors">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <Textarea
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Example: Create a server-side anti-speed script with logs and a warning threshold."
-                rows={3}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    submitPrompt();
-                  }
-                }}
-              />
-
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".lua,.luau,.txt,.json,.md,.csv,.ts,.js"
-                className="hidden"
-                onChange={(e) => {
-                  const files = e.target.files;
-                  if (!files) return;
-                  Array.from(files).forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      setAttachedFiles(prev => [...prev, { name: file.name, content: reader.result as string }]);
-                    };
-                    reader.readAsText(file);
-                  });
-                  e.target.value = "";
-                }}
-              />
-
-              <div className="flex flex-wrap items-center justify-between gap-4 border-t border-white/5 pt-3">
-                <div className="flex items-center gap-3">
-                  {/* Mode toggle */}
-                  <div className="flex items-center bg-white/5 rounded-lg border border-white/10 p-0.5">
-                    <button
-                      onClick={() => setMode("fast")}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === "fast" ? "bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/20" : "text-[#8a8f98] hover:text-white"}`}
-                    >
-                      <Zap className="h-3 w-3" />
-                      Fast
-                    </button>
-                    <button
-                      onClick={() => setMode("thinking")}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${mode === "thinking" ? "bg-purple-500/15 text-purple-400 border border-purple-500/20" : "text-[#8a8f98] hover:text-white"}`}
-                    >
-                      <Brain className="h-3 w-3" />
-                      Thinking
-                    </button>
+          {/* INPUT AREA */}
+          <div className="p-6 border-t border-gray-100 dark:border-white/10 bg-white dark:bg-[#161b22]">
+            <div className="max-w-4xl mx-auto">
+              <div className="relative bg-[#f8fafc] dark:bg-[#0b0e14] border border-gray-200 dark:border-white/10 rounded-2xl shadow-sm focus-within:ring-2 focus-within:ring-[#fbcc05]/20 focus-within:border-[#fbcc05] transition-all overflow-hidden">
+                {attachedFiles.length > 0 && (
+                  <div className="px-4 py-2 flex flex-wrap gap-2 border-b border-gray-100 dark:border-white/5">
+                    {attachedFiles.map((f, i) => (
+                      <span key={i} className="text-[10px] bg-gray-200 dark:bg-white/10 px-2 py-1 rounded flex items-center gap-2">
+                        {f.name}
+                        <button onClick={() => setAttachedFiles(p => p.filter((_, idx) => idx !== i))} className="hover:text-red-500">×</button>
+                      </span>
+                    ))}
                   </div>
-
-                  {/* File attach */}
-                  <Button variant="outline" size="sm" className="text-xs" onClick={() => fileInputRef.current?.click()}>
-                    <Paperclip className="h-3.5 w-3.5" />
-                    Attach
-                  </Button>
-
-                  <p className="text-xs text-[#8a8f98] hidden sm:block">Model: <span className="font-medium text-white">{selectedModel}</span></p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {lastError && (
-                    <Button variant="outline" className="border-red-500/20 text-red-500 hover:bg-red-500/10" onClick={handleAutoFix} disabled={isGenerating}>
-                      Repair Script
+                )}
+                <Textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Ask for a Roblox script..."
+                  className="w-full bg-transparent border-none focus:ring-0 min-h-[100px] p-4 text-[15px]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      submitPrompt();
+                    }
+                  }}
+                />
+                <div className="px-4 py-3 flex items-center justify-between bg-white/50 dark:bg-black/10 border-t border-gray-100 dark:border-white/5">
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" className="h-8 text-[11px]" onClick={() => fileInputRef.current?.click()}>
+                      <Paperclip className="h-3.5 w-3.5 mr-1.5" />
+                      Attach
                     </Button>
-                  )}
-                  <Button onClick={() => submitPrompt()} disabled={isGenerating}>
-                    <WandSparkles className="h-4 w-4" />
-                    {isGenerating ? "Generating..." : "Generate Script"}
-                  </Button>
+                    <div className="h-4 w-px bg-gray-200 dark:bg-white/10 mx-1" />
+                    <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-lg">
+                      <button onClick={() => setMode("fast")} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${mode === "fast" ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white" : "text-gray-400"}`}>FAST</button>
+                      <button onClick={() => setMode("thinking")} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${mode === "thinking" ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white" : "text-gray-400"}`}>THINKING</button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-end">
+                      <span className="text-[11px] font-black text-gray-900 dark:text-white">
+                        {Math.max(0, usage.totalCredits - usage.usedCredits)} <span className="text-gray-400">/ {usage.totalCredits}</span>
+                      </span>
+                      <div className="w-16 h-1 bg-gray-100 dark:bg-white/10 rounded-full mt-1 overflow-hidden">
+                        <div className="h-full bg-[#fbcc05]" style={{ width: `${Math.max(0, Math.min(100, ((usage.totalCredits - usage.usedCredits) / usage.totalCredits) * 100))}%` }} />
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={() => submitPrompt()} 
+                      disabled={isGenerating || !prompt.trim()} 
+                      className="bg-[#fbcc05] hover:bg-[#e6b800] text-white font-bold px-6"
+                    >
+                      {isGenerating ? "..." : "Send"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

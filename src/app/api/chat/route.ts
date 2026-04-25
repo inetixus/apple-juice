@@ -89,7 +89,31 @@ export async function POST(req: Request) {
         const obj = JSON.parse(m[0]);
         if (obj && typeof obj === "object" && ("code" in obj || "action" in obj || "scripts" in obj)) return obj as PluginPayload;
       } catch {
-        // ignore
+        // Handle truncated JSON fallback
+        const raw = m[0];
+        if (raw.includes('"code"')) {
+          const t = raw.match(/"type"\s*:\s*"([^"]+)"/)?.[1] as any;
+          const p = raw.match(/"parent"\s*:\s*"([^"]+)"/)?.[1];
+          const n = raw.match(/"name"\s*:\s*"([^"]+)"/)?.[1];
+          const codeIndex = raw.indexOf('"code"');
+          if (codeIndex !== -1) {
+            let codeStr = raw.substring(codeIndex + 6);
+            const colonIndex = codeStr.indexOf(':');
+            if (colonIndex !== -1) {
+              codeStr = codeStr.substring(colonIndex + 1).trim();
+              if (codeStr.startsWith('"')) {
+                codeStr = codeStr.substring(1);
+                codeStr = codeStr.replace(/\"\s*\}\s*$/, '').replace(/\"\s*$/, '');
+                try {
+                  codeStr = JSON.parse('"' + codeStr + '"');
+                } catch {
+                  codeStr = codeStr.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+                }
+                return { action: "create", type: t || "Script", parent: p || "ServerScriptService", name: n || "TruncatedScript", code: codeStr };
+              }
+            }
+          }
+        }
       }
     }
     return null;
