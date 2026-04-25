@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState } from "react";
-import { Copy, LogOut, RefreshCw, Settings2, WandSparkles, Sparkles, Paperclip, Zap, Brain, X } from "lucide-react";
+import { LogOut, RefreshCw, Settings2, Sparkles, Paperclip, Zap, Brain, X, Trash2 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -836,6 +835,93 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           </div>
         </div>
       </div>
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#161b22] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+              <h3 className="text-lg font-bold">Dashboard Settings</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowSettings(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">AI Provider</label>
+                <div className="flex bg-gray-100 dark:bg-white/5 p-1 rounded-xl">
+                  <button 
+                    onClick={() => {
+                      setProvider("openai");
+                      const k = window.localStorage.getItem("apple-juice-openai-key") || "";
+                      setOpenaiKey(k);
+                      setApiKey(k);
+                    }} 
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${provider === "openai" ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white" : "text-gray-400"}`}
+                  >
+                    OpenAI
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setProvider("google");
+                      const k = window.localStorage.getItem("apple-juice-google-key") || "";
+                      setGoogleKey(k);
+                      setApiKey(k);
+                    }} 
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${provider === "google" ? "bg-white dark:bg-gray-800 shadow-sm text-gray-900 dark:text-white" : "text-gray-400"}`}
+                  >
+                    Google Gemini
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">API Key</label>
+                <div className="flex gap-2">
+                  <Input 
+                    type="password"
+                    value={provider === "google" ? googleKey : openaiKey}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (provider === "google") setGoogleKey(v);
+                      else setOpenaiKey(v);
+                    }}
+                    placeholder={provider === "google" ? "Paste Google API Key..." : "sk-..."}
+                    className="flex-1 bg-gray-50 dark:bg-black/20 border-gray-100 dark:border-white/5"
+                  />
+                  <Button onClick={saveApiKey} className="bg-blue-600 hover:bg-blue-700 text-white">Save</Button>
+                </div>
+                <p className="text-[10px] text-gray-400 italic">Keys are stored locally in your browser.</p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Model Selection</label>
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] text-blue-500" onClick={() => loadModels()} disabled={isLoadingModels}>
+                    {isLoadingModels ? "..." : "Refresh List"}
+                  </Button>
+                </div>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setSelectedModel(v);
+                    window.localStorage.setItem("apple-juice-model", v);
+                  }}
+                  className="w-full bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-white/5 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                >
+                  {availableModels.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100 dark:border-white/5">
+                <Button variant="outline" className="w-full text-red-500 border-red-500/10 hover:bg-red-500/5" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); setShowSettings(false); }}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear Chat History
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </main>
   );
