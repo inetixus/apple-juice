@@ -875,8 +875,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     )}
                   </div>
                 </div>
-              ))
-            )}
+              </div>
+            ))
+          )}
             
             {isGenerating && <ThinkingFeed steps={thinkingSteps} />}
             <div ref={chatEndRef} className="h-px w-full" />
