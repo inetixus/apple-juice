@@ -22,6 +22,7 @@ type ScriptMeta = {
   action?: "create" | "delete";
   lineCount: number; 
   code: string; 
+  originalCode?: string;
 };
 
 type ChatMessage = {
