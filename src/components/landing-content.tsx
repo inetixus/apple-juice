@@ -4,9 +4,9 @@ import { ArrowRight, Brain, Layers, RefreshCw, ChevronDown, Sparkles } from "luc
 import { signIn } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Highlight, themes } from "prism-react-renderer";
+import { Highlight, themes, type PrismTheme } from "prism-react-renderer";
 
-const luauTheme = {
+const luauTheme: PrismTheme = {
   ...themes.vsDark,
   plain: {
     color: "#e2e8f0",
@@ -18,7 +18,7 @@ const luauTheme = {
       types: ["keyword", "operator"],
       style: {
         color: "#ccff00",
-        fontWeight: "600",
+        fontWeight: "bold",
       },
     },
     {

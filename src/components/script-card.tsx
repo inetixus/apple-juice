@@ -3,9 +3,9 @@ import { FileCode2, Copy, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import * as Diff from "diff";
-import { Highlight, themes, type Language } from "prism-react-renderer";
+import { Highlight, themes, type PrismTheme } from "prism-react-renderer";
 
-const luauTheme = {
+const luauTheme: PrismTheme = {
   ...themes.vsDark,
   plain: {
     color: "#e2e8f0",
@@ -17,7 +17,7 @@ const luauTheme = {
       types: ["keyword", "operator"],
       style: {
         color: "#ccff00",
-        fontWeight: "600",
+        fontWeight: "bold",
       },
     },
     {
