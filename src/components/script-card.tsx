@@ -2,6 +2,7 @@
 import { FileCode2, Copy, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import * as Diff from "diff";
 
 type ScriptMeta = { 
   name: string; 
@@ -10,6 +11,7 @@ type ScriptMeta = {
   action?: "create" | "delete";
   lineCount: number; 
   code: string; 
+  originalCode?: string;
 };
 
 export function ScriptCard({ script }: { script: ScriptMeta }) {
@@ -46,9 +48,45 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
       </button>
       {expanded && !isDelete && (
         <div className="border-t border-white/5">
-          <pre className="max-h-72 overflow-auto font-mono text-[13px] bg-[#050505] p-5 text-[#d1d5db] leading-relaxed">
-            <code>{script.code}</code>
-          </pre>
+          {script.originalCode ? (
+            <pre className="max-h-72 overflow-auto font-mono text-[13px] bg-[#050505] p-5 leading-relaxed">
+              <code>
+                {Diff.diffLines(script.originalCode, script.code).map((part, index) => {
+                  let colorClass = "text-[#d1d5db]";
+                  let bgClass = "";
+                  let prefix = "";
+                  if (part.added) {
+                    colorClass = "text-green-400";
+                    bgClass = "bg-green-500/10 block w-full";
+                    prefix = "+ ";
+                  } else if (part.removed) {
+                    colorClass = "text-red-400";
+                    bgClass = "bg-red-500/10 block w-full line-through opacity-70";
+                    prefix = "- ";
+                  }
+                  
+                  // Split by newline to add prefix to each line
+                  const lines = part.value.split('\n');
+                  if (lines[lines.length - 1] === '') lines.pop(); // Remove trailing empty split
+                  
+                  return (
+                    <span key={index} className={`${colorClass} ${bgClass}`}>
+                      {lines.map((line, i) => (
+                        <div key={i} className="pl-2 border-l-2 border-transparent" style={{ borderColor: part.added ? '#4ade80' : part.removed ? '#f87171' : 'transparent' }}>
+                          <span className="opacity-50 select-none w-4 inline-block">{prefix}</span>
+                          {line}
+                        </div>
+                      ))}
+                    </span>
+                  );
+                })}
+              </code>
+            </pre>
+          ) : (
+            <pre className="max-h-72 overflow-auto font-mono text-[13px] bg-[#050505] p-5 text-[#d1d5db] leading-relaxed">
+              <code>{script.code}</code>
+            </pre>
+          )}
         </div>
       )}
     </div>

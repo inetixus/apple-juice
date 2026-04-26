@@ -21,7 +21,7 @@ export const TOKENS_PER_CREDIT = 1000;
 export const MAX_TOKENS_PER_DAY = MAX_CREDITS_PER_DAY * TOKENS_PER_CREDIT;
 
 let _redis: Redis | null = null;
-function getRedis(): Redis {
+export function getRedis(): Redis {
   if (_redis) return _redis;
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;

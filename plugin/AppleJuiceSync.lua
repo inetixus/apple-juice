@@ -26,6 +26,7 @@ local BASE_URL = "https://apple-juice.online"
 local CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
 local POLL_ENDPOINT = BASE_URL .. "/api/poll"
 local LOGS_ENDPOINT = BASE_URL .. "/api/logs"
+local TREE_ENDPOINT = BASE_URL .. "/api/tree"
 local POLL_INTERVAL = 2
 
 local toolbar = plugin:CreateToolbar(TOOLBAR_NAME)
@@ -130,6 +131,24 @@ connectButton.MouseLeave:Connect(function()
 	end
 end)
 
+local undoButton = Instance.new("TextButton")
+undoButton.Name = "UndoButton"
+undoButton.Size = UDim2.new(1, 0, 0, 28)
+undoButton.BackgroundColor3 = Color3.fromRGB(50, 52, 60)
+undoButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+undoButton.Font = Enum.Font.GothamSemibold
+undoButton.TextSize = 12
+undoButton.Text = "Undo Last Sync"
+undoButton.AutoButtonColor = true
+undoButton.BorderSizePixel = 0
+undoButton.LayoutOrder = 6
+undoButton.Visible = false
+undoButton.Parent = root
+
+local undoButtonCorner = Instance.new("UICorner")
+undoButtonCorner.CornerRadius = UDim.new(0, 6)
+undoButtonCorner.Parent = undoButton
+
 -- ─── State ────────────────────────────────────────────────────────────────────
 
 local STATUS_COLORS = {
@@ -145,6 +164,28 @@ local lastMessageId = nil
 local isConnected = false
 local isAutoTesting = false
 local currentSessionKey = nil
+
+local undoStack = {}
+
+local function updateUndoButton()
+	if #undoStack > 0 then
+		undoButton.Visible = true
+		undoButton.Text = "Undo Last Sync (" .. #undoStack .. ")"
+	else
+		undoButton.Visible = false
+	end
+end
+
+undoButton.MouseButton1Click:Connect(function()
+	if #undoStack == 0 then return end
+	local batch = table.remove(undoStack, #undoStack)
+	for _, fn in ipairs(batch) do
+		pcall(fn)
+	end
+	updateUndoButton()
+	statusLabel.Text = "Undid last generation successfully."
+	statusLabel.TextColor3 = Color3.fromRGB(77, 214, 123)
+end)
 
 local function setStatus(message, kind)
 	statusLabel.Text = message
@@ -206,41 +247,66 @@ local function injectSingleScript(scriptData)
 		parentInstance = game:GetService("ServerScriptService")
 	end
 
+	local undoFn = nil
+
 	if action == "delete" then
 		local target = parentInstance:FindFirstChild(scriptName)
 		if target then
+			local oldParent = target.Parent
+			local oldName = target.Name
+			local oldClass = target.ClassName
+			local oldSource = target:IsA("LuaSourceContainer") and target.Source or ""
+			
+			undoFn = function()
+				local rest = Instance.new(oldClass)
+				rest.Name = oldName
+				if rest:IsA("LuaSourceContainer") then
+					ScriptEditorService:UpdateSourceAsync(rest, function() return oldSource end)
+				end
+				rest.Parent = oldParent
+			end
+			
 			target:Destroy()
-			return true, "Deleted " .. scriptName
+			return true, "Deleted " .. scriptName, undoFn
 		else
-			return false, "Delete failed: " .. scriptName
+			return false, "Delete failed: " .. scriptName, nil
 		end
 	end
 
 	if action == "insert_asset" then
 		local assetId = scriptData.assetId
-		if not assetId then return false, "No assetId provided" end
+		if not assetId then return false, "No assetId provided", nil end
 		local InsertService = game:GetService("InsertService")
 		local ok, model = pcall(function()
 			return InsertService:LoadAsset(tonumber(assetId))
 		end)
 		if ok and model then
 			local actualParent = resolvePath(parentPath) or workspace
+			local inserted = {}
 			for _, child in ipairs(model:GetChildren()) do
 				child.Parent = actualParent
+				table.insert(inserted, child)
 			end
 			model:Destroy()
-			return true, "Inserted Asset " .. tostring(assetId) .. " into " .. parentPath
+			
+			undoFn = function()
+				for _, inst in ipairs(inserted) do
+					if inst and inst.Parent then inst:Destroy() end
+				end
+			end
+			
+			return true, "Inserted Asset " .. tostring(assetId) .. " into " .. parentPath, undoFn
 		else
-			return false, "Failed to load asset " .. tostring(assetId)
+			return false, "Failed to load asset " .. tostring(assetId), nil
 		end
 	end
 
 	if action == "stop_playtest" then
 		if RunService:IsRunMode() and StudioTestService then
 			pcall(function() StudioTestService:EndTest("success") end)
-			return true, "Playtest stopped."
+			return true, "Playtest stopped.", nil
 		else
-			return false, "No playtest is currently running in this context."
+			return false, "No playtest is currently running in this context.", nil
 		end
 	end
 
@@ -249,44 +315,145 @@ local function injectSingleScript(scriptData)
 	end
 
 	local target = parentInstance:FindFirstChild(scriptName)
-	if not target or not target:IsA("LuaSourceContainer") or target.ClassName ~= scriptClass then
-		if target then target:Destroy() end
+	local didExist = false
+	local oldSource = ""
+	local oldClass = scriptClass
+
+	if target and target:IsA("LuaSourceContainer") and target.ClassName == scriptClass then
+		didExist = true
+		oldSource = target.Source
+	elseif target then
+		didExist = true
+		oldClass = target.ClassName
+		oldSource = target:IsA("LuaSourceContainer") and target.Source or ""
+		target:Destroy()
+		target = nil
+	end
+
+	if not target then
 		target = Instance.new(scriptClass)
 		target.Name = scriptName
 		target.Parent = parentInstance
+	end
+
+	undoFn = function()
+		if didExist then
+			if target and target.ClassName == oldClass then
+				ScriptEditorService:UpdateSourceAsync(target, function() return oldSource end)
+			else
+				if target then target:Destroy() end
+				local rest = Instance.new(oldClass)
+				rest.Name = scriptName
+				if rest:IsA("LuaSourceContainer") then
+					ScriptEditorService:UpdateSourceAsync(rest, function() return oldSource end)
+				end
+				rest.Parent = parentInstance
+			end
+		else
+			if target then target:Destroy() end
+		end
 	end
 
 	local ok, err = pcall(function()
 		ScriptEditorService:UpdateSourceAsync(target, function() return codeText end)
 	end)
 
-	if ok then return true, "Synced " .. scriptClass .. " [" .. scriptName .. "] → " .. parentPath
-	else return false, "ScriptEditor Error: " .. tostring(err) end
+	if ok then return true, "Synced " .. scriptClass .. " [" .. scriptName .. "] → " .. parentPath, undoFn
+	else return false, "ScriptEditor Error: " .. tostring(err), nil end
 end
 
 local function injectCode(incomingData)
 	local decodeOk, parsed = pcall(function() return HttpService:JSONDecode(incomingData) end)
 	if not decodeOk or type(parsed) ~= "table" then return false, "Invalid JSON payload", 0 end
 
+	local currentBatch = {}
+
 	-- Multi-script: payload has a "scripts" array
 	if parsed.scripts and type(parsed.scripts) == "table" and #parsed.scripts > 0 then
 		local successCount = 0
 		local messages = {}
 		for _, scriptData in ipairs(parsed.scripts) do
-			local ok, msg = injectSingleScript(scriptData)
+			local ok, msg, uFn = injectSingleScript(scriptData)
 			if ok then successCount += 1 end
+			if ok and uFn then table.insert(currentBatch, uFn) end
 			table.insert(messages, msg)
 		end
+		
+		if #currentBatch > 0 then
+			table.insert(undoStack, currentBatch)
+			updateUndoButton()
+		end
+		
 		local summary = "Synced " .. successCount .. "/" .. #parsed.scripts .. " scripts"
 		return successCount > 0, summary, #parsed.scripts
 	end
 
 	-- Single script
-	local ok, msg = injectSingleScript(parsed)
+	local ok, msg, uFn = injectSingleScript(parsed)
+	if ok and uFn then
+		table.insert(undoStack, {uFn})
+		updateUndoButton()
+	end
 	return ok, msg, 1
 end
 
 -- ─── Auto-connect via IP ──────────────────────────────────────────────────────
+
+local function buildTreeString(parent, indentLevel, maxDepth)
+	if indentLevel > maxDepth then return "" end
+	local str = ""
+	local indent = string.rep("  ", indentLevel)
+	for _, child in ipairs(parent:GetChildren()) do
+		if child:IsA("Folder") or child:IsA("Model") or child:IsA("LuaSourceContainer") then
+			local typeTag = ""
+			if child:IsA("Script") then typeTag = " [Script]"
+			elseif child:IsA("LocalScript") then typeTag = " [LocalScript]"
+			elseif child:IsA("ModuleScript") then typeTag = " [ModuleScript]"
+			elseif child:IsA("Folder") then typeTag = "/"
+			end
+			str = str .. indent .. child.Name .. typeTag .. "\n"
+			if child:IsA("Folder") or child:IsA("Model") then
+				str = str .. buildTreeString(child, indentLevel + 1, maxDepth)
+			end
+		end
+	end
+	return str
+end
+
+local function getProjectTree()
+	local tree = ""
+	local roots = { 
+		game:GetService("Workspace"), 
+		game:GetService("ReplicatedStorage"), 
+		game:GetService("ServerScriptService"), 
+		game:GetService("ServerStorage"), 
+		game:GetService("StarterGui")
+	}
+	
+	local ok, sp = pcall(function() return game:GetService("StarterPlayer").StarterPlayerScripts end)
+	if ok and sp then table.insert(roots, sp) end
+	
+	for _, root in ipairs(roots) do
+		tree = tree .. root.Name .. "/\n" .. buildTreeString(root, 1, 4)
+	end
+	return tree
+end
+
+local lastTreeHash = ""
+local function reportTree(sessionKey)
+	local tree = getProjectTree()
+	if tree == lastTreeHash then return end
+	lastTreeHash = tree
+	task.spawn(function()
+		pcall(function()
+			HttpService:PostAsync(
+				TREE_ENDPOINT,
+				HttpService:JSONEncode({ key = sessionKey, tree = tree }),
+				Enum.HttpContentType.ApplicationJson
+			)
+		end)
+	end)
+end
 
 local function autoConnect()
 	setStatus("Connecting via IP...", "waiting")
@@ -347,8 +514,14 @@ end
 local function pollLoop(sessionKey)
 	currentSessionKey = sessionKey
 	local hasError = false
+	local pollTicks = 0
 
 	while running and not unloading do
+		pollTicks += 1
+		if pollTicks % 5 == 1 then
+			reportTree(sessionKey)
+		end
+
 		local ok, data, err = requestPoll(sessionKey)
 
 		if not ok then

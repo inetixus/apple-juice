@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getSession, upsertGeneratedCode, getUserUsage, trackUserUsage } from "@/lib/store";
+import { getSession, upsertGeneratedCode, getUserUsage, trackUserUsage, getRedis } from "@/lib/store";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -141,6 +141,16 @@ export async function POST(req: Request) {
     }
   }
 
+  let treeContextBlock = "";
+  try {
+    const tree = await getRedis().get<string>(`tree:${sessionKey}`);
+    if (tree) {
+      treeContextBlock = `\n\n=== CURRENT ROBLOX PROJECT STRUCTURE ===\n${tree}\n=======================================\nUse this structure to understand where scripts and folders are located. You can refer to existing folders or scripts without asking the user to create them.`;
+    }
+  } catch (err) {
+    // ignore redis error
+  }
+
   const thinkingInstructions = mode === "thinking" 
     ? `\nBEFORE writing code, think step-by-step IN EXTENSIVE DETAIL in the "thinking" field (a string) about:
 1. What the user wants conceptually and mechanically
@@ -177,7 +187,8 @@ CRITICAL RULES FOR SCRIPT TYPE AND PARENT:
 3. Use "ModuleScript" ONLY when the user explicitly asks for a reusable module/library that returns a table. Place in "ReplicatedStorage" or "ServerStorage". NEVER default to ModuleScript.
 4. The code must be a standalone, runnable script. Do NOT wrap server logic in a module that returns a table unless the user specifically asked for a module.
 5. If the user asks to "make a build", "build a car", or "insert a [thing]", you can either generate a script that builds it via Instance.new, OR you can use "action": "insert_asset" with an appropriate Roblox Toolbox assetId if you know one. Set "parent": "Workspace" when inserting physical assets.
-${fileContextBlock}
+6. If the user asks to "stop the playtest" or "end test", DO NOT generate a script. Instead, output ONLY: {"action": "stop_playtest", "message": "Stopping playtest...", "suggestions": []}
+${fileContextBlock}${treeContextBlock}
 Return ONLY the JSON object — no markdown, no backticks, no extra commentary outside the JSON.`;
 
   // Helper to call OpenAI Chat Completions

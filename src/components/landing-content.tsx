@@ -76,6 +76,7 @@ const MULTI_SCRIPTS = [
 /* ─── Main Landing Component ─── */
 export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: any; avatarUrl?: string }) {
   const [activeScriptIndex, setActiveScriptIndex] = useState(0);
+  const [showAuthGuide, setShowAuthGuide] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -113,7 +114,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           </div>
 
           <button
-            onClick={() => session ? window.location.href = "/dashboard" : signIn("", { callbackUrl: "/dashboard" })}
+            onClick={() => session ? window.location.href = "/dashboard" : setShowAuthGuide(true)}
             className="h-11 px-7 rounded-xl bg-white text-black text-base font-bold hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)]"
           >
             {session ? "Dashboard" : "Sign In"}

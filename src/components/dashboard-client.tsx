@@ -125,7 +125,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               const successLog = data.logs.find((log: string) => log.includes("[SYSTEM_TEST_SUCCESS]"));
               if (successLog && isGenerating && pendingPayloadRef.current) {
                 // Test passed! Release the message to the user.
-                const fp = pendingPayloadRef.current;
+                const { payload: fp, files } = pendingPayloadRef.current;
                 pendingPayloadRef.current = null;
                 
                 setMessages((current) => [
@@ -140,7 +140,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       type: fp.scriptType || "Script",
                       action: fp.action || "create",
                       lineCount: fp.lineCount || (fp.code ? fp.code.split("\n").length : 0),
-                      code: fp.code || ""
+                      code: fp.code || "",
+                      originalCode: files?.find((f: any) => f.name === fp.scriptName || f.name === fp.scriptName + ".lua")?.content
                     } : undefined,
                     scripts: fp.scripts?.map((s: any) => ({
                       name: s.name,
@@ -149,6 +150,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       action: s.action || "create",
                       lineCount: s.lineCount || 0,
                       code: s.code || "",
+                      originalCode: files?.find((f: any) => f.name === s.name || f.name === s.name + ".lua")?.content
                     })),
                     suggestions: fp.suggestions,
                     thinking: fp.thinking,
@@ -521,7 +523,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         thinking?: string;
       };
 
-      // Clear attached files after successful send
+      const payloadFiles = [...attachedFiles];
       setAttachedFiles([]);
 
       setPluginStatus(`New code is ready. Syncing to Studio for playtest...`);
@@ -529,11 +531,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
       setThinkingSteps(prev => [...prev, { icon: "generating", label: "Running playtest in Roblox...", done: false }]);
 
-      // Hold the payload in the ref. The polling interval will release it on success.
-      pendingPayloadRef.current = payload;
+      pendingPayloadRef.current = { payload, files: payloadFiles };
 
-      // Helper to build assistant message from payload
-      function buildAssistantMessage(p: typeof payload): ChatMessage {
+      function buildAssistantMessage(p: typeof payload, files: { name: string; content: string }[]): ChatMessage {
         return {
           id: crypto.randomUUID(),
           role: "assistant",
@@ -544,7 +544,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             type: p.scriptType || "Script",
             action: p.action || "create",
             lineCount: p.lineCount || (p.code ? p.code.split("\n").length : 0),
-            code: p.code || ""
+            code: p.code || "",
+            originalCode: files.find((f) => f.name === p.scriptName || f.name === p.scriptName + ".lua")?.content
           } : undefined,
           scripts: p.scripts?.map(s => ({
             name: s.name,
@@ -553,17 +554,18 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             action: (s.action as "create" | "delete") || "create",
             lineCount: s.lineCount || 0,
             code: s.code || "",
+            originalCode: files.find((f) => f.name === s.name || f.name === s.name + ".lua")?.content
           })),
           suggestions: p.suggestions,
           thinking: p.thinking,
         };
       }
 
-      // 15-second timeout fallback in case the plugin never responds
       setTimeout(() => {
-        if (pendingPayloadRef.current === payload) {
+        if (pendingPayloadRef.current && pendingPayloadRef.current.payload === payload) {
+          const { payload: fp, files } = pendingPayloadRef.current;
           pendingPayloadRef.current = null;
-          setMessages((current) => [...current, buildAssistantMessage(payload)]);
+          setMessages((current) => [...current, buildAssistantMessage(fp, files)]);
           setThinkingSteps([]);
           setIsGenerating(false);
           setPluginStatus("Playtest timeout. Assuming success.");
@@ -951,22 +953,37 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     Attach
                   </button>
 
-                  {(provider === "google" ? googleKey.trim() : openaiKey.trim()).length === 0 ? (
-                    <div className="hidden sm:flex relative h-7 w-40 bg-white/[0.03] rounded-lg overflow-hidden border border-white/[0.06] items-center justify-center group">
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 transition-all duration-700 animate-wave"
-                        style={{ 
-                          width: `${Math.max(0, Math.min(100, ((usage.totalTokens - usage.usedTokens) / usage.totalTokens) * 100))}%`,
-                          backgroundColor: 'rgba(204, 255, 0, 0.08)',
-                          backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 800 100\' preserveAspectRatio=\'none\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M0,10 Q100,-10 200,10 T400,10 T600,10 T800,10 L800,100 L0,100 Z\' fill=\'rgba(204,255,0,0.15)\'/%3E%3C/svg%3E")',
-                          backgroundSize: '200% 100%'
-                        }}
-                      />
-                      <span className="relative z-10 text-[10px] font-mono tracking-tight text-white/50">
-                        <span className="text-[#ccff00] font-medium">{Math.max(0, usage.totalTokens - usage.usedTokens).toLocaleString()}</span> / {usage.totalTokens.toLocaleString()}
-                      </span>
-                    </div>
-                  ) : (
+                  {(provider === "google" ? googleKey.trim() : openaiKey.trim()).length === 0 ? (() => {
+                    const pct = Math.max(0, Math.min(100, ((usage.totalTokens - usage.usedTokens) / usage.totalTokens) * 100));
+                    const hue = Math.floor((pct / 100) * 75);
+                    const colorFill = `hsla(${hue}, 100%, 50%, 0.15)`;
+                    const colorSolid = `hsla(${hue}, 100%, 50%, 0.08)`;
+                    const textColor = `hsl(${hue}, 100%, 50%)`;
+                    return (
+                      <div className="hidden sm:flex relative h-7 w-40 bg-white/[0.03] rounded-lg overflow-hidden border border-white/[0.06] items-center justify-center group">
+                        <div 
+                          className="absolute left-0 right-0 bottom-0 transition-all duration-700"
+                          style={{ 
+                            height: `${pct}%`,
+                            backgroundColor: colorSolid,
+                          }}
+                        >
+                          {pct > 0 && (
+                            <div 
+                              className="absolute left-0 right-0 top-[-8px] h-[8px] animate-wave"
+                              style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 800 10' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,5 Q100,0 200,5 T400,5 T600,5 T800,5 L800,10 L0,10 Z' fill='${encodeURIComponent(colorFill)}'/%3E%3C/svg%3E")`,
+                                backgroundSize: '200% 100%'
+                              }}
+                            />
+                          )}
+                        </div>
+                        <span className="relative z-10 text-[10px] font-mono tracking-tight text-white/50">
+                          <span style={{ color: textColor }} className="font-medium">{Math.max(0, usage.totalTokens - usage.usedTokens).toLocaleString()}</span> / {usage.totalTokens.toLocaleString()}
+                        </span>
+                      </div>
+                    );
+                  })() : (
                     <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-[#ccff00]/20">
                       <span className="text-[11px] font-medium text-[#ccff00]">Custom Key Active</span>
                     </div>
