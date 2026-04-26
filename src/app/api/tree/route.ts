@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     
     const redis = getRedis();
     // Store the project tree under this session key, expires in 1 hour
-    await redis.set(`tree:${key}`, tree, "EX", 60 * 60);
+    await redis.set(`tree:${key}`, tree, { ex: 60 * 60 });
     
     return Response.json({ success: true });
   } catch (error) {
