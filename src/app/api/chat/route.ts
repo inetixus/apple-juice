@@ -296,6 +296,24 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
         return { code: structured.code, raw: JSON.stringify(structured) };
       }
     }
+
+    // Check if the content is clearly NOT Luau code (it's thinking/reasoning text)
+    const trimmed = content.trim();
+    const looksLikeThinking = (
+      trimmed.toLowerCase().startsWith('thinking') ||
+      trimmed.startsWith('**') ||
+      trimmed.startsWith('# ') ||
+      trimmed.startsWith('## ') ||
+      trimmed.includes('conceptual') ||
+      trimmed.includes('architectural plan') ||
+      (trimmed.split('\n').length > 5 && !trimmed.includes('local ') && !trimmed.includes('function') && !trimmed.includes('game:GetService'))
+    );
+
+    if (looksLikeThinking) {
+      // This is thinking text, not code. Return empty so the caller can handle it.
+      return { code: "", raw: "" };
+    }
+
     const cleanCode = content.replace(/^```(luau|lua)?\n?/gmi, "").replace(/```$/gm, "").trim();
     return {
       code: cleanCode,
@@ -359,14 +377,17 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: SYSTEM_PROMPT }]
+            },
             contents: (() => {
               if (body.messages && body.messages.length > 0) {
-                return body.messages.map((m, i) => ({
+                return body.messages.map((m) => ({
                   role: m.role === "assistant" ? "model" : "user",
-                  parts: [{ text: (i === 0 && m.role === "user") ? `${SYSTEM_PROMPT}\n\nUser Prompt: ${m.content}` : m.content }]
+                  parts: [{ text: m.content }]
                 }));
               }
-              return [{ role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\nUser Prompt: ${prompt}` }] }];
+              return [{ role: "user", parts: [{ text: prompt }] }];
             })(),
             generationConfig: { 
               temperature: mode === "thinking" ? 0.4 : 0.2, 
@@ -386,6 +407,13 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
         const content = extractContent(bodyText, true);
         if (content) {
           const result = processResponse(content, bodyText);
+          
+          // If processResponse returned empty (thinking text detected), skip this result
+          if (!result.code && !result.raw) {
+            console.warn("Model returned thinking text instead of JSON, trying next model...");
+            continue;
+          }
+          
           code = result.code;
           raw = result.raw;
           modelUsed = candidate;
