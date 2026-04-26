@@ -28,6 +28,7 @@ export async function GET(req: Request) {
       hasNewCode: result.payload.hasNewCode,
       code: codeStr,
       messageId: result.payload.messageId,
+      requestedFile: result.payload.requestedFile,
     });
   } catch (err) {
     console.error("/api/poll error", err instanceof Error ? err.message : String(err));

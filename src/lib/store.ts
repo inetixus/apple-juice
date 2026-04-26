@@ -10,6 +10,8 @@ export type SessionEntry = {
   messageId: string;
   lastPollTime?: number;
   logs?: string[];
+  requestedFile?: string;
+  fileResponse?: { name: string; content: string };
 };
 
 const PREFIX = "apple-juice:session:";
@@ -164,8 +166,14 @@ export async function consumeCode(sessionKey: string) {
     if not raw then return cjson.encode({ok=false,reason="not_found"}) end
     local sess = cjson.decode(raw)
     if tonumber(sess.expiresAt) < tonumber(ARGV[1]) then return cjson.encode({ok=false,reason="expired"}) end
-    local payload = { hasNewCode = sess.hasNewCode, code = sess.code, messageId = sess.messageId }
+    local payload = { 
+      hasNewCode = sess.hasNewCode, 
+      code = sess.code, 
+      messageId = sess.messageId,
+      requestedFile = sess.requestedFile
+    }
     sess.hasNewCode = false
+    sess.requestedFile = nil
     sess.lastPollTime = tonumber(ARGV[1])
     redis.call("SET", KEYS[1], cjson.encode(sess))
     return cjson.encode({ok=true,payload=payload})

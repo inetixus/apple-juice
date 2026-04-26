@@ -1,4 +1,4 @@
-import { getSession, consumeLogs } from "@/lib/store";
+import { getSession, consumeLogs, getRedis } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +23,20 @@ export async function GET(req: Request) {
       }
     }
 
+    const redis = getRedis();
+    const tree = await redis.get(`tree:${sessionKey}`);
+
+    // If there's a file response, we should probably consume it too so it doesn't keep showing up
+    // but for now let's just send it.
+    
     return Response.json({
       status: "ok",
       hasNewCode: session.hasNewCode,
       lastPollTime: session.lastPollTime || 0,
       serverTime: Date.now(),
-      logs: logs
+      logs: logs,
+      tree: tree || "",
+      fileResponse: session.fileResponse
     });
   } catch (err) {
     return Response.json({ error: "Internal server error" }, { status: 500 });

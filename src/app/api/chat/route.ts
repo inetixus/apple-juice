@@ -165,7 +165,7 @@ Include "thinking" as a field in your JSON output.`
   const SYSTEM_PROMPT = `You are a Roblox Luau scripting assistant called Apple Juice.${thinkingInstructions}
 
 When the user's request requires MULTIPLE scripts (e.g. a server script AND a client script, or a module AND a consumer), output a JSON object with:
-- "scripts": an array of script objects, each with: action, type, parent, name, code, assetId
+- "scripts": an array of script objects, each with: action, type, parent, name, code, assetId, and OPTIONALLY "requires" (an array of strings indicating the names of other scripts this one depends on or requires).
 - "message": a friendly explanation of everything you created
 - "suggestions": 3 short follow-up ideas
 ${mode === "thinking" ? '- "thinking": your step-by-step reasoning (string)' : ""}

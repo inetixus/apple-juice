@@ -27,6 +27,7 @@ local CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
 local POLL_ENDPOINT = BASE_URL .. "/api/poll"
 local LOGS_ENDPOINT = BASE_URL .. "/api/logs"
 local TREE_ENDPOINT = BASE_URL .. "/api/tree"
+local REPORT_FILE_ENDPOINT = BASE_URL .. "/api/report-file"
 local POLL_INTERVAL = 2
 
 local toolbar = plugin:CreateToolbar(TOOLBAR_NAME)
@@ -541,6 +542,45 @@ local function pollLoop(sessionKey)
 		if not isConnected then
 			isConnected = true
 			setStatus("Connected — waiting for code...", "success")
+		end
+
+		if data.requestedFile then
+			local fileName = data.requestedFile
+			-- Try to find the script in common locations
+			local target = nil
+			local locations = { 
+				game:GetService("ServerScriptService"), 
+				game:GetService("ReplicatedStorage"), 
+				game:GetService("Workspace") 
+			}
+			
+			local starterPlayer = game:GetService("StarterPlayer")
+			if starterPlayer:FindFirstChild("StarterPlayerScripts") then
+				table.insert(locations, starterPlayer.StarterPlayerScripts)
+			end
+			if starterPlayer:FindFirstChild("StarterCharacterScripts") then
+				table.insert(locations, starterPlayer.StarterCharacterScripts)
+			end
+
+			for _, loc in ipairs(locations) do
+				local found = loc:FindFirstChild(fileName, true)
+				if found and found:IsA("LuaSourceContainer") then
+					target = found
+					break
+				end
+			end
+
+			if target then
+				task.spawn(function()
+					pcall(function()
+						HttpService:PostAsync(REPORT_FILE_ENDPOINT, HttpService:JSONEncode({
+							key = sessionKey,
+							fileName = fileName,
+							content = target.Source
+						}))
+					end)
+				end)
+			end
 		end
 
 		if data.hasNewCode == true and type(data.code) == "string" and data.code ~= "" then

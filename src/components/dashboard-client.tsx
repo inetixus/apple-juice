@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { ToastContainer, useToasts } from "@/components/ui/toast";
 import { ScriptCard } from "@/components/script-card";
+import { SystemArchitecture } from "@/components/system-architecture";
 import { ThinkingFeed, type ThinkingStep } from "@/components/thinking-feed";
 
 type DashboardClientProps = {
@@ -71,6 +72,28 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const pendingPayloadRef = useRef<any>(null);
   const stepTimeoutsRef = useRef<any[]>([]);
 
+  const [projectTree, setProjectTree] = useState<string[]>([]);
+  const [atMenu, setAtMenu] = useState<{ visible: boolean; x: number; y: number; filter: string; selectionIndex: number }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    filter: "",
+    selectionIndex: 0
+  });
+
+  const playSound = (type: 'pop' | 'glass' | 'error' | 'whoosh') => {
+    const sounds = {
+      pop: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3',
+      glass: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
+      success: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
+      error: 'https://assets.mixkit.co/active_storage/sfx/2573/2573-preview.mp3',
+      whoosh: 'https://assets.mixkit.co/active_storage/sfx/2564/2564-preview.mp3'
+    };
+    const audio = new Audio(sounds[type]);
+    audio.volume = 0.2;
+    audio.play().catch(() => {});
+  };
+
   useEffect(() => {
     if (!sessionKey) return;
     const interval = setInterval(async () => {
@@ -84,8 +107,24 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               codeConsumedRef.current = false;
               setPluginStatus("Plugin successfully consumed the script.");
               showToast("Plugin received the script!", "success");
+              playSound('glass');
             } else if (data.hasNewCode) {
               codeConsumedRef.current = true;
+            }
+
+            if (data.tree) {
+              const lines = (data.tree as string).split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.endsWith('/'));
+              const cleanNames = lines.map(l => l.replace(/ \[.*?\]$/, ''));
+              setProjectTree(Array.from(new Set(cleanNames)));
+            }
+
+            if (data.fileResponse && data.fileResponse.name) {
+              setAttachedFiles(prev => {
+                if (prev.some(f => f.name === data.fileResponse.name)) return prev;
+                showToast(`Attached ${data.fileResponse.name}`, "success");
+                playSound('pop');
+                return [...prev, data.fileResponse];
+              });
             }
 
             // Handle connection status checking
@@ -151,7 +190,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       action: s.action || "create",
                       lineCount: s.lineCount || 0,
                       code: s.code || "",
-                      originalCode: files?.find((f: any) => f.name === s.name || f.name === s.name + ".lua")?.content
+                      originalCode: files?.find((f: any) => f.name === s.name || f.name === s.name + ".lua")?.content,
+                      requires: s.requires
                     })),
                     suggestions: fp.suggestions,
                     thinking: fp.thinking,
@@ -424,6 +464,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     setLastError(null);
     addRecentPrompt(trimmed);
     setIsGenerating(true);
+    playSound('whoosh');
     setPluginStatus("Generating Luau and syncing it to the pairing session...");
 
     const promptSnippet = trimmed.length > 25 ? trimmed.substring(0, 25) + "..." : trimmed;
@@ -509,8 +550,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         try {
           const errPayload = await response.json();
           errText = errPayload?.detail || errPayload?.error || errText;
-        } catch {
-          // ignore parse error
+        } catch (err: any) {
+          console.error("AI Error:", err);
+          setLastError(err.message || "Failed to generate code.");
+          playSound('error');
         }
         throw new Error(errText || "Failed to generate code");
       }
@@ -520,7 +563,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         scriptName?: string; scriptParent?: string; lineCount?: number; 
         scriptType?: string; action?: "create" | "delete";
         message?: string; suggestions?: string[];
-        scripts?: { name: string; parent: string; type: string; action: string; lineCount: number; code: string }[];
+        scripts?: { name: string; parent: string; type: string; action: string; lineCount: number; code: string; requires?: string[] }[];
         thinking?: string;
       };
 
@@ -529,6 +572,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
       setPluginStatus(`New code is ready. Syncing to Studio for playtest...`);
       showToast("Script generated, syncing to Studio...", "success");
+      playSound('success');
 
       setThinkingSteps(prev => [...prev, { icon: "generating", label: "Running playtest in Roblox...", done: false }]);
 
@@ -555,7 +599,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             action: (s.action as "create" | "delete") || "create",
             lineCount: s.lineCount || 0,
             code: s.code || "",
-            originalCode: files.find((f) => f.name === s.name || f.name === s.name + ".lua")?.content
+            originalCode: files.find((f) => f.name === s.name || f.name === s.name + ".lua")?.content,
+            requires: s.requires
           })),
           suggestions: p.suggestions,
           thinking: p.thinking,
@@ -596,6 +641,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
       setPluginStatus(`Generation failed: ${detail}`);
       showToast(detail, "error");
+      playSound('error');
       setTimeout(() => setThinkingSteps([]), 1000);
       setIsGenerating(false);
       void fetchUsage();
@@ -834,7 +880,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     )}
 
                     {message.scripts && message.scripts.length > 0 && (
-                      <div className="space-y-2">
+                      <div className="space-y-2 w-full max-w-[500px]">
+                        {message.scripts.length > 1 && <SystemArchitecture scripts={message.scripts} />}
                         <p className="text-[12px] font-medium text-white/30">{message.scripts.length} scripts generated</p>
                         {message.scripts.map((s, i) => (
                           <ScriptCard key={i} script={s} />
@@ -884,19 +931,108 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 </div>
               )}
 
-              <Textarea
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Describe what you want to build... (Enter to send, Shift+Enter for newline)"
-                rows={3}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    submitPrompt();
-                  }
-                }}
-                className="bg-white/[0.03] border-white/[0.07] text-[14px] placeholder:text-white/20 resize-none rounded-xl focus:border-[#ccff00]/30 focus:ring-0 transition-colors"
-              />
+              <div className="relative group/input">
+                <Textarea
+                  value={prompt}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPrompt(val);
+
+                    const selectionStart = e.target.selectionStart;
+                    const textBeforeCursor = val.slice(0, selectionStart);
+                    const lastAt = textBeforeCursor.lastIndexOf('@');
+
+                    if (lastAt !== -1 && (lastAt === 0 || textBeforeCursor[lastAt - 1] === ' ')) {
+                      const filter = textBeforeCursor.slice(lastAt + 1);
+                      if (!filter.includes(' ')) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setAtMenu({
+                          visible: true,
+                          x: rect.left,
+                          y: rect.top - 120, // offset for menu
+                          filter,
+                          selectionIndex: 0
+                        });
+                        return;
+                      }
+                    }
+                    setAtMenu(prev => ({ ...prev, visible: false }));
+                  }}
+                  onKeyDown={(e) => {
+                    if (atMenu.visible) {
+                      const filtered = projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase()));
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setAtMenu(prev => ({ ...prev, selectionIndex: (prev.selectionIndex + 1) % filtered.length }));
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setAtMenu(prev => ({ ...prev, selectionIndex: (prev.selectionIndex - 1 + filtered.length) % filtered.length }));
+                      } else if (e.key === "Enter" || e.key === "Tab") {
+                        e.preventDefault();
+                        const selected = filtered[atMenu.selectionIndex];
+                        if (selected) {
+                          const textBeforeAt = prompt.slice(0, prompt.lastIndexOf('@'));
+                          const textAfterAt = prompt.slice(e.currentTarget.selectionStart);
+                          setPrompt(textBeforeAt + "@" + selected + " " + textAfterAt);
+                          setAtMenu(prev => ({ ...prev, visible: false }));
+                          
+                          // Trigger request for file content
+                          fetch('/api/request-file', {
+                            method: 'POST',
+                            body: JSON.stringify({ key: sessionKey, fileName: selected })
+                          }).catch(() => {});
+                        }
+                      } else if (e.key === "Escape") {
+                        setAtMenu(prev => ({ ...prev, visible: false }));
+                      }
+                    } else if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      submitPrompt();
+                    }
+                  }}
+                  placeholder={isPluginConnected ? "Ask the AI to build something... (use @ to mention a script)" : "Connect your plugin to start building..."}
+                  className="min-h-[100px] w-full resize-none bg-[#111113]/50 border-white/5 pr-20 pt-4 text-white placeholder:text-white/20 focus-visible:ring-[#ccff00]/20 rounded-2xl backdrop-blur-xl"
+                  disabled={!isPluginConnected || isGenerating}
+                />
+
+                {atMenu.visible && (
+                  <div 
+                    className="fixed z-[200] w-64 bg-[#111113] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
+                    style={{ left: atMenu.x, top: atMenu.y - (Math.min(projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase())).length, 5) * 40) }}
+                  >
+                    <div className="px-3 py-2 border-b border-white/5 bg-white/5">
+                      <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Select Script</span>
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto">
+                      {projectTree
+                        .filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase()))
+                        .slice(0, 10)
+                        .map((file, i) => (
+                          <div 
+                            key={file}
+                            className={`px-4 py-2 text-sm cursor-pointer flex items-center gap-2 transition-colors ${i === atMenu.selectionIndex ? 'bg-[#ccff00]/10 text-[#ccff00]' : 'text-white/60 hover:bg-white/5'}`}
+                            onClick={() => {
+                              const textBeforeAt = prompt.slice(0, prompt.lastIndexOf('@'));
+                              const textAfterAt = prompt.slice(prompt.lastIndexOf('@') + atMenu.filter.length + 1);
+                              setPrompt(textBeforeAt + "@" + file + " " + textAfterAt);
+                              setAtMenu(prev => ({ ...prev, visible: false }));
+                              fetch('/api/request-file', {
+                                method: 'POST',
+                                body: JSON.stringify({ key: sessionKey, fileName: file })
+                              }).catch(() => {});
+                            }}
+                          >
+                            <Brain className="h-3.5 w-3.5 opacity-50" />
+                            <span className="truncate">{file}</span>
+                          </div>
+                        ))}
+                      {projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase())).length === 0 && (
+                        <div className="px-4 py-3 text-xs text-white/30 italic">No scripts found...</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <input
                 ref={fileInputRef}
