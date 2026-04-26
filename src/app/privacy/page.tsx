@@ -59,18 +59,26 @@ export default function PrivacyPage() {
               screen you see during sign-in is hosted at <code className="text-white/60 bg-white/5 px-1.5 py-0.5 rounded text-sm">roblox.com</code> and is operated entirely by Roblox.
             </p>
             <ul className="mt-5 space-y-3 list-none">
-              {[
-                "Roblox shares your User ID and public profile data with us, exactly as displayed on the OAuth consent screen.",
-                "We store your User ID and display name in an encrypted server-side session to keep you logged in.",
-                "We NEVER receive, store, or transmit your Roblox account password.",
-                "We NEVER receive your Robux balance, purchase history, inventory, or any financial data.",
-                "You may revoke Apple Juice's access at any time from your Roblox account settings under "Connected Apps". Revocation immediately invalidates your Apple Juice session.",
-              ].map((item, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <span className="text-[#ccff00] font-bold mt-0.5 flex-shrink-0">→</span>
-                  <span>{item}</span>
-                </li>
-              ))}
+              <li className="flex items-start gap-3">
+                <span className="text-[#ccff00] font-bold mt-0.5 flex-shrink-0">→</span>
+                <span>Roblox shares your User ID and public profile data with us, exactly as displayed on the OAuth consent screen.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[#ccff00] font-bold mt-0.5 flex-shrink-0">→</span>
+                <span>We store your User ID and display name in an encrypted server-side session to keep you logged in.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[#ccff00] font-bold mt-0.5 flex-shrink-0">→</span>
+                <span>We NEVER receive, store, or transmit your Roblox account password.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[#ccff00] font-bold mt-0.5 flex-shrink-0">→</span>
+                <span>We NEVER receive your Robux balance, purchase history, inventory, or any financial data.</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="text-[#ccff00] font-bold mt-0.5 flex-shrink-0">→</span>
+                <span>You may revoke Apple Juice&apos;s access at any time from your Roblox account settings under &ldquo;Connected Apps&rdquo;. Revocation immediately invalidates your Apple Juice session.</span>
+              </li>
             </ul>
             <p className="mt-5">
               OAuth tokens are held in encrypted, short-lived server-side sessions and are never
