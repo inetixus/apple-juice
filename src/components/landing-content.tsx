@@ -8,32 +8,39 @@ import { useState, useEffect } from "react";
 /* ─── FAQ data ─── */
 const FAQ_ITEMS = [
   {
+    question: "Is Apple Juice affiliated with Roblox Corporation?",
+    answer:
+      "No. Apple Juice is an independent, open-source project. It is not affiliated with, endorsed by, or sponsored by Roblox Corporation. Sign-in is performed through the official Roblox OAuth 2.0 API — a publicly available developer program — so the authorization screen you see is hosted and operated by Roblox, not us.",
+  },
+  {
     question: "Is Apple Juice free to use?",
     answer:
-      "Yes, Apple Juice is 100% free and open-source. You only pay for your own API usage through OpenAI or Google AI Studio.",
+      "Yes. Apple Juice is free and open-source (MIT License). You only pay for AI inference — either through your own OpenAI or Google AI Studio API key, or by using the platform's shared credit pool.",
   },
   {
-    question: "Do I need to be an expert in Luau?",
-    answer: "Not at all. You can write your prompts in plain English, and the AI handles the complex Luau programming. However, knowing the basics helps you give better instructions.",
-  },
-  {
-    question: "How does it connect to Roblox Studio?",
+    question: "What data does Roblox share when I sign in?",
     answer:
-      "You run a lightweight plugin inside Studio that auto-pairs with your dashboard session. When you generate a script, it instantly materializes in your Explorer tree.",
+      "When you authorize Apple Juice via Roblox's OAuth 2.0 consent screen, Roblox shares only your User ID and public profile. We never receive your password, Robux balance, purchase history, or inventory. You can revoke access at any time from your Roblox account settings under \"Connected Apps\".",
   },
   {
-    question: "Is there a limit to how many files it can generate?",
-    answer: "No strict limits! Apple Juice can generate an entire framework of interconnected scripts at once, as long as it fits within the AI model's context window.",
-  },
-  {
-    question: "Do you store my API keys?",
+    question: "Do you store my AI provider API keys?",
     answer:
-      "Never. Your API keys live exclusively in your browser's localStorage. They are sent directly to the AI providers — our servers never see them.",
+      "Never. Your API keys are stored exclusively in your browser's localStorage. They are sent directly from your browser to OpenAI or Google AI Studio — our servers are not in that data path.",
+  },
+  {
+    question: "How does the Studio plugin work?",
+    answer:
+      "You install a lightweight plugin from the Roblox Creator Store. It opens a persistent WebSocket connection to your dashboard using a short-lived pairing token. When the AI generates code, scripts are pushed through this connection and created in Studio automatically. The plugin operates only within the Studio sandbox and has no access to your account or game data outside the open place.",
   },
   {
     question: "Which AI models are supported?",
     answer:
-      "OpenAI (GPT-4o, GPT-4.1) and Google Gemini models. You can switch between them instantly in your dashboard settings.",
+      "OpenAI (GPT-4o, GPT-4.1) and Google Gemini (Gemini 2.5 Pro, Gemini 2.0 Flash). You can switch between them at any time in your dashboard settings.",
+  },
+  {
+    question: "Does Apple Juice impose any rate limits on my API key?",
+    answer:
+      "No. When you supply your own API key, requests go directly from your browser to OpenAI or Google — Apple Juice adds zero throttling. You are limited only by your own account's rate tier (e.g. OpenAI Tier 1–5). If you use the shared credit pool, a per-user request limit applies to ensure fair access for all users.",
   },
 ];
 
@@ -135,19 +142,19 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             <div className="inline-flex items-center px-4 py-2 rounded-full border border-white/10 bg-[#0a0a0a] mb-8 lg:mb-10 shadow-[0_0_20px_rgba(204,255,0,0.05)]">
               <Sparkles className="h-3.5 w-3.5 text-[#ccff00] mr-2" />
               <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98]">
-                Open Source · Free Forever
+                Open Source · Free Forever · Roblox OAuth 2.0
               </span>
             </div>
 
             {/* Headline */}
             <h1 className="text-6xl sm:text-7xl lg:text-[4.5rem] xl:text-[5rem] font-extrabold tracking-[-0.04em] leading-[1.05] text-white mb-6 lg:mb-8">
-              The first AI Code <br />
-              Tool for <span className="font-serif italic font-medium text-[#ccff00]">Roblox</span>
+              The AI Code Studio <br />
+              for <span className="font-serif italic font-medium text-[#ccff00]">Roblox</span> Developers.
             </h1>
 
             {/* Subtext */}
             <p className="max-w-xl lg:max-w-lg text-lg sm:text-xl text-[#8a8f98] leading-relaxed mb-10 lg:mb-12 mx-auto lg:mx-0">
-              Describe what you want to build. Get production-ready Luau code injected directly into Roblox Studio — in seconds.
+              Describe what you want to build. Apple Juice generates production-ready Luau code and injects it directly into Roblox Studio — no copy-pasting, no context switching.
             </p>
 
             {/* Lemonade-style Buttons */}
@@ -238,7 +245,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               Why Apple Juice
             </p>
             <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
-              Built Different
+              Engineering-Grade. Zero Friction.
             </h2>
           </div>
 
@@ -250,9 +257,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
                 <Brain className="h-6 w-6 text-white/80" />
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Chain-of-Thought</h3>
+              <h3 className="text-xl font-bold mb-3 text-white">Chain-of-Thought Reasoning</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Toggle Thinking Mode to let the AI reason step-by-step before writing code. Architect-level prompts generate smarter, more robust Luau scripts.
+                Enable Thinking Mode and the model reasons through your feature before writing a line of code. Complex systems get a first-principles analysis — resulting in smarter, more robust Luau.
               </p>
             </div>
 
@@ -264,7 +271,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
               <h3 className="text-xl font-bold mb-3 text-white">Multi-File Architecture</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Generate entire systems — ModuleScripts, ServerScripts, LocalScripts — all wired together and injected into your Explorer tree at once.
+                Generate entire interconnected systems in one shot. ModuleScripts, ServerScripts, and LocalScripts — all wired together and injected into the correct Explorer locations at once.
               </p>
             </div>
 
@@ -274,9 +281,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
                 <RefreshCw className="h-6 w-6 text-white/80" />
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Self-Healing Loop</h3>
+              <h3 className="text-xl font-bold mb-3 text-white">Self-Healing Debug Loop</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Apple Juice reads your Roblox console output. When an error is detected, it automatically suggests a fix — or repairs the script for you.
+                Apple Juice streams your Roblox console output in real time. When a runtime error is detected, the AI analyses the stack trace and proposes — or automatically applies — a targeted fix.
               </p>
             </div>
 
@@ -286,9 +293,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
                 <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Instant Sync</h3>
+              <h3 className="text-xl font-bold mb-3 text-white">Zero-Latency Studio Sync</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Changes stream directly from your browser to Roblox Studio instantly. No copy-pasting required, just watch your game build itself.
+                A lightweight Studio plugin maintains a persistent WebSocket connection to your session. Code appears in your Explorer tree the moment the model finishes — no clipboard required.
               </p>
             </div>
 
@@ -298,9 +305,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
                 <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Context-Aware</h3>
+              <h3 className="text-xl font-bold mb-3 text-white">Context-Aware Generation</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Upload your existing scripts or let the AI analyze your codebase context so it generates code that perfectly fits your project's unique style.
+                Upload existing scripts or let Apple Juice scan your project tree. The model uses your codebase as context so generated code matches your naming conventions, architecture, and folder structure.
               </p>
             </div>
 
@@ -310,9 +317,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
                 <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Secure by Design</h3>
+              <h3 className="text-xl font-bold mb-3 text-white">Secure by Architecture</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Your API keys never touch our servers. All processing and requests happen directly from your browser, ensuring maximum privacy and security.
+                Your AI provider API keys are stored in your browser's localStorage and sent directly to OpenAI or Google — our servers never handle them. Roblox sign-in uses the official OAuth 2.0 API.
               </p>
             </div>
           </div>
@@ -346,10 +353,10 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           
           <div className="relative z-10">
             <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-6">
-              Ready to ditch the credits?
+              Ship your next feature tonight.
             </h2>
             <p className="text-lg text-[#8a8f98] mb-10 max-w-lg mx-auto">
-              Join developers who are shipping Roblox games faster with AI-powered code generation.
+              Join Roblox developers who go from idea to working Luau code in minutes — without leaving the browser.
             </p>
             
             <button
@@ -362,7 +369,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             >
               <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.1)_30%,rgba(204,255,0,0.1)_40%,transparent_50%)] bg-[length:200%_auto]" />
               <span className="relative z-10 flex items-center gap-2">
-                Start Building Now
+                Start Building for Free
                 <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </span>
             </button>
@@ -388,12 +395,13 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Twitter</a>
             <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">GitHub</a>
             <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Discord</a>
-            <a href="/tos" className="text-sm text-[#8a8f98] hover:text-white transition-colors">TOS</a>
+            <a href="/tos" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Terms</a>
+            <a href="/privacy" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Privacy</a>
             <a href="/eula" className="text-sm text-[#8a8f98] hover:text-white transition-colors">EULA</a>
           </div>
 
-          <p className="text-[11px] text-[#8a8f98]">
-            Open source · Not affiliated with Roblox Corporation
+          <p className="text-[11px] text-[#8a8f98] text-center md:text-right max-w-xs">
+            Independent open-source project. Not affiliated with or endorsed by Roblox Corporation. Roblox® is a trademark of Roblox Corporation.
           </p>
         </div>
       </footer>
@@ -404,13 +412,13 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           <div className="w-full max-w-2xl bg-[#111113] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="h-16 flex items-center px-8 border-b border-white/5 bg-[#0a0a0c]">
-              <span className="font-bold text-lg tracking-wide text-white">Before you log in...</span>
+              <span className="font-bold text-lg tracking-wide text-white">How we authenticate you</span>
             </div>
             
             {/* Body */}
             <div className="p-8 sm:p-10 overflow-y-auto max-h-[75vh]">
               <p className="text-[#8a8f98] text-base leading-relaxed mb-8">
-                You will be redirected to the official Roblox authorization screen. Here is what you'll be asked and what it means for your privacy:
+                Clicking &ldquo;Continue&rdquo; will open the <strong className="text-white">official Roblox authorization screen</strong> — hosted at roblox.com and operated entirely by Roblox. Here is exactly what is shared and how it is used:
               </p>
               
               <div className="space-y-6">
@@ -420,16 +428,25 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                     <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
                       <span className="text-blue-400 font-bold">1</span>
                     </div>
-                    <h3 className="text-lg font-semibold text-white">Your Roblox Profile</h3>
+                    <h3 className="text-lg font-semibold text-white">Your Roblox Profile (via OAuth 2.0)</h3>
                   </div>
                   <p className="text-sm text-[#8a8f98] mb-4">
-                    Roblox will ask you to share your <strong className="text-white">User ID</strong> and <strong className="text-white">Profile</strong>. 
+                    Roblox will ask you to grant Apple Juice access to your <strong className="text-white">User ID</strong> and <strong className="text-white">public profile</strong>, as shown on Roblox&apos;s consent screen.
                   </p>
                   <ul className="text-sm text-[#8a8f98] space-y-2 list-disc pl-5">
-                    <li>We only use this to know who you are and display your avatar on the dashboard.</li>
-                    <li><strong className="text-[#ccff00]">We NEVER see your password.</strong></li>
-                    <li><strong className="text-[#ccff00]">We NEVER see your Robux or Inventory.</strong></li>
+                    <li>We use your User ID to identify your dashboard session and display your avatar.</li>
+                    <li><strong className="text-[#ccff00]">We NEVER receive your password.</strong></li>
+                    <li><strong className="text-[#ccff00]">We NEVER receive your Robux balance, purchase history, or inventory.</strong></li>
+                    <li>You can revoke access at any time via your Roblox account settings under &ldquo;Connected Apps&rdquo;.</li>
                   </ul>
+                  {/* Why OAuth? callout */}
+                  <div className="mt-4 flex items-start gap-2.5 p-3 rounded-lg bg-white/5 border border-white/10">
+                    <span className="text-[#ccff00] text-sm font-bold flex-shrink-0 mt-0.5">?</span>
+                    <p className="text-xs text-[#8a8f98] leading-relaxed">
+                      <strong className="text-white">Why OAuth 2.0?</strong>{" "}
+                      OAuth ensures we never touch your password and allows you to revoke Apple Juice&apos;s access instantly from your Roblox Security settings — no contacting us required.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Section 2 */}
@@ -438,39 +455,75 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                     <div className="h-8 w-8 rounded-full bg-[#ccff00]/10 flex items-center justify-center border border-[#ccff00]/20">
                       <span className="text-[#ccff00] font-bold">2</span>
                     </div>
-                    <h3 className="text-lg font-semibold text-white">The Studio Plugin</h3>
+                    <h3 className="text-lg font-semibold text-white">The Studio Plugin (separate install)</h3>
                   </div>
                   <p className="text-sm text-[#8a8f98] mb-4">
-                    Once you're in the dashboard, you can install the Apple Juice Studio plugin. Here is what the plugin does:
+                    After signing in, you can install the Apple Juice plugin from the Roblox Creator Store. Here is exactly what it does — and what it does not:
                   </p>
                   <ul className="text-sm text-[#8a8f98] space-y-3">
                     <li className="flex items-start gap-2">
                        <span className="text-yellow-500 mt-0.5 flex-shrink-0">●</span> 
-                       <span><strong className="text-white">Modify Scripts (Medium Risk):</strong> The plugin creates and overwrites scripts in your game <em>only</em> when you ask the AI to generate code.</span>
+                       <span><strong className="text-white">Write Scripts (Medium Risk):</strong> Creates or overwrites scripts in your place <em>only</em> when you explicitly trigger a generation.</span>
                     </li>
                     <li className="flex items-start gap-2">
                        <span className="text-green-500 mt-0.5 flex-shrink-0">●</span> 
-                       <span><strong className="text-white">Read Explorer Tree (Low Risk):</strong> The plugin reads your folder structure (like <code className="text-white/60 bg-white/5 px-1 rounded">ReplicatedStorage</code>) so the AI knows where to put your code.</span>
+                       <span><strong className="text-white">Read Explorer Tree (Low Risk):</strong> Reads your folder structure (e.g. <code className="text-white/60 bg-white/5 px-1 rounded">ReplicatedStorage</code>) so the AI places files correctly.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                       <span className="text-white/30 mt-0.5 flex-shrink-0">●</span> 
+                       <span><strong className="text-white">No account access:</strong> The plugin cannot read your Roblox credentials, Robux, or any data outside the open Studio session.</span>
                     </li>
                   </ul>
+                </div>
+
+                {/* Step 3 — Next Steps */}
+                <div className="bg-[#1a1a1c] border border-white/5 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                      <span className="text-white/60 font-bold">3</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">What happens after you sign in</h3>
+                  </div>
+                  <p className="text-sm text-[#8a8f98] mb-4">
+                    Once authorized, follow these three steps to go live:
+                  </p>
+                  <ol className="text-sm text-[#8a8f98] space-y-3">
+                    <li className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-[#ccff00]/10 border border-[#ccff00]/30 text-[#ccff00] text-[11px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                      <span><strong className="text-white">Open Roblox Studio</strong> and install the Apple Juice plugin from the Creator Store.</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-[#ccff00]/10 border border-[#ccff00]/30 text-[#ccff00] text-[11px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                      <span><strong className="text-white">Copy your Pairing Token</strong> from the dashboard and paste it into the plugin to link your session.</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-[#ccff00]/10 border border-[#ccff00]/30 text-[#ccff00] text-[11px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                      <span><strong className="text-white">Click &ldquo;Fetch Context&rdquo;</strong> in the plugin to sync your Explorer tree. You&apos;re ready to generate.</span>
+                    </li>
+                  </ol>
                 </div>
               </div>
             </div>
             
             {/* Footer */}
-            <div className="px-6 py-5 border-t border-white/5 bg-[#0a0a0c] flex items-center justify-between sm:justify-end sm:gap-4">
-              <button 
-                onClick={() => setShowAuthGuide(false)}
-                className="px-6 py-2.5 rounded-lg border border-white/10 text-white hover:bg-white/5 text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
-                className="px-8 py-2.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-sm font-bold transition-colors shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-              >
-                Continue to Roblox Login
-              </button>
+            <div className="px-6 py-5 border-t border-white/5 bg-[#0a0a0c] flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-[11px] text-[#8a8f98] text-center sm:text-left">
+                Apple Juice is an independent project. Not affiliated with Roblox Corporation.
+              </p>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setShowAuthGuide(false)}
+                  className="px-6 py-2.5 rounded-lg border border-white/10 text-white hover:bg-white/5 text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
+                  className="px-8 py-2.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-sm font-bold transition-colors shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                >
+                  Continue to Roblox Sign-In →
+                </button>
+              </div>
             </div>
           </div>
         </div>

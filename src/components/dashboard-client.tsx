@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState } from "react";
-import { WandSparkles, Paperclip, Zap, Brain, X } from "lucide-react";
+import { Paperclip, Zap, Brain, X } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,6 +72,40 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const pendingPayloadRef = useRef<any>(null);
   const stepTimeoutsRef = useRef<any[]>([]);
 
+  const examplePrompts = useMemo(() => [
+    "Make a combat system...",
+    "Make a pet system...",
+    "Create a shop UI with a coin system...",
+    "Make a round system..."
+  ], []);
+  
+  const [placeholderText, setPlaceholderText] = useState("");
+  const [promptIndex, setPromptIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (messages.length > 0) return;
+    
+    const currentPrompt = examplePrompts[promptIndex];
+    const speed = isDeleting ? 30 : 60;
+    
+    const timeout = setTimeout(() => {
+      if (!isDeleting && placeholderText === currentPrompt) {
+        setTimeout(() => setIsDeleting(true), 2000);
+      } else if (isDeleting && placeholderText === "") {
+        setIsDeleting(false);
+        setPromptIndex((prev) => (prev + 1) % examplePrompts.length);
+      } else {
+        const nextText = isDeleting 
+          ? currentPrompt.substring(0, placeholderText.length - 1)
+          : currentPrompt.substring(0, placeholderText.length + 1);
+        setPlaceholderText(nextText);
+      }
+    }, speed);
+    
+    return () => clearTimeout(timeout);
+  }, [placeholderText, isDeleting, promptIndex, messages.length, examplePrompts]);
+
   const [projectTree, setProjectTree] = useState<string[]>([]);
   const [atMenu, setAtMenu] = useState<{ visible: boolean; x: number; y: number; filter: string; selectionIndex: number }>({
     visible: false,
@@ -81,7 +115,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     selectionIndex: 0
   });
 
-  const playSound = (type: 'pop' | 'glass' | 'error' | 'whoosh') => {
+  const playSound = (type: 'pop' | 'glass' | 'error' | 'whoosh' | 'success') => {
     const sounds = {
       pop: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3',
       glass: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
@@ -391,22 +425,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     }
   }
 
-  const latestCode = useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-      if (messages[i].role === "assistant") {
-        return messages[i].content;
-      }
-    }
-    return "";
-  }, [messages]);
-
-  async function copyText(value: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-    } catch {
-      // Clipboard failures are safe to ignore in non-secure contexts.
-    }
-  }
 
   function looksLikeGoogleKey(k: string) {
     if (!k) return false;
@@ -657,65 +675,67 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   };
 
   return (
-    <main className="h-screen bg-[#13151a] text-white flex flex-col overflow-hidden">
-      <header className="flex-shrink-0 flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.04] px-6 py-3 bg-[#13151a]/80 backdrop-blur-xl">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#ccff00] shadow-[0_0_12px_rgba(204,255,0,0.25)]">
-                  <svg viewBox="0 0 24 24" className="h-6 w-6 text-black" fill="currentColor">
-                    <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
-                    <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
-                    <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
-                  </svg>
-          </div>
-          <span className="text-sm font-bold text-white tracking-tight">Apple Juice</span>
-          <span className="hidden sm:block text-white/20 text-xs">·</span>
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="Avatar" className="h-6 w-6 rounded-full ring-1 ring-white/20" />
-          ) : (
-            <div className="h-6 w-6 rounded-full bg-[#ccff00]/20 flex items-center justify-center text-[10px] font-bold text-[#ccff00]">
-              {username.charAt(0)}
+    <main className="h-screen bg-[#1c1d21] text-white flex overflow-hidden font-sans">
+      {/* SIDEBAR */}
+      <div className="w-[260px] flex-shrink-0 border-r border-white/[0.04] bg-[#17181c] flex flex-col justify-between relative z-40">
+        <div className="p-5 space-y-6 overflow-y-auto flex-1">
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor">
+                <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
+                <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
+                <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
             </div>
-          )}
-          <span className="hidden sm:block text-[13px] text-white/50">
-            {new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening"}, {username}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all" onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}>
-            Clear
+            <span className="font-bold text-white tracking-tight text-lg">Apple Juice</span>
+            <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/50 uppercase tracking-widest font-bold">pre-beta</span>
+          </div>
+          
+          <button 
+            onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}
+            className="w-full bg-white text-black font-bold py-2.5 rounded-xl hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-sm shadow-md"
+          >
+            + New Project
           </button>
-          <button className={`px-3 py-1.5 rounded-lg text-[13px] transition-all ${showSettings ? 'text-[#ccff00] bg-[#ccff00]/10' : 'text-white/40 hover:text-white/80 hover:bg-white/[0.06]'}`} onClick={() => setShowSettings((open) => !open)}>
-            Settings
-          </button>
-          <button className="px-3 py-1.5 rounded-lg text-[13px] text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all" onClick={() => signOut({ callbackUrl: "/" })}>
-            Sign Out
-          </button>
-        </div>
-      </header>
-
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        <div className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 border-r border-white/[0.04] overflow-y-auto p-4 space-y-3 bg-[#13151a]">
+          
+          <div>
+            <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-3">Projects</span>
+            <div className="text-sm text-white/90 cursor-pointer py-1.5 flex items-center gap-2 bg-white/5 px-3 -mx-3 rounded-lg">
+              <span className={`w-2 h-2 rounded-full ${isPluginConnected ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+              Active Session
+            </div>
+            <div className="text-sm text-white/40 cursor-pointer py-1.5 px-3 -mx-3 flex items-center gap-2 mt-1 hover:text-white transition-colors">
+              <span className="w-2 h-2 rounded-full border border-white/20"></span>
+              Archived
+            </div>
+          </div>
+          
+          <div>
+            <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-3">Settings</span>
+            <button className={`text-sm py-1.5 px-3 -mx-3 w-[calc(100%+1.5rem)] text-left flex items-center gap-2 transition-colors rounded-lg ${showSettings ? 'text-white bg-white/5' : 'text-white/60 hover:text-white hover:bg-white/[0.02]'}`} onClick={() => setShowSettings((open) => !open)}>
+              Configure Models
+            </button>
+          </div>
+          
           {showSettings && (
-            <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-5 space-y-5 animate-in fade-in slide-in-from-top-3 duration-200">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-white/30">Settings</p>
+            <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-4 space-y-4 animate-in fade-in slide-in-from-top-3 duration-200">
               <div>
                 <label className="text-[12px] font-medium text-white/50 mb-2 block">Provider</label>
                 <select
                   id="provider-select"
                   value={provider}
                   onChange={(e) => {
-                    const val = (e.target.value as "openai" | "google");
+                    const val = e.target.value as "openai" | "google";
                     const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
                     const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
                     setProvider(val);
                     setOpenaiKey(storedOpen);
                     setGoogleKey(storedGoogle);
-                    const newKey = val === "google" ? storedGoogle : storedOpen;
+                    const newKey = val == "google" ? storedGoogle : storedOpen;
                     setApiKey(newKey);
                     window.localStorage.setItem("apple-juice-provider", val);
                   }}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
                 >
                   <option value="openai" className="bg-[#13151a]">OpenAI</option>
                   <option value="google" className="bg-[#13151a]">Google AI Studio</option>
@@ -723,27 +743,27 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               </div>
               <div>
                 <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
-                  API Key <span className="text-white/25 font-normal">(saved locally)</span>
+                  API Key
                 </label>
                 <div className="flex gap-2">
                   <Input
                     id="api-key-input"
                     type="password"
-                    value={provider === "google" ? googleKey : openaiKey}
+                    value={provider == "google" ? googleKey : openaiKey}
                     onChange={(event) => {
                       const v = event.target.value;
-                      if (provider === "google") setGoogleKey(v);
+                      if (provider == "google") setGoogleKey(v);
                       else setOpenaiKey(v);
                       setApiKey(v);
                     }}
-                    placeholder={provider === "google" ? "Google API Key" : "sk-..."}
-                    className="flex-1 bg-white/[0.04] border-white/[0.08] h-9 text-sm focus:border-[#ccff00]/40"
+                    placeholder={provider == "google" ? "Google API Key" : "sk-..."}
+                    className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
                   />
-                  <button onClick={saveApiKey} className="px-3 py-2 bg-[#ccff00] text-black text-[12px] font-semibold rounded-xl hover:bg-[#d4ff33] transition-colors whitespace-nowrap">
+                  <button onClick={saveApiKey} className="px-2.5 py-1.5 bg-white/10 text-white text-[11px] rounded-lg hover:bg-white/20 transition-colors">
                     Save
                   </button>
                 </div>
-                <button onClick={() => loadModels()} disabled={isLoadingModels} className="mt-2 text-[12px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40">
+                <button onClick={() => loadModels()} disabled={isLoadingModels} className="mt-2 text-[11px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40">
                   {isLoadingModels ? "Loading models..." : "↻ Refresh models"}
                 </button>
               </div>
@@ -757,7 +777,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     setSelectedModel(value);
                     window.localStorage.setItem("apple-juice-model", value);
                   }}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
+                  className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
                 >
                   {availableModels.map((model) => (
                     <option key={model} value={model} className="bg-[#13151a]">{model}</option>
@@ -767,386 +787,410 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             </div>
           )}
 
-          {/* Plugin Status */}
-          <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className={`relative flex h-2.5 w-2.5`}>
-                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${isPluginConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isPluginConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                </span>
-                <span className="text-sm font-medium text-white/80">
-                  {isPluginConnected ? "Plugin connected" : "Waiting for plugin"}
-                </span>
-              </div>
-              <button className="text-[11px] text-white/25 hover:text-white/60 transition-colors px-2 py-1 rounded-lg hover:bg-white/[0.04]" onClick={() => void createPairOnServer()}>Reset</button>
+          {/* Plugin Status Summary */}
+          <div className="bg-white/[0.03] border border-white/[0.04] rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`relative flex h-2.5 w-2.5`}>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${isPluginConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isPluginConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              </span>
+              <span className="text-[13px] font-medium text-white/80">
+                {isPluginConnected ? "Studio Connected" : "Waiting for Studio"}
+              </span>
             </div>
-            <p className="mt-2 text-[12px] text-white/30 leading-relaxed">{pluginStatus}</p>
+            <p className="text-[11px] text-white/40 leading-relaxed">{pluginStatus}</p>
           </div>
-
-          {latestCode && (
-            <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-100">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-semibold text-white/50 uppercase tracking-wider">Latest Script</span>
-                <button className="text-[11px] text-white/30 hover:text-[#ccff00] transition-colors" onClick={() => copyText(latestCode)}>Copy ↗</button>
-              </div>
-              {lastError && (
-                <div className="mb-3 p-2.5 rounded-xl bg-red-500/[0.08] border border-red-500/20">
-                  <p className="text-red-400/90 text-[11px] font-mono break-words leading-relaxed">{lastError}</p>
-                </div>
-              )}
-              <pre className="max-h-44 overflow-auto font-mono text-[11px] bg-black/40 border border-white/[0.04] rounded-xl p-3 text-white/50 leading-relaxed">
-                <code>{latestCode}</code>
-              </pre>
-            </div>
-          )}
-
+          
           {gameLogs.length > 0 && (
-            <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-500 delay-150">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[12px] font-semibold text-white/50 uppercase tracking-wider">Game Logs</span>
-                <div className="flex gap-3">
-                  <button className="text-[11px] text-white/25 hover:text-red-400 transition-colors" onClick={() => setGameLogs([])}>Clear</button>
-                  <button className="text-[11px] text-[#ccff00]/60 hover:text-[#ccff00] transition-colors" onClick={() => {
-                    submitPrompt("Please analyze these game logs and help me fix any errors:\n" + gameLogs.join("\n"));
-                    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-                  }}>✦ Analyze</button>
-                </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Logs</span>
+                <button className="text-[10px] text-white/30 hover:text-red-400 transition-colors" onClick={() => setGameLogs([])}>Clear</button>
               </div>
-              <div className="max-h-44 overflow-auto font-mono text-[11px] bg-black/40 border border-white/[0.04] rounded-xl p-3 text-white/40 space-y-0.5 leading-relaxed">
+              <div className="max-h-32 overflow-auto font-mono text-[10px] bg-black/40 rounded-xl p-2.5 text-white/40 space-y-0.5">
                 {gameLogs.map((log, i) => {
                   const isError = log.toLowerCase().includes("error") || log.toLowerCase().includes("exception");
                   return <div key={i} className={isError ? "text-red-400" : ""}>{log}</div>;
                 })}
-                <div ref={logsEndRef} />
               </div>
             </div>
           )}
         </div>
+        
+        <div className="p-4 border-t border-white/[0.04] space-y-2">
+           <button className="w-full bg-white/[0.03] border border-white/[0.04] text-white/70 hover:text-white py-2.5 rounded-xl flex items-center justify-between px-4 transition-colors">
+             <div className="flex flex-col items-start">
+               <span className="text-[13px] font-semibold">Discord</span>
+               <span className="text-[10px] text-white/40">Join for gifts</span>
+             </div>
+             <span className="text-white/30">&rsaquo;</span>
+           </button>
+           <button className="w-full text-white/30 hover:text-white py-1.5 rounded-lg text-[11px] transition-colors" onClick={() => signOut({ callbackUrl: "/" })}>
+             Sign Out
+           </button>
+        </div>
+      </div>
+      
+      {/* MAIN CONTENT */}
+      <div className="flex-1 flex flex-col h-full bg-[#1c1d21] relative overflow-hidden">
+        {/* Top Right Header */}
+        <header className="absolute top-0 right-0 p-6 flex items-center gap-4 z-50 pointer-events-none w-full justify-end">
+           <div className="pointer-events-auto flex items-center gap-4">
+             <div className="bg-[#10b981] text-white font-bold px-4 py-2 rounded-full text-xs shadow-lg shadow-[#10b981]/20 cursor-pointer hover:bg-[#0ea5e9] hover:shadow-[#0ea5e9]/20 transition-all">
+               Store Purchases
+             </div>
+             <div className="text-white/50 hover:text-white cursor-pointer transition-colors">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+             </div>
+             {avatarUrl ? (
+                <img src={avatarUrl} className="w-8 h-8 rounded-full ring-2 ring-white/10" />
+             ) : (
+                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold ring-2 ring-white/10">{username.charAt(0)}</div>
+             )}
+           </div>
+        </header>
 
-        {/* RIGHT SIDE (CHAT) */}
-        <div className="flex-1 flex flex-col h-full bg-[#181a20] relative overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 flex flex-col">
-            {messages.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="max-w-md text-center animate-in fade-in zoom-in-95 duration-700">
-                  <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ccff00]/10 border border-[#ccff00]/20 text-[#ccff00]">
-                    <WandSparkles className="h-7 w-7" />
-                  </div>
-                  <h2 className="text-2xl font-bold tracking-tight text-white mb-2">What do you want to build?</h2>
-                  <p className="text-sm text-white/40 leading-relaxed">
-                    Describe your idea and get working Luau code synced directly to Roblox Studio.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <div key={message.id} className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-2xl text-[14px] leading-relaxed ${
-                    message.role === 'user'
-                      ? 'bg-white/[0.08] text-white border border-white/[0.12] rounded-br-sm'
-                      : 'bg-white/[0.04] text-white/85 border border-white/[0.07] rounded-bl-sm'
-                  }`}>
-                    <div className="space-y-3">
-                    {message.attachments && message.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {message.attachments.map((a, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/40">
-                            <Paperclip className="h-2.5 w-2.5" />
-                            {a.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+        {/* Dynamic Chat Area */}
+        <div className="flex-1 overflow-y-auto relative z-10 flex flex-col w-full items-center">
+          {messages.length == 0 && (
+            /* EMPTY STATE BACKGROUND */
+            <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center z-0">
+               <div className="relative w-full max-w-5xl h-[600px] flex items-center justify-center">
+                 <div className="absolute top-[15%] left-[5%] w-48 h-32 bg-[#2a2c33]/80 rounded-xl opacity-40 rotate-[-8deg] blur-[2px] shadow-2xl overflow-hidden border border-white/5">
+                   <div className="w-full h-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 mix-blend-overlay"></div>
+                 </div>
+                 <div className="absolute top-[20%] right-[10%] w-56 h-36 bg-[#2a2c33]/80 rounded-xl opacity-50 rotate-[6deg] blur-[1px] shadow-2xl overflow-hidden border border-white/5">
+                   <div className="w-full h-full bg-gradient-to-bl from-[#ccff00]/10 to-transparent mix-blend-overlay"></div>
+                 </div>
+                 <div className="absolute bottom-[20%] left-[15%] w-40 h-28 bg-[#2a2c33]/80 rounded-xl opacity-30 rotate-[12deg] blur-[3px] shadow-2xl overflow-hidden border border-white/5">
+                   <div className="w-full h-full bg-gradient-to-tr from-sky-500/10 to-transparent mix-blend-overlay"></div>
+                 </div>
+                 <div className="absolute bottom-[15%] right-[20%] w-64 h-40 bg-[#2a2c33]/80 rounded-xl opacity-60 rotate-[-4deg] shadow-2xl overflow-hidden border border-white/5">
+                   <div className="w-full h-full bg-gradient-to-tl from-emerald-500/10 to-transparent mix-blend-overlay"></div>
+                 </div>
+               </div>
+            </div>
+          )}
 
-                    <p className="whitespace-pre-wrap leading-relaxed">
-                      {message.content}
-                    </p>
-
-                    {message.thinking && (
-                      <details className="group mt-2">
-                        <summary className="cursor-pointer text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1">
-                          <Brain className="h-3 w-3" />
-                          <span>View reasoning</span>
-                        </summary>
-                        <div className="mt-2 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] text-[13px] text-white/40 whitespace-pre-wrap">
-                          {message.thinking}
-                        </div>
-                      </details>
-                    )}
-                    
-                    {message.script && (
-                      <ScriptCard script={message.script} />
-                    )}
-
-                    {message.scripts && message.scripts.length > 0 && (
-                      <div className="space-y-2 w-full max-w-[500px]">
-                        {message.scripts.length > 1 && <SystemArchitecture scripts={message.scripts} />}
-                        <p className="text-[12px] font-medium text-white/30">{message.scripts.length} scripts generated</p>
-                        {message.scripts.map((s, i) => (
-                          <ScriptCard key={i} script={s} />
-                        ))}
-                      </div>
-                    )}
-
-                    {message.suggestions && message.suggestions.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                        <div className="flex flex-wrap gap-1.5">
-                          {message.suggestions.map((sugg, i) => (
-                            <button 
-                              key={i} 
-                              className="text-[12px] px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
-                              onClick={() => setPrompt(sugg)}
-                            >
-                              {sugg}
-                            </button>
+          {messages.length > 0 && (
+            /* CHAT MESSAGES */
+            <div className="flex-1 flex flex-col pt-24 pb-56 px-4 md:px-10 lg:px-20 max-w-5xl w-full">
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div key={message.id} className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${message.role == 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-2xl text-[14px] leading-relaxed ${
+                      message.role == 'user'
+                        ? 'bg-white/[0.08] text-white border border-white/[0.12] rounded-br-sm'
+                        : 'bg-transparent text-white border border-white/[0.07] rounded-bl-sm bg-gradient-to-b from-white/[0.03] to-white/[0.01] shadow-lg'
+                    }`}>
+                      <div className="space-y-3">
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {message.attachments.map((a, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/40">
+                              <Paperclip className="h-2.5 w-2.5" />
+                              {a.name}
+                            </span>
                           ))}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-            
-            {isGenerating && <ThinkingFeed steps={thinkingSteps} />}
-            <div ref={chatEndRef} className="h-px w-full" />
-          </div>
+                      )}
 
-          {/* Input Bar */}
-          <div className="flex-shrink-0 border-t border-white/[0.04] p-4 bg-[#13151a]">
-            <div className="w-full space-y-3">
-              {attachedFiles.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {attachedFiles.map((f, i) => (
-                    <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.12] text-[11px] text-white/80">
-                      <Paperclip className="h-2.5 w-2.5" />
-                      {f.name}
-                      <button onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))} className="ml-0.5 hover:text-white transition-colors">
-                        <X className="h-2.5 w-2.5" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
+                      <p className="whitespace-pre-wrap leading-relaxed text-white/90">
+                        {message.content}
+                      </p>
 
-              <div className="relative group/input">
-                <Textarea
-                  value={prompt}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setPrompt(val);
-
-                    const selectionStart = e.target.selectionStart;
-                    const textBeforeCursor = val.slice(0, selectionStart);
-                    const lastAt = textBeforeCursor.lastIndexOf('@');
-
-                    if (lastAt !== -1 && (lastAt === 0 || textBeforeCursor[lastAt - 1] === ' ')) {
-                      const filter = textBeforeCursor.slice(lastAt + 1);
-                      if (!filter.includes(' ')) {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setAtMenu({
-                          visible: true,
-                          x: rect.left,
-                          y: rect.top - 120, // offset for menu
-                          filter,
-                          selectionIndex: 0
-                        });
-                        return;
-                      }
-                    }
-                    setAtMenu(prev => ({ ...prev, visible: false }));
-                  }}
-                  onKeyDown={(e) => {
-                    if (atMenu.visible) {
-                      const filtered = projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase()));
-                      if (e.key === "ArrowDown") {
-                        e.preventDefault();
-                        setAtMenu(prev => ({ ...prev, selectionIndex: (prev.selectionIndex + 1) % filtered.length }));
-                      } else if (e.key === "ArrowUp") {
-                        e.preventDefault();
-                        setAtMenu(prev => ({ ...prev, selectionIndex: (prev.selectionIndex - 1 + filtered.length) % filtered.length }));
-                      } else if (e.key === "Enter" || e.key === "Tab") {
-                        e.preventDefault();
-                        const selected = filtered[atMenu.selectionIndex];
-                        if (selected) {
-                          const textBeforeAt = prompt.slice(0, prompt.lastIndexOf('@'));
-                          const textAfterAt = prompt.slice(e.currentTarget.selectionStart);
-                          setPrompt(textBeforeAt + "@" + selected + " " + textAfterAt);
-                          setAtMenu(prev => ({ ...prev, visible: false }));
-                          
-                          // Trigger request for file content
-                          fetch('/api/request-file', {
-                            method: 'POST',
-                            body: JSON.stringify({ key: sessionKey, fileName: selected })
-                          }).catch(() => {});
-                        }
-                      } else if (e.key === "Escape") {
-                        setAtMenu(prev => ({ ...prev, visible: false }));
-                      }
-                    } else if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      submitPrompt();
-                    }
-                  }}
-                  placeholder={isPluginConnected ? "Ask the AI to build something... (use @ to mention a script)" : "Connect your plugin to start building..."}
-                  className="min-h-[100px] w-full resize-none bg-[#111113]/50 border-white/5 pr-20 pt-4 text-white placeholder:text-white/20 focus-visible:ring-[#ccff00]/20 rounded-2xl backdrop-blur-xl"
-                  disabled={!isPluginConnected || isGenerating}
-                />
-
-                {atMenu.visible && (
-                  <div 
-                    className="fixed z-[200] w-64 bg-[#111113] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
-                    style={{ left: atMenu.x, top: atMenu.y - (Math.min(projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase())).length, 5) * 40) }}
-                  >
-                    <div className="px-3 py-2 border-b border-white/5 bg-white/5">
-                      <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Select Script</span>
-                    </div>
-                    <div className="max-h-[200px] overflow-y-auto">
-                      {projectTree
-                        .filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase()))
-                        .slice(0, 10)
-                        .map((file, i) => (
-                          <div 
-                            key={file}
-                            className={`px-4 py-2 text-sm cursor-pointer flex items-center gap-2 transition-colors ${i === atMenu.selectionIndex ? 'bg-[#ccff00]/10 text-[#ccff00]' : 'text-white/60 hover:bg-white/5'}`}
-                            onClick={() => {
-                              const textBeforeAt = prompt.slice(0, prompt.lastIndexOf('@'));
-                              const textAfterAt = prompt.slice(prompt.lastIndexOf('@') + atMenu.filter.length + 1);
-                              setPrompt(textBeforeAt + "@" + file + " " + textAfterAt);
-                              setAtMenu(prev => ({ ...prev, visible: false }));
-                              fetch('/api/request-file', {
-                                method: 'POST',
-                                body: JSON.stringify({ key: sessionKey, fileName: file })
-                              }).catch(() => {});
-                            }}
-                          >
-                            <Brain className="h-3.5 w-3.5 opacity-50" />
-                            <span className="truncate">{file}</span>
+                      {message.thinking && (
+                        <details className="group mt-2">
+                          <summary className="cursor-pointer text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1">
+                            <Brain className="h-3 w-3" />
+                            <span>View reasoning</span>
+                          </summary>
+                          <div className="mt-2 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] text-[13px] text-white/40 whitespace-pre-wrap">
+                            {message.thinking}
                           </div>
-                        ))}
-                      {projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase())).length === 0 && (
-                        <div className="px-4 py-3 text-xs text-white/30 italic">No scripts found...</div>
+                        </details>
+                      )}
+                      
+                      {message.script && (
+                        <ScriptCard script={message.script} />
+                      )}
+
+                      {message.scripts && message.scripts.length > 0 && (
+                        <div className="space-y-2 w-full max-w-[500px]">
+                          {message.scripts.length > 1 && <SystemArchitecture scripts={message.scripts} />}
+                          <p className="text-[12px] font-medium text-white/30">{message.scripts.length} scripts generated</p>
+                          {message.scripts.map((s, i) => (
+                            <ScriptCard key={i} script={s} />
+                          ))}
+                        </div>
+                      )}
+
+                      {message.suggestions && message.suggestions.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                          <div className="flex flex-wrap gap-1.5">
+                            {message.suggestions.map((sugg, i) => (
+                              <button 
+                                key={i} 
+                                className="text-[12px] px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                                onClick={() => setPrompt(sugg)}
+                              >
+                                {sugg}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
-                )}
+                </div>
+              ))}
               </div>
+              {isGenerating && <ThinkingFeed steps={thinkingSteps} />}
+              <div ref={chatEndRef} className="h-px w-full mt-4" />
+            </div>
+          )}
+        </div>
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".lua,.luau,.txt,.json,.md,.csv,.ts,.js"
-                className="hidden"
-                onChange={(e) => {
-                  const files = e.target.files;
-                  if (!files) return;
-                  Array.from(files).forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      setAttachedFiles(prev => [...prev, { name: file.name, content: reader.result as string }]);
-                    };
-                    reader.readAsText(file);
-                  });
-                  e.target.value = "";
-                }}
-              />
-
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  {/* Mode toggle */}
-                  <div className="flex items-center bg-white/[0.04] rounded-xl border border-white/[0.07] p-0.5">
-                    <button
-                      onClick={() => setMode("fast")}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
-                        mode === "fast"
-                          ? "bg-[#ccff00]/15 text-[#ccff00] shadow-sm"
-                          : "text-white/40 hover:text-white/70"
-                      }`}
-                    >
-                      <Zap className="h-3 w-3" />
-                      Fast
-                    </button>
-                    <button
-                      onClick={() => setMode("thinking")}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
-                        mode === "thinking"
-                          ? "bg-violet-500/15 text-violet-400 shadow-sm"
-                          : "text-white/40 hover:text-white/70"
-                      }`}
-                    >
-                      <Brain className="h-3 w-3" />
-                      Thinking
-                    </button>
+        {/* The Universal Input Bar wrapper */}
+        <div className={`transition-all duration-700 ease-in-out ${messages.length == 0 ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4 z-30 bg-transparent" : "absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#1c1d21] via-[#1c1d21] to-transparent pt-12 pb-6 px-4 flex justify-center z-20"}`}>
+          
+          <div className="w-full flex flex-col items-center">
+            {messages.length == 0 && (
+              <div className="text-center mb-6">
+                <h1 className="text-[32px] md:text-[42px] font-medium tracking-tight text-white drop-shadow-xl leading-tight">
+                  Describe a <span className="font-serif italic text-white/80">game mechanic...</span>
+                </h1>
+              </div>
+            )}
+            
+            <div className={`w-full ${messages.length == 0 ? "bg-[#2b2d31]/90 backdrop-blur-xl shadow-2xl" : "max-w-4xl bg-[#26282d]"} border border-white/[0.05] rounded-2xl p-3`}>
+              <div className="w-full space-y-3">
+                {attachedFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {attachedFiles.map((f, i) => (
+                      <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.12] text-[11px] text-white/80">
+                        <Paperclip className="h-2.5 w-2.5" />
+                        {f.name}
+                        <button onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx != i))} className="ml-0.5 hover:text-white transition-colors">
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </span>
+                    ))}
                   </div>
+                )}
 
-                  <button
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/40 hover:text-white/70 hover:bg-white/[0.05] border border-white/[0.07] transition-all"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Paperclip className="h-3 w-3" />
-                    Attach
-                  </button>
+                <div className="relative group/input">
+                  <Textarea
+                    value={prompt}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPrompt(val);
 
-                  {(provider === "google" ? googleKey.trim() : openaiKey.trim()).length === 0 ? (() => {
-                    const pct = Math.max(0, Math.min(100, ((usage.totalTokens - usage.usedTokens) / usage.totalTokens) * 100));
-                    const hue = Math.floor((pct / 100) * 75);
-                    const colorFill = `hsla(${hue}, 100%, 50%, 0.15)`;
-                    const colorSolid = `hsla(${hue}, 100%, 50%, 0.08)`;
-                    const textColor = `hsl(${hue}, 100%, 50%)`;
-                    return (
-                      <div className="hidden sm:flex relative h-7 w-40 bg-white/[0.03] rounded-lg overflow-hidden border border-white/[0.06] items-center justify-center group">
-                        <div 
-                          className="absolute left-0 right-0 bottom-0 transition-all duration-700"
-                          style={{ 
-                            height: `${pct}%`,
-                            backgroundColor: colorSolid,
-                          }}
-                        >
-                          {pct > 0 && (
-                            <div 
-                              className="absolute left-0 right-0 top-[-8px] h-[8px] animate-wave"
-                              style={{
-                                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 800 10' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,5 Q100,0 200,5 T400,5 T600,5 T800,5 L800,10 L0,10 Z' fill='${encodeURIComponent(colorFill)}'/%3E%3C/svg%3E")`,
-                                backgroundSize: '200% 100%'
-                              }}
-                            />
-                          )}
-                        </div>
-                        <span className="relative z-10 text-[10px] font-mono tracking-tight text-white/50">
-                          <span style={{ color: textColor }} className="font-medium">{Math.max(0, usage.totalTokens - usage.usedTokens).toLocaleString()}</span> / {usage.totalTokens.toLocaleString()}
-                        </span>
+                      const selectionStart = e.target.selectionStart;
+                      const textBeforeCursor = val.slice(0, selectionStart);
+                      const lastAt = textBeforeCursor.lastIndexOf('@');
+
+                      if (lastAt != -1 && (lastAt == 0 || textBeforeCursor[lastAt - 1] == ' ')) {
+                        const filter = textBeforeCursor.slice(lastAt + 1);
+                        if (!filter.includes(' ')) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setAtMenu({
+                            visible: true,
+                            x: rect.left,
+                            y: rect.top - 120,
+                            filter,
+                            selectionIndex: 0
+                          });
+                          return;
+                        }
+                      }
+                      setAtMenu(prev => ({ ...prev, visible: false }));
+                    }}
+                    onKeyDown={(e) => {
+                      if (atMenu.visible) {
+                        const filtered = projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase()));
+                        if (e.key == "ArrowDown") {
+                          e.preventDefault();
+                          setAtMenu(prev => ({ ...prev, selectionIndex: (prev.selectionIndex + 1) % filtered.length }));
+                        } else if (e.key == "ArrowUp") {
+                          e.preventDefault();
+                          setAtMenu(prev => ({ ...prev, selectionIndex: (prev.selectionIndex - 1 + filtered.length) % filtered.length }));
+                        } else if (e.key == "Enter" || e.key == "Tab") {
+                          e.preventDefault();
+                          const selected = filtered[atMenu.selectionIndex];
+                          if (selected) {
+                            const textBeforeAt = prompt.slice(0, prompt.lastIndexOf('@'));
+                            const textAfterAt = prompt.slice(e.currentTarget.selectionStart);
+                            setPrompt(textBeforeAt + "@" + selected + " " + textAfterAt);
+                            setAtMenu(prev => ({ ...prev, visible: false }));
+                            
+                            fetch('/api/request-file', {
+                              method: 'POST',
+                              body: JSON.stringify({ key: sessionKey, fileName: selected })
+                            }).catch(() => {});
+                          }
+                        } else if (e.key == "Escape") {
+                          setAtMenu(prev => ({ ...prev, visible: false }));
+                        }
+                      } else if (e.key == "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        submitPrompt();
+                      }
+                    }}
+                    placeholder={prompt == "" && messages.length == 0 ? placeholderText : (isPluginConnected ? "Ask the AI to build something... (use @ to mention a script)" : "Connect your plugin to start building...")}
+                    className="min-h-[70px] max-h-[250px] w-full resize-none bg-transparent border-transparent px-2 pt-2 text-[15px] text-white placeholder:text-white/30 focus-visible:ring-0 focus:outline-none rounded-none"
+                    disabled={!isPluginConnected || isGenerating}
+                  />
+
+                  {atMenu.visible && (
+                    <div 
+                      className="fixed z-[200] w-64 bg-[#111113] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
+                      style={{ left: atMenu.x, top: atMenu.y - (Math.min(projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase())).length, 5) * 40) }}
+                    >
+                      <div className="px-3 py-2 border-b border-white/5 bg-white/5">
+                        <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Select Script</span>
                       </div>
-                    );
-                  })() : (
-                    <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-[#ccff00]/20">
-                      <span className="text-[11px] font-medium text-[#ccff00]">Custom Key Active</span>
+                      <div className="max-h-[200px] overflow-y-auto">
+                        {projectTree
+                          .filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase()))
+                          .slice(0, 10)
+                          .map((file, i) => (
+                            <div 
+                              key={file}
+                              className={`px-4 py-2 text-sm cursor-pointer flex items-center gap-2 transition-colors ${i == atMenu.selectionIndex ? 'bg-[#ccff00]/10 text-[#ccff00]' : 'text-white/60 hover:bg-white/5'}`}
+                              onClick={() => {
+                                const textBeforeAt = prompt.slice(0, prompt.lastIndexOf('@'));
+                                const textAfterAt = prompt.slice(prompt.lastIndexOf('@') + atMenu.filter.length + 1);
+                                setPrompt(textBeforeAt + "@" + file + " " + textAfterAt);
+                                setAtMenu(prev => ({ ...prev, visible: false }));
+                                fetch('/api/request-file', {
+                                  method: 'POST',
+                                  body: JSON.stringify({ key: sessionKey, fileName: file })
+                                }).catch(() => {});
+                              }}
+                            >
+                              <Brain className="h-3.5 w-3.5 opacity-50" />
+                              <span className="truncate">{file}</span>
+                            </div>
+                          ))}
+                        {projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase())).length == 0 && (
+                          <div className="px-4 py-3 text-xs text-white/30 italic">No scripts found...</div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {lastError && (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".lua,.luau,.txt,.json,.md,.csv,.ts,.js"
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (!files) return;
+                    Array.from(files).forEach(file => {
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        setAttachedFiles(prev => [...prev, { name: file.name, content: reader.result as string }]);
+                      };
+                      reader.readAsText(file);
+                    });
+                    e.target.value = "";
+                  }}
+                />
+
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  <div className="flex items-center gap-2">
+                    {/* Mode toggle */}
+                    <div className="flex items-center bg-black/20 rounded-xl border border-white/[0.04] p-0.5">
+                      <button
+                        onClick={() => setMode("fast")}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                          mode == "fast"
+                            ? "bg-white text-black shadow-sm"
+                            : "text-white/40 hover:text-white/70"
+                        }`}
+                      >
+                        <Zap className="h-3 w-3" />
+                        Fast
+                      </button>
+                      <button
+                        onClick={() => setMode("thinking")}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all ${
+                          mode == "thinking"
+                            ? "bg-violet-500/15 text-violet-400 shadow-sm"
+                            : "text-white/40 hover:text-white/70"
+                        }`}
+                      >
+                        <Brain className="h-3 w-3" />
+                        Thinking
+                      </button>
+                    </div>
+
                     <button
-                      className="px-3 py-2 rounded-xl text-[12px] font-medium text-red-400 bg-red-500/[0.08] border border-red-500/20 hover:bg-red-500/15 transition-all"
-                      onClick={handleAutoFix}
-                      disabled={isGenerating}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/40 hover:text-white hover:bg-white/[0.05] transition-all"
+                      onClick={() => fileInputRef.current?.click()}
                     >
-                      Repair
+                      <Paperclip className="h-3.5 w-3.5" />
+                      Attach
                     </button>
-                  )}
-                  <button
-                    onClick={() => submitPrompt()}
-                    disabled={isGenerating}
-                    className="px-5 py-2 rounded-xl text-[13px] font-semibold bg-[#ccff00] text-black hover:bg-[#d4ff33] disabled:opacity-40 transition-all shadow-[0_0_16px_rgba(204,255,0,0.2)] hover:shadow-[0_0_24px_rgba(204,255,0,0.35)] disabled:shadow-none"
-                  >
-                    {isGenerating ? "Generating..." : "Generate"}
-                  </button>
+
+                    {(provider == "google" ? googleKey.trim() : openaiKey.trim()).length == 0 ? (() => {
+                      const pct = Math.max(0, Math.min(100, ((usage.totalTokens - usage.usedTokens) / usage.totalTokens) * 100));
+                      const colorSolid = `hsla(120, 100%, 50%, 0.15)`;
+                      return (
+                        <div className="hidden sm:flex relative h-8 w-32 bg-black/20 rounded-lg overflow-hidden border border-white/[0.04] items-center justify-center group ml-2">
+                          <div 
+                            className="absolute left-0 right-0 bottom-0 transition-all duration-700"
+                            style={{ height: `${pct}%`, backgroundColor: colorSolid }}
+                          ></div>
+                          <span className="relative z-10 text-[10px] font-mono tracking-tight text-white/60">
+                            {Math.max(0, usage.totalTokens - usage.usedTokens).toLocaleString()} tokens
+                          </span>
+                        </div>
+                      );
+                    })() : null}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {lastError && (
+                      <button
+                        className="px-3 py-2 rounded-xl text-[12px] font-medium text-red-400 hover:bg-red-500/10 transition-all"
+                        onClick={handleAutoFix}
+                        disabled={isGenerating}
+                      >
+                        Repair
+                      </button>
+                    )}
+                    <button
+                      onClick={() => submitPrompt()}
+                      disabled={isGenerating || prompt.trim() == ""}
+                      className="p-2 rounded-xl bg-white text-black hover:bg-zinc-200 disabled:opacity-40 transition-all disabled:shadow-none"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
+            
+            {messages.length == 0 && (
+              <div className="mt-6 flex flex-wrap justify-center gap-3 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                 <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a combat system")}>
+                   <span className="text-[16px]">⚔️</span> Make a combat system
+                 </button>
+                 <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a pet system")}>
+                   <span className="text-[16px]">🐶</span> Make a pet system
+                 </button>
+                 <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a round system")}>
+                   <span className="text-[16px]">⏱️</span> Make a round system
+                 </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

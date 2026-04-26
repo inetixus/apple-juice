@@ -1,3 +1,4 @@
+// @ts-ignore
 import { Redis } from "@upstash/redis";
 
 export type SessionEntry = {
@@ -131,6 +132,33 @@ export async function findSessionKeyByIp(ip: string): Promise<string | null> {
     if (Date.now() > session.expiresAt) return null;
     return sessionKey;
   } catch {
+    return null;
+  }
+}
+
+export async function updateSession(sessionKey: string, updates: Partial<SessionEntry>) {
+  const key = keyFor(sessionKey);
+  const lua = `
+    local raw = redis.call("GET", KEYS[1])
+    if not raw then return nil end
+    local sess = cjson.decode(raw)
+    local updates = cjson.decode(ARGV[1])
+    for k, v in pairs(updates) do
+      if v == cjson.null then
+        sess[k] = nil
+      else
+        sess[k] = v
+      end
+    end
+    redis.call("SET", KEYS[1], cjson.encode(sess))
+    return cjson.encode(sess)
+  `;
+  try {
+    const res = await getRedis().eval(lua, [key], [JSON.stringify(updates)]);
+    if (!res) return null;
+    return (typeof res === "string" ? JSON.parse(res) : res) as SessionEntry;
+  } catch (err) {
+    console.error("updateSession error", err instanceof Error ? err.message : String(err));
     return null;
   }
 }

@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
     await updateSession(key, { 
       requestedFile: fileName,
-      fileResponse: undefined // clear old response
+      fileResponse: null as any // clear old response
     });
 
     return Response.json({ success: true });
