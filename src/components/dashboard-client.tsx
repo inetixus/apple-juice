@@ -36,6 +36,7 @@ type ChatMessage = {
   suggestions?: string[];
   thinking?: string;
   attachments?: { name: string }[];
+  attachedAsset?: { id: number; name: string; thumbnail: string };
   pendingSync?: boolean;
 };
 
@@ -83,6 +84,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [assetResults, setAssetResults] = useState<{ id: number; name: string; creator: string; thumbnail: string }[]>([]);
   const [showAssetSearch, setShowAssetSearch] = useState(false);
   const [isSearchingAssets, setIsSearchingAssets] = useState(false);
+  const [attachedAsset, setAttachedAsset] = useState<{ id: number; name: string; thumbnail: string } | null>(null);
   // Feature: Live Share
 
   const examplePrompts = useMemo(() => [
@@ -479,6 +481,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       role: "user",
       content: trimmed,
       attachments: attachedFiles.length > 0 ? attachedFiles.map(f => ({ name: f.name })) : undefined,
+      attachedAsset: attachedAsset || undefined,
     };
 
     const newMessages = [...messages, userMessage];
@@ -552,8 +555,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: trimmed,
-          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          prompt: attachedAsset 
+            ? `[System Note: The user has attached the Roblox asset "${attachedAsset.name}" (ID: ${attachedAsset.id}) to this message. Please fulfill their request, using this asset if appropriate. If they don't specify what to do with it, insert it into Workspace.]\n\n${trimmed}`
+            : trimmed,
+          messages: newMessages.map(m => ({ 
+            role: m.role, 
+            content: m.attachedAsset 
+              ? `[System Note: Attached Asset "${m.attachedAsset.name}" (ID: ${m.attachedAsset.id})]\n${m.content}`
+              : m.content 
+          })),
           sessionKey,
           apiKey: apiKey.trim(),
           model: selectedModel,
@@ -593,6 +603,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
       const payloadFiles = [...attachedFiles];
       setAttachedFiles([]);
+      setAttachedAsset(null);
 
       function buildAssistantMessage(p: typeof payload, files: { name: string; content: string }[], pendingSync: boolean): ChatMessage {
         return {
@@ -903,6 +914,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                           ))}
                         </div>
                       )}
+                      
+                      {message.attachedAsset && (
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5 border border-purple-500/20 text-[11px] text-white/90 shadow-sm shadow-purple-500/5 mb-2">
+                          <img src={message.attachedAsset.thumbnail} className="w-5 h-5 rounded object-cover" />
+                          <span className="truncate max-w-[150px]">{message.attachedAsset.name}</span>
+                        </div>
+                      )}
 
                       <p className="whitespace-pre-wrap leading-relaxed text-white/90">
                         {message.content}
@@ -996,6 +1014,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               <div className="w-full space-y-3">
                 {attachedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
+                    {attachedAsset && (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/[0.06] border border-purple-500/30 text-[11px] text-white/90 shadow-sm shadow-purple-500/10">
+                        <img src={attachedAsset.thumbnail} className="w-4 h-4 rounded-sm object-cover" />
+                        <span className="truncate max-w-[120px]">{attachedAsset.name}</span>
+                        <button onClick={() => setAttachedAsset(null)} className="ml-0.5 text-white/40 hover:text-white transition-colors">
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </span>
+                    )}
                     {attachedFiles.map((f, i) => (
                       <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.12] text-[11px] text-white/80">
                         <Paperclip className="h-2.5 w-2.5" />
@@ -1345,9 +1372,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     <button
                       key={asset.id}
                       onClick={() => {
-                        setPrompt(`Insert asset ${asset.id} (${asset.name}) into Workspace`);
+                        setAttachedAsset({ id: asset.id, name: asset.name, thumbnail: asset.thumbnail });
                         setShowAssetSearch(false);
-                        showToast(`Selected "${asset.name}" — send the message to insert it`, "success");
                       }}
                       className="group relative bg-white/[0.04] border border-white/[0.08] rounded-xl p-2 hover:bg-white/[0.08] hover:border-[#ccff00]/30 transition-all text-left"
                     >
