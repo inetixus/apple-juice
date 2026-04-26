@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState, useCallback } from "react";
-import { Paperclip, Zap, Brain, X, Search, Share2, Shield } from "lucide-react";
+import { Paperclip, Zap, Brain, X, Search, Share2 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,8 +76,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const pendingPayloadRef = useRef<any>(null);
   const stepTimeoutsRef = useRef<any[]>([]);
   // Feature: Auto-debug toggle
-  const [autoDebug, setAutoDebug] = useState(true);
-  const [autoSync, setAutoSync] = useState(true);
+  const autoDebug = true;
+  const autoSync = true;
   // Feature: Asset search
   const [assetQuery, setAssetQuery] = useState("");
   const [assetResults, setAssetResults] = useState<{ id: number; name: string; creator: string; thumbnail: string }[]>([]);
@@ -764,32 +764,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               <span className="text-[11px] font-medium text-white/80">
                 {isPluginConnected ? "Connected" : "Waiting"}
               </span>
-              {/* Auto-Debug toggle */}
-              <button 
-                onClick={() => setAutoDebug(!autoDebug)} 
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium transition-all ${
-                  autoDebug 
-                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' 
-                    : 'bg-white/5 text-white/30 border border-white/10'
-                }`}
-                title={autoDebug ? "Auto-debug ON: AI will auto-fix errors" : "Auto-debug OFF"}
-              >
-                <Shield className="h-2.5 w-2.5" />
-                {autoDebug ? "Auto-fix" : "Manual"}
-              </button>
-              {/* Auto-Sync toggle */}
-              <button 
-                onClick={() => setAutoSync(!autoSync)} 
-                className={`ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium transition-all ${
-                  autoSync 
-                    ? 'bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/20' 
-                    : 'bg-white/5 text-white/30 border border-white/10'
-                }`}
-                title={autoSync ? "Auto-sync ON: Code goes straight to Studio" : "Auto-sync OFF: Review code before syncing"}
-              >
-                <Zap className="h-2.5 w-2.5" />
-                {autoSync ? "Auto-sync" : "Review"}
-              </button>
             </div>
             <p className="text-[10px] text-white/40 leading-snug truncate" title={pluginStatus}>{pluginStatus}</p>
           </div>

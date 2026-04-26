@@ -558,7 +558,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     scriptName: finalName,
     scriptParent: finalParent,
     scriptType: finalType,
-    action: isDelete ? "delete" : "create",
+    action: isDelete ? "delete" : (structuredFinal?.action || "create"),
     lineCount,
     message: finalMessage,
     suggestions: finalSuggestions,

@@ -277,18 +277,16 @@ local function injectSingleScript(scriptData)
 	if action == "insert_asset" then
 		local assetId = scriptData.assetId
 		if not assetId then return false, "No assetId provided", nil end
-		local InsertService = game:GetService("InsertService")
-		local ok, model = pcall(function()
-			return InsertService:LoadAsset(tonumber(assetId))
+		local ok, objects = pcall(function()
+			return game:GetObjects("rbxassetid://" .. tostring(assetId))
 		end)
-		if ok and model then
+		if ok and objects and #objects > 0 then
 			local actualParent = resolvePath(parentPath) or workspace
 			local inserted = {}
-			for _, child in ipairs(model:GetChildren()) do
+			for _, child in ipairs(objects) do
 				child.Parent = actualParent
 				table.insert(inserted, child)
 			end
-			model:Destroy()
 			
 			undoFn = function()
 				for _, inst in ipairs(inserted) do
