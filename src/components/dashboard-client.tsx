@@ -41,6 +41,7 @@ const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
 
 export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [sessionKey, setSessionKey] = useState("");
+  const [projectName, setProjectName] = useState("Active Session");
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [provider, setProvider] = useState<"openai" | "google">("openai");
@@ -671,20 +672,29 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       {/* SIDEBAR */}
       <div className="w-[220px] flex-shrink-0 border-r border-white/[0.04] bg-[#1e1f24] flex flex-col justify-between relative z-40">
         <div className="p-5 space-y-6 overflow-y-auto flex-1">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]">
               <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor">
                 <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
                 <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
                 <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </div>
-            <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg">Apple Juice</span>
-            <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/50 uppercase tracking-widest font-bold">pre-beta</span>
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg leading-none">Apple Juice</span>
+              <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/50 uppercase tracking-widest font-bold leading-none mt-0.5">pre-beta</span>
+            </div>
           </div>
           
           <button 
-            onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}
+            onClick={() => { 
+              const name = window.prompt("Enter project name:", "New Project");
+              if (name) {
+                setProjectName(name);
+                setMessages([]); 
+                window.localStorage.removeItem("apple-juice-chat-history"); 
+              }
+            }}
             className="w-full bg-white text-black font-semibold py-2 rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-[13px] shadow-sm"
           >
             + New Project
@@ -692,13 +702,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           
           <div>
             <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-3">Projects</span>
-            <div className="text-sm text-white/90 cursor-pointer py-1.5 flex items-center gap-2 bg-white/5 px-3 -mx-3 rounded-lg">
-              <span className={`w-2 h-2 rounded-full ${isPluginConnected ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-              Active Session
-            </div>
-            <div className="text-sm text-white/40 cursor-pointer py-1.5 px-3 -mx-3 flex items-center gap-2 mt-1 hover:text-white transition-colors">
-              <span className="w-2 h-2 rounded-full border border-white/20"></span>
-              Archived
+            <div className="text-sm text-white/90 cursor-pointer py-1.5 flex items-center gap-2 bg-white/5 px-3 -mx-3 rounded-lg truncate">
+              {projectName}
             </div>
           </div>
           
@@ -793,17 +798,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             <p className="text-[11px] text-white/40 leading-relaxed">{pluginStatus}</p>
           </div>
           
-          {gameLogs.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Logs</span>
-                <button className="text-[10px] text-white/30 hover:text-red-400 transition-colors" onClick={() => setGameLogs([])}>Clear</button>
-              </div>
-              <div className="max-h-32 overflow-auto font-mono text-[10px] bg-black/40 rounded-xl p-2.5 text-white/40 space-y-0.5">
-                {gameLogs.map((log, i) => {
-                  const isError = log.toLowerCase().includes("error") || log.toLowerCase().includes("exception");
-                  return <div key={i} className={isError ? "text-red-400" : ""}>{log}</div>;
-                })}
+          {projectTree.length > 0 && (
+            <div className="mt-4">
+              <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-3">Workspace</span>
+              <div className="max-h-[30vh] overflow-y-auto text-[11px] text-white/50 space-y-1 font-mono pl-1 custom-scrollbar">
+                {projectTree.map((node, i) => (
+                  <div key={i} className="truncate hover:text-white/80 cursor-default transition-colors" title={node}>{node}</div>
+                ))}
               </div>
             </div>
           )}
@@ -1165,18 +1166,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     {(provider == "google" ? googleKey.trim() : openaiKey.trim()).length == 0 ? (() => {
                       const pct = Math.max(0, Math.min(100, ((usage.totalTokens - usage.usedTokens) / usage.totalTokens) * 100));
                       const hue = Math.round(pct * 1.2); // green at 100%, red at 0%
+                      const creditsAvailable = Math.max(0, usage.totalTokens - usage.usedTokens);
                       return (
                         <div className="hidden sm:flex relative h-8 w-32 bg-black/20 rounded-lg overflow-hidden border border-white/[0.04] items-center justify-center group ml-2">
                           <div 
-                            className="absolute left-0 right-0 bottom-0 transition-all duration-700 animate-wave"
+                            className="absolute left-0 right-0 bottom-0 transition-all duration-700 animate-wave opacity-100"
                             style={{
                               height: `${pct}%`,
-                              background: `linear-gradient(90deg, hsla(${hue}, 80%, 50%, 0.12) 0%, hsla(${hue}, 80%, 50%, 0.25) 50%, hsla(${hue}, 80%, 50%, 0.12) 100%)`,
+                              background: `linear-gradient(90deg, hsla(${hue}, 90%, 50%, 0.4) 0%, hsla(${hue}, 90%, 50%, 0.7) 50%, hsla(${hue}, 90%, 50%, 0.4) 100%)`,
                               backgroundSize: '200% 100%',
                             }}
                           />
-                          <span className="relative z-10 text-[10px] font-mono tracking-tight text-white/60">
-                            {Math.max(0, usage.totalTokens - usage.usedTokens).toLocaleString()} tokens
+                          <span className="relative z-10 text-[11px] font-mono font-bold tracking-tight text-white/90 drop-shadow-md">
+                            {creditsAvailable.toLocaleString()} Credits
                           </span>
                         </div>
                       );
