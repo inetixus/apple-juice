@@ -17,13 +17,13 @@ type DashboardClientProps = {
   avatarUrl?: string;
 };
 
-type ScriptMeta = { 
-  name: string; 
-  parent: string; 
+type ScriptMeta = {
+  name: string;
+  parent: string;
   type?: string;
   action?: "create" | "delete";
-  lineCount: number; 
-  code: string; 
+  lineCount: number;
+  code: string;
   originalCode?: string;
 };
 
@@ -93,17 +93,17 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     "Create a shop UI with a coin system...",
     "Make a round system..."
   ], []);
-  
+
   const [placeholderText, setPlaceholderText] = useState("");
   const [promptIndex, setPromptIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (messages.length > 0) return;
-    
+
     const currentPrompt = examplePrompts[promptIndex];
     const speed = isDeleting ? 30 : 60;
-    
+
     const timeout = setTimeout(() => {
       if (!isDeleting && placeholderText === currentPrompt) {
         setTimeout(() => setIsDeleting(true), 2000);
@@ -111,13 +111,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         setIsDeleting(false);
         setPromptIndex((prev) => (prev + 1) % examplePrompts.length);
       } else {
-        const nextText = isDeleting 
+        const nextText = isDeleting
           ? currentPrompt.substring(0, placeholderText.length - 1)
           : currentPrompt.substring(0, placeholderText.length + 1);
         setPlaceholderText(nextText);
       }
     }, speed);
-    
+
     return () => clearTimeout(timeout);
   }, [placeholderText, isDeleting, promptIndex, messages.length, examplePrompts]);
 
@@ -173,7 +173,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               const serverTime = data.serverTime || Date.now();
               const timeSinceLastPoll = serverTime - data.lastPollTime;
               const isNowConnected = timeSinceLastPoll < 8000;
-              
+
               setIsPluginConnected(prev => {
                 if (isNowConnected && !prev) {
                   setPluginStatus("Plugin connected successfully.");
@@ -187,17 +187,17 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
             if (data.logs && data.logs.length > 0) {
               setGameLogs(prev => [...prev, ...data.logs].slice(-200)); // keep last 200 logs
-              
+
               const newErrorLog = data.logs.find((log: string) => log.toLowerCase().includes("error") || log.toLowerCase().includes("exception"));
               if (newErrorLog && newErrorLog !== lastReportedErrorRef.current) {
                 lastReportedErrorRef.current = newErrorLog;
                 setLastError(newErrorLog);
-                
+
                 // If we were waiting for a test result, drop it because it failed
                 if (isGenerating && pendingPayloadRef.current) {
                   pendingPayloadRef.current = null;
                 }
-                
+
                 // Queue auto-fix
                 autoFixPendingRef.current = newErrorLog;
               }
@@ -207,7 +207,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 // Test passed! Release the message to the user.
                 const { payload: fp, files } = pendingPayloadRef.current;
                 pendingPayloadRef.current = null;
-                
+
                 setMessages((current) => [
                   ...current,
                   {
@@ -495,12 +495,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
     const promptSnippet = trimmed.length > 25 ? trimmed.substring(0, 25) + "..." : trimmed;
     const isAsset = trimmed.toLowerCase().includes("insert") || trimmed.toLowerCase().includes("build") || trimmed.toLowerCase().includes("model") || trimmed.toLowerCase().includes("part");
-    
+
     if (mode === "thinking") {
       setThinkingSteps([{ icon: "thinking", label: `Deep reasoning about "${promptSnippet}"...`, done: false }]);
-      
+
       const fileNames = attachedFiles.map(f => f.name).join(", ");
-      
+
       const t1 = setTimeout(() => {
         setThinkingSteps(prev => {
           if (prev.length === 1 && !prev[0].done) {
@@ -508,7 +508,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           }
           return prev;
         });
-        
+
         const t2 = setTimeout(() => {
           setThinkingSteps(prev => {
             if (prev.length === 2 && !prev[1].done) {
@@ -519,13 +519,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         }, 2500 + Math.random() * 3000);
         stepTimeoutsRef.current.push(t2);
       }, 2000 + Math.random() * 2500);
-      
+
       stepTimeoutsRef.current.push(t1);
     } else {
       setThinkingSteps([{ icon: "thinking", label: `Analyzing request: "${promptSnippet}"...`, done: false }]);
-      
+
       const fileNames = attachedFiles.map(f => f.name).join(", ");
-      
+
       const t1 = setTimeout(() => {
         setThinkingSteps(prev => {
           if (prev.length === 1 && !prev[0].done) {
@@ -533,7 +533,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           }
           return prev;
         });
-        
+
         const t2 = setTimeout(() => {
           setThinkingSteps(prev => {
             if (prev.length === 2 && !prev[1].done) {
@@ -546,7 +546,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         }, 1500 + Math.random() * 2000);
         stepTimeoutsRef.current.push(t2);
       }, 1000 + Math.random() * 1500);
-      
+
       stepTimeoutsRef.current.push(t1);
     }
 
@@ -555,14 +555,14 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: attachedAsset 
+          prompt: attachedAsset
             ? `[System Note: The user has attached the Roblox asset "${attachedAsset.name}" (ID: ${attachedAsset.id}) to this message. Please fulfill their request, using this asset if appropriate. If they don't specify what to do with it, insert it into Workspace.]\n\n${trimmed}`
             : trimmed,
-          messages: newMessages.map(m => ({ 
-            role: m.role, 
-            content: m.attachedAsset 
+          messages: newMessages.map(m => ({
+            role: m.role,
+            content: m.attachedAsset
               ? `[System Note: Attached Asset "${m.attachedAsset.name}" (ID: ${m.attachedAsset.id})]\n${m.content}`
-              : m.content 
+              : m.content
           })),
           sessionKey,
           apiKey: apiKey.trim(),
@@ -592,9 +592,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         throw new Error(errText || "Failed to generate code");
       }
 
-      const payload = (await response.json()) as { 
-        code?: string; error?: string; detail?: string; 
-        scriptName?: string; scriptParent?: string; lineCount?: number; 
+      const payload = (await response.json()) as {
+        code?: string; error?: string; detail?: string;
+        scriptName?: string; scriptParent?: string; lineCount?: number;
         scriptType?: string; action?: "create" | "delete";
         message?: string; suggestions?: string[];
         scripts?: { name: string; parent: string; type: string; action: string; lineCount: number; code: string; requires?: string[] }[];
@@ -666,7 +666,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       stepTimeoutsRef.current.forEach(clearTimeout);
       stepTimeoutsRef.current = [];
       let detail = error instanceof Error ? error.message : "Unknown error";
-      
+
       try {
         if (detail.startsWith("{") && detail.includes('"error"')) {
           const parsed = JSON.parse(detail);
@@ -720,7 +720,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const url = `${window.location.origin}/dashboard?join=${sessionKey}`;
     navigator.clipboard.writeText(url).then(() => {
       showToast("Share link copied! Others can join your session.", "success");
-    }).catch(() => {});
+    }).catch(() => { });
   }, [sessionKey, showToast]);
 
   return (
@@ -741,28 +741,28 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/50 uppercase tracking-widest font-bold leading-none mt-0.5">pre-beta</span>
             </div>
           </div>
-          
-          <button 
-            onClick={() => { 
+
+          <button
+            onClick={() => {
               const name = window.prompt("Enter project name:", "New Project");
               if (name) {
                 setProjectName(name);
-                setMessages([]); 
-                window.localStorage.removeItem("apple-juice-chat-history"); 
+                setMessages([]);
+                window.localStorage.removeItem("apple-juice-chat-history");
               }
             }}
             className="w-full bg-white text-black font-semibold py-2 rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-[13px] shadow-sm"
           >
             + New Project
           </button>
-          
+
           <div>
             <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-3">Projects</span>
             <div className="text-sm text-white/90 cursor-pointer py-1.5 flex items-center gap-2 bg-white/5 px-3 -mx-3 rounded-lg truncate">
               {projectName}
             </div>
           </div>
-          
+
           {/* Settings removed from sidebar per user request */}
 
           {/* Plugin Status Summary */}
@@ -778,10 +778,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             </div>
             <p className="text-[10px] text-white/40 leading-snug truncate" title={pluginStatus}>{pluginStatus}</p>
           </div>
-          
+
           {/* Share Session */}
           {sessionKey && (
-            <button 
+            <button
               onClick={copyShareLink}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.04] text-[11px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all"
             >
@@ -790,7 +790,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               <span className="ml-auto text-[9px] font-mono text-white/20 truncate max-w-[80px]">{sessionKey.slice(0, 8)}…</span>
             </button>
           )}
-          
+
           {/* Collapsible Workspace Tree */}
           {projectTree.length > 0 && (
             <div>
@@ -801,73 +801,73 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             </div>
           )}
         </div>
-        
+
         <div className="p-4 border-t border-white/[0.04] space-y-2">
-           {/* Asset Search Button */}
-           <button 
-             onClick={() => setShowAssetSearch(!showAssetSearch)}
-             className="w-full bg-white/[0.03] border border-white/[0.04] text-white/70 hover:text-white py-2 rounded-xl flex items-center justify-between px-4 transition-colors"
-           >
-             <div className="flex items-center gap-2">
-               <Search className="h-3.5 w-3.5 text-[#ccff00]/60" />
-               <span className="text-[12px] font-semibold">Toolbox Search</span>
-             </div>
-             <span className="text-white/30">&rsaquo;</span>
-           </button>
-           <button className="w-full bg-white/[0.03] border border-white/[0.04] text-white/70 hover:text-white py-2.5 rounded-xl flex items-center justify-between px-4 transition-colors">
-             <div className="flex flex-col items-start">
-               <span className="text-[13px] font-semibold">Discord</span>
-               <span className="text-[10px] text-white/40">Join for gifts</span>
-             </div>
-             <span className="text-white/30">&rsaquo;</span>
-           </button>
-           <button className="w-full text-white/30 hover:text-white py-1.5 rounded-lg text-[11px] transition-colors" onClick={() => signOut({ callbackUrl: "/" })}>
-             Sign Out
-           </button>
+          {/* Asset Search Button */}
+          <button
+            onClick={() => setShowAssetSearch(!showAssetSearch)}
+            className="w-full bg-white/[0.03] border border-white/[0.04] text-white/70 hover:text-white py-2 rounded-xl flex items-center justify-between px-4 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Search className="h-3.5 w-3.5 text-[#ccff00]/60" />
+              <span className="text-[12px] font-semibold">Toolbox Search</span>
+            </div>
+            <span className="text-white/30">&rsaquo;</span>
+          </button>
+          <button className="w-full bg-white/[0.03] border border-white/[0.04] text-white/70 hover:text-white py-2.5 rounded-xl flex items-center justify-between px-4 transition-colors">
+            <div className="flex flex-col items-start">
+              <span className="text-[13px] font-semibold">Discord</span>
+              <span className="text-[10px] text-white/40">Join for gifts</span>
+            </div>
+            <span className="text-white/30">&rsaquo;</span>
+          </button>
+          <button className="w-full text-white/30 hover:text-white py-1.5 rounded-lg text-[11px] transition-colors" onClick={() => signOut({ callbackUrl: "/" })}>
+            Sign Out
+          </button>
         </div>
       </div>
-      
+
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col h-full bg-[#1c1d21] relative overflow-hidden">
         {/* Top Right Header */}
         <header className="absolute top-0 right-0 p-6 flex items-center gap-4 z-50 pointer-events-none w-full justify-end">
-           <div className="pointer-events-auto flex items-center gap-4">
-             <div className="bg-[#10b981] text-white font-bold px-4 py-2 rounded-full text-xs shadow-lg shadow-[#10b981]/20 cursor-pointer hover:bg-[#0ea5e9] hover:shadow-[#0ea5e9]/20 transition-all">
-               Store Purchases
-             </div>
-             {/* Profile avatar with dropdown */}
-             <div className="relative">
-               <button onClick={() => setShowProfileMenu(p => !p)} className="focus:outline-none flex items-center justify-center">
-                 {avatarUrl ? (
-                   <img src={avatarUrl} className="w-8 h-8 rounded-full ring-2 ring-white/10 hover:ring-[#ccff00]/40 transition-all cursor-pointer object-cover" />
-                 ) : (
-                   <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold ring-2 ring-white/10 hover:ring-[#ccff00]/40 transition-all cursor-pointer">{username.charAt(0)}</div>
-                 )}
-               </button>
-               {showProfileMenu && (
-                 <div className="absolute right-0 top-11 w-48 bg-[#111113] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-[100]">
-                   <div className="px-4 py-3 border-b border-white/5">
-                     <p className="text-sm font-semibold text-white truncate">{username}</p>
-                     <p className="text-[10px] text-white/30">Roblox Developer</p>
-                   </div>
-                   <button
-                     onClick={() => { setShowProfileMenu(false); setShowSettings(s => !s); }}
-                     className="w-full text-left px-4 py-2.5 text-sm text-white/60 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
-                   >
-                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                     Settings
-                   </button>
-                   <button
-                     onClick={() => signOut({ callbackUrl: "/" })}
-                     className="w-full text-left px-4 py-2.5 text-sm text-red-400/70 hover:text-red-400 hover:bg-red-500/5 transition-colors flex items-center gap-2 border-t border-white/5"
-                   >
-                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                     Log Out
-                   </button>
-                 </div>
-               )}
-             </div>
-           </div>
+          <div className="pointer-events-auto flex items-center gap-4">
+            <div className="bg-[#10b981] text-white font-bold px-4 py-2 rounded-full text-xs shadow-lg shadow-[#10b981]/20 cursor-pointer hover:bg-[#0ea5e9] hover:shadow-[#0ea5e9]/20 transition-all">
+              Store Purchases
+            </div>
+            {/* Profile avatar with dropdown */}
+            <div className="relative">
+              <button onClick={() => setShowProfileMenu(p => !p)} className="focus:outline-none flex items-center justify-center">
+                {avatarUrl ? (
+                  <img src={avatarUrl} className="w-8 h-8 rounded-full ring-2 ring-white/10 hover:ring-[#ccff00]/40 transition-all cursor-pointer object-cover" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold ring-2 ring-white/10 hover:ring-[#ccff00]/40 transition-all cursor-pointer">{username.charAt(0)}</div>
+                )}
+              </button>
+              {showProfileMenu && (
+                <div className="absolute right-0 top-11 w-48 bg-[#111113] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-[100]">
+                  <div className="px-4 py-3 border-b border-white/5">
+                    <p className="text-sm font-semibold text-white truncate">{username}</p>
+                    <p className="text-[10px] text-white/30">Roblox Developer</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowProfileMenu(false); setShowSettings(s => !s); }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-white/60 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></svg>
+                    Settings
+                  </button>
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="w-full text-left px-4 py-2.5 text-sm text-red-400/70 hover:text-red-400 hover:bg-red-500/5 transition-colors flex items-center gap-2 border-t border-white/5"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                    Log Out
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </header>
 
         {/* Dynamic Chat Area */}
@@ -875,20 +875,20 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           {messages.length == 0 && (
             /* EMPTY STATE BACKGROUND */
             <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center z-0">
-               <div className="relative w-full max-w-5xl h-[600px] flex items-center justify-center">
-                 <div className="absolute top-[15%] left-[5%] w-48 h-32 bg-[#2a2c33]/80 rounded-xl opacity-40 rotate-[-8deg] blur-[2px] shadow-2xl overflow-hidden border border-white/5">
-                   <div className="w-full h-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 mix-blend-overlay"></div>
-                 </div>
-                 <div className="absolute top-[20%] right-[10%] w-56 h-36 bg-[#2a2c33]/80 rounded-xl opacity-50 rotate-[6deg] blur-[1px] shadow-2xl overflow-hidden border border-white/5">
-                   <div className="w-full h-full bg-gradient-to-bl from-[#ccff00]/10 to-transparent mix-blend-overlay"></div>
-                 </div>
-                 <div className="absolute bottom-[20%] left-[15%] w-40 h-28 bg-[#2a2c33]/80 rounded-xl opacity-30 rotate-[12deg] blur-[3px] shadow-2xl overflow-hidden border border-white/5">
-                   <div className="w-full h-full bg-gradient-to-tr from-sky-500/10 to-transparent mix-blend-overlay"></div>
-                 </div>
-                 <div className="absolute bottom-[15%] right-[20%] w-64 h-40 bg-[#2a2c33]/80 rounded-xl opacity-60 rotate-[-4deg] shadow-2xl overflow-hidden border border-white/5">
-                   <div className="w-full h-full bg-gradient-to-tl from-emerald-500/10 to-transparent mix-blend-overlay"></div>
-                 </div>
-               </div>
+              <div className="relative w-full max-w-5xl h-[600px] flex items-center justify-center">
+                <div className="absolute top-[15%] left-[5%] w-48 h-32 bg-[#2a2c33]/80 rounded-xl opacity-40 rotate-[-8deg] blur-[2px] shadow-2xl overflow-hidden border border-white/5">
+                  <div className="w-full h-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 mix-blend-overlay"></div>
+                </div>
+                <div className="absolute top-[20%] right-[10%] w-56 h-36 bg-[#2a2c33]/80 rounded-xl opacity-50 rotate-[6deg] blur-[1px] shadow-2xl overflow-hidden border border-white/5">
+                  <div className="w-full h-full bg-gradient-to-bl from-[#ccff00]/10 to-transparent mix-blend-overlay"></div>
+                </div>
+                <div className="absolute bottom-[20%] left-[15%] w-40 h-28 bg-[#2a2c33]/80 rounded-xl opacity-30 rotate-[12deg] blur-[3px] shadow-2xl overflow-hidden border border-white/5">
+                  <div className="w-full h-full bg-gradient-to-tr from-sky-500/10 to-transparent mix-blend-overlay"></div>
+                </div>
+                <div className="absolute bottom-[15%] right-[20%] w-64 h-40 bg-[#2a2c33]/80 rounded-xl opacity-60 rotate-[-4deg] shadow-2xl overflow-hidden border border-white/5">
+                  <div className="w-full h-full bg-gradient-to-tl from-emerald-500/10 to-transparent mix-blend-overlay"></div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -898,99 +898,98 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               <div className="space-y-4">
                 {messages.map((message) => (
                   <div key={message.id} className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${message.role == 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-2xl text-[14px] leading-relaxed ${
-                      message.role == 'user'
+                    <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-2xl text-[14px] leading-relaxed ${message.role == 'user'
                         ? 'bg-white/[0.08] text-white border border-white/[0.12] rounded-br-sm'
                         : 'bg-transparent text-white border border-white/[0.07] rounded-bl-sm bg-gradient-to-b from-white/[0.03] to-white/[0.01] shadow-lg'
-                    }`}>
+                      }`}>
                       <div className="space-y-3">
-                      {message.attachments && message.attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                          {message.attachments.map((a, i) => (
-                            <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/40">
-                              <Paperclip className="h-2.5 w-2.5" />
-                              {a.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {message.attachedAsset && (
-                        <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5 border border-purple-500/20 text-[11px] text-white/90 shadow-sm shadow-purple-500/5 mb-2">
-                          <img src={message.attachedAsset.thumbnail} className="w-5 h-5 rounded object-cover" />
-                          <span className="truncate max-w-[150px]">{message.attachedAsset.name}</span>
-                        </div>
-                      )}
-
-                      <p className="whitespace-pre-wrap leading-relaxed text-white/90">
-                        {message.content}
-                      </p>
-
-                      {message.thinking && (
-                        <details className="group mt-2">
-                          <summary className="cursor-pointer text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1">
-                            <Brain className="h-3 w-3" />
-                            <span>View reasoning</span>
-                          </summary>
-                          <div className="mt-2 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] text-[13px] text-white/40 whitespace-pre-wrap">
-                            {message.thinking}
-                          </div>
-                        </details>
-                      )}
-                      
-                      {message.script && (
-                        <ScriptCard script={message.script} />
-                      )}
-
-                      {message.scripts && message.scripts.length > 0 && (
-                        <div className="space-y-2 w-full max-w-[500px]">
-                          {message.scripts.length > 1 && <SystemArchitecture scripts={message.scripts} />}
-                          <p className="text-[12px] font-medium text-white/30">{message.scripts.length} scripts generated</p>
-                          {message.scripts.map((s, i) => (
-                            <ScriptCard key={i} script={s} />
-                          ))}
-                        </div>
-                      )}
-
-                      {message.suggestions && message.suggestions.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                          <div className="flex flex-wrap gap-1.5">
-                            {message.suggestions.map((sugg, i) => (
-                              <button 
-                                key={i} 
-                                className="text-[12px] px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
-                                onClick={() => setPrompt(sugg)}
-                              >
-                                {sugg}
-                              </button>
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {message.attachments.map((a, i) => (
+                              <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/40">
+                                <Paperclip className="h-2.5 w-2.5" />
+                                {a.name}
+                              </span>
                             ))}
                           </div>
-                        </div>
-                      )}
-                      
-                      {message.pendingSync && (
-                        <div className="mt-4 pt-3 border-t border-[#ccff00]/20 flex justify-end">
-                          <button 
-                            className="bg-[#ccff00] text-black font-bold px-5 py-2 rounded-lg text-[13px] shadow-[0_0_15px_rgba(204,255,0,0.3)] hover:bg-[#d4ff33] transition-all"
-                            onClick={async () => {
-                              showToast("Accepting changes...", "info");
-                              const res = await fetch("/api/accept-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionKey }) });
-                              if (res.ok) {
-                                showToast("Changes sent to Roblox Studio!", "success");
-                                setMessages(msgs => msgs.map(m => m.id === message.id ? { ...m, pendingSync: false } : m));
-                              } else {
-                                showToast("Failed to sync code.", "error");
-                              }
-                            }}
-                          >
-                            Accept & Sync to Studio
-                          </button>
-                        </div>
-                      )}
+                        )}
+
+                        {message.attachedAsset && (
+                          <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5 border border-purple-500/20 text-[11px] text-white/90 shadow-sm shadow-purple-500/5 mb-2">
+                            <img src={message.attachedAsset.thumbnail} className="w-5 h-5 rounded object-cover" />
+                            <span className="truncate max-w-[150px]">{message.attachedAsset.name}</span>
+                          </div>
+                        )}
+
+                        <p className="whitespace-pre-wrap leading-relaxed text-white/90">
+                          {message.content}
+                        </p>
+
+                        {message.thinking && (
+                          <details className="group mt-2">
+                            <summary className="cursor-pointer text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1">
+                              <Brain className="h-3 w-3" />
+                              <span>View reasoning</span>
+                            </summary>
+                            <div className="mt-2 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] text-[13px] text-white/40 whitespace-pre-wrap">
+                              {message.thinking}
+                            </div>
+                          </details>
+                        )}
+
+                        {message.script && (
+                          <ScriptCard script={message.script} />
+                        )}
+
+                        {message.scripts && message.scripts.length > 0 && (
+                          <div className="space-y-2 w-full max-w-[500px]">
+                            {message.scripts.length > 1 && <SystemArchitecture scripts={message.scripts} />}
+                            <p className="text-[12px] font-medium text-white/30">{message.scripts.length} scripts generated</p>
+                            {message.scripts.map((s, i) => (
+                              <ScriptCard key={i} script={s} />
+                            ))}
+                          </div>
+                        )}
+
+                        {message.suggestions && message.suggestions.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                            <div className="flex flex-wrap gap-1.5">
+                              {message.suggestions.map((sugg, i) => (
+                                <button
+                                  key={i}
+                                  className="text-[12px] px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                                  onClick={() => setPrompt(sugg)}
+                                >
+                                  {sugg}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {message.pendingSync && (
+                          <div className="mt-4 pt-3 border-t border-[#ccff00]/20 flex justify-end">
+                            <button
+                              className="bg-[#ccff00] text-black font-bold px-5 py-2 rounded-lg text-[13px] shadow-[0_0_15px_rgba(204,255,0,0.3)] hover:bg-[#d4ff33] transition-all"
+                              onClick={async () => {
+                                showToast("Accepting changes...", "info");
+                                const res = await fetch("/api/accept-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionKey }) });
+                                if (res.ok) {
+                                  showToast("Changes sent to Roblox Studio!", "success");
+                                  setMessages(msgs => msgs.map(m => m.id === message.id ? { ...m, pendingSync: false } : m));
+                                } else {
+                                  showToast("Failed to sync code.", "error");
+                                }
+                              }}
+                            >
+                              Accept & Sync to Studio
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
               </div>
               {isGenerating && <ThinkingFeed steps={thinkingSteps} />}
               <div ref={chatEndRef} className="h-px w-full mt-4" />
@@ -1000,7 +999,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
         {/* The Universal Input Bar wrapper */}
         <div className={`transition-all duration-700 ease-in-out ${messages.length == 0 ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4 z-30 bg-transparent" : "absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#1c1d21] via-[#1c1d21] to-transparent pt-12 pb-6 px-4 flex justify-center z-20"}`}>
-          
+
           <div className="w-full flex flex-col items-center">
             {messages.length == 0 && (
               <div className="text-center mb-6">
@@ -1009,7 +1008,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 </h1>
               </div>
             )}
-            
+
             <div className={`w-full ${messages.length == 0 ? "bg-[#2b2d31]/90 backdrop-blur-xl shadow-2xl" : "max-w-4xl bg-[#26282d]"} border border-white/[0.05] rounded-2xl p-3`}>
               <div className="w-full space-y-3">
                 {attachedFiles.length > 0 && (
@@ -1079,11 +1078,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                             const textAfterAt = prompt.slice(e.currentTarget.selectionStart);
                             setPrompt(textBeforeAt + "@" + selected + " " + textAfterAt);
                             setAtMenu(prev => ({ ...prev, visible: false }));
-                            
+
                             fetch('/api/request-file', {
                               method: 'POST',
                               body: JSON.stringify({ key: sessionKey, fileName: selected })
-                            }).catch(() => {});
+                            }).catch(() => { });
                           }
                         } else if (e.key == "Escape") {
                           setAtMenu(prev => ({ ...prev, visible: false }));
@@ -1099,7 +1098,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   />
 
                   {atMenu.visible && (
-                    <div 
+                    <div
                       className="fixed z-[200] w-64 bg-[#111113] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
                       style={{ left: atMenu.x, top: atMenu.y - (Math.min(projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase())).length, 5) * 40) }}
                     >
@@ -1111,7 +1110,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                           .filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase()))
                           .slice(0, 10)
                           .map((file, i) => (
-                            <div 
+                            <div
                               key={file}
                               className={`px-4 py-2 text-sm cursor-pointer flex items-center gap-2 transition-colors ${i == atMenu.selectionIndex ? 'bg-[#ccff00]/10 text-[#ccff00]' : 'text-white/60 hover:bg-white/5'}`}
                               onClick={() => {
@@ -1122,7 +1121,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                 fetch('/api/request-file', {
                                   method: 'POST',
                                   body: JSON.stringify({ key: sessionKey, fileName: file })
-                                }).catch(() => {});
+                                }).catch(() => { });
                               }}
                             >
                               <Brain className="h-3.5 w-3.5 opacity-50" />
@@ -1172,22 +1171,20 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       />
                       <button
                         onClick={() => setMode("fast")}
-                        className={`relative z-10 flex-1 flex justify-center items-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors duration-200 ${
-                          mode == "fast"
+                        className={`relative z-10 flex-1 flex justify-center items-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors duration-200 ${mode == "fast"
                             ? "text-black"
                             : "text-white/40 hover:text-white/70"
-                        }`}
+                          }`}
                       >
                         <Zap className="h-3 w-3" />
                         Fast
                       </button>
                       <button
                         onClick={() => setMode("thinking")}
-                        className={`relative z-10 flex-1 flex justify-center items-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors duration-200 ${
-                          mode == "thinking"
+                        className={`relative z-10 flex-1 flex justify-center items-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors duration-200 ${mode == "thinking"
                             ? "text-violet-400"
                             : "text-white/40 hover:text-white/70"
-                        }`}
+                          }`}
                       >
                         <Brain className="h-3 w-3" />
                         Think
@@ -1208,7 +1205,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       const creditsAvailable = Math.max(0, usage.totalTokens - usage.usedTokens);
                       return (
                         <div className="hidden sm:flex relative h-8 w-32 bg-black/20 rounded-lg overflow-hidden border border-white/[0.04] items-center justify-center group ml-2">
-                          <div 
+                          <div
                             className="absolute left-0 right-0 bottom-0 transition-all duration-700 animate-wave opacity-100"
                             style={{
                               height: `${pct}%`,
@@ -1247,18 +1244,18 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 </div>
               </div>
             </div>
-            
+
             {messages.length == 0 && isPluginConnected && (
               <div className="mt-6 flex flex-wrap justify-center gap-3 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
-                 <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a combat system")}>
-                   <span className="text-[16px]">⚔️</span> Make a combat system
-                 </button>
-                 <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a pet system")}>
-                   <span className="text-[16px]">🐶</span> Make a pet system
-                 </button>
-                 <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a round system")}>
-                   <span className="text-[16px]">⏱️</span> Make a round system
-                 </button>
+                <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a combat system")}>
+                  <span className="text-[16px]">⚔️</span> Make a combat system
+                </button>
+                <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a pet system")}>
+                  <span className="text-[16px]">🐶</span> Make a pet system
+                </button>
+                <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a round system")}>
+                  <span className="text-[16px]">⏱️</span> Make a round system
+                </button>
               </div>
             )}
           </div>
@@ -1269,7 +1266,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between">
               <h2 className="text-[14px] font-bold text-white uppercase tracking-wider">Settings</h2>
-              <button onClick={() => setShowSettings(false)} className="text-white/40 hover:text-white transition-colors"><X className="w-4 h-4"/></button>
+              <button onClick={() => setShowSettings(false)} className="text-white/40 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
             </div>
             <div>
               <label className="text-[12px] font-medium text-white/50 mb-2 block">Provider</label>
@@ -1347,7 +1344,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 <Search className="h-4 w-4 text-[#ccff00]" />
                 Roblox Toolbox Search
               </h2>
-              <button onClick={() => setShowAssetSearch(false)} className="text-white/40 hover:text-white transition-colors"><X className="w-4 h-4"/></button>
+              <button onClick={() => setShowAssetSearch(false)} className="text-white/40 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
             </div>
             <div className="flex gap-2">
               <Input
@@ -1357,8 +1354,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 placeholder="Search for models, meshes, images..."
                 className="flex-1 bg-white/[0.04] border-white/[0.08] h-9 text-sm focus:border-[#ccff00]/40"
               />
-              <button 
-                onClick={searchAssets} 
+              <button
+                onClick={searchAssets}
                 disabled={isSearchingAssets}
                 className="px-4 py-2 bg-[#ccff00] text-black text-[12px] font-bold rounded-lg hover:bg-[#d4ff33] transition-colors disabled:opacity-40"
               >
@@ -1378,7 +1375,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       className="group relative bg-white/[0.04] border border-white/[0.08] rounded-xl p-2 hover:bg-white/[0.08] hover:border-[#ccff00]/30 transition-all text-left"
                     >
                       <div className="aspect-square bg-black/30 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
-                        <img 
+                        <img
                           src={asset.thumbnail}
                           alt={asset.name}
                           className="w-full h-full object-cover rounded-lg opacity-80 group-hover:opacity-100 transition-opacity"
