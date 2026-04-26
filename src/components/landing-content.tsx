@@ -397,6 +397,128 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           </p>
         </div>
       </footer>
+
+      {/* ━━━ OAUTH GUIDE MODAL ━━━ */}
+      {showAuthGuide && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-3xl bg-[#111113] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="h-16 flex items-center px-8 border-b border-white/5 bg-[#0a0a0c]">
+              <span className="font-bold text-xl tracking-wider text-white">ROBLOX</span>
+            </div>
+            
+            {/* Body */}
+            <div className="p-8 sm:p-12 overflow-y-auto max-h-[75vh]">
+              <h2 className="text-2xl font-bold text-center text-white mb-10">Apple Juice is Requesting Access</h2>
+              
+              {/* Logos */}
+              <div className="flex items-center justify-center gap-6 mb-12">
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 bg-[#ccff00] rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(204,255,0,0.2)]">
+                    <svg viewBox="0 0 24 24" className="h-10 w-10 text-black" fill="currentColor">
+                      <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
+                      <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
+                      <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
+                    </svg>
+                  </div>
+                  <span className="text-xs text-white/70 mt-3 font-medium">Apple Juice</span>
+                  <span className="text-[10px] text-blue-400">By toastie</span>
+                </div>
+                
+                <div className="flex items-center gap-2 text-white/30">
+                  <div className="h-px w-8 bg-white/20" />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  <div className="h-px w-8 bg-white/20" />
+                </div>
+                
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 bg-[#1a1a1c] rounded-2xl flex items-center justify-center border border-white/10 overflow-hidden">
+                     {_avatarUrl ? (
+                       <img src={_avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                     ) : (
+                       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/40"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                     )}
+                  </div>
+                  <span className="text-xs text-white/70 mt-3 font-medium">You</span>
+                </div>
+              </div>
+
+              {/* Permissions Box 1 */}
+              <div className="bg-[#1a1a1c] border border-white/5 rounded-xl overflow-hidden mb-6 shadow-md">
+                <div className="px-6 py-4 border-b border-white/5 bg-[#1f1f22] flex justify-between items-center cursor-default">
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white">1</div>
+                    <span className="font-semibold text-white">Your personal profile</span>
+                  </div>
+                  <ChevronDown className="h-5 w-5 text-white/30" />
+                </div>
+                <div className="px-6 py-4">
+                  <div className="grid grid-cols-12 text-xs font-semibold text-white/40 mb-4 px-2">
+                    <div className="col-span-4 sm:col-span-3">Permission</div>
+                    <div className="col-span-5 sm:col-span-6">Description</div>
+                    <div className="col-span-3 text-right">Risk Level</div>
+                  </div>
+                  
+                  <div className="grid grid-cols-12 text-sm text-white/80 py-3 border-t border-white/5 px-2 items-center">
+                    <div className="col-span-4 sm:col-span-3 font-medium">Read User ID</div>
+                    <div className="col-span-5 sm:col-span-6 text-white/50 text-xs pr-4 leading-relaxed">View your Roblox User ID to know who you are.</div>
+                    <div className="col-span-3 text-right flex justify-end items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /> <span className="text-xs font-medium">Low</span></div>
+                  </div>
+                  
+                  <div className="grid grid-cols-12 text-sm text-white/80 py-3 border-t border-white/5 px-2 items-center">
+                    <div className="col-span-4 sm:col-span-3 font-medium">Read User Profile</div>
+                    <div className="col-span-5 sm:col-span-6 text-white/50 text-xs pr-4 leading-relaxed">View your username, display name, user avatar and profile link.</div>
+                    <div className="col-span-3 text-right flex justify-end items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /> <span className="text-xs font-medium">Low</span></div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Permissions Box 2 (Plugin Guide) */}
+              <div className="bg-[#1a1a1c] border border-white/5 rounded-xl overflow-hidden shadow-md">
+                <div className="px-6 py-4 border-b border-white/5 bg-[#1f1f22] flex justify-between items-center cursor-default">
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white">2</div>
+                    <span className="font-semibold text-white">Your Roblox Studio (Plugin)</span>
+                  </div>
+                  <ChevronDown className="h-5 w-5 text-white/30" />
+                </div>
+                <div className="px-6 py-4">
+                  <div className="grid grid-cols-12 text-sm text-white/80 py-3 px-2 items-center">
+                    <div className="col-span-4 sm:col-span-3 font-medium">Modify Scripts</div>
+                    <div className="col-span-5 sm:col-span-6 text-white/50 text-xs pr-4 leading-relaxed">The plugin will overwrite and create scripts you ask the AI to generate.</div>
+                    <div className="col-span-3 text-right flex justify-end items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-yellow-500" /> <span className="text-xs font-medium">Medium</span></div>
+                  </div>
+                  
+                  <div className="grid grid-cols-12 text-sm text-white/80 py-3 border-t border-white/5 px-2 items-center">
+                    <div className="col-span-4 sm:col-span-3 font-medium">Read Explorer Tree</div>
+                    <div className="col-span-5 sm:col-span-6 text-white/50 text-xs pr-4 leading-relaxed">The plugin reads folder/script names to help the AI understand your game structure.</div>
+                    <div className="col-span-3 text-right flex justify-end items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /> <span className="text-xs font-medium">Low</span></div>
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+            
+            {/* Footer */}
+            <div className="px-6 py-5 border-t border-white/5 bg-[#0a0a0c] flex items-center justify-between sm:justify-end sm:gap-4">
+              <button 
+                onClick={() => setShowAuthGuide(false)}
+                className="px-6 py-2.5 rounded-lg border border-white/10 text-white hover:bg-white/5 text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
+                className="px-8 py-2.5 rounded-lg bg-[#00a2ff] hover:bg-[#008cdd] text-white text-sm font-bold transition-colors shadow-[0_0_15px_rgba(0,162,255,0.3)]"
+              >
+                Confirm and Give Access
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
