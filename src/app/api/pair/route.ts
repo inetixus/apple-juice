@@ -29,6 +29,7 @@ export async function POST(req: Request) {
         hasNewCode: false,
         code: "",
         messageId: "",
+        dashboardLastPingTime: Date.now(),
       });
     } catch (err) {
       const details = err instanceof Error ? err.message : String(err);

@@ -1,4 +1,4 @@
-import { getSession, consumeLogs, getRedis } from "@/lib/store";
+import { getSession, consumeLogs, getRedis, updateSession } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +22,9 @@ export async function GET(req: Request) {
         logs = consumed.logs;
       }
     }
+
+    // Ping dashboard presence
+    await updateSession(sessionKey, { dashboardLastPingTime: Date.now() });
 
     const redis = getRedis();
     const tree = await redis.get(`tree:${sessionKey}`);

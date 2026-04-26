@@ -10,6 +10,7 @@ export type SessionEntry = {
   code: string;
   messageId: string;
   lastPollTime?: number;
+  dashboardLastPingTime?: number;
   logs?: string[];
   requestedFile?: string;
   fileResponse?: { name: string; content: string };
@@ -130,6 +131,11 @@ export async function findSessionKeyByIp(ip: string): Promise<string | null> {
     const session = await getSession(sessionKey);
     if (!session) return null;
     if (Date.now() > session.expiresAt) return null;
+    
+    // Check if the dashboard is currently active (pinged within the last 20 seconds)
+    const lastPing = session.dashboardLastPingTime || 0;
+    if (Date.now() - lastPing > 20000) return null;
+
     return sessionKey;
   } catch {
     return null;
@@ -198,7 +204,8 @@ export async function consumeCode(sessionKey: string) {
       hasNewCode = sess.hasNewCode, 
       code = sess.code, 
       messageId = sess.messageId,
-      requestedFile = sess.requestedFile
+      requestedFile = sess.requestedFile,
+      dashboardLastPingTime = sess.dashboardLastPingTime
     }
     sess.hasNewCode = false
     sess.requestedFile = nil

@@ -23,6 +23,12 @@ export async function GET(req: Request) {
     const codeValue = result.payload.code;
     const codeStr = typeof codeValue === "string" ? codeValue : JSON.stringify(codeValue);
 
+    // Enforce dashboard connection: If the dashboard hasn't pinged in 20 seconds, disconnect.
+    const lastPing = result.payload.dashboardLastPingTime || 0;
+    if (Date.now() - lastPing > 20000) {
+      return Response.json({ paired: false, error: "Dashboard disconnected (close app or refresh tab)." });
+    }
+
     return Response.json({
       paired: true,
       hasNewCode: result.payload.hasNewCode,
