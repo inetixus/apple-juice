@@ -116,17 +116,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     selectionIndex: 0
   });
 
-  const playSound = (type: 'pop' | 'glass' | 'error' | 'whoosh' | 'success') => {
-    const sounds = {
-      pop: 'https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3',
-      glass: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
-      success: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
-      error: 'https://assets.mixkit.co/active_storage/sfx/2573/2573-preview.mp3',
-      whoosh: 'https://assets.mixkit.co/active_storage/sfx/2564/2564-preview.mp3'
-    };
-    const audio = new Audio(sounds[type]);
-    audio.volume = 0.2;
-    audio.play().catch(() => {});
+  const playSound = (_type?: 'pop' | 'glass' | 'error' | 'whoosh' | 'success') => {
+    // Sounds disabled as per user request
   };
 
   useEffect(() => {
@@ -676,9 +667,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   };
 
   return (
-    <main className="h-screen bg-[#1c1d21] text-white flex overflow-hidden font-sans">
+    <main className="h-screen bg-[#24262b] text-white flex overflow-hidden font-sans">
       {/* SIDEBAR */}
-      <div className="w-[260px] flex-shrink-0 border-r border-white/[0.04] bg-[#17181c] flex flex-col justify-between relative z-40">
+      <div className="w-[220px] flex-shrink-0 border-r border-white/[0.04] bg-[#1e1f24] flex flex-col justify-between relative z-40">
         <div className="p-5 space-y-6 overflow-y-auto flex-1">
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]">
@@ -688,13 +679,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </div>
-            <span className="font-bold text-white tracking-tight text-lg">Apple Juice</span>
+            <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg">Apple Juice</span>
             <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/50 uppercase tracking-widest font-bold">pre-beta</span>
           </div>
           
           <button 
             onClick={() => { setMessages([]); window.localStorage.removeItem("apple-juice-chat-history"); }}
-            className="w-full bg-white text-black font-bold py-2.5 rounded-xl hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-sm shadow-md"
+            className="w-full bg-white text-black font-semibold py-2 rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-[13px] shadow-sm"
           >
             + New Project
           </button>
@@ -1062,7 +1053,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         submitPrompt();
                       }
                     }}
-                    placeholder={prompt == "" && messages.length == 0 ? placeholderText : (isPluginConnected ? "Ask the AI to build something... (use @ to mention a script)" : "Connect your plugin to start building...")}
+                    placeholder={!isPluginConnected ? "Connect your Roblox Studio plugin to start building..." : (prompt == "" && messages.length == 0 ? placeholderText : "Ask the AI to build something... (use @ to mention a script)")}
                     className="min-h-[70px] max-h-[250px] w-full resize-none bg-transparent border-transparent px-2 pt-2 text-[15px] text-white placeholder:text-white/30 focus-visible:ring-0 focus:outline-none rounded-none"
                     disabled={!isPluginConnected || isGenerating}
                   />
@@ -1129,7 +1120,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 <div className="flex items-center justify-between gap-3 pt-2">
                   <div className="flex items-center gap-2">
                     {/* Mode toggle */}
-                    <div className="relative flex items-center bg-black/20 rounded-xl border border-white/[0.04] p-0.5">
+                    <div className="relative flex items-center bg-black/20 rounded-xl border border-white/[0.04] p-0.5 w-[140px]">
                       {/* Sliding pill background */}
                       <div
                         className="absolute top-0.5 bottom-0.5 rounded-lg transition-all duration-300 ease-in-out"
@@ -1141,7 +1132,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       />
                       <button
                         onClick={() => setMode("fast")}
-                        className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors duration-200 ${
+                        className={`relative z-10 flex-1 flex justify-center items-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors duration-200 ${
                           mode == "fast"
                             ? "text-black"
                             : "text-white/40 hover:text-white/70"
@@ -1152,14 +1143,14 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       </button>
                       <button
                         onClick={() => setMode("thinking")}
-                        className={`relative z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors duration-200 ${
+                        className={`relative z-10 flex-1 flex justify-center items-center gap-1.5 py-1.5 rounded-lg text-[12px] font-medium transition-colors duration-200 ${
                           mode == "thinking"
                             ? "text-violet-400"
                             : "text-white/40 hover:text-white/70"
                         }`}
                       >
                         <Brain className="h-3 w-3" />
-                        Thinking
+                        Think
                       </button>
                     </div>
 
@@ -1204,7 +1195,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     )}
                     <button
                       onClick={() => submitPrompt()}
-                      disabled={isGenerating || prompt.trim() == ""}
+                      disabled={!isPluginConnected || isGenerating || prompt.trim() == ""}
                       className="p-2 rounded-xl bg-white text-black hover:bg-zinc-200 disabled:opacity-40 transition-all disabled:shadow-none"
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1216,7 +1207,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               </div>
             </div>
             
-            {messages.length == 0 && (
+            {messages.length == 0 && isPluginConnected && (
               <div className="mt-6 flex flex-wrap justify-center gap-3 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
                  <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a combat system")}>
                    <span className="text-[16px]">⚔️</span> Make a combat system
