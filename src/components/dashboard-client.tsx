@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useMemo, useState } from "react";
-import { Paperclip, Zap, Brain, X } from "lucide-react";
+import { useEffect, useRef, useMemo, useState, useCallback } from "react";
+import { Paperclip, Zap, Brain, X, Search, Share2, Shield } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +10,7 @@ import { ToastContainer, useToasts } from "@/components/ui/toast";
 import { ScriptCard } from "@/components/script-card";
 import { SystemArchitecture } from "@/components/system-architecture";
 import { ThinkingFeed, type ThinkingStep } from "@/components/thinking-feed";
+import { WorkspaceTree } from "@/components/workspace-tree";
 
 type DashboardClientProps = {
   username: string;
@@ -35,6 +36,7 @@ type ChatMessage = {
   suggestions?: string[];
   thinking?: string;
   attachments?: { name: string }[];
+  pendingSync?: boolean;
 };
 
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
@@ -73,6 +75,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const lastReportedErrorRef = useRef<string | null>(null);
   const pendingPayloadRef = useRef<any>(null);
   const stepTimeoutsRef = useRef<any[]>([]);
+  // Feature: Auto-debug toggle
+  const [autoDebug, setAutoDebug] = useState(true);
+  const [autoSync, setAutoSync] = useState(true);
+  // Feature: Asset search
+  const [assetQuery, setAssetQuery] = useState("");
+  const [assetResults, setAssetResults] = useState<{ id: number; name: string; creator: string; thumbnail: string }[]>([]);
+  const [showAssetSearch, setShowAssetSearch] = useState(false);
+  const [isSearchingAssets, setIsSearchingAssets] = useState(false);
+  // Feature: Live Share
 
   const examplePrompts = useMemo(() => [
     "Make a combat system...",
@@ -240,8 +251,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     return () => clearInterval(interval);
   }, [sessionKey, showToast]);
 
-  // Auto-fix polling: checks every second if an auto-fix is pending
+  // Auto-fix polling: checks every second if an auto-fix is pending AND autoDebug is on
   useEffect(() => {
+    if (!autoDebug) return;
     const autoFixInterval = setInterval(() => {
       if (autoFixPendingRef.current && !isGenerating) {
         const errorMsg = autoFixPendingRef.current;
@@ -549,6 +561,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           openaiKey: openaiKey.trim(),
           mode,
           fileContents: attachedFiles.length > 0 ? attachedFiles : undefined,
+          autoSync,
         }),
       });
 
@@ -581,15 +594,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       const payloadFiles = [...attachedFiles];
       setAttachedFiles([]);
 
-      setPluginStatus(`New code is ready. Syncing to Studio for playtest...`);
-      showToast("Script generated, syncing to Studio...", "success");
-      playSound('success');
-
-      setThinkingSteps(prev => [...prev, { icon: "generating", label: "Running playtest in Roblox...", done: false }]);
-
-      pendingPayloadRef.current = { payload, files: payloadFiles };
-
-      function buildAssistantMessage(p: typeof payload, files: { name: string; content: string }[]): ChatMessage {
+      function buildAssistantMessage(p: typeof payload, files: { name: string; content: string }[], pendingSync: boolean): ChatMessage {
         return {
           id: crypto.randomUUID(),
           role: "assistant",
@@ -615,20 +620,36 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           })),
           suggestions: p.suggestions,
           thinking: p.thinking,
+          pendingSync,
         };
       }
 
-      setTimeout(() => {
-        if (pendingPayloadRef.current && pendingPayloadRef.current.payload === payload) {
-          const { payload: fp, files } = pendingPayloadRef.current;
-          pendingPayloadRef.current = null;
-          setMessages((current) => [...current, buildAssistantMessage(fp, files)]);
-          setThinkingSteps([]);
-          setIsGenerating(false);
-          setPluginStatus("Playtest timeout. Assuming success.");
-          void fetchUsage();
-        }
-      }, 15000);
+      if (autoSync) {
+        setPluginStatus(`New code is ready. Syncing to Studio for playtest...`);
+        showToast("Script generated, syncing to Studio...", "success");
+        playSound('success');
+
+        setThinkingSteps(prev => [...prev, { icon: "generating", label: "Running playtest in Roblox...", done: false }]);
+        pendingPayloadRef.current = { payload, files: payloadFiles };
+
+        setTimeout(() => {
+          if (pendingPayloadRef.current && pendingPayloadRef.current.payload === payload) {
+            const { payload: fp, files } = pendingPayloadRef.current;
+            pendingPayloadRef.current = null;
+            setMessages((current) => [...current, buildAssistantMessage(fp, files, false)]);
+            setThinkingSteps([]);
+            setIsGenerating(false);
+            setPluginStatus("Playtest timeout. Assuming success.");
+            void fetchUsage();
+          }
+        }, 15000);
+      } else {
+        setPluginStatus("Code generated. Review changes before syncing.");
+        setIsGenerating(false);
+        setMessages((current) => [...current, buildAssistantMessage(payload, payloadFiles, true)]);
+        setThinkingSteps([]);
+        void fetchUsage();
+      }
 
     } catch (error) {
       stepTimeoutsRef.current.forEach(clearTimeout);
@@ -666,6 +687,30 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const fixPrompt = `The previous code failed with this error in Roblox Studio:\n${lastError}\n\nFix it.`;
     submitPrompt(fixPrompt);
   };
+
+  // Feature: Asset Search
+  const searchAssets = useCallback(async () => {
+    if (!assetQuery.trim()) return;
+    setIsSearchingAssets(true);
+    try {
+      const res = await fetch(`/api/search-assets?q=${encodeURIComponent(assetQuery)}&category=Models`);
+      if (res.ok) {
+        const data = await res.json();
+        setAssetResults(data.results || []);
+      }
+    } catch { /* ignore */ } finally {
+      setIsSearchingAssets(false);
+    }
+  }, [assetQuery]);
+
+  // Feature: Copy share link
+  const copyShareLink = useCallback(() => {
+    if (!sessionKey) return;
+    const url = `${window.location.origin}/dashboard?join=${sessionKey}`;
+    navigator.clipboard.writeText(url).then(() => {
+      showToast("Share link copied! Others can join your session.", "success");
+    }).catch(() => {});
+  }, [sessionKey, showToast]);
 
   return (
     <main className="h-screen bg-[#24262b] text-white flex overflow-hidden font-sans">
@@ -719,23 +764,71 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               <span className="text-[11px] font-medium text-white/80">
                 {isPluginConnected ? "Connected" : "Waiting"}
               </span>
+              {/* Auto-Debug toggle */}
+              <button 
+                onClick={() => setAutoDebug(!autoDebug)} 
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium transition-all ${
+                  autoDebug 
+                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' 
+                    : 'bg-white/5 text-white/30 border border-white/10'
+                }`}
+                title={autoDebug ? "Auto-debug ON: AI will auto-fix errors" : "Auto-debug OFF"}
+              >
+                <Shield className="h-2.5 w-2.5" />
+                {autoDebug ? "Auto-fix" : "Manual"}
+              </button>
+              {/* Auto-Sync toggle */}
+              <button 
+                onClick={() => setAutoSync(!autoSync)} 
+                className={`ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium transition-all ${
+                  autoSync 
+                    ? 'bg-[#ccff00]/15 text-[#ccff00] border border-[#ccff00]/20' 
+                    : 'bg-white/5 text-white/30 border border-white/10'
+                }`}
+                title={autoSync ? "Auto-sync ON: Code goes straight to Studio" : "Auto-sync OFF: Review code before syncing"}
+              >
+                <Zap className="h-2.5 w-2.5" />
+                {autoSync ? "Auto-sync" : "Review"}
+              </button>
             </div>
             <p className="text-[10px] text-white/40 leading-snug truncate" title={pluginStatus}>{pluginStatus}</p>
           </div>
           
+          {/* Share Session */}
+          {sessionKey && (
+            <button 
+              onClick={copyShareLink}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.04] text-[11px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all"
+            >
+              <Share2 className="h-3 w-3" />
+              <span>Share Session</span>
+              <span className="ml-auto text-[9px] font-mono text-white/20 truncate max-w-[80px]">{sessionKey.slice(0, 8)}…</span>
+            </button>
+          )}
+          
+          {/* Collapsible Workspace Tree */}
           {projectTree.length > 0 && (
-            <div className="mt-4">
-              <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-3">Workspace</span>
-              <div className="max-h-[30vh] overflow-y-auto text-[11px] text-white/50 space-y-1 font-mono pl-1 custom-scrollbar">
-                {projectTree.map((node, i) => (
-                  <div key={i} className="truncate hover:text-white/80 cursor-default transition-colors" title={node}>{node}</div>
-                ))}
+            <div>
+              <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-2">Workspace</span>
+              <div className="max-h-[35vh] overflow-y-auto custom-scrollbar">
+                <WorkspaceTree paths={projectTree} />
               </div>
             </div>
           )}
         </div>
         
         <div className="p-4 border-t border-white/[0.04] space-y-2">
+           {/* Asset Search Button */}
+           <button 
+             onClick={() => setShowAssetSearch(!showAssetSearch)}
+             className="w-full bg-white/[0.03] border border-white/[0.04] text-white/70 hover:text-white py-2 rounded-xl flex items-center justify-between px-4 transition-colors"
+           >
+             <div className="flex items-center gap-2">
+               <Search className="h-3.5 w-3.5 text-[#ccff00]/60" />
+               <span className="text-[12px] font-semibold">Toolbox Search</span>
+             </div>
+             <span className="text-white/30">&rsaquo;</span>
+           </button>
            <button className="w-full bg-white/[0.03] border border-white/[0.04] text-white/70 hover:text-white py-2.5 rounded-xl flex items-center justify-between px-4 transition-colors">
              <div className="flex flex-col items-start">
                <span className="text-[13px] font-semibold">Discord</span>
@@ -880,6 +973,26 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                               </button>
                             ))}
                           </div>
+                        </div>
+                      )}
+                      
+                      {message.pendingSync && (
+                        <div className="mt-4 pt-3 border-t border-[#ccff00]/20 flex justify-end">
+                          <button 
+                            className="bg-[#ccff00] text-black font-bold px-5 py-2 rounded-lg text-[13px] shadow-[0_0_15px_rgba(204,255,0,0.3)] hover:bg-[#d4ff33] transition-all"
+                            onClick={async () => {
+                              showToast("Accepting changes...", "info");
+                              const res = await fetch("/api/accept-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionKey }) });
+                              if (res.ok) {
+                                showToast("Changes sent to Roblox Studio!", "success");
+                                setMessages(msgs => msgs.map(m => m.id === message.id ? { ...m, pendingSync: false } : m));
+                              } else {
+                                showToast("Failed to sync code.", "error");
+                              }
+                            }}
+                          >
+                            Accept & Sync to Studio
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1221,6 +1334,67 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   <option key={model} value={model} className="bg-[#13151a]">{model}</option>
                 ))}
               </select>
+            </div>
+          </div>
+        </div>
+      )}
+      {showAssetSearch && (
+        <div className="fixed inset-0 z-[190] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) setShowAssetSearch(false); }}>
+          <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[14px] font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <Search className="h-4 w-4 text-[#ccff00]" />
+                Roblox Toolbox Search
+              </h2>
+              <button onClick={() => setShowAssetSearch(false)} className="text-white/40 hover:text-white transition-colors"><X className="w-4 h-4"/></button>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={assetQuery}
+                onChange={(e) => setAssetQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && searchAssets()}
+                placeholder="Search for models, meshes, images..."
+                className="flex-1 bg-white/[0.04] border-white/[0.08] h-9 text-sm focus:border-[#ccff00]/40"
+              />
+              <button 
+                onClick={searchAssets} 
+                disabled={isSearchingAssets}
+                className="px-4 py-2 bg-[#ccff00] text-black text-[12px] font-bold rounded-lg hover:bg-[#d4ff33] transition-colors disabled:opacity-40"
+              >
+                {isSearchingAssets ? "..." : "Search"}
+              </button>
+            </div>
+            <div className="max-h-[350px] overflow-y-auto">
+              {assetResults.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {assetResults.map((asset) => (
+                    <button
+                      key={asset.id}
+                      onClick={() => {
+                        setPrompt(`Insert asset ${asset.id} (${asset.name}) into Workspace`);
+                        setShowAssetSearch(false);
+                        showToast(`Selected "${asset.name}" — send the message to insert it`, "success");
+                      }}
+                      className="group relative bg-white/[0.04] border border-white/[0.08] rounded-xl p-2 hover:bg-white/[0.08] hover:border-[#ccff00]/30 transition-all text-left"
+                    >
+                      <div className="aspect-square bg-black/30 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
+                        <img 
+                          src={asset.thumbnail}
+                          alt={asset.name}
+                          className="w-full h-full object-cover rounded-lg opacity-80 group-hover:opacity-100 transition-opacity"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      </div>
+                      <p className="text-[11px] font-medium text-white/80 truncate">{asset.name}</p>
+                      <p className="text-[9px] text-white/30 truncate">{asset.creator}</p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-white/20 text-sm">
+                  {isSearchingAssets ? "Searching..." : "Search for assets to insert into your game"}
+                </div>
+              )}
             </div>
           </div>
         </div>

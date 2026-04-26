@@ -15,6 +15,7 @@ type ChatBody = {
   openaiKey?: string;
   mode?: "fast" | "thinking";
   fileContents?: { name: string; content: string }[];
+  autoSync?: boolean;
 };
 
 export async function POST(req: Request) {
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
   const openaiKey = body.openaiKey?.trim() ?? "";
   const mode = body.mode ?? "fast";
   const fileContents = body.fileContents ?? [];
+  const autoSync = body.autoSync ?? true;
 
   const systemOpenAIKey = process.env.OPENAI_API_KEY || "";
   const systemGoogleKey = process.env.GOOGLE_API_KEY || "";
@@ -500,7 +502,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
       code: s.code,
       assetId: (s as any).assetId,
     }))});
-    await upsertGeneratedCode(sessionKey, pluginPayload, messageId);
+    await upsertGeneratedCode(sessionKey, pluginPayload, messageId, autoSync);
 
     const finalMessage = structuredFinal?.message ?? 
       `I've created ${scripts.length} scripts for you: ${scriptResults.map(s => s.name).join(", ")}.`;
@@ -546,7 +548,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     assetId: structuredFinal?.assetId 
   });
 
-  await upsertGeneratedCode(sessionKey, pluginPayload, messageId);
+  await upsertGeneratedCode(sessionKey, pluginPayload, messageId, autoSync);
 
   return Response.json({
     ok: true,

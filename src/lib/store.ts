@@ -14,6 +14,7 @@ export type SessionEntry = {
   logs?: string[];
   requestedFile?: string;
   fileResponse?: { name: string; content: string };
+  pendingCode?: string;
 };
 
 const PREFIX = "apple-juice:session:";
@@ -169,25 +170,56 @@ export async function updateSession(sessionKey: string, updates: Partial<Session
   }
 }
 
-export async function upsertGeneratedCode(sessionKey: string, code: string, messageId: string) {
+export async function upsertGeneratedCode(sessionKey: string, code: string, messageId: string, autoAccept: boolean = true) {
   const key = keyFor(sessionKey);
   const lua = `
     local raw = redis.call("GET", KEYS[1])
     if not raw then return nil end
     local sess = cjson.decode(raw)
-    sess.code = ARGV[1]
     sess.messageId = ARGV[2]
-    sess.hasNewCode = true
+    if ARGV[3] == "true" then
+      sess.code = ARGV[1]
+      sess.hasNewCode = true
+      sess.pendingCode = nil
+    else
+      sess.pendingCode = ARGV[1]
+      sess.hasNewCode = false
+    end
     redis.call("SET", KEYS[1], cjson.encode(sess))
     return cjson.encode(sess)
   `;
 
   try {
-    const res = await getRedis().eval(lua, [key], [code, messageId]);
+    const res = await getRedis().eval(lua, [key], [code, messageId, autoAccept ? "true" : "false"]);
     if (!res) return null;
     return (typeof res === "string" ? JSON.parse(res) : res) as SessionEntry;
   } catch (err) {
     console.error("upsertGeneratedCode error", err instanceof Error ? err.message : String(err));
+    return null;
+  }
+}
+
+export async function acceptPendingCode(sessionKey: string) {
+  const key = keyFor(sessionKey);
+  const lua = `
+    local raw = redis.call("GET", KEYS[1])
+    if not raw then return nil end
+    local sess = cjson.decode(raw)
+    if sess.pendingCode then
+      sess.code = sess.pendingCode
+      sess.hasNewCode = true
+      sess.pendingCode = nil
+      redis.call("SET", KEYS[1], cjson.encode(sess))
+      return cjson.encode(sess)
+    end
+    return raw
+  `;
+  try {
+    const res = await getRedis().eval(lua, [key], []);
+    if (!res) return null;
+    return (typeof res === "string" ? JSON.parse(res) : res) as SessionEntry;
+  } catch (err) {
+    console.error("acceptPendingCode error", err);
     return null;
   }
 }
