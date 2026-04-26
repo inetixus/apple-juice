@@ -90,13 +90,57 @@ export async function POST(req: Request) {
 
   function tryParsePluginPayload(text?: string): PluginPayload | null {
     if (!text) return null;
+
+    // Step 1: Strip markdown fences if present
+    let cleaned = text.trim();
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+    // Step 2: Try direct parse
     try {
-      const obj = JSON.parse(text);
+      const obj = JSON.parse(cleaned);
       if (obj && typeof obj === "object" && ("code" in obj || "action" in obj || "scripts" in obj)) return obj as PluginPayload;
     } catch {
       // ignore
     }
-    const m = text.match(/\{[\s\S]*\}/);
+
+    // Step 3: Find JSON objects by locating balanced braces
+    // This handles cases where the AI dumps thinking text before the JSON
+    const firstBrace = cleaned.indexOf('{');
+    if (firstBrace === -1) return null;
+    
+    // Try progressively from each '{' to find a valid JSON object
+    for (let i = firstBrace; i < cleaned.length; i++) {
+      if (cleaned[i] !== '{') continue;
+      let depth = 0;
+      let inString = false;
+      let escape = false;
+      for (let j = i; j < cleaned.length; j++) {
+        const ch = cleaned[j];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\' && inString) { escape = true; continue; }
+        if (ch === '"' && !escape) { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') depth++;
+        else if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            const candidate = cleaned.substring(i, j + 1);
+            try {
+              const obj = JSON.parse(candidate);
+              if (obj && typeof obj === "object" && ("code" in obj || "action" in obj || "scripts" in obj)) {
+                return obj as PluginPayload;
+              }
+            } catch {
+              // not valid JSON, try next brace
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Step 4: Regex fallback for truncated JSON
+    const m = cleaned.match(/\{[\s\S]*\}/);
     if (m) {
       try {
         const obj = JSON.parse(m[0]);
@@ -152,14 +196,13 @@ export async function POST(req: Request) {
   }
 
   const thinkingInstructions = mode === "thinking" 
-    ? `\nBEFORE writing code, think step-by-step IN EXTENSIVE DETAIL in the "thinking" field (a string) about:
+    ? `\nYou MUST include a "thinking" field (a string) in your JSON output that contains your step-by-step reasoning about:
 1. What the user wants conceptually and mechanically
 2. Which Roblox services, APIs, and physics constraints you'll use
-3. Edge cases, potential bugs, server/client boundary security, and performance optimizations
-4. Exactly how multiple scripts will interact (RemoteEvents, BindableEvents)
+3. Edge cases, potential bugs, server/client boundary security
+4. How multiple scripts will interact (RemoteEvents, BindableEvents)
 5. A comprehensive architectural plan
-You MUST write a very long, thorough chain of thought (at least 300 words) before writing any code. Do not skip this.
-Include "thinking" as a field in your JSON output.`
+IMPORTANT: Put ALL of your reasoning INSIDE the "thinking" field of the JSON object. Do NOT write any text outside the JSON. Your ENTIRE response must be a single valid JSON object.`
     : "";
 
   const SYSTEM_PROMPT = `You are an expert Roblox Luau software architect and scripting assistant called Apple Juice.${thinkingInstructions}
@@ -197,7 +240,7 @@ CRITICAL RULES FOR CODE QUALITY AND ARCHITECTURE:
 7. If the user asks to "make a build", "build a car", or "insert a [thing]", you can either generate a script that builds it via Instance.new, OR you can use "action": "insert_asset" with an appropriate Roblox Toolbox assetId if you know one. Set "parent": "Workspace" when inserting physical assets.
 8. If the user asks to "stop the playtest" or "end test", DO NOT generate a script. Instead, output ONLY: {"action": "stop_playtest", "message": "Stopping playtest...", "suggestions": []}
 ${fileContextBlock}${treeContextBlock}
-Return ONLY the JSON object — no markdown, no backticks, no extra commentary outside the JSON.`;
+CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON object. NO text before the opening {. NO text after the closing }. NO markdown. NO backticks. NO explanations outside the JSON. If you are in thinking mode, put ALL reasoning inside the "thinking" field.`;
 
   // Helper to call OpenAI Chat Completions
   async function callOpenAI(key: string, modelName: string) {
@@ -327,7 +370,8 @@ Return ONLY the JSON object — no markdown, no backticks, no extra commentary o
             })(),
             generationConfig: { 
               temperature: mode === "thinking" ? 0.4 : 0.2, 
-              maxOutputTokens: mode === "thinking" ? 8192 : 4096 
+              maxOutputTokens: mode === "thinking" ? 16384 : 8192,
+              responseMimeType: "application/json"
             },
           }),
         });
