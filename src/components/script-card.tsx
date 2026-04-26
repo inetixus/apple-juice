@@ -3,6 +3,44 @@ import { FileCode2, Copy, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import * as Diff from "diff";
+import { Highlight, themes, type Language } from "prism-react-renderer";
+
+const luauTheme = {
+  ...themes.vsDark,
+  plain: {
+    color: "#e2e8f0",
+    backgroundColor: "transparent",
+  },
+  styles: [
+    ...themes.vsDark.styles,
+    {
+      types: ["keyword", "operator"],
+      style: {
+        color: "#ccff00",
+        fontWeight: "600",
+      },
+    },
+    {
+      types: ["string", "char"],
+      style: {
+        color: "#10b981",
+      },
+    },
+    {
+      types: ["function", "inserted"],
+      style: {
+        color: "#60a5fa",
+      },
+    },
+    {
+      types: ["comment"],
+      style: {
+        color: "#4b5563",
+        fontStyle: "italic",
+      },
+    },
+  ],
+};
 
 type ScriptMeta = { 
   name: string; 
@@ -49,43 +87,63 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
       {expanded && !isDelete && (
         <div className="border-t border-white/5">
           {script.originalCode ? (
-            <pre className="max-h-72 overflow-auto font-mono text-[13px] bg-[#050505] p-5 leading-relaxed">
-              <code>
+            <div className="max-h-[500px] overflow-auto font-mono text-[13px] bg-[#050505] p-0 leading-relaxed">
+              <div className="flex flex-col">
                 {Diff.diffLines(script.originalCode, script.code).map((part, index) => {
-                  let colorClass = "text-[#d1d5db]";
-                  let bgClass = "";
-                  let prefix = "";
-                  if (part.added) {
-                    colorClass = "text-green-400";
-                    bgClass = "bg-green-500/10 block w-full";
-                    prefix = "+ ";
-                  } else if (part.removed) {
-                    colorClass = "text-red-400";
-                    bgClass = "bg-red-500/10 block w-full line-through opacity-70";
-                    prefix = "- ";
-                  }
-                  
-                  // Split by newline to add prefix to each line
-                  const lines = part.value.split('\n');
-                  if (lines[lines.length - 1] === '') lines.pop(); // Remove trailing empty split
+                  const colorClass = part.added ? "text-green-400" : part.removed ? "text-red-400" : "text-white/70";
+                  const bgClass = part.added ? "bg-green-500/10" : part.removed ? "bg-red-500/10" : "";
+                  const prefix = part.added ? "+ " : part.removed ? "- " : "  ";
                   
                   return (
-                    <span key={index} className={`${colorClass} ${bgClass}`}>
-                      {lines.map((line, i) => (
-                        <div key={i} className="pl-2 border-l-2 border-transparent" style={{ borderColor: part.added ? '#4ade80' : part.removed ? '#f87171' : 'transparent' }}>
-                          <span className="opacity-50 select-none w-4 inline-block">{prefix}</span>
-                          {line}
-                        </div>
-                      ))}
-                    </span>
+                    <div key={index} className={`${bgClass} w-full`}>
+                      <Highlight
+                        theme={luauTheme}
+                        code={part.value.replace(/\n$/, "")}
+                        language="lua"
+                      >
+                        {({ tokens, getLineProps, getTokenProps }) => (
+                          <>
+                            {tokens.map((line, i) => (
+                              <div key={i} {...getLineProps({ line })} className={`flex px-5 ${bgClass}`}>
+                                <span className={`w-6 flex-shrink-0 select-none opacity-30 text-[10px] mt-1 ${colorClass}`}>
+                                  {prefix}
+                                </span>
+                                <div className="flex-1">
+                                  {line.map((token, key) => (
+                                    <span key={key} {...getTokenProps({ token })} />
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </Highlight>
+                    </div>
                   );
                 })}
-              </code>
-            </pre>
+              </div>
+            </div>
           ) : (
-            <pre className="max-h-72 overflow-auto font-mono text-[13px] bg-[#050505] p-5 text-[#d1d5db] leading-relaxed">
-              <code>{script.code}</code>
-            </pre>
+            <div className="max-h-[500px] overflow-auto font-mono text-[13px] bg-[#050505] p-5 leading-relaxed">
+              <Highlight
+                theme={luauTheme}
+                code={script.code.trim()}
+                language="lua"
+              >
+                {({ tokens, getLineProps, getTokenProps }) => (
+                  <pre>
+                    {tokens.map((line, i) => (
+                      <div key={i} {...getLineProps({ line })}>
+                        <span className="inline-block w-8 select-none opacity-20 text-right pr-3 text-[10px]">{i + 1}</span>
+                        {line.map((token, key) => (
+                          <span key={key} {...getTokenProps({ token })} />
+                        ))}
+                      </div>
+                    ))}
+                  </pre>
+                )}
+              </Highlight>
+            </div>
           )}
         </div>
       )}

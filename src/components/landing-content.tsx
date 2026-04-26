@@ -2,8 +2,46 @@
 
 import { ArrowRight, Brain, Layers, RefreshCw, ChevronDown, Sparkles } from "lucide-react";
 import { signIn } from "next-auth/react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import { Highlight, themes } from "prism-react-renderer";
+
+const luauTheme = {
+  ...themes.vsDark,
+  plain: {
+    color: "#e2e8f0",
+    backgroundColor: "transparent",
+  },
+  styles: [
+    ...themes.vsDark.styles,
+    {
+      types: ["keyword", "operator"],
+      style: {
+        color: "#ccff00",
+        fontWeight: "600",
+      },
+    },
+    {
+      types: ["string", "char"],
+      style: {
+        color: "#10b981",
+      },
+    },
+    {
+      types: ["function"],
+      style: {
+        color: "#60a5fa",
+      },
+    },
+    {
+      types: ["comment"],
+      style: {
+        color: "#4b5563",
+        fontStyle: "italic",
+      },
+    },
+  ],
+};
 
 /* ─── FAQ data ─── */
 const FAQ_ITEMS = [
@@ -96,8 +134,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
     <div className="min-h-screen bg-[#05050a] text-white selection:bg-blue-500 selection:text-white relative overflow-hidden">
       {/* ━━━ BACKGROUND GRID & AMBIENT GRADIENTS ━━━ */}
       <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/dbuzl20eu/image/upload/v1691456100/grid_wqvngf.png')] bg-[length:32px_32px] opacity-[0.03] pointer-events-none z-0" />
-      <div className="fixed top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-blue-600/40 blur-[200px] pointer-events-none z-0 mix-blend-screen" />
-      <div className="fixed bottom-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-red-600/40 blur-[200px] pointer-events-none z-0 mix-blend-screen" />
+      <div className="fixed top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-blue-600/30 blur-[200px] pointer-events-none z-0 mix-blend-screen animate-blob-drift" />
+      <div className="fixed bottom-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-red-600/30 blur-[200px] pointer-events-none z-0 mix-blend-screen animate-blob-drift-reverse" />
 
       {/* ━━━ NAVBAR ━━━ */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#05050a]/50 backdrop-blur-md border-b border-white/10">
@@ -132,14 +170,14 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       {/* ━━━ HERO & TERMINAL ━━━ */}
       <section className="relative pt-40 lg:pt-52 pb-32 px-6 lg:px-12 xl:px-20 z-10">
         {/* Deep background glow */}
-        <div className="absolute top-[-10%] lg:top-0 left-1/2 lg:left-[20%] -translate-x-1/2 w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-[150px] pointer-events-none" />
+        <div className="absolute top-[-10%] lg:top-0 left-1/2 lg:left-[20%] -translate-x-1/2 w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-[150px] pointer-events-none animate-blob-drift" />
 
         <div className="w-full max-w-[1600px] mx-auto relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16 xl:gap-24">
           
           {/* Hero Content */}
           <div className="flex-1 text-center lg:text-left flex flex-col items-center lg:items-start">
             {/* Eyebrow */}
-            <div className="inline-flex items-center px-4 py-2 rounded-full border border-white/10 bg-[#0a0a0a] mb-8 lg:mb-10 shadow-[0_0_20px_rgba(204,255,0,0.05)]">
+            <div className="inline-flex items-center px-4 py-2 rounded-full border border-white/10 bg-[#0a0a0a] mb-8 lg:mb-10 shadow-[0_0_20px_rgba(204,255,0,0.05)] animate-fade-up">
               <Sparkles className="h-3.5 w-3.5 text-[#ccff00] mr-2" />
               <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98]">
                 Open Source · Free Forever · Roblox OAuth 2.0
@@ -147,18 +185,18 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </div>
 
             {/* Headline */}
-            <h1 className="text-6xl sm:text-7xl lg:text-[4.5rem] xl:text-[5rem] font-extrabold tracking-[-0.04em] leading-[1.05] text-white mb-6 lg:mb-8">
+            <h1 className="text-6xl sm:text-7xl lg:text-[4.5rem] xl:text-[5rem] font-extrabold tracking-[-0.04em] leading-[1.05] text-white mb-6 lg:mb-8 animate-fade-up-delay">
               The AI Code Studio <br />
               for <span className="font-serif italic font-medium text-[#ccff00]">Roblox</span> Developers.
             </h1>
 
             {/* Subtext */}
-            <p className="max-w-xl lg:max-w-lg text-lg sm:text-xl text-[#8a8f98] leading-relaxed mb-10 lg:mb-12 mx-auto lg:mx-0">
+            <p className="max-w-xl lg:max-w-lg text-lg sm:text-xl text-[#8a8f98] leading-relaxed mb-10 lg:mb-12 mx-auto lg:mx-0 animate-fade-up-delay-2">
               Describe what you want to build. Apple Juice generates production-ready Luau code and injects it directly into Roblox Studio — no copy-pasting, no context switching.
             </p>
 
             {/* Lemonade-style Buttons */}
-            <div className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto animate-fade-up-delay-2">
               {/* Primary Shine Button */}
               <button
                 onClick={() => session ? window.location.href = "/dashboard" : signIn("", { callbackUrl: "/dashboard" })}
@@ -199,10 +237,35 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               {/* Content */}
               <div className="flex flex-col xl:flex-row">
                 {/* Code panel */}
-                <div className="flex-1 p-5 border-b xl:border-b-0 xl:border-r border-white/10 overflow-x-auto min-h-[400px]">
-                  <pre className="font-mono text-[12px] xl:text-[13px] leading-[1.8] text-[#a1a1aa] transition-opacity duration-300">
-                    <code>{MULTI_SCRIPTS[activeScriptIndex].code}</code>
-                  </pre>
+                <div className="flex-1 p-5 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden min-h-[400px]">
+                  <AnimatePresence mode="wait">
+                    <motion.pre
+                      key={activeScriptIndex}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.3 }}
+                      className="font-mono text-[12px] xl:text-[13px] leading-[1.8]"
+                    >
+                      <Highlight
+                        theme={luauTheme}
+                        code={MULTI_SCRIPTS[activeScriptIndex].code}
+                        language="lua"
+                      >
+                        {({ tokens, getTokenProps }) => (
+                          <code>
+                            {tokens.map((line, i) => (
+                              <div key={i}>
+                                {line.map((token, key) => (
+                                  <span key={key} {...getTokenProps({ token })} />
+                                ))}
+                              </div>
+                            ))}
+                          </code>
+                        )}
+                      </Highlight>
+                    </motion.pre>
+                  </AnimatePresence>
                 </div>
 
                 {/* File list panel */}
@@ -259,7 +322,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
               <h3 className="text-xl font-bold mb-3 text-white">Chain-of-Thought Reasoning</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Enable Thinking Mode and the model reasons through your feature before writing a line of code. Complex systems get a first-principles analysis — resulting in smarter, more robust Luau.
+                Enable Thinking Mode and the model reasons through your feature step-by-step before writing a single line of code. Complex systems get a thorough first-principles analysis, resulting in smarter, more robust Luau that requires fewer manual fixes.
               </p>
             </div>
 
@@ -271,7 +334,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
               <h3 className="text-xl font-bold mb-3 text-white">Multi-File Architecture</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Generate entire interconnected systems in one shot. ModuleScripts, ServerScripts, and LocalScripts — all wired together and injected into the correct Explorer locations at once.
+                Generate entire interconnected systems in one shot. Apple Juice can orchestrate ModuleScripts, ServerScripts, and LocalScripts simultaneously — wiring them together with remote events and placing them into the correct Explorer locations instantly.
               </p>
             </div>
 
@@ -283,7 +346,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
               <h3 className="text-xl font-bold mb-3 text-white">Self-Healing Debug Loop</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Apple Juice streams your Roblox console output in real time. When a runtime error is detected, the AI analyses the stack trace and proposes — or automatically applies — a targeted fix.
+                Apple Juice streams your Roblox console output in real time. When a runtime error or exception is detected, the AI automatically analyzes the stack trace and directly proposes a targeted fix, cutting your debugging time down to zero.
               </p>
             </div>
 
@@ -295,7 +358,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
               <h3 className="text-xl font-bold mb-3 text-white">Zero-Latency Studio Sync</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                A lightweight Studio plugin maintains a persistent WebSocket connection to your session. Code appears in your Explorer tree the moment the model finishes — no clipboard required.
+                A highly optimized Studio plugin maintains a persistent, lightning-fast WebSocket connection to your web session. The code materializes in your Explorer tree the exact millisecond the language model finishes generation — completely eliminating clipboard copying.
               </p>
             </div>
 
@@ -307,7 +370,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
               <h3 className="text-xl font-bold mb-3 text-white">Context-Aware Generation</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Upload existing scripts or let Apple Juice scan your project tree. The model uses your codebase as context so generated code matches your naming conventions, architecture, and folder structure.
+                Upload existing scripts directly or let Apple Juice dynamically read your current project tree. The model uses your entire existing codebase as context, ensuring that generated components match your naming conventions, stylistic patterns, and game architecture.
               </p>
             </div>
 
@@ -319,7 +382,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
               <h3 className="text-xl font-bold mb-3 text-white">Secure by Architecture</h3>
               <p className="text-[#8a8f98] leading-relaxed">
-                Your AI provider API keys are stored in your browser's localStorage and sent directly to OpenAI or Google — our servers never handle them. Roblox sign-in uses the official OAuth 2.0 API.
+                Your AI provider API keys are stored exclusively in your browser's local memory and interact directly with OpenAI or Google. Our servers act only as a transparent proxy. Furthermore, authentication leverages the official, robust Roblox OAuth 2.0 API.
               </p>
             </div>
           </div>
@@ -355,8 +418,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-6">
               Ship your next feature tonight.
             </h2>
-            <p className="text-lg text-[#8a8f98] mb-10 max-w-lg mx-auto">
-              Join Roblox developers who go from idea to working Luau code in minutes — without leaving the browser.
+            <p className="text-lg text-[#8a8f98] mb-10 max-w-xl mx-auto">
+              Join Roblox developers who go from idea to working Luau code in minutes. <br/> <strong className="text-white mt-2 block">Ready to ditch the credits? Bring your own API key and get zero limits.</strong>
             </p>
             
             <button
@@ -395,6 +458,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Twitter</a>
             <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">GitHub</a>
             <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Discord</a>
+            <a href="mailto:info@apple-juice.online" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Support</a>
             <a href="/tos" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Terms</a>
             <a href="/privacy" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Privacy</a>
             <a href="/eula" className="text-sm text-[#8a8f98] hover:text-white transition-colors">EULA</a>
