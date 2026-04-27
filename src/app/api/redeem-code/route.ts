@@ -1,20 +1,26 @@
-import { grantBonusCredits } from "@/lib/store";
+import { grantBonusCredits, getSession } from "@/lib/store";
 
 export async function POST(req: Request) {
   try {
-    const { code, userId } = await req.json();
+    const { code, sessionKey } = await req.json();
 
-    if (!code || !userId) {
+    if (!code || !sessionKey) {
       return Response.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    const session = await getSession(sessionKey);
+    if (!session) {
+      return Response.json({ error: "Invalid session" }, { status: 401 });
+    }
+    const userId = session.ownerUserId;
 
     const trimmedCode = code.trim().toLowerCase();
     const expectedCode = (process.env.REDEEM1 || "refresh").toLowerCase();
 
     if (trimmedCode === expectedCode) {
-      // Grant 1000 credits
-      await grantBonusCredits(userId, 1000);
-      return Response.json({ success: true, message: "Redeemed code for 1000 credits!" });
+      // Grant 50 credits
+      await grantBonusCredits(userId, 50);
+      return Response.json({ success: true, message: "Redeemed code for 50 credits!" });
     }
 
     // Invalid code

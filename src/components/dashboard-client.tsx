@@ -504,13 +504,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   }
 
   const handleRedeemCode = async () => {
-    if (!secretCode.trim()) return;
+    if (!secretCode.trim() || !sessionKey) return;
     setIsRedeeming(true);
     try {
       const res = await fetch("/api/redeem-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: secretCode, userId: window.localStorage.getItem("apple-juice-user-id") || "anonymous" })
+        body: JSON.stringify({ code: secretCode, sessionKey })
       });
       const data = await res.json();
       if (res.ok) {
