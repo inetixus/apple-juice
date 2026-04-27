@@ -217,17 +217,18 @@ A professional system separates concerns:
 3. Client-side UI/Input handling in StarterPlayerScripts or StarterGui (LocalScript)
 
 When the user's request requires MULTIPLE scripts or a complex system, output a JSON object with:
-- "scripts": an array of script objects, each with: action, type, parent, name, code, assetId, and OPTIONALLY "requires" (an array of strings indicating the names of other scripts this one depends on or requires).
+- "scripts": an array of objects, each with: action, type (ANY ClassName, e.g. "Script", "ScreenGui", "Folder"), parent, name, code, assetId, "properties" (optional key-value object for GUI/part properties), and OPTIONALLY "requires" (an array of strings indicating the names of other scripts this one depends on).
 - "message": a friendly explanation of everything you created
 - "suggestions": 3 short follow-up ideas
 ${mode === "thinking" ? '- "thinking": your step-by-step reasoning (string)' : ""}
 
 When ONLY ONE simple script or action is needed, output a JSON object with:
 - "action": "create", "delete", "insert_asset", or "stop_playtest"
-- "type": "Script", "LocalScript", "ModuleScript", or "Asset"
-- "parent": dot path (e.g. "ServerScriptService", "StarterPlayer.StarterPlayerScripts", "Workspace")
-- "name": script name
-- "code": valid Luau source code (leave empty if action is "insert_asset")
+- "type": "Script", "LocalScript", "ModuleScript", or ANY valid Roblox ClassName (e.g. "ScreenGui", "Frame", "TextLabel", "Folder")
+- "parent": dot path (e.g. "ServerScriptService", "StarterGui", "Workspace")
+- "name": instance name
+- "code": valid Luau source code (only if type is a Script)
+- "properties": (Optional) key-value object of properties to apply. Supported string formats for complex types: "Color3.fromRGB(r,g,b)", "UDim2.new(sx,ox,sy,oy)", "Vector3.new(x,y,z)", "Enum.Type.Value", or Hex strings like "#FF0000". (e.g. {"Size": "UDim2.new(1,0,1,0)", "BackgroundColor3": "#FF0000", "Text": "Hello"})
 - "assetId": numeric Roblox asset ID (ONLY if action is "insert_asset")
 - "message": a short friendly explanation (2-4 sentences)
 - "suggestions": array of 3 short strings
@@ -240,8 +241,9 @@ CRITICAL RULES FOR CODE QUALITY AND ARCHITECTURE:
 4. Use "LocalScript" ONLY for client-side code (UI, camera, input handling). Place in "StarterPlayer.StarterPlayerScripts" or "StarterGui".
 5. Use "ModuleScript" for configuration, shared logic, or state management. Place in "ReplicatedStorage" or "ServerStorage". 
 6. The code must be a standalone, runnable script. Do NOT wrap server logic in a module that returns a table unless explicitly requested or necessary for architecture.
-7. If the user asks to "make a build", "build a car", or "insert a [thing]", you can either generate a script that builds it via Instance.new, OR you can use "action": "insert_asset" with an appropriate Roblox Toolbox assetId if you know one. Set "parent": "Workspace" when inserting physical assets.
-8. If the user asks to "stop the playtest" or "end test", DO NOT generate a script. Instead, output ONLY: {"action": "stop_playtest", "message": "Stopping playtest...", "suggestions": []}
+7. If the user asks to "make a build" or "insert a [thing]", you can use "action": "insert_asset" with a Toolbox assetId. 
+8. If the user asks for a UI/GUI, you can either generate a LocalScript that builds it programmatically, OR output multiple JSON objects in the "scripts" array with types like "ScreenGui", "Frame", "TextLabel" and use the "properties" field to style them. Set parent to "StarterGui" for the root ScreenGui, and set the parent of child elements to the dot path of the ScreenGui (e.g. "StarterGui.MyUI").
+9. If the user asks to "stop the playtest" or "end test", output ONLY: {"action": "stop_playtest", "message": "Stopping playtest...", "suggestions": []}
 ${fileContextBlock}${treeContextBlock}
 CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON object. NO text before the opening {. NO text after the closing }. NO markdown. NO backticks. NO explanations outside the JSON. If you are in thinking mode, put ALL reasoning inside the "thinking" field.`;
 

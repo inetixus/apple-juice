@@ -358,6 +358,7 @@ function TreeItem({
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const renamePathRef = useRef<string>("");
+  const isSubmittingRef = useRef<boolean>(false);
 
   const isRenaming = renamingPath === node.fullPath;
   const isSelected = selectedPath === node.fullPath;
@@ -368,6 +369,7 @@ function TreeItem({
   // Focus the rename input when renaming starts
   useEffect(() => {
     if (isRenaming && renameInputRef.current) {
+      isSubmittingRef.current = false;
       renameInputRef.current.focus();
       renameInputRef.current.select();
     }
@@ -392,6 +394,9 @@ function TreeItem({
   }, [node.name, node.fullPath, setRenamingPath]);
 
   const handleRenameSubmit = useCallback(() => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    
     const trimmed = newName.trim();
     const originalPath = renamePathRef.current || node.fullPath;
     if (trimmed && trimmed !== node.name && onRename) {

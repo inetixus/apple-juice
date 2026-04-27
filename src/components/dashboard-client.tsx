@@ -780,6 +780,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           payload: { action: "rename_instance", oldPath: path, newName }
         }),
       });
+      // Give the plugin a brief moment to process before the tree updates
+      await new Promise(resolve => setTimeout(resolve, 500));
     } catch (err) {
       console.error("Rename error:", err);
     }
@@ -798,6 +800,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           payload: { action: "delete", parent, name }
         }),
       });
+      await new Promise(resolve => setTimeout(resolve, 500));
     } catch (err) {
       console.error("Delete error:", err);
     }

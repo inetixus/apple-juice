@@ -364,6 +364,7 @@ local function runPlaytest(sessionKey)
 end
 
 local function resolvePath(pathStr)
+	if not pathStr or type(pathStr) ~= "string" then return nil end
 	local parts = string.split(pathStr, ".")
 	local current = game
 	for _, part in ipairs(parts) do
@@ -498,8 +499,35 @@ local function injectSingleScript(scriptData)
 		end
 	end
 
-	if scriptClass ~= "Script" and scriptClass ~= "LocalScript" and scriptClass ~= "ModuleScript" then
-		scriptClass = "Script"
+	local function parsePropertyValue(val)
+		if type(val) ~= "string" then return val end
+		
+		-- Hex Color
+		if val:match("^#%x%x%x%x%x%x$") then
+			local ok, c = pcall(function() return Color3.fromHex(val) end)
+			if ok then return c end
+		end
+		
+		-- Color3.fromRGB(r, g, b)
+		local r, g, b = val:match("Color3%.fromRGB%((%d+),%s*(%d+),%s*(%d+)%)")
+		if r and g and b then return Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b)) end
+
+		-- UDim2.new(sx, ox, sy, oy)
+		local sx, ox, sy, oy = val:match("UDim2%.new%((%-?[%d%.]+),%s*(%-?[%d%.]+),%s*(%-?[%d%.]+),%s*(%-?[%d%.]+)%)")
+		if sx and ox and sy and oy then return UDim2.new(tonumber(sx), tonumber(ox), tonumber(sy), tonumber(oy)) end
+
+		-- Vector3.new(x, y, z)
+		local vx, vy, vz = val:match("Vector3%.new%((%-?[%d%.]+),%s*(%-?[%d%.]+),%s*(%-?[%d%.]+)%)")
+		if vx and vy and vz then return Vector3.new(tonumber(vx), tonumber(vy), tonumber(vz)) end
+
+		-- Enum
+		local enumType, enumItem = val:match("Enum%.(%w+)%.(%w+)")
+		if enumType and enumItem then
+			local ok, res = pcall(function() return Enum[enumType][enumItem] end)
+			if ok then return res end
+		end
+
+		return val
 	end
 
 	local target = parentInstance:FindFirstChild(scriptName)
@@ -519,18 +547,35 @@ local function injectSingleScript(scriptData)
 	end
 
 	if not target then
-		target = Instance.new(scriptClass)
+		local ok, newTarget = pcall(function() return Instance.new(scriptClass) end)
+		if not ok then 
+			warn("[AppleJuice] Invalid class " .. tostring(scriptClass) .. ", falling back to Script")
+			newTarget = Instance.new("Script") 
+			scriptClass = "Script"
+		end
+		target = newTarget
 		target.Name = scriptName
 		target.Parent = parentInstance
+	end
+
+	-- Apply properties if provided (useful for GUIs, Parts, Values)
+	if scriptData.properties and type(scriptData.properties) == "table" then
+		for k, v in pairs(scriptData.properties) do
+			pcall(function()
+				target[k] = parsePropertyValue(v)
+			end)
+		end
 	end
 
 	undoFn = function()
 		if didExist then
 			if target and target.ClassName == oldClass then
-				ScriptEditorService:UpdateSourceAsync(target, function() return oldSource end)
+				if target:IsA("LuaSourceContainer") then
+					ScriptEditorService:UpdateSourceAsync(target, function() return oldSource end)
+				end
 			else
 				if target then target:Destroy() end
-				local rest = Instance.new(oldClass)
+				local rest = pcall(function() return Instance.new(oldClass) end) and Instance.new(oldClass) or Instance.new("Script")
 				rest.Name = scriptName
 				if rest:IsA("LuaSourceContainer") then
 					ScriptEditorService:UpdateSourceAsync(rest, function() return oldSource end)
@@ -542,12 +587,16 @@ local function injectSingleScript(scriptData)
 		end
 	end
 
-	local ok, err = pcall(function()
-		ScriptEditorService:UpdateSourceAsync(target, function() return codeText end)
-	end)
-
-	if ok then return true, "Synced " .. scriptClass .. " [" .. scriptName .. "] → " .. parentPath, undoFn
-	else return false, "ScriptEditor Error: " .. tostring(err), nil end
+	-- Only update source if it's a script
+	if target:IsA("LuaSourceContainer") then
+		local ok, err = pcall(function()
+			ScriptEditorService:UpdateSourceAsync(target, function() return codeText end)
+		end)
+		if ok then return true, "Synced " .. scriptClass .. " [" .. scriptName .. "] → " .. parentPath, undoFn
+		else return false, "ScriptEditor Error: " .. tostring(err), nil end
+	else
+		return true, "Created " .. scriptClass .. " [" .. scriptName .. "] → " .. parentPath, undoFn
+	end
 end
 
 local function injectCode(incomingData)
@@ -555,7 +604,7 @@ local function injectCode(incomingData)
 	if not decodeOk or type(parsed) ~= "table" then return false, "Invalid JSON payload", 0, false end
 
 	local currentBatch = {}
-	local isManual = parsed.isManual == true
+	local isManual = parsed.isManual == true or parsed.isManual == "true"
 
 	-- Multi-script: payload has a "scripts" array
 	if parsed.scripts and type(parsed.scripts) == "table" and #parsed.scripts > 0 then
