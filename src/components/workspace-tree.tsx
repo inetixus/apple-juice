@@ -77,26 +77,40 @@ const INSERTABLE_CATEGORIES = [
     {className:"SpawnLocation",label:"SpawnLocation"},{className:"Seat",label:"Seat"},
     {className:"VehicleSeat",label:"VehicleSeat"},{className:"TrussPart",label:"TrussPart"},
     {className:"WedgePart",label:"WedgePart"},{className:"CornerWedgePart",label:"CornerWedgePart"},
+    {className:"UnionOperation",label:"Union"},{className:"NegateOperation",label:"Negate"},
   ]},
   { label:"Containers", items:[
     {className:"Model",label:"Model"},{className:"Folder",label:"Folder"},
-    {className:"Configuration",label:"Configuration"},
+    {className:"Configuration",label:"Configuration"},{className:"Actor",label:"Actor"},
+  ]},
+  { label:"Values", items:[
+    {className:"StringValue",label:"StringValue"},{className:"NumberValue",label:"NumberValue"},
+    {className:"IntValue",label:"IntValue"},{className:"BoolValue",label:"BoolValue"},
+    {className:"CFrameValue",label:"CFrameValue"},{className:"Vector3Value",label:"Vector3Value"},
+    {className:"Color3Value",label:"Color3Value"},{className:"BrickColorValue",label:"BrickColorValue"},
+    {className:"ObjectValue",label:"ObjectValue"},{className:"RayValue",label:"RayValue"},
+  ]},
+  { label:"Interactions", items:[
+    {className:"ProximityPrompt",label:"ProximityPrompt"},{className:"ClickDetector",label:"ClickDetector"},
+    {className:"TouchTransmitter",label:"TouchTransmitter"},{className:"DragDetector",label:"DragDetector"},
   ]},
   { label:"GUI", items:[
     {className:"ScreenGui",label:"ScreenGui"},{className:"Frame",label:"Frame"},
     {className:"TextLabel",label:"TextLabel"},{className:"TextButton",label:"TextButton"},
     {className:"TextBox",label:"TextBox"},{className:"ImageLabel",label:"ImageLabel"},
     {className:"ImageButton",label:"ImageButton"},{className:"ScrollingFrame",label:"ScrollingFrame"},
-    {className:"ViewportFrame",label:"ViewportFrame"},
+    {className:"ViewportFrame",label:"ViewportFrame"},{className:"CanvasGroup",label:"CanvasGroup"},
     {className:"BillboardGui",label:"BillboardGui"},{className:"SurfaceGui",label:"SurfaceGui"},
+    {className:"VideoFrame",label:"VideoFrame"},
   ]},
   { label:"UI Layout", items:[
     {className:"UIListLayout",label:"UIListLayout"},{className:"UIGridLayout",label:"UIGridLayout"},
     {className:"UIPadding",label:"UIPadding"},{className:"UICorner",label:"UICorner"},
     {className:"UIStroke",label:"UIStroke"},{className:"UIGradient",label:"UIGradient"},
-    {className:"UIScale",label:"UIScale"},
-    {className:"UIAspectRatioConstraint",label:"UIAspectRatioConstraint"},
-    {className:"UISizeConstraint",label:"UISizeConstraint"},
+    {className:"UIScale",label:"UIScale"},{className:"UIAspectRatioConstraint",label:"UIAspectRatioConstraint"},
+    {className:"UISizeConstraint",label:"UISizeConstraint"},{className:"UITextSizeConstraint",label:"UITextSizeConstraint"},
+    {className:"UITableLayout",label:"UITableLayout"},{className:"UIPageLayout",label:"UIPageLayout"},
+    {className:"UIFlexItem",label:"UIFlexItem"},
   ]},
   { label:"Effects", items:[
     {className:"ParticleEmitter",label:"ParticleEmitter"},{className:"Fire",label:"Fire"},
@@ -106,33 +120,45 @@ const INSERTABLE_CATEGORIES = [
     {className:"SpotLight",label:"SpotLight"},{className:"SurfaceLight",label:"SurfaceLight"},
     {className:"Explosion",label:"Explosion"},{className:"ForceField",label:"ForceField"},
   ]},
-  { label:"Physics", items:[
-    {className:"Attachment",label:"Attachment"},{className:"WeldConstraint",label:"WeldConstraint"},
-    {className:"HingeConstraint",label:"HingeConstraint"},
-    {className:"BallSocketConstraint",label:"BallSocketConstraint"},
-    {className:"RopeConstraint",label:"RopeConstraint"},
-    {className:"SpringConstraint",label:"SpringConstraint"},
-    {className:"RodConstraint",label:"RodConstraint"},{className:"Motor6D",label:"Motor6D"},
-    {className:"ClickDetector",label:"ClickDetector"},
-    {className:"ProximityPrompt",label:"ProximityPrompt"},
-    {className:"DragDetector",label:"DragDetector"},
+  { label:"Environmental", items:[
+    {className:"Atmosphere",label:"Atmosphere"},{className:"Sky",label:"Sky"},
+    {className:"Clouds",label:"Clouds"},{className:"BloomEffect",label:"Bloom"},
+    {className:"BlurEffect",label:"Blur"},{className:"ColorCorrectionEffect",label:"ColorCorrection"},
+    {className:"SunRaysEffect",label:"SunRays"},{className:"DepthOfFieldEffect",label:"DepthOfField"},
+  ]},
+  { label:"Physics Constraints", items:[
+    {className:"Attachment",label:"Attachment"},{className:"Bone",label:"Bone"},
+    {className:"WeldConstraint",label:"WeldConstraint"},{className:"Weld",label:"Weld"},
+    {className:"Motor6D",label:"Motor6D"},{className:"HingeConstraint",label:"HingeConstraint"},
+    {className:"BallSocketConstraint",label:"BallSocketConstraint"},{className:"RopeConstraint",label:"RopeConstraint"},
+    {className:"SpringConstraint",label:"SpringConstraint"},{className:"RodConstraint",label:"RodConstraint"},
+    {className:"CylindricalConstraint",label:"CylindricalConstraint"},{className:"PrismaticConstraint",label:"PrismaticConstraint"},
+    {className:"UniversalConstraint",label:"UniversalConstraint"},{className:"SlidingBallConstraint",label:"SlidingBall"},
+  ]},
+  { label:"Physics Forces", items:[
+    {className:"VectorForce",label:"VectorForce"},{className:"LinearVelocity",label:"LinearVelocity"},
+    {className:"AngularVelocity",label:"AngularVelocity"},{className:"Torque",label:"Torque"},
+    {className:"AlignPosition",label:"AlignPosition"},{className:"AlignOrientation",label:"AlignOrientation"},
   ]},
   { label:"Sound", items:[
     {className:"Sound",label:"Sound"},{className:"SoundGroup",label:"SoundGroup"},
-  ]},
-  { label:"Values", items:[
-    {className:"BoolValue",label:"BoolValue"},{className:"BrickColorValue",label:"BrickColorValue"},
-    {className:"CFrameValue",label:"CFrameValue"},
+    {className:"AudioPlayer",label:"AudioPlayer"},{className:"AudioEmitter",label:"AudioEmitter"},
+    {className:"AudioListener",label:"AudioListener"},{className:"AudioAnalyzer",label:"AudioAnalyzer"},
   ]},
   { label:"Network", items:[
     {className:"RemoteEvent",label:"RemoteEvent"},{className:"RemoteFunction",label:"RemoteFunction"},
     {className:"BindableEvent",label:"BindableEvent"},{className:"BindableFunction",label:"BindableFunction"},
     {className:"UnreliableRemoteEvent",label:"UnreliableRemoteEvent"},
   ]},
-  { label:"Appearance", items:[
-    {className:"Decal",label:"Decal"},{className:"Texture",label:"Texture"},
-    {className:"SurfaceAppearance",label:"SurfaceAppearance"},
-    {className:"SpecialMesh",label:"SpecialMesh"},
+  { label:"Animation", items:[
+    {className:"Animation",label:"Animation"},{className:"Animator",label:"Animator"},
+    {className:"AnimationController",label:"AnimationController"},
+  ]},
+  { label:"Avatar", items:[
+    {className:"Humanoid",label:"Humanoid"},{className:"HumanoidDescription",label:"HumanoidDescription"},
+    {className:"Accessory",label:"Accessory"},{className:"Shirt",label:"Shirt"},
+    {className:"Pants",label:"Pants"},{className:"ShirtGraphic",label:"ShirtGraphic"},
+    {className:"BodyColors",label:"BodyColors"},
   ]},
 ];
 
@@ -163,71 +189,90 @@ function InsertObjectMenu({
     if (!search.trim()) return INSERTABLE_CATEGORIES;
     const q = search.toLowerCase();
     return INSERTABLE_CATEGORIES.map(cat => ({
-      ...cat, items: cat.items.filter(item => item.label.toLowerCase().includes(q)),
+      ...cat, items: cat.items.filter(item => 
+        item.label.toLowerCase().includes(q) || item.className.toLowerCase().includes(q)
+      ),
     })).filter(cat => cat.items.length > 0);
   }, [search]);
 
   return (
-    <div
-      ref={menuRef}
-      className="absolute z-[100] left-0 top-full mt-1 w-[260px] border shadow-xl"
-      style={{
-        background: "#2d2d30",
-        borderColor: "#3f3f46",
-        fontFamily: "'Source Sans Pro', 'Segoe UI', system-ui, sans-serif",
-      }}
-    >
-      <div className="flex items-center gap-1.5 px-2 py-1.5" style={{ borderBottom: "1px solid #3f3f46" }}>
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="#808080"><circle cx="7" cy="7" r="5.5" fill="none" stroke="#808080" strokeWidth="1.5"/><line x1="11" y1="11" x2="14" y2="14" stroke="#808080" strokeWidth="1.5"/></svg>
-        <input
-          ref={inputRef} type="text" value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search objects..."
-          style={{
-            flex:1, background:"transparent", border:"none", outline:"none",
-            fontSize:"12px", color:"#d4d4d4", fontFamily:"inherit",
-          }}
-        />
-        <button onClick={onClose} style={{padding:"2px",background:"none",border:"none",cursor:"pointer"}}>
-          <svg width="10" height="10" viewBox="0 0 10 10" stroke="#808080" strokeWidth="1.5">
-            <line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
+      <div
+        ref={menuRef}
+        className="w-[320px] rounded-lg border shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150"
+        style={{
+          background: "#2d2d30",
+          borderColor: "#454545",
+          fontFamily: "'Source Sans Pro', 'Segoe UI', system-ui, sans-serif",
+        }}
+      >
+        <div className="flex items-center gap-2.5 px-3 py-2.5" style={{ borderBottom: "1px solid #454545", background: "#333333" }}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <circle cx="7" cy="7" r="5" stroke="#9d9d9d" strokeWidth="1.5"/>
+            <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="#9d9d9d" strokeWidth="1.5"/>
           </svg>
-        </button>
-      </div>
-      <div style={{ maxHeight:"300px", overflowY:"auto", padding:"2px 0" }} className="custom-scrollbar">
-        {filteredCategories.length === 0 && (
-          <div style={{padding:"8px 12px",fontSize:"11px",color:"#606060"}}>No results</div>
-        )}
-        {filteredCategories.map(cat => (
-          <div key={cat.label}>
-            <div style={{padding:"4px 10px",fontSize:"10px",fontWeight:700,color:"#808080",textTransform:"uppercase",letterSpacing:"0.05em"}}>
-              {cat.label}
+          <input
+            ref={inputRef} type="text" value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search objects..."
+            style={{
+              flex:1, background:"transparent", border:"none", outline:"none",
+              fontSize:"13px", color:"#eeeeee", fontFamily:"inherit",
+            }}
+          />
+          <button onClick={onClose} style={{padding:"2px",background:"none",border:"none",cursor:"pointer"}} className="hover:opacity-80">
+            <svg width="12" height="12" viewBox="0 0 12 12" stroke="#9d9d9d" strokeWidth="1.5">
+              <line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div style={{ maxHeight:"400px", overflowY:"auto", padding:"4px 0" }} className="custom-scrollbar bg-[#252526]">
+          {filteredCategories.length === 0 && (
+            <div style={{padding:"20px", textAlign:"center", fontSize:"12px", color:"#808080"}}>
+              No objects found matching "{search}"
             </div>
-            {cat.items.map(item => (
-              <button
-                key={item.className}
-                onClick={() => { onInsert(parentPath, item.className, item.label); onClose(); }}
-                style={{
-                  width:"100%", display:"flex", alignItems:"center", gap:"6px",
-                  padding:"2px 10px", textAlign:"left", background:"none", border:"none",
-                  cursor:"pointer", fontSize:"12px", color:"#d4d4d4",
-                  fontFamily:"inherit",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#094771")}
-                onMouseLeave={e => (e.currentTarget.style.background = "none")}
-              >
-                <img src={getIconPath(item.className)} alt="" width={16} height={16}
-                  style={{imageRendering:"auto",flexShrink:0}}
-                  onError={e => {(e.target as HTMLImageElement).style.display = "none";}}
-                />
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
-      <div style={{padding:"4px 10px",borderTop:"1px solid #3f3f46",fontSize:"10px",color:"#606060"}}>
-        Insert into: <span style={{color:"#808080"}}>{parentPath}</span>
+          )}
+          {filteredCategories.map(cat => (
+            <div key={cat.label} className="mb-2 last:mb-0">
+              <div style={{padding:"6px 12px", fontSize:"10px", fontWeight:700, color:"#808080", textTransform:"uppercase", letterSpacing:"0.06em", background: "#2d2d30"}}>
+                {cat.label}
+              </div>
+              {cat.items.map(item => (
+                <button
+                  key={item.className}
+                  onClick={() => { onInsert(parentPath, item.className, item.label); onClose(); }}
+                  style={{
+                    width:"100%", display:"flex", alignItems:"center", gap:"8px",
+                    padding:"4px 12px", textAlign:"left", background:"none", border:"none",
+                    cursor:"pointer", fontSize:"13px", color:"#cccccc",
+                    fontFamily:"inherit",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = "#094771";
+                    e.currentTarget.style.color = "#ffffff";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = "none";
+                    e.currentTarget.style.color = "#cccccc";
+                  }}
+                >
+                  <div style={{ width: "16px", height: "16px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <img src={getIconPath(item.className)} alt="" width={16} height={16}
+                      style={{imageRendering:"auto"}}
+                      onError={e => {(e.target as HTMLImageElement).src = "/roblox-icons/Part@2x.png";}}
+                    />
+                  </div>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+        
+        <div style={{padding:"8px 12px", borderTop:"1px solid #454545", fontSize:"11px", color:"#808080", background: "#2d2d30"}}>
+          Inserting into: <span style={{color:"#aaaaaa"}}>{parentPath}</span>
+        </div>
       </div>
     </div>
   );
@@ -307,7 +352,7 @@ function TreeItem({
 
   const isSelected = selectedPath === node.fullPath;
   const hasChildren = node.children.length > 0;
-  const isExpandable = hasChildren || node.isFolder;
+  const isExpandable = hasChildren;
   const handleCloseMenu = useCallback(() => setShowInsertMenu(false), []);
 
   // Indent guide lines
