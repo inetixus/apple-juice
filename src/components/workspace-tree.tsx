@@ -251,7 +251,10 @@ function buildTree(paths: string[]): TreeNode[] {
     const typeMatch = p.match(/\s+\[([^\]]+)\]$/);
     const type = typeMatch?.[1] || "";
     const cleaned = p.replace(/\s+\[.*?\]$/, "");
-    const parts = cleaned.split(".");
+    
+    // Support both dot and slash separators, and filter out empty parts
+    const parts = cleaned.split(/[.\/]/).filter(part => part.length > 0);
+    
     let current = root;
     let pathSoFar = "";
     for (let i = 0; i < parts.length; i++) {
@@ -260,15 +263,21 @@ function buildTree(paths: string[]): TreeNode[] {
       const isLast = i === parts.length - 1;
       let existing = current.find(n => n.name === segment);
       if (!existing) {
+        // Clean type name for container check (remove trailing slashes)
+        const cleanType = type.replace(/\/+$/, "");
         existing = {
-          name: segment, fullPath: pathSoFar, children: [], depth: i,
-          isFolder: !isLast || (isLast && type !== "" && CONTAINERS.has(type)),
-          type: isLast ? type : "Folder",
+          name: segment, 
+          fullPath: pathSoFar, 
+          children: [], 
+          depth: i,
+          isFolder: !isLast || (isLast && cleanType !== "" && CONTAINERS.has(cleanType)),
+          type: isLast ? cleanType : "Folder",
         };
         current.push(existing);
       } else if (isLast && type) {
-        existing.type = type;
-        if (CONTAINERS.has(type)) existing.isFolder = true;
+        const cleanType = type.replace(/\/+$/, "");
+        existing.type = cleanType;
+        if (CONTAINERS.has(cleanType)) existing.isFolder = true;
       }
       if (!isLast) existing.isFolder = true;
       current = existing.children;
@@ -353,7 +362,7 @@ function TreeItem({
 
         {/* Expand/Collapse arrow */}
         <div 
-          style={{ width: "14px", height: "14px", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor: "pointer" }}
+          style={{ width: "14px", height: ROW_H, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor: "pointer" }}
           onClick={(e) => {
             e.stopPropagation();
             if (isExpandable) setOpen(!open);
@@ -361,13 +370,13 @@ function TreeItem({
         >
           {isExpandable && (
             <svg
-              width="8" height="8" viewBox="0 0 8 8"
+              width="6" height="6" viewBox="0 0 8 8"
               style={{
                 transform: open ? "rotate(90deg)" : "rotate(0deg)",
                 transition: "transform 0.05s ease",
               }}
             >
-              <path d="M2.5 1.5 L6 4 L2.5 6.5 Z" fill={hovered || isSelected ? "#ffffff" : "#9d9d9d"} />
+              <path d="M1 1 L7 4 L1 7 Z" fill={hovered || isSelected ? "#ffffff" : "#9d9d9d"} />
             </svg>
           )}
         </div>
