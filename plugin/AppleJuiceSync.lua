@@ -464,44 +464,57 @@ end
 
 local function getProjectTree()
 	local results = {}
-	local roots = { 
-		game:GetService("Workspace"), 
-		game:GetService("Players"),
-		game:GetService("Lighting"),
-		game:GetService("MaterialService"),
-		game:GetService("ReplicatedFirst"),
-		game:GetService("ReplicatedStorage"), 
-		game:GetService("ServerScriptService"), 
-		game:GetService("ServerStorage"), 
-		game:GetService("StarterGui"),
-		game:GetService("StarterPack"),
-		game:GetService("StarterPlayer"),
-		game:GetService("Teams"),
-		game:GetService("SoundService"),
-		game:GetService("TextChatService")
+	local serviceNames = { 
+		"Workspace", 
+		"Players",
+		"Lighting",
+		"MaterialService",
+		"ReplicatedFirst",
+		"ReplicatedStorage", 
+		"ServerScriptService", 
+		"ServerStorage", 
+		"StarterGui",
+		"StarterPack",
+		"StarterPlayer",
+		"Teams",
+		"SoundService",
+		"TextChatService"
 	}
 	
-	for _, root in ipairs(roots) do
-		-- Add the root service itself
-		table.insert(results, root.Name .. " [" .. root.ClassName .. "]")
-		buildTreePaths(root, root.Name, 4, 1, results)
+	for _, sName in ipairs(serviceNames) do
+		local ok, root = pcall(function() return game:GetService(sName) end)
+		if ok and root then
+			-- Add the root service itself
+			table.insert(results, root.Name .. " [" .. root.ClassName .. "]")
+			buildTreePaths(root, root.Name, 4, 1, results)
+		end
 	end
 	return table.concat(results, "\n")
 end
 
 local lastTreeHash = ""
+local isReportingTree = false
 local function reportTree(sessionKey, force)
+	if isReportingTree then return end
 	local tree = getProjectTree()
 	if not force and tree == lastTreeHash then return end
-	lastTreeHash = tree
+	
+	isReportingTree = true
 	task.spawn(function()
-		pcall(function()
+		local ok = pcall(function()
 			HttpService:PostAsync(
 				TREE_ENDPOINT,
 				HttpService:JSONEncode({ key = sessionKey, tree = tree }),
 				Enum.HttpContentType.ApplicationJson
 			)
 		end)
+		if ok then
+			lastTreeHash = tree
+		else
+			-- If it fails, clear lastTreeHash so it retries on the next poll
+			lastTreeHash = ""
+		end
+		isReportingTree = false
 	end)
 end
 

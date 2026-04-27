@@ -996,12 +996,18 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         </p>
 
                         {message.thinking && (
-                          <details className="group mt-2">
-                            <summary className="cursor-pointer text-[11px] text-white/30 hover:text-white/50 transition-colors flex items-center gap-1">
-                              <Brain className="h-3 w-3" />
-                              <span>View reasoning</span>
+                          <details className="group mt-3 bg-white/[0.02] border border-white/[0.05] rounded-xl overflow-hidden">
+                            <summary className="cursor-pointer text-[11px] font-medium text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all flex items-center justify-between px-3 py-2 select-none list-none [&::-webkit-details-marker]:hidden">
+                              <div className="flex items-center gap-2">
+                                <Brain className="h-3.5 w-3.5 text-violet-400/70" />
+                                <span>Advanced AI Reasoning</span>
+                              </div>
+                              <span className="text-[10px] bg-black/20 px-1.5 py-0.5 rounded border border-white/[0.05] group-open:bg-violet-500/20 group-open:text-violet-300 transition-colors">
+                                <span className="group-open:hidden">Show</span>
+                                <span className="hidden group-open:inline">Hide</span>
+                              </span>
                             </summary>
-                            <div className="mt-2 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] text-[13px] text-white/40 whitespace-pre-wrap">
+                            <div className="p-4 text-[12px] leading-relaxed text-white/50 whitespace-pre-wrap border-t border-white/[0.05] bg-black/20 font-mono">
                               {message.thinking}
                             </div>
                           </details>
@@ -1274,16 +1280,27 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       const hue = Math.round(pct * 1.2); // green at 100%, red at 0%
                       const creditsAvailable = Math.max(0, usage.totalTokens - usage.usedTokens);
                       return (
-                        <div className="hidden sm:flex relative h-8 w-32 bg-black/20 rounded-lg overflow-hidden border border-white/[0.04] items-center justify-center group ml-2">
+                        <div className="hidden sm:flex relative h-8 w-32 bg-black/40 rounded-lg overflow-hidden border border-white/[0.08] items-center justify-center group ml-2 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
+                          {/* Main Wave Layer */}
                           <div
-                            className="absolute left-0 right-0 bottom-0 transition-all duration-700 animate-wave opacity-100"
+                            className="absolute left-0 right-0 bottom-0 transition-all duration-1000 animate-wave opacity-100"
                             style={{
                               height: `${pct}%`,
-                              background: `linear-gradient(90deg, hsla(${hue}, 90%, 50%, 0.4) 0%, hsla(${hue}, 90%, 50%, 0.7) 50%, hsla(${hue}, 90%, 50%, 0.4) 100%)`,
+                              background: `linear-gradient(90deg, hsla(${hue}, 100%, 50%, 0.7) 0%, hsla(${hue}, 100%, 65%, 0.95) 50%, hsla(${hue}, 100%, 50%, 0.7) 100%)`,
+                              backgroundSize: '200% 100%',
+                              boxShadow: `0 0 20px hsla(${hue}, 100%, 50%, 0.5)`,
+                            }}
+                          />
+                          {/* Secondary Wave Layer for Depth */}
+                          <div
+                            className="absolute left-0 right-0 bottom-0 transition-all duration-1000 animate-wave-fast opacity-40 blur-[2px]"
+                            style={{
+                              height: `${Math.min(100, pct + 5)}%`,
+                              background: `linear-gradient(90deg, transparent 0%, hsla(${hue}, 100%, 70%, 0.8) 50%, transparent 100%)`,
                               backgroundSize: '200% 100%',
                             }}
                           />
-                          <span className="relative z-10 text-[11px] font-mono font-bold tracking-tight text-white/90 drop-shadow-md">
+                          <span className="relative z-10 text-[11px] font-mono font-black tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                             {creditsAvailable.toLocaleString()} Credits
                           </span>
                         </div>

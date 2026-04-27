@@ -134,8 +134,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
     <div className="min-h-screen bg-[#05050a] text-white selection:bg-blue-500 selection:text-white relative overflow-hidden">
       {/* ━━━ BACKGROUND GRID & AMBIENT GRADIENTS ━━━ */}
       <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/dbuzl20eu/image/upload/v1691456100/grid_wqvngf.png')] bg-[length:32px_32px] opacity-[0.03] pointer-events-none z-0" />
-      <div className="fixed top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-blue-600/30 blur-[200px] pointer-events-none z-0 mix-blend-screen animate-blob-drift" />
-      <div className="fixed bottom-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-red-600/30 blur-[200px] pointer-events-none z-0 mix-blend-screen animate-blob-drift-reverse" />
+      <div className="fixed top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-blue-600/50 blur-[200px] pointer-events-none z-0 mix-blend-screen animate-blob-drift" />
+      <div className="fixed bottom-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-red-600/50 blur-[200px] pointer-events-none z-0 mix-blend-screen animate-blob-drift-reverse" />
 
       {/* ━━━ NAVBAR ━━━ */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#05050a]/50 backdrop-blur-md border-b border-white/10">
@@ -206,7 +206,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                   backgroundSize: '200% auto',
                 }}
               >
-                <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.1)_30%,rgba(204,255,0,0.1)_40%,transparent_50%)] bg-[length:200%_auto]" />
+                <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.25)_30%,rgba(204,255,0,0.25)_40%,transparent_50%)] bg-[length:200%_auto]" />
                 <span className="relative z-10 flex items-center gap-2">
                   Start Prototyping
                   <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -430,7 +430,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 backgroundSize: '200% auto',
               }}
             >
-              <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.1)_30%,rgba(204,255,0,0.1)_40%,transparent_50%)] bg-[length:200%_auto]" />
+              <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.25)_30%,rgba(204,255,0,0.25)_40%,transparent_50%)] bg-[length:200%_auto]" />
               <span className="relative z-10 flex items-center gap-2">
                 Start Building for Free
                 <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />

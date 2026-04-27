@@ -544,7 +544,7 @@ function TreeItem({
           >
             <button
               className="w-full px-3 py-1.5 text-left text-[12px] text-[#cccccc] hover:bg-[#094771] hover:text-white"
-              onClick={() => { setShowContextMenu(false); setIsRenaming(true); }}
+              onClick={() => { setShowContextMenu(false); setNewName(node.name); setIsRenaming(true); }}
             >
               Rename
             </button>

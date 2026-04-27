@@ -198,13 +198,14 @@ export async function POST(req: Request) {
   }
 
   const thinkingInstructions = mode === "thinking" 
-    ? `\nYou MUST include a "thinking" field (a string) in your JSON output that contains your step-by-step reasoning about:
-1. What the user wants conceptually and mechanically
-2. Which Roblox services, APIs, and physics constraints you'll use
-3. Edge cases, potential bugs, server/client boundary security
-4. How multiple scripts will interact (RemoteEvents, BindableEvents)
-5. A comprehensive architectural plan
-IMPORTANT: Put ALL of your reasoning INSIDE the "thinking" field of the JSON object. Do NOT write any text outside the JSON. Your ENTIRE response must be a single valid JSON object.`
+    ? `\nYou MUST include a "thinking" field (a string) in your JSON output that contains your HIGHLY ADVANCED, step-by-step reasoning about:
+1. Deep conceptual and mechanical breakdown of the user's request.
+2. Advanced Roblox architecture, including data flow, state management, and network optimization.
+3. Specific Roblox services, APIs, and physics constraints, detailing *why* they are the best choice.
+4. Edge cases, potential bugs, race conditions, memory leaks, and server/client boundary security.
+5. How multiple scripts will interact (RemoteEvents, BindableEvents, shared state via ModuleScripts).
+6. A comprehensive, scalable architectural plan.
+IMPORTANT: Put ALL of your advanced reasoning INSIDE the "thinking" field of the JSON object. Do NOT write any text outside the JSON. Your ENTIRE response must be a single valid JSON object.`
     : "";
 
   const SYSTEM_PROMPT = `You are an expert Roblox Luau software architect and scripting assistant called Apple Juice.${thinkingInstructions}
