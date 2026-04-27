@@ -337,7 +337,7 @@ const INDENT = 16; // Roblox indent is roughly 16px
 const ROW_H = 22;  // Roblox row height is ~22px
 
 function TreeItem({
-  node, onInsert, isLast, parentIsLasts, selectedPath, setSelectedPath, onRename, onDelete,
+  node, onInsert, isLast, parentIsLasts, selectedPath, setSelectedPath, onRename, onDelete, renamingPath, setRenamingPath,
 }: {
   node: TreeNode;
   onInsert: (parentPath: string, className: string, name: string) => void;
@@ -347,19 +347,31 @@ function TreeItem({
   setSelectedPath: (path: string | null) => void;
   onRename?: (path: string, newName: string) => void;
   onDelete?: (path: string, name: string) => void;
+  renamingPath: string | null;
+  setRenamingPath: (path: string | null) => void;
 }) {
   const [open, setOpen] = useState(node.depth < 1);
   const [showInsertMenu, setShowInsertMenu] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
-  const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(node.name);
   const [hovered, setHovered] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const renamePathRef = useRef<string>("");
 
+  const isRenaming = renamingPath === node.fullPath;
   const isSelected = selectedPath === node.fullPath;
   const hasChildren = node.children.length > 0;
   const isExpandable = hasChildren;
   const handleCloseMenu = useCallback(() => setShowInsertMenu(false), []);
+
+  // Focus the rename input when renaming starts
+  useEffect(() => {
+    if (isRenaming && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [isRenaming]);
 
   useEffect(() => {
     if (showContextMenu) {
@@ -373,12 +385,24 @@ function TreeItem({
     }
   }, [showContextMenu]);
 
-  const handleRenameSubmit = () => {
-    if (newName.trim() && newName !== node.name && onRename) {
-      onRename(node.fullPath, newName.trim());
+  const startRename = useCallback(() => {
+    setNewName(node.name);
+    renamePathRef.current = node.fullPath;
+    setRenamingPath(node.fullPath);
+  }, [node.name, node.fullPath, setRenamingPath]);
+
+  const handleRenameSubmit = useCallback(() => {
+    const trimmed = newName.trim();
+    const originalPath = renamePathRef.current || node.fullPath;
+    if (trimmed && trimmed !== node.name && onRename) {
+      onRename(originalPath, trimmed);
     }
-    setIsRenaming(false);
-  };
+    setRenamingPath(null);
+  }, [newName, node.name, node.fullPath, onRename, setRenamingPath]);
+
+  const cancelRename = useCallback(() => {
+    setRenamingPath(null);
+  }, [setRenamingPath]);
 
   // Indent guide lines
   const guideLines: React.ReactNode[] = [];
@@ -422,8 +446,7 @@ function TreeItem({
         }}
         onDoubleClick={() => {
           if (!isRenaming) {
-            setIsRenaming(true);
-            setNewName(node.name);
+            startRename();
           }
         }}
         onMouseEnter={() => setHovered(true)}
@@ -475,13 +498,13 @@ function TreeItem({
         {/* Name / Rename Input */}
         {isRenaming ? (
           <input
-            autoFocus
+            ref={renameInputRef}
             value={newName}
             onChange={e => setNewName(e.target.value)}
             onBlur={handleRenameSubmit}
             onKeyDown={e => {
-              if (e.key === "Enter") handleRenameSubmit();
-              if (e.key === "Escape") setIsRenaming(false);
+              if (e.key === "Enter") { e.preventDefault(); handleRenameSubmit(); }
+              if (e.key === "Escape") { e.preventDefault(); cancelRename(); }
             }}
             style={{
               fontSize: "13px",
@@ -492,7 +515,9 @@ function TreeItem({
               height: "18px",
               padding: "0 2px",
               fontFamily: "inherit",
-              width: "120px",
+              width: "calc(100% - 60px)",
+              maxWidth: "200px",
+              minWidth: "80px",
             }}
             onClick={e => e.stopPropagation()}
           />
@@ -544,7 +569,7 @@ function TreeItem({
           >
             <button
               className="w-full px-3 py-1.5 text-left text-[12px] text-[#cccccc] hover:bg-[#094771] hover:text-white"
-              onClick={() => { setShowContextMenu(false); setNewName(node.name); setIsRenaming(true); }}
+              onClick={() => { setShowContextMenu(false); startRename(); }}
             >
               Rename
             </button>
@@ -587,6 +612,8 @@ function TreeItem({
           setSelectedPath={setSelectedPath}
           onRename={onRename}
           onDelete={onDelete}
+          renamingPath={renamingPath}
+          setRenamingPath={setRenamingPath}
         />
       ))}
     </div>
@@ -606,6 +633,7 @@ export function WorkspaceTree({
   const tree = useMemo(() => buildTree(paths), [paths]);
   const [filterText, setFilterText] = useState("");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
 
   const handleInsert = useCallback(
     (parentPath: string, className: string, name: string) => {
@@ -723,6 +751,8 @@ export function WorkspaceTree({
             setSelectedPath={setSelectedPath}
             onRename={onRename}
             onDelete={onDelete}
+            renamingPath={renamingPath}
+            setRenamingPath={setRenamingPath}
           />
         ))}
       </div>

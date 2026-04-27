@@ -5,22 +5,8 @@ local TweenService = game:GetService("TweenService")
 local LogService = game:GetService("LogService")
 local RunService = game:GetService("RunService")
 
-local StudioTestService = nil
-pcall(function() StudioTestService = game:GetService("StudioTestService") end)
-
 local TOOLBAR_NAME = "Apple Juice AI Sync"
 local WIDGET_TITLE = "Apple Juice AI Sync"
-
-if RunService:IsRunMode() and StudioTestService then
-	pcall(function()
-		if StudioTestService:GetTestArgs() == "AppleJuiceSession" then
-			task.spawn(function()
-				task.wait(4)
-				StudioTestService:EndTest("success")
-			end)
-		end
-	end)
-end
 
 local BASE_URL = "https://apple-juice.online"
 local CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
@@ -163,8 +149,11 @@ running = false
 local unloading = false
 local lastMessageId = nil
 local isConnected = false
-local isAutoTesting = false
 local currentSessionKey = nil
+local isAutoTesting = false
+local testErrors = {}
+local testWarnings = {}
+local lastInjectedScripts = {}
 
 local undoStack = {}
 
@@ -207,19 +196,172 @@ local function reportLog(sessionKey, logMessage)
 	end)
 end
 
+-- Forward error logs to the dashboard (non-test errors)
 LogService.MessageOut:Connect(function(message, messageType)
-	if running and isConnected and currentSessionKey and messageType == Enum.MessageType.MessageError then
-		reportLog(currentSessionKey, message)
-		
-		if isAutoTesting and RunService:IsRunMode() then
-			setStatus("Error caught! Stopping test...", "error")
-			isAutoTesting = false
-			if StudioTestService then
-				pcall(function() StudioTestService:EndTest("error") end)
+	if running and isConnected and currentSessionKey then
+		if messageType == Enum.MessageType.MessageError then
+			-- During auto-testing, collect into the test buffer (don't forward yet)
+			if isAutoTesting then
+				table.insert(testErrors, {
+					message = message,
+					timestamp = os.clock(),
+				})
+			else
+				reportLog(currentSessionKey, message)
+			end
+		elseif messageType == Enum.MessageType.MessageWarning then
+			if isAutoTesting then
+				table.insert(testWarnings, {
+					message = message,
+					timestamp = os.clock(),
+				})
 			end
 		end
 	end
 end)
+
+-- ─── Advanced Auto-Test System ───────────────────────────────────────────────
+
+local function parseErrorDetails(errorMessage)
+	-- Extract script name, line number, and error description from Roblox error format
+	-- Formats: "ServerScriptService.ScriptName:15: error message"
+	--          "ScriptName:15: error message"
+	--          "Workspace.Model.ScriptName:15: error message"
+	local scriptPath, lineNum, errText = errorMessage:match("([%w_%.]+):(%d+):%s*(.+)")
+	if scriptPath then
+		-- Extract just the script name from the full path
+		local parts = string.split(scriptPath, ".")
+		local scriptName = parts[#parts] or scriptPath
+		return {
+			scriptName = scriptName,
+			scriptPath = scriptPath,
+			lineNumber = tonumber(lineNum) or 0,
+			errorText = errText,
+			rawMessage = errorMessage,
+		}
+	end
+	-- Fallback: couldn't parse
+	return {
+		scriptName = "Unknown",
+		scriptPath = "",
+		lineNumber = 0,
+		errorText = errorMessage,
+		rawMessage = errorMessage,
+	}
+end
+
+local function buildTestResult(passed, testDuration)
+	local result = {
+		passed = passed,
+		duration = testDuration,
+		errorCount = #testErrors,
+		warningCount = #testWarnings,
+		errors = {},
+		warnings = {},
+		scripts = {},
+	}
+
+	-- Parse each error for structured info
+	for _, err in ipairs(testErrors) do
+		local parsed = parseErrorDetails(err.message)
+		table.insert(result.errors, {
+			message = parsed.rawMessage,
+			scriptName = parsed.scriptName,
+			scriptPath = parsed.scriptPath,
+			lineNumber = parsed.lineNumber,
+			errorText = parsed.errorText,
+		})
+	end
+
+	-- Include warnings
+	for _, warn in ipairs(testWarnings) do
+		table.insert(result.warnings, warn.message)
+	end
+
+	-- Include injected script metadata (name, parent, type, and first 800 chars of code)
+	for _, script in ipairs(lastInjectedScripts) do
+		local codePreview = script.code or ""
+		if #codePreview > 800 then
+			codePreview = codePreview:sub(1, 800) .. "\n-- [TRUNCATED]"
+		end
+		table.insert(result.scripts, {
+			name = script.name,
+			parent = script.parent,
+			type = script.type,
+			codePreview = codePreview,
+		})
+	end
+
+	return result
+end
+
+local TEST_DURATION = 6 -- seconds
+
+local function runPlaytest(sessionKey)
+	-- Only run if not already in run mode
+	if RunService:IsRunMode() then
+		reportLog(sessionKey, "[APPLE_JUICE_TEST_SKIP]")
+		return
+	end
+
+	isAutoTesting = true
+	testErrors = {}
+	testWarnings = {}
+	setStatus("Running playtest (…" .. TEST_DURATION .. "s)...", "waiting")
+
+	task.spawn(function()
+		local startTime = os.clock()
+		local testOk = pcall(function()
+			-- Start run mode
+			RunService:Run()
+		end)
+
+		if not testOk then
+			isAutoTesting = false
+			setStatus("Could not start playtest.", "info")
+			reportLog(sessionKey, "[APPLE_JUICE_TEST_SKIP]")
+			return
+		end
+
+		-- Wait for test duration, checking for early fatal errors every 0.5s
+		local elapsed = 0
+		while elapsed < TEST_DURATION and isAutoTesting do
+			task.wait(0.5)
+			elapsed = os.clock() - startTime
+
+			-- If we got 3+ errors quickly, stop early (likely a crash loop)
+			if #testErrors >= 3 and elapsed < 2 then
+				setStatus("Multiple errors detected, stopping early...", "error")
+				break
+			end
+		end
+
+		-- Stop playtest
+		isAutoTesting = false
+		local testDuration = os.clock() - startTime
+		pcall(function()
+			if RunService:IsRunMode() then
+				RunService:Stop()
+			end
+		end)
+
+		-- Small delay to catch any final error logs
+		task.wait(0.3)
+
+		-- Build and report structured test results
+		local passed = #testErrors == 0
+		local result = buildTestResult(passed, testDuration)
+		local resultJson = HttpService:JSONEncode(result)
+
+		if passed then
+			reportLog(sessionKey, "[APPLE_JUICE_TEST_PASS]" .. resultJson)
+			setStatus("Playtest passed! (" .. string.format("%.1f", testDuration) .. "s, no errors)", "success")
+		else
+			reportLog(sessionKey, "[APPLE_JUICE_TEST_FAIL]" .. resultJson)
+			setStatus(#testErrors .. " error(s) found — auto-fixing...", "error")
+		end
+	end)
+end
 
 local function resolvePath(pathStr)
 	local parts = string.split(pathStr, ".")
@@ -321,12 +463,7 @@ local function injectSingleScript(scriptData)
 	end
 
 	if action == "stop_playtest" then
-		if RunService:IsRunMode() and StudioTestService then
-			pcall(function() StudioTestService:EndTest("success") end)
-			return true, "Playtest stopped.", nil
-		else
-			return false, "No playtest is currently running in this context.", nil
-		end
+		return true, "Stop playtest action received.", nil
 	end
 
 	if action == "rename_instance" then
@@ -568,11 +705,7 @@ local function requestPoll(sessionKey)
 	return true, data, nil
 end
 
-local function stopPlaytest()
-	if RunService:IsRunMode() and StudioTestService then
-		pcall(function() StudioTestService:EndTest("success") end)
-	end
-end
+
 
 local function pollLoop(sessionKey)
 	currentSessionKey = sessionKey
@@ -649,17 +782,30 @@ local function pollLoop(sessionKey)
 			if messageId ~= lastMessageId then
 				lastMessageId = messageId
 
-				local injected, msg, scriptCount, isManual = injectCode(data.code)
-				
-				-- STRICT playtest suppression: If it's a manual action, DO NOT stop or start tests.
-				if injected and not isManual then
-					if RunService:IsRunMode() then
-						setStatus("Stopping playtest for sync...", "waiting")
-						stopPlaytest()
-						task.wait(1.0)
+				-- Extract script metadata BEFORE injection for test reporting
+				local extractOk, parsedPayload = pcall(function() return HttpService:JSONDecode(data.code) end)
+				if extractOk and parsedPayload and type(parsedPayload) == "table" then
+					lastInjectedScripts = {}
+					if parsedPayload.scripts and type(parsedPayload.scripts) == "table" then
+						for _, s in ipairs(parsedPayload.scripts) do
+							table.insert(lastInjectedScripts, {
+								name = s.name or "Unknown",
+								parent = s.parent or "ServerScriptService",
+								type = s.type or "Script",
+								code = s.code or "",
+							})
+						end
+					elseif parsedPayload.code then
+						table.insert(lastInjectedScripts, {
+							name = parsedPayload.name or "AIScript",
+							parent = parsedPayload.parent or "ServerScriptService",
+							type = parsedPayload.type or "Script",
+							code = parsedPayload.code or "",
+						})
 					end
 				end
 
+				local injected, msg, scriptCount, isManual = injectCode(data.code)
 				setStatus(msg, injected and "success" or "error")
 				
 				-- Trigger immediate tree update after any injection
@@ -667,26 +813,10 @@ local function pollLoop(sessionKey)
 					task.spawn(function() reportTree(sessionKey, true) end)
 				end
 
-				if injected and not isManual and StudioTestService then
-					task.wait(0.3)
-					if not RunService:IsRunMode() then
-						isAutoTesting = true
-						setStatus("Running playtest...", "waiting")
-						
-						task.spawn(function()
-							local ok, err = pcall(function() StudioTestService:ExecuteRunModeAsync("AppleJuiceSession") end)
-							isAutoTesting = false
-							
-							if ok then
-								setStatus("Test passed!", "success")
-								reportLog(sessionKey, "[SYSTEM_TEST_SUCCESS]")
-							else
-								setStatus("Test ended.", "info")
-							end
-						end)
-					end
-				elseif injected then
-					reportLog(sessionKey, "[SYSTEM_TEST_SUCCESS]")
+				-- Auto-test: only for AI-generated code, not manual actions
+				if injected and not isManual and not isAutoTesting then
+					task.wait(0.5)
+					runPlaytest(sessionKey)
 				end
 			end
 		end

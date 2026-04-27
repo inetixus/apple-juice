@@ -67,17 +67,18 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [usage, setUsage] = useState({ usedTokens: 0, totalTokens: 50000 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastError, setLastError] = useState<string | null>(null);
-  const autoFixPendingRef = useRef<string | null>(null);
   const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
   const chatEndRef = useRef<HTMLDivElement>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const lastPollRef = useRef<number>(0);
   const codeConsumedRef = useRef<boolean>(false);
   const lastReportedErrorRef = useRef<string | null>(null);
-  const pendingPayloadRef = useRef<any>(null);
+
   const stepTimeoutsRef = useRef<any[]>([]);
-  // Feature: Auto-debug toggle
-  const autoDebug = true;
+  const autoFixRetriesRef = useRef<number>(0);
+  const autoFixTimerRef = useRef<any>(null);
+  const lastGeneratedScriptsRef = useRef<{ name: string; parent: string; type: string; code: string }[]>([]);
+  const MAX_AUTO_FIX_RETRIES = 3;
   const autoSync = true;
   // Feature: Asset search
   const [assetQuery, setAssetQuery] = useState("");
@@ -191,62 +192,106 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             }
 
             if (data.logs && data.logs.length > 0) {
-              setGameLogs(prev => [...prev, ...data.logs].slice(-200)); // keep last 200 logs
+              setGameLogs(prev => [...prev, ...data.logs].slice(-200));
 
-              const newErrorLog = data.logs.find((log: string) => log.toLowerCase().includes("error") || log.toLowerCase().includes("exception"));
+              // Detect structured test results from the plugin
+              for (const log of data.logs as string[]) {
+                // Test passed
+                if (log.includes("[APPLE_JUICE_TEST_PASS]")) {
+                  try {
+                    const jsonStr = log.replace("[APPLE_JUICE_TEST_PASS]", "").trim();
+                    const result = jsonStr ? JSON.parse(jsonStr) : {};
+                    const dur = result.duration ? ` in ${result.duration.toFixed(1)}s` : "";
+                    setPluginStatus(`Playtest passed${dur}! No errors found.`);
+                  } catch {
+                    setPluginStatus("Playtest passed! No errors found.");
+                  }
+                  showToast("Playtest passed with no errors!", "success");
+                  autoFixRetriesRef.current = 0;
+                }
+
+                // Test failed — parse structured result and build comprehensive fix prompt
+                if (log.includes("[APPLE_JUICE_TEST_FAIL]")) {
+                  let testResult: any = null;
+                  let rawErrorText = "";
+                  try {
+                    const jsonStr = log.replace("[APPLE_JUICE_TEST_FAIL]", "").trim();
+                    testResult = JSON.parse(jsonStr);
+                  } catch {
+                    rawErrorText = log.replace("[APPLE_JUICE_TEST_FAIL]", "").trim();
+                  }
+
+                  const errorCount = testResult?.errorCount || 1;
+                  const displayError = testResult
+                    ? testResult.errors?.map((e: any) => `[${e.scriptName}:${e.lineNumber}] ${e.errorText}`).join("\n")
+                    : rawErrorText;
+                  setLastError(displayError);
+                  lastReportedErrorRef.current = displayError;
+
+                  if (autoFixRetriesRef.current < MAX_AUTO_FIX_RETRIES && !isGenerating) {
+                    autoFixRetriesRef.current += 1;
+                    const attempt = autoFixRetriesRef.current;
+                    setPluginStatus(`Auto-fixing ${errorCount} error(s) (attempt ${attempt}/${MAX_AUTO_FIX_RETRIES})...`);
+                    showToast(`Auto-fix attempt ${attempt}/${MAX_AUTO_FIX_RETRIES}...`, "info");
+
+                    if (autoFixTimerRef.current) clearTimeout(autoFixTimerRef.current);
+                    autoFixTimerRef.current = setTimeout(() => {
+                      // Build comprehensive fix prompt with full code context
+                      let fixPrompt = `The following scripts were generated and synced to Roblox Studio, but the playtest FAILED with errors.\n\n`;
+
+                      // Include full source code of all generated scripts
+                      const scripts = lastGeneratedScriptsRef.current;
+                      if (scripts.length > 0) {
+                        fixPrompt += `=== GENERATED SCRIPTS ===\n`;
+                        for (const s of scripts) {
+                          fixPrompt += `--- ${s.type}: ${s.name} (in ${s.parent}) ---\n${s.code}\n--- END ${s.name} ---\n\n`;
+                        }
+                      }
+
+                      // Include detailed error info
+                      fixPrompt += `=== PLAYTEST ERRORS (${errorCount} total) ===\n`;
+                      if (testResult?.errors) {
+                        for (const err of testResult.errors) {
+                          fixPrompt += `[${err.scriptPath || err.scriptName}:${err.lineNumber}] ${err.errorText}\n`;
+                        }
+                      } else {
+                        fixPrompt += rawErrorText + "\n";
+                      }
+
+                      // Include warnings if any
+                      if (testResult?.warnings?.length > 0) {
+                        fixPrompt += `\n=== WARNINGS ===\n${testResult.warnings.join("\n")}\n`;
+                      }
+
+                      fixPrompt += `\n=== INSTRUCTIONS ===\n`;
+                      fixPrompt += `Fix ALL errors above. This is auto-fix attempt ${attempt} of ${MAX_AUTO_FIX_RETRIES}.\n`;
+                      fixPrompt += `Requirements:\n`;
+                      fixPrompt += `1. Output the COMPLETE corrected script(s), not just the changed lines\n`;
+                      fixPrompt += `2. Ensure all variables are defined before use\n`;
+                      fixPrompt += `3. Ensure all services are accessed via game:GetService()\n`;
+                      fixPrompt += `4. Respect the server/client boundary (no client APIs in server scripts)\n`;
+                      fixPrompt += `5. Keep the same script name(s) and parent location(s) so they overwrite the broken version\n`;
+
+                      submitPrompt(fixPrompt);
+                    }, 2000);
+                  } else if (autoFixRetriesRef.current >= MAX_AUTO_FIX_RETRIES) {
+                    setPluginStatus(`Auto-fix failed after ${MAX_AUTO_FIX_RETRIES} attempts. Use the Repair button to try manually.`);
+                    showToast(`Auto-fix exhausted ${MAX_AUTO_FIX_RETRIES} retries. Fix manually or try a different approach.`, "error");
+                    playSound('error');
+                  }
+                }
+
+                // Test skipped (already in run mode)
+                if (log.includes("[APPLE_JUICE_TEST_SKIP]")) {
+                  setPluginStatus("Playtest skipped (Studio already in run mode).");
+                }
+              }
+
+              // Track non-test errors for the manual Repair button
+              const newErrorLog = data.logs.find((log: string) => !log.includes("[APPLE_JUICE_") && (log.toLowerCase().includes("error") || log.toLowerCase().includes("exception")));
               if (newErrorLog && newErrorLog !== lastReportedErrorRef.current) {
                 lastReportedErrorRef.current = newErrorLog;
                 setLastError(newErrorLog);
-
-                // If we were waiting for a test result, drop it because it failed
-                if (isGenerating && pendingPayloadRef.current) {
-                  pendingPayloadRef.current = null;
-                }
-
-                // Queue auto-fix
-                autoFixPendingRef.current = newErrorLog;
-              }
-
-              const successLog = data.logs.find((log: string) => log.includes("[SYSTEM_TEST_SUCCESS]"));
-              if (successLog && isGenerating && pendingPayloadRef.current) {
-                // Test passed! Release the message to the user.
-                const { payload: fp, files } = pendingPayloadRef.current;
-                pendingPayloadRef.current = null;
-
-                setMessages((current) => [
-                  ...current,
-                  {
-                    id: crypto.randomUUID(),
-                    role: "assistant",
-                    content: fp.message || "Here is the code you requested.",
-                    script: (!fp.scripts && fp.scriptName) ? {
-                      name: fp.scriptName,
-                      parent: fp.scriptParent || "ServerScriptService",
-                      type: fp.scriptType || "Script",
-                      action: fp.action || "create",
-                      lineCount: fp.lineCount || (fp.code ? fp.code.split("\n").length : 0),
-                      code: fp.code || "",
-                      originalCode: files?.find((f: any) => f.name === fp.scriptName || f.name === fp.scriptName + ".lua")?.content
-                    } : undefined,
-                    scripts: fp.scripts?.map((s: any) => ({
-                      name: s.name,
-                      parent: s.parent,
-                      type: s.type || "Script",
-                      action: s.action || "create",
-                      lineCount: s.lineCount || 0,
-                      code: s.code || "",
-                      originalCode: files?.find((f: any) => f.name === s.name || f.name === s.name + ".lua")?.content,
-                      requires: s.requires
-                    })),
-                    suggestions: fp.suggestions,
-                    thinking: fp.thinking,
-                  },
-                ]);
-                setThinkingSteps([]);
-                setIsGenerating(false);
-                setPluginStatus("Test passed! Sync complete.");
-                showToast("Playtest passed with no errors!", "success");
-                void fetchUsage();
               }
             }
           }
@@ -258,19 +303,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     return () => clearInterval(interval);
   }, [sessionKey, showToast]);
 
-  // Auto-fix polling: checks every second if an auto-fix is pending AND autoDebug is on
-  useEffect(() => {
-    if (!autoDebug) return;
-    const autoFixInterval = setInterval(() => {
-      if (autoFixPendingRef.current && !isGenerating) {
-        const errorMsg = autoFixPendingRef.current;
-        autoFixPendingRef.current = null;
-        const fixPrompt = `The previous code failed with this error in Roblox Studio:\n${errorMsg}\n\nFix it. Make sure to output a regular Script in ServerScriptService (not a ModuleScript) unless the original was specifically a module.`;
-        submitPrompt(fixPrompt);
-      }
-    }, 1500);
-    return () => clearInterval(autoFixInterval);
-  });
+
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -641,24 +674,31 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }
 
       if (autoSync) {
-        setPluginStatus(`New code is ready. Syncing to Studio for playtest...`);
-        showToast("Script generated, syncing to Studio...", "success");
+        setPluginStatus(`Script synced to Studio. Running playtest...`);
+        showToast("Script generated and synced!", "success");
         playSound('success');
-
-        setThinkingSteps(prev => [...prev, { icon: "generating", label: "Running playtest in Roblox...", done: false }]);
-        pendingPayloadRef.current = { payload, files: payloadFiles };
-
-        setTimeout(() => {
-          if (pendingPayloadRef.current && pendingPayloadRef.current.payload === payload) {
-            const { payload: fp, files } = pendingPayloadRef.current;
-            pendingPayloadRef.current = null;
-            setMessages((current) => [...current, buildAssistantMessage(fp, files, false)]);
-            setThinkingSteps([]);
-            setIsGenerating(false);
-            setPluginStatus("Playtest timeout. Assuming success.");
-            void fetchUsage();
-          }
-        }, 15000);
+        setIsGenerating(false);
+        setMessages((current) => [...current, buildAssistantMessage(payload, payloadFiles, false)]);
+        setThinkingSteps([]);
+        // Reset auto-fix retries for this new generation
+        autoFixRetriesRef.current = 0;
+        // Store the generated scripts for auto-fix context
+        if (payload.scripts && Array.isArray(payload.scripts)) {
+          lastGeneratedScriptsRef.current = payload.scripts.map((s: any) => ({
+            name: s.name || "Unknown",
+            parent: s.parent || "ServerScriptService",
+            type: s.type || "Script",
+            code: s.code || "",
+          }));
+        } else if (payload.code) {
+          lastGeneratedScriptsRef.current = [{
+            name: payload.scriptName || "AIScript",
+            parent: payload.scriptParent || "ServerScriptService",
+            type: payload.scriptType || "Script",
+            code: payload.code || "",
+          }];
+        }
+        void fetchUsage();
       } else {
         setPluginStatus("Code generated. Review changes before syncing.");
         setIsGenerating(false);
