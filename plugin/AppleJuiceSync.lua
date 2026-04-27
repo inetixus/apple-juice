@@ -28,7 +28,7 @@ local POLL_ENDPOINT = BASE_URL .. "/api/poll"
 local LOGS_ENDPOINT = BASE_URL .. "/api/logs"
 local TREE_ENDPOINT = BASE_URL .. "/api/tree"
 local REPORT_FILE_ENDPOINT = BASE_URL .. "/api/report-file"
-local POLL_INTERVAL = 2
+local POLL_INTERVAL = 0.5
 
 local toolbar = plugin:CreateToolbar(TOOLBAR_NAME)
 local toolbarButton = toolbar:CreateButton("AppleJuiceAISyncToggle", "Toggle Apple Juice AI Sync", "rbxassetid://4458901886")
@@ -332,13 +332,16 @@ local function injectSingleScript(scriptData)
 	if action == "rename_instance" then
 		local oldPath = scriptData.oldPath
 		local newName = scriptData.newName
+		print("[AppleJuice] Renaming " .. tostring(oldPath) .. " to " .. tostring(newName))
 		local target = resolvePath(oldPath)
 		if target then
 			local oldName = target.Name
 			undoFn = function() if target and target.Parent then target.Name = oldName end end
 			target.Name = newName
+			print("[AppleJuice] Successfully renamed to " .. newName)
 			return true, "Renamed " .. oldName .. " to " .. newName, undoFn
 		else
+			warn("[AppleJuice] Rename failed: Could not find target at " .. tostring(oldPath))
 			return false, "Rename failed: Could not find " .. tostring(oldPath), nil
 		end
 	end
@@ -565,9 +568,8 @@ local function pollLoop(sessionKey)
 
 	while running and not unloading do
 		pollTicks += 1
-		if pollTicks % 5 == 1 then
-			reportTree(sessionKey)
-		end
+		-- Report tree on every poll if it changed for maximum responsiveness
+		reportTree(sessionKey)
 
 		local ok, data, err = requestPoll(sessionKey)
 
@@ -636,10 +638,13 @@ local function pollLoop(sessionKey)
 
 				local injected, msg, scriptCount, isManual = injectCode(data.code)
 				
-				if injected and not isManual and RunService:IsRunMode() then
-					setStatus("Stopping playtest...", "waiting")
-					stopPlaytest()
-					task.wait(1.5)
+				-- STRICT playtest suppression: If it's a manual action, DO NOT stop or start tests.
+				if injected and not isManual then
+					if RunService:IsRunMode() then
+						setStatus("Stopping playtest for sync...", "waiting")
+						stopPlaytest()
+						task.wait(1.0)
+					end
 				end
 
 				setStatus(msg, injected and "success" or "error")
@@ -650,7 +655,7 @@ local function pollLoop(sessionKey)
 				end
 
 				if injected and not isManual and StudioTestService then
-					task.wait(0.5)
+					task.wait(0.3)
 					if not RunService:IsRunMode() then
 						isAutoTesting = true
 						setStatus("Running playtest...", "waiting")
