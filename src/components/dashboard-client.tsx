@@ -153,9 +153,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             }
 
             if (data.tree) {
-              const lines = (data.tree as string).split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.endsWith('/'));
-              const cleanNames = lines.map(l => l.replace(/ \[.*?\]$/, ''));
-              setProjectTree(Array.from(new Set(cleanNames)));
+              // Lines are dot-separated paths with [ClassName] tags
+              const lines = (data.tree as string).split('\n').map(l => l.trim()).filter(l => l.length > 0);
+              setProjectTree(Array.from(new Set(lines)));
             }
 
             if (data.fileResponse && data.fileResponse.name) {
@@ -723,6 +723,35 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     }).catch(() => { });
   }, [sessionKey, showToast]);
 
+  // Feature: Insert instance from Explorer tree
+  const handleAddInstance = useCallback(async (parentPath: string, className: string, name: string) => {
+    if (!sessionKey) {
+      showToast("No active session. Connect your plugin first.", "error");
+      return;
+    }
+
+    const isScript = ["Script", "LocalScript", "ModuleScript"].includes(className);
+
+    const payload = isScript
+      ? { parent: parentPath, name, type: className, action: "create", code: `-- ${className}: ${name}\n` }
+      : { parent: parentPath, action: "create_instance", className, instanceName: name };
+
+    try {
+      const res = await fetch("/api/insert-instance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionKey, payload }),
+      });
+      if (res.ok) {
+        showToast(`Inserted ${className} "${name}" into ${parentPath}`, "success");
+      } else {
+        showToast(`Failed to insert ${className}`, "error");
+      }
+    } catch {
+      showToast(`Failed to insert ${className}`, "error");
+    }
+  }, [sessionKey, showToast]);
+
   return (
     <main className="h-screen bg-[#24262b] text-white flex overflow-hidden font-sans">
       {/* SIDEBAR */}
@@ -791,13 +820,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             </button>
           )}
 
-          {/* Collapsible Workspace Tree */}
+          {/* Roblox Explorer Tree */}
           {projectTree.length > 0 && (
-            <div>
-              <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-2">Workspace</span>
-              <div className="max-h-[35vh] overflow-y-auto custom-scrollbar">
-                <WorkspaceTree paths={projectTree} />
-              </div>
+            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar -mx-5 px-0" style={{ maxHeight: "calc(100vh - 380px)" }}>
+              <WorkspaceTree paths={projectTree} onAddInstance={handleAddInstance} />
             </div>
           )}
         </div>

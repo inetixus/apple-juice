@@ -1,6 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
-import { ChevronRight, ChevronDown, FileCode2, FolderClosed, FolderOpen, Box } from "lucide-react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 
 type TreeNode = {
   name: string;
@@ -8,120 +7,569 @@ type TreeNode = {
   children: TreeNode[];
   isFolder: boolean;
   type?: string;
+  depth: number;
 };
 
-function buildTree(paths: string[]): TreeNode[] {
-  const root: TreeNode[] = [];
+const ICON_MAP: Record<string, string> = {
+  Workspace:"Workspace",Players:"Players",Lighting:"Lighting",MaterialService:"MaterialService",
+  ReplicatedFirst:"ReplicatedFirst",ReplicatedStorage:"ReplicatedStorage",
+  ServerScriptService:"ServerScriptService",ServerStorage:"ServerStorage",
+  StarterGui:"StarterGui",StarterPack:"StarterPack",StarterPlayer:"StarterPlayer",
+  StarterPlayerScripts:"StarterPlayerScripts",StarterCharacterScripts:"StarterCharacterScripts",
+  Teams:"Teams",SoundService:"SoundService",TextChatService:"TextChatService",
+  NetworkClient:"NetworkClient",Script:"Script",LocalScript:"LocalScript",
+  ModuleScript:"ModuleScript",Part:"Part",MeshPart:"MeshPart",SpawnLocation:"SpawnLocation",
+  Model:"Model",Folder:"Folder",Camera:"Camera",Terrain:"Terrain",
+  Atmosphere:"Atmosphere",Sky:"Sky",Bloom:"BloomEffect",BloomEffect:"BloomEffect",
+  DepthOfFieldEffect:"DepthOfFieldEffect",SunRaysEffect:"SunRaysEffect",
+  ColorCorrectionEffect:"ColorCorrectionEffect",BlurEffect:"BlurEffect",
+  ScreenGui:"ScreenGui",Frame:"Frame",TextLabel:"TextLabel",TextButton:"TextButton",
+  TextBox:"TextBox",ImageLabel:"ImageLabel",ImageButton:"ImageButton",
+  BillboardGui:"BillboardGui",SurfaceGui:"SurfaceGui",ScrollingFrame:"ScrollingFrame",
+  ViewportFrame:"ViewportFrame",CanvasGroup:"CanvasGroup",
+  UIListLayout:"UIListLayout",UIGridLayout:"UIGridLayout",UIPadding:"UIPadding",
+  UICorner:"UICorner",UIStroke:"UIStroke",UIGradient:"UIGradient",UIScale:"UIScale",
+  UIAspectRatioConstraint:"UIAspectRatioConstraint",UISizeConstraint:"UISizeConstraint",
+  UITableLayout:"UITableLayout",UIPageLayout:"UIPageLayout",UIFlexItem:"UIFlexItem",
+  BoolValue:"BoolValue",BrickColorValue:"BrickColorValue",CFrameValue:"CFrameValue",
+  Sound:"Sound",SoundGroup:"SoundGroup",ParticleEmitter:"ParticleEmitter",
+  Fire:"Fire",Smoke:"Smoke",Sparkles:"Sparkles",Beam:"Beam",Trail:"Trail",
+  Highlight:"Highlight",Attachment:"Attachment",WeldConstraint:"WeldConstraint",
+  Motor6D:"Motor6D",HingeConstraint:"HingeConstraint",
+  BallSocketConstraint:"BallSocketConstraint",RopeConstraint:"RopeConstraint",
+  SpringConstraint:"SpringConstraint",RodConstraint:"RodConstraint",
+  Humanoid:"Humanoid",HumanoidDescription:"HumanoidDescription",
+  RemoteEvent:"RemoteEvent",RemoteFunction:"RemoteFunction",
+  BindableEvent:"BindableEvent",BindableFunction:"BindableFunction",
+  UnreliableRemoteEvent:"UnreliableRemoteEvent",ClickDetector:"ClickDetector",
+  ProximityPrompt:"ProximityPrompt",Decal:"Decal",Texture:"Texture",Tool:"Tool",
+  ForceField:"ForceField",Explosion:"Explosion",PointLight:"PointLight",
+  SpotLight:"SpotLight",SurfaceLight:"SurfaceLight",Bone:"Bone",Animation:"Animation",
+  Animator:"Animator",AnimationController:"AnimationController",
+  Configuration:"Configuration",UnionOperation:"UnionOperation",
+  IntersectOperation:"IntersectOperation",NegateOperation:"NegateOperation",
+  SpecialMesh:"SpecialMesh",BlockMesh:"BlockMesh",TextChannel:"TextChannel",
+  BubbleChatConfiguration:"BubbleChatConfiguration",
+  ChatWindowConfiguration:"ChatWindowConfiguration",
+  ChatInputBarConfiguration:"ChatInputBarConfiguration",
+  Player:"Player",Backpack:"Backpack",WedgePart:"WedgePart",
+  CornerWedgePart:"CornerWedgePart",TrussPart:"TrussPart",Seat:"Seat",
+  VehicleSeat:"VehicleSeat",ClientReplicator:"ClientReplicator",Clouds:"Clouds",
+  PackageLink:"PackageLink",Accessory:"Accessory",Shirt:"Shirt",Pants:"Pants",
+  ShirtGraphic:"ShirtGraphic",BodyColors:"BodyColors",CharacterMesh:"CharacterMesh",
+  SurfaceAppearance:"SurfaceAppearance",DragDetector:"DragDetector",
+  Actor:"Actor",Weld:"Weld",
+};
 
-  for (const p of paths) {
-    // Format: "ServerScriptService.ChildFolder.ScriptName [Script]"
-    // or "Workspace.Part [Part]"
-    const typeMatch = p.match(/\s+\[([^\]]+)\]$/);
-    const type = typeMatch?.[1] || "";
-    const cleaned = p.replace(/\s+\[.*?\]$/, "");
-    const parts = cleaned.split(".");
-
-    let current = root;
-    let pathSoFar = "";
-
-    for (let i = 0; i < parts.length; i++) {
-      const segment = parts[i];
-      pathSoFar += (pathSoFar ? "." : "") + segment;
-      const isLast = i === parts.length - 1;
-
-      let existing = current.find((n) => n.name === segment);
-      if (!existing) {
-        existing = {
-          name: segment,
-          fullPath: pathSoFar,
-          children: [],
-          isFolder: !isLast,
-          type: isLast ? type : "Folder",
-        };
-        current.push(existing);
-      }
-      // If this is not the last segment, ensure it's a folder
-      if (!isLast) {
-        existing.isFolder = true;
-        existing.type = "Folder";
-      }
-      current = existing.children;
-    }
-  }
-
-  return root;
+function getIconPath(className: string): string {
+  const mapped = ICON_MAP[className];
+  if (mapped) return `/roblox-icons/${mapped}@2x.png`;
+  return `/roblox-icons/${className}@2x.png`;
 }
 
-function getIcon(node: TreeNode, isOpen: boolean) {
-  if (node.isFolder) {
-    return isOpen ? (
-      <FolderOpen className="h-3.5 w-3.5 text-[#ccff00]/60 flex-shrink-0" />
-    ) : (
-      <FolderClosed className="h-3.5 w-3.5 text-[#ccff00]/40 flex-shrink-0" />
-    );
-  }
+const INSERTABLE_CATEGORIES = [
+  { label:"Scripts", items:[
+    {className:"Script",label:"Script"},{className:"LocalScript",label:"LocalScript"},
+    {className:"ModuleScript",label:"ModuleScript"},
+  ]},
+  { label:"Parts", items:[
+    {className:"Part",label:"Part"},{className:"MeshPart",label:"MeshPart"},
+    {className:"SpawnLocation",label:"SpawnLocation"},{className:"Seat",label:"Seat"},
+    {className:"VehicleSeat",label:"VehicleSeat"},{className:"TrussPart",label:"TrussPart"},
+    {className:"WedgePart",label:"WedgePart"},{className:"CornerWedgePart",label:"CornerWedgePart"},
+  ]},
+  { label:"Containers", items:[
+    {className:"Model",label:"Model"},{className:"Folder",label:"Folder"},
+    {className:"Configuration",label:"Configuration"},
+  ]},
+  { label:"GUI", items:[
+    {className:"ScreenGui",label:"ScreenGui"},{className:"Frame",label:"Frame"},
+    {className:"TextLabel",label:"TextLabel"},{className:"TextButton",label:"TextButton"},
+    {className:"TextBox",label:"TextBox"},{className:"ImageLabel",label:"ImageLabel"},
+    {className:"ImageButton",label:"ImageButton"},{className:"ScrollingFrame",label:"ScrollingFrame"},
+    {className:"ViewportFrame",label:"ViewportFrame"},
+    {className:"BillboardGui",label:"BillboardGui"},{className:"SurfaceGui",label:"SurfaceGui"},
+  ]},
+  { label:"UI Layout", items:[
+    {className:"UIListLayout",label:"UIListLayout"},{className:"UIGridLayout",label:"UIGridLayout"},
+    {className:"UIPadding",label:"UIPadding"},{className:"UICorner",label:"UICorner"},
+    {className:"UIStroke",label:"UIStroke"},{className:"UIGradient",label:"UIGradient"},
+    {className:"UIScale",label:"UIScale"},
+    {className:"UIAspectRatioConstraint",label:"UIAspectRatioConstraint"},
+    {className:"UISizeConstraint",label:"UISizeConstraint"},
+  ]},
+  { label:"Effects", items:[
+    {className:"ParticleEmitter",label:"ParticleEmitter"},{className:"Fire",label:"Fire"},
+    {className:"Smoke",label:"Smoke"},{className:"Sparkles",label:"Sparkles"},
+    {className:"Beam",label:"Beam"},{className:"Trail",label:"Trail"},
+    {className:"Highlight",label:"Highlight"},{className:"PointLight",label:"PointLight"},
+    {className:"SpotLight",label:"SpotLight"},{className:"SurfaceLight",label:"SurfaceLight"},
+    {className:"Explosion",label:"Explosion"},{className:"ForceField",label:"ForceField"},
+  ]},
+  { label:"Physics", items:[
+    {className:"Attachment",label:"Attachment"},{className:"WeldConstraint",label:"WeldConstraint"},
+    {className:"HingeConstraint",label:"HingeConstraint"},
+    {className:"BallSocketConstraint",label:"BallSocketConstraint"},
+    {className:"RopeConstraint",label:"RopeConstraint"},
+    {className:"SpringConstraint",label:"SpringConstraint"},
+    {className:"RodConstraint",label:"RodConstraint"},{className:"Motor6D",label:"Motor6D"},
+    {className:"ClickDetector",label:"ClickDetector"},
+    {className:"ProximityPrompt",label:"ProximityPrompt"},
+    {className:"DragDetector",label:"DragDetector"},
+  ]},
+  { label:"Sound", items:[
+    {className:"Sound",label:"Sound"},{className:"SoundGroup",label:"SoundGroup"},
+  ]},
+  { label:"Values", items:[
+    {className:"BoolValue",label:"BoolValue"},{className:"BrickColorValue",label:"BrickColorValue"},
+    {className:"CFrameValue",label:"CFrameValue"},
+  ]},
+  { label:"Network", items:[
+    {className:"RemoteEvent",label:"RemoteEvent"},{className:"RemoteFunction",label:"RemoteFunction"},
+    {className:"BindableEvent",label:"BindableEvent"},{className:"BindableFunction",label:"BindableFunction"},
+    {className:"UnreliableRemoteEvent",label:"UnreliableRemoteEvent"},
+  ]},
+  { label:"Appearance", items:[
+    {className:"Decal",label:"Decal"},{className:"Texture",label:"Texture"},
+    {className:"SurfaceAppearance",label:"SurfaceAppearance"},
+    {className:"SpecialMesh",label:"SpecialMesh"},
+  ]},
+];
 
-  const t = (node.type || "").toLowerCase();
-  if (t.includes("script") || t.includes("module") || t.includes("local")) {
-    return <FileCode2 className="h-3.5 w-3.5 text-blue-400/60 flex-shrink-0" />;
-  }
-  return <Box className="h-3 w-3 text-white/30 flex-shrink-0" />;
-}
+// ─── Insert Object Menu ────────────────────────────────────────────────────────
 
-function TreeItem({ node, depth = 0 }: { node: TreeNode; depth?: number }) {
-  const [open, setOpen] = useState(depth < 1); // auto-expand top level
+function InsertObjectMenu({
+  parentPath, onInsert, onClose,
+}: {
+  parentPath: string;
+  onInsert: (parentPath: string, className: string, name: string) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const hasChildren = node.children.length > 0;
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
+
+  const filteredCategories = useMemo(() => {
+    if (!search.trim()) return INSERTABLE_CATEGORIES;
+    const q = search.toLowerCase();
+    return INSERTABLE_CATEGORIES.map(cat => ({
+      ...cat, items: cat.items.filter(item => item.label.toLowerCase().includes(q)),
+    })).filter(cat => cat.items.length > 0);
+  }, [search]);
 
   return (
-    <div>
-      <button
-        onClick={() => hasChildren && setOpen(!open)}
-        className={`flex items-center gap-1.5 w-full text-left py-[3px] rounded-md transition-colors group
-          ${hasChildren ? "hover:bg-white/[0.04] cursor-pointer" : "cursor-default"}
-        `}
-        style={{ paddingLeft: `${depth * 14 + 4}px` }}
-      >
-        {hasChildren ? (
-          open ? (
-            <ChevronDown className="h-3 w-3 text-white/30 flex-shrink-0" />
-          ) : (
-            <ChevronRight className="h-3 w-3 text-white/30 flex-shrink-0" />
-          )
-        ) : (
-          <span className="w-3 flex-shrink-0" />
+    <div
+      ref={menuRef}
+      className="absolute z-[100] left-0 top-full mt-1 w-[260px] border shadow-xl"
+      style={{
+        background: "#2d2d30",
+        borderColor: "#3f3f46",
+        fontFamily: "'Source Sans Pro', 'Segoe UI', system-ui, sans-serif",
+      }}
+    >
+      <div className="flex items-center gap-1.5 px-2 py-1.5" style={{ borderBottom: "1px solid #3f3f46" }}>
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="#808080"><circle cx="7" cy="7" r="5.5" fill="none" stroke="#808080" strokeWidth="1.5"/><line x1="11" y1="11" x2="14" y2="14" stroke="#808080" strokeWidth="1.5"/></svg>
+        <input
+          ref={inputRef} type="text" value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search objects..."
+          style={{
+            flex:1, background:"transparent", border:"none", outline:"none",
+            fontSize:"12px", color:"#d4d4d4", fontFamily:"inherit",
+          }}
+        />
+        <button onClick={onClose} style={{padding:"2px",background:"none",border:"none",cursor:"pointer"}}>
+          <svg width="10" height="10" viewBox="0 0 10 10" stroke="#808080" strokeWidth="1.5">
+            <line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/>
+          </svg>
+        </button>
+      </div>
+      <div style={{ maxHeight:"300px", overflowY:"auto", padding:"2px 0" }} className="custom-scrollbar">
+        {filteredCategories.length === 0 && (
+          <div style={{padding:"8px 12px",fontSize:"11px",color:"#606060"}}>No results</div>
         )}
-        {getIcon(node, open)}
-        <span className="text-[11px] text-white/60 truncate group-hover:text-white/90 transition-colors">
-          {node.name}
-        </span>
-        {node.type && !node.isFolder && (
-          <span className="text-[9px] text-white/20 ml-auto pr-1 flex-shrink-0">
-            {node.type}
-          </span>
-        )}
-      </button>
-      {open && hasChildren && (
-        <div className="animate-in fade-in slide-in-from-top-1 duration-150">
-          {node.children.map((child) => (
-            <TreeItem key={child.fullPath} node={child} depth={depth + 1} />
-          ))}
-        </div>
-      )}
+        {filteredCategories.map(cat => (
+          <div key={cat.label}>
+            <div style={{padding:"4px 10px",fontSize:"10px",fontWeight:700,color:"#808080",textTransform:"uppercase",letterSpacing:"0.05em"}}>
+              {cat.label}
+            </div>
+            {cat.items.map(item => (
+              <button
+                key={item.className}
+                onClick={() => { onInsert(parentPath, item.className, item.label); onClose(); }}
+                style={{
+                  width:"100%", display:"flex", alignItems:"center", gap:"6px",
+                  padding:"2px 10px", textAlign:"left", background:"none", border:"none",
+                  cursor:"pointer", fontSize:"12px", color:"#d4d4d4",
+                  fontFamily:"inherit",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#094771")}
+                onMouseLeave={e => (e.currentTarget.style.background = "none")}
+              >
+                <img src={getIconPath(item.className)} alt="" width={16} height={16}
+                  style={{imageRendering:"auto",flexShrink:0}}
+                  onError={e => {(e.target as HTMLImageElement).style.display = "none";}}
+                />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{padding:"4px 10px",borderTop:"1px solid #3f3f46",fontSize:"10px",color:"#606060"}}>
+        Insert into: <span style={{color:"#808080"}}>{parentPath}</span>
+      </div>
     </div>
   );
 }
 
-export function WorkspaceTree({ paths }: { paths: string[] }) {
+// ─── Tree Builder ────────────────────────────────────────────────────────────
+
+const CONTAINERS = new Set([
+  "Workspace","Players","Lighting","MaterialService","ReplicatedFirst",
+  "ReplicatedStorage","ServerScriptService","ServerStorage","StarterGui",
+  "StarterPack","StarterPlayer","StarterPlayerScripts","StarterCharacterScripts",
+  "Teams","SoundService","TextChatService","NetworkClient",
+  "Model","Folder","Configuration","Actor",
+  "ScreenGui","Frame","ScrollingFrame","CanvasGroup","BillboardGui","SurfaceGui",
+  "Tool","Backpack","Accessory","Humanoid","Animator","AnimationController","Camera",
+]);
+
+function buildTree(paths: string[]): TreeNode[] {
+  const root: TreeNode[] = [];
+  for (const p of paths) {
+    const typeMatch = p.match(/\s+\[([^\]]+)\]$/);
+    const type = typeMatch?.[1] || "";
+    const cleaned = p.replace(/\s+\[.*?\]$/, "");
+    const parts = cleaned.split(".");
+    let current = root;
+    let pathSoFar = "";
+    for (let i = 0; i < parts.length; i++) {
+      const segment = parts[i];
+      pathSoFar += (pathSoFar ? "." : "") + segment;
+      const isLast = i === parts.length - 1;
+      let existing = current.find(n => n.name === segment);
+      if (!existing) {
+        existing = {
+          name: segment, fullPath: pathSoFar, children: [], depth: i,
+          isFolder: !isLast || (isLast && type !== "" && CONTAINERS.has(type)),
+          type: isLast ? type : "Folder",
+        };
+        current.push(existing);
+      } else if (isLast && type) {
+        existing.type = type;
+        if (CONTAINERS.has(type)) existing.isFolder = true;
+      }
+      if (!isLast) existing.isFolder = true;
+      current = existing.children;
+    }
+  }
+  return root;
+}
+
+// ─── Tree Row ────────────────────────────────────────────────────────────────
+
+const INDENT = 16; // Roblox indent is roughly 16px
+const ROW_H = 22;  // Roblox row height is ~22px
+
+function TreeItem({
+  node, onInsert, isLast, parentIsLasts, selectedPath, setSelectedPath,
+}: {
+  node: TreeNode;
+  onInsert: (parentPath: string, className: string, name: string) => void;
+  isLast: boolean;
+  parentIsLasts: boolean[];
+  selectedPath: string | null;
+  setSelectedPath: (path: string | null) => void;
+}) {
+  const [open, setOpen] = useState(node.depth < 1);
+  const [showInsertMenu, setShowInsertMenu] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  const isSelected = selectedPath === node.fullPath;
+  const hasChildren = node.children.length > 0;
+  const isExpandable = hasChildren || node.isFolder;
+  const handleCloseMenu = useCallback(() => setShowInsertMenu(false), []);
+
+  // Indent guide lines
+  const guideLines: React.ReactNode[] = [];
+  for (let d = 0; d < node.depth; d++) {
+    if (!parentIsLasts[d]) {
+      guideLines.push(
+        <div
+          key={`guide-${d}`}
+          style={{
+            position: "absolute",
+            left: `${d * INDENT + 6}px`,
+            top: 0,
+            bottom: 0,
+            width: "1px",
+            background: "#333333",
+          }}
+        />
+      );
+    }
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          height: `${ROW_H}px`,
+          paddingLeft: `${node.depth * INDENT}px`,
+          position: "relative",
+          cursor: "default",
+          background: isSelected ? "#094771" : hovered ? "#2a2d2e" : "transparent",
+          fontFamily: "'Segoe UI', 'Source Sans Pro', system-ui, sans-serif",
+          outline: isSelected ? "1px double #2c5d87" : "none",
+          outlineOffset: "-1px",
+        }}
+        onClick={(e) => {
+          setSelectedPath(node.fullPath);
+          if (e.detail === 2 && isExpandable) setOpen(!open);
+        }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onContextMenu={e => {
+          e.preventDefault();
+          setSelectedPath(node.fullPath);
+          setShowInsertMenu(!showInsertMenu);
+        }}
+      >
+        {/* Indent guide lines */}
+        {guideLines}
+
+        {/* Expand/Collapse arrow */}
+        <div 
+          style={{ width: "14px", height: "14px", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor: "pointer" }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isExpandable) setOpen(!open);
+          }}
+        >
+          {isExpandable && (
+            <svg
+              width="8" height="8" viewBox="0 0 8 8"
+              style={{
+                transform: open ? "rotate(90deg)" : "rotate(0deg)",
+                transition: "transform 0.05s ease",
+              }}
+            >
+              <path d="M2.5 1.5 L6 4 L2.5 6.5 Z" fill={hovered || isSelected ? "#ffffff" : "#9d9d9d"} />
+            </svg>
+          )}
+        </div>
+
+        {/* Icon */}
+        <div style={{ width:"16px", height:"16px", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", marginRight:"4px" }}>
+          <img
+            src={getIconPath(node.type || "Part")}
+            alt="" width={16} height={16}
+            style={{ imageRendering: "auto" }}
+            draggable={false}
+            onError={e => {
+              const img = e.target as HTMLImageElement;
+              if (!img.dataset.fallback) { img.dataset.fallback = "1"; img.src = "/roblox-icons/Part@2x.png"; }
+            }}
+          />
+        </div>
+
+        {/* Name */}
+        <span style={{
+          fontSize: "13px",
+          color: isSelected ? "#ffffff" : "#cccccc",
+          whiteSpace: "nowrap",
+          userSelect: "none",
+          lineHeight: `${ROW_H}px`,
+        }}>
+          {node.name}
+        </span>
+
+        {/* Roblox Plus Button (Circle with plus) */}
+        {(hovered || isSelected) && (
+          <button
+            onClick={e => { e.stopPropagation(); setShowInsertMenu(!showInsertMenu); }}
+            style={{
+              marginLeft: "auto", marginRight: "6px",
+              background: "none", border: "none", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}
+            title="Insert Object"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16">
+              <circle cx="8" cy="8" r="7" fill="none" stroke={isSelected ? "#ffffff" : "#a0a0a0"} strokeWidth="1.5" />
+              <line x1="8" y1="5" x2="8" y2="11" stroke={isSelected ? "#ffffff" : "#a0a0a0"} strokeWidth="1.5" />
+              <line x1="5" y1="8" x2="11" y2="8" stroke={isSelected ? "#ffffff" : "#a0a0a0"} strokeWidth="1.5" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Insert Object Menu */}
+      {showInsertMenu && (
+        <div style={{ position: "relative" }}>
+          <InsertObjectMenu parentPath={node.fullPath} onInsert={onInsert} onClose={handleCloseMenu} />
+        </div>
+      )}
+
+      {/* Children */}
+      {open && node.children.map((child, i) => (
+        <TreeItem
+          key={child.fullPath}
+          node={child}
+          onInsert={onInsert}
+          isLast={i === node.children.length - 1}
+          parentIsLasts={[...parentIsLasts, isLast]}
+          selectedPath={selectedPath}
+          setSelectedPath={setSelectedPath}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Exported Component ──────────────────────────────────────────────────────
+
+export function WorkspaceTree({
+  paths, onAddInstance,
+}: {
+  paths: string[];
+  onAddInstance?: (parentPath: string, className: string, name: string) => void;
+}) {
   const tree = useMemo(() => buildTree(paths), [paths]);
+  const [filterText, setFilterText] = useState("");
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+
+  const handleInsert = useCallback(
+    (parentPath: string, className: string, name: string) => {
+      if (onAddInstance) onAddInstance(parentPath, className, name);
+    },
+    [onAddInstance]
+  );
+
+  // Filter tree nodes recursively
+  const filterTree = useCallback((nodes: TreeNode[], q: string): TreeNode[] => {
+    if (!q) return nodes;
+    const lower = q.toLowerCase();
+    return nodes.reduce<TreeNode[]>((acc, node) => {
+      const childMatches = filterTree(node.children, q);
+      if (node.name.toLowerCase().includes(lower) || childMatches.length > 0) {
+        acc.push({ ...node, children: childMatches.length > 0 ? childMatches : node.children });
+      }
+      return acc;
+    }, []);
+  }, []);
+
+  const displayTree = useMemo(() => filterTree(tree, filterText), [tree, filterText, filterTree]);
 
   if (tree.length === 0) return null;
 
   return (
-    <div className="space-y-0.5">
-      {tree.map((node) => (
-        <TreeItem key={node.fullPath} node={node} />
-      ))}
+    <div
+      style={{
+        background: "#252526",
+        border: "1px solid #3c3c3c",
+        borderRadius: "0px",
+        overflow: "hidden",
+        fontFamily: "'Source Sans Pro', 'Segoe UI', system-ui, sans-serif",
+        fontSize: "13px",
+      }}
+    >
+      {/* Header - mimics exact Roblox Studio Explorer header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 8px",
+          height: "24px",
+          background: "#2d2d30",
+          borderBottom: "1px solid #3c3c3c",
+        }}
+      >
+        <span style={{
+          fontSize: "12px", color: "#a0a0a0", fontWeight: 400,
+          userSelect: "none", letterSpacing: "0.02em",
+        }}>
+          Explorer
+        </span>
+        {/* Filter toggle */}
+        <button
+          onClick={() => setFilterText(prev => prev === "" ? " " : "")}
+          style={{
+            background:"none", border:"none", cursor:"pointer", padding:"2px",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}
+          title="Filter"
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+            <circle cx="7" cy="7" r="5" stroke="#808080" strokeWidth="1.3"/>
+            <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="#808080" strokeWidth="1.3"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Filter bar */}
+      {filterText !== "" && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "4px",
+          padding: "2px 6px", background: "#1e1e1e",
+          borderBottom: "1px solid #3c3c3c",
+        }}>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{flexShrink:0}}>
+            <circle cx="7" cy="7" r="5" stroke="#606060" strokeWidth="1.3"/>
+            <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="#606060" strokeWidth="1.3"/>
+          </svg>
+          <input
+            type="text"
+            value={filterText.trim()}
+            onChange={e => setFilterText(e.target.value)}
+            placeholder="Filter workspace..."
+            autoFocus
+            style={{
+              flex:1, background:"transparent", border:"none", outline:"none",
+              fontSize:"12px", color:"#cccccc", padding:"2px 0",
+              fontFamily: "'Source Sans Pro', 'Segoe UI', system-ui, sans-serif",
+            }}
+          />
+          <button
+            onClick={() => setFilterText("")}
+            style={{background:"none",border:"none",cursor:"pointer",padding:"2px"}}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" stroke="#808080" strokeWidth="1.5">
+              <line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/>
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Tree content */}
+      <div style={{ padding: "1px 0" }}>
+        {displayTree.map((node, i) => (
+          <TreeItem
+            key={node.fullPath}
+            node={node}
+            onInsert={handleInsert}
+            isLast={i === displayTree.length - 1}
+            parentIsLasts={[]}
+            selectedPath={selectedPath}
+            setSelectedPath={setSelectedPath}
+          />
+        ))}
+      </div>
     </div>
   );
 }

@@ -300,6 +300,26 @@ local function injectSingleScript(scriptData)
 		end
 	end
 
+	if action == "create_instance" then
+		local className = scriptData.className or "Part"
+		local instanceName = scriptData.instanceName or className
+		local ok, newInst = pcall(function()
+			return Instance.new(className)
+		end)
+		if ok and newInst then
+			newInst.Name = instanceName
+			newInst.Parent = parentInstance
+			
+			undoFn = function()
+				if newInst and newInst.Parent then newInst:Destroy() end
+			end
+			
+			return true, "Created " .. className .. " [" .. instanceName .. "] in " .. parentPath, undoFn
+		else
+			return false, "Failed to create " .. className .. ": " .. tostring(newInst), nil
+		end
+	end
+
 	if action == "stop_playtest" then
 		if RunService:IsRunMode() and StudioTestService then
 			pcall(function() StudioTestService:EndTest("success") end)
@@ -398,44 +418,41 @@ end
 
 -- ─── Auto-connect via IP ──────────────────────────────────────────────────────
 
-local function buildTreeString(parent, indentLevel, maxDepth)
-	if indentLevel > maxDepth then return "" end
-	local str = ""
-	local indent = string.rep("  ", indentLevel)
+local function buildTreePaths(parent, parentPath, maxDepth, currentDepth, results)
+	if currentDepth > maxDepth then return end
 	for _, child in ipairs(parent:GetChildren()) do
-		if child:IsA("Folder") or child:IsA("Model") or child:IsA("LuaSourceContainer") then
-			local typeTag = ""
-			if child:IsA("Script") then typeTag = " [Script]"
-			elseif child:IsA("LocalScript") then typeTag = " [LocalScript]"
-			elseif child:IsA("ModuleScript") then typeTag = " [ModuleScript]"
-			elseif child:IsA("Folder") then typeTag = "/"
-			end
-			str = str .. indent .. child.Name .. typeTag .. "\n"
-			if child:IsA("Folder") or child:IsA("Model") then
-				str = str .. buildTreeString(child, indentLevel + 1, maxDepth)
-			end
-		end
+		local childPath = parentPath .. "." .. child.Name
+		local line = childPath .. " [" .. child.ClassName .. "]"
+		table.insert(results, line)
+		buildTreePaths(child, childPath, maxDepth, currentDepth + 1, results)
 	end
-	return str
 end
 
 local function getProjectTree()
-	local tree = ""
+	local results = {}
 	local roots = { 
 		game:GetService("Workspace"), 
+		game:GetService("Players"),
+		game:GetService("Lighting"),
+		game:GetService("MaterialService"),
+		game:GetService("ReplicatedFirst"),
 		game:GetService("ReplicatedStorage"), 
 		game:GetService("ServerScriptService"), 
 		game:GetService("ServerStorage"), 
-		game:GetService("StarterGui")
+		game:GetService("StarterGui"),
+		game:GetService("StarterPack"),
+		game:GetService("StarterPlayer"),
+		game:GetService("Teams"),
+		game:GetService("SoundService"),
+		game:GetService("TextChatService")
 	}
 	
-	local ok, sp = pcall(function() return game:GetService("StarterPlayer").StarterPlayerScripts end)
-	if ok and sp then table.insert(roots, sp) end
-	
 	for _, root in ipairs(roots) do
-		tree = tree .. root.Name .. "/\n" .. buildTreeString(root, 1, 4)
+		-- Add the root service itself
+		table.insert(results, root.Name .. " [" .. root.ClassName .. "]")
+		buildTreePaths(root, root.Name, 4, 1, results)
 	end
-	return tree
+	return table.concat(results, "\n")
 end
 
 local lastTreeHash = ""
