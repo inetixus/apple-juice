@@ -596,10 +596,12 @@ function TreeItem({
 // ─── Exported Component ──────────────────────────────────────────────────────
 
 export function WorkspaceTree({
-  paths, onAddInstance,
+  paths, onAddInstance, onRename, onDelete,
 }: {
   paths: string[];
   onAddInstance?: (parentPath: string, className: string, name: string) => void;
+  onRename?: (path: string, newName: string) => void;
+  onDelete?: (path: string, name: string) => void;
 }) {
   const tree = useMemo(() => buildTree(paths), [paths]);
   const [filterText, setFilterText] = useState("");
@@ -719,6 +721,8 @@ export function WorkspaceTree({
             parentIsLasts={[]}
             selectedPath={selectedPath}
             setSelectedPath={setSelectedPath}
+            onRename={onRename}
+            onDelete={onDelete}
           />
         ))}
       </div>
