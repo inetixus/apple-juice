@@ -329,6 +329,35 @@ local function injectSingleScript(scriptData)
 		end
 	end
 
+	if action == "rename_instance" then
+		local oldPath = scriptData.oldPath
+		local newName = scriptData.newName
+		local target = resolvePath(oldPath)
+		if target then
+			local oldName = target.Name
+			undoFn = function() if target and target.Parent then target.Name = oldName end end
+			target.Name = newName
+			return true, "Renamed " .. oldName .. " to " .. newName, undoFn
+		else
+			return false, "Rename failed: Could not find " .. tostring(oldPath), nil
+		end
+	end
+
+	if action == "move_instance" then
+		local oldPath = scriptData.oldPath
+		local newParentPath = scriptData.newParentPath
+		local target = resolvePath(oldPath)
+		local newParent = resolvePath(newParentPath)
+		if target and newParent then
+			local oldParent = target.Parent
+			undoFn = function() if target and target.Parent then target.Parent = oldParent end end
+			target.Parent = newParent
+			return true, "Moved " .. target.Name .. " to " .. newParentPath, undoFn
+		else
+			return false, "Move failed: Could not find target or new parent", nil
+		end
+	end
+
 	if scriptClass ~= "Script" and scriptClass ~= "LocalScript" and scriptClass ~= "ModuleScript" then
 		scriptClass = "Script"
 	end
@@ -383,9 +412,10 @@ end
 
 local function injectCode(incomingData)
 	local decodeOk, parsed = pcall(function() return HttpService:JSONDecode(incomingData) end)
-	if not decodeOk or type(parsed) ~= "table" then return false, "Invalid JSON payload", 0 end
+	if not decodeOk or type(parsed) ~= "table" then return false, "Invalid JSON payload", 0, false end
 
 	local currentBatch = {}
+	local isManual = parsed.isManual == true
 
 	-- Multi-script: payload has a "scripts" array
 	if parsed.scripts and type(parsed.scripts) == "table" and #parsed.scripts > 0 then
@@ -404,16 +434,17 @@ local function injectCode(incomingData)
 		end
 		
 		local summary = "Synced " .. successCount .. "/" .. #parsed.scripts .. " scripts"
-		return successCount > 0, summary, #parsed.scripts
+		return successCount > 0, summary, #parsed.scripts, isManual
 	end
 
 	-- Single script
 	local ok, msg, uFn = injectSingleScript(parsed)
 	if ok and uFn then
-		table.insert(undoStack, {uFn})
+		table.insert(currentBatch, uFn)
+		table.insert(undoStack, currentBatch)
 		updateUndoButton()
 	end
-	return ok, msg, 1
+	return ok, msg, 1, isManual
 end
 
 -- ─── Auto-connect via IP ──────────────────────────────────────────────────────
@@ -603,21 +634,22 @@ local function pollLoop(sessionKey)
 			if messageId ~= lastMessageId then
 				lastMessageId = messageId
 
-				if RunService:IsRunMode() then
+				local injected, msg, scriptCount, isManual = injectCode(data.code)
+				
+				if injected and not isManual and RunService:IsRunMode() then
 					setStatus("Stopping playtest...", "waiting")
 					stopPlaytest()
 					task.wait(1.5)
 				end
 
-				local injected, msg, scriptCount = injectCode(data.code)
+				setStatus(msg, injected and "success" or "error")
 				
-				if scriptCount > 1 then
-					setStatus(msg, injected and "success" or "error")
-				else
-					setStatus(msg, injected and "success" or "error")
+				-- Trigger immediate tree update after any injection
+				if injected then
+					task.spawn(function() reportTree(sessionKey) end)
 				end
-				
-				if injected and StudioTestService then
+
+				if injected and not isManual and StudioTestService then
 					task.wait(0.5)
 					if not RunService:IsRunMode() then
 						isAutoTesting = true

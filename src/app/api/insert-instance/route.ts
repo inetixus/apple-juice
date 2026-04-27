@@ -8,7 +8,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "Missing sessionKey or payload" }, { status: 400 });
     }
 
-    const codePayload = JSON.stringify(payload);
+    const codePayload = JSON.stringify({ ...payload, isManual: true });
     const messageId = `insert-${Date.now()}`;
     
     const result = await upsertGeneratedCode(sessionKey, codePayload, messageId, true);

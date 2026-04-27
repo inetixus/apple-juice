@@ -337,7 +337,7 @@ const INDENT = 16; // Roblox indent is roughly 16px
 const ROW_H = 22;  // Roblox row height is ~22px
 
 function TreeItem({
-  node, onInsert, isLast, parentIsLasts, selectedPath, setSelectedPath,
+  node, onInsert, isLast, parentIsLasts, selectedPath, setSelectedPath, onRename, onDelete,
 }: {
   node: TreeNode;
   onInsert: (parentPath: string, className: string, name: string) => void;
@@ -345,15 +345,40 @@ function TreeItem({
   parentIsLasts: boolean[];
   selectedPath: string | null;
   setSelectedPath: (path: string | null) => void;
+  onRename?: (path: string, newName: string) => void;
+  onDelete?: (path: string, name: string) => void;
 }) {
   const [open, setOpen] = useState(node.depth < 1);
   const [showInsertMenu, setShowInsertMenu] = useState(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newName, setNewName] = useState(node.name);
   const [hovered, setHovered] = useState(false);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const isSelected = selectedPath === node.fullPath;
   const hasChildren = node.children.length > 0;
   const isExpandable = hasChildren;
   const handleCloseMenu = useCallback(() => setShowInsertMenu(false), []);
+
+  useEffect(() => {
+    if (showContextMenu) {
+      const handler = (e: MouseEvent) => {
+        if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+          setShowContextMenu(false);
+        }
+      };
+      document.addEventListener("mousedown", handler);
+      return () => document.removeEventListener("mousedown", handler);
+    }
+  }, [showContextMenu]);
+
+  const handleRenameSubmit = () => {
+    if (newName.trim() && newName !== node.name && onRename) {
+      onRename(node.fullPath, newName.trim());
+    }
+    setIsRenaming(false);
+  };
 
   // Indent guide lines
   const guideLines: React.ReactNode[] = [];
@@ -392,14 +417,21 @@ function TreeItem({
         }}
         onClick={(e) => {
           setSelectedPath(node.fullPath);
-          if (e.detail === 2 && isExpandable) setOpen(!open);
+          // Only expand on double click if not renaming
+          if (e.detail === 2 && isExpandable && !isRenaming) setOpen(!open);
+        }}
+        onDoubleClick={() => {
+          if (!isRenaming) {
+            setIsRenaming(true);
+            setNewName(node.name);
+          }
         }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onContextMenu={e => {
           e.preventDefault();
           setSelectedPath(node.fullPath);
-          setShowInsertMenu(!showInsertMenu);
+          setShowContextMenu(true);
         }}
       >
         {/* Indent guide lines */}
@@ -440,19 +472,44 @@ function TreeItem({
           />
         </div>
 
-        {/* Name */}
-        <span style={{
-          fontSize: "13px",
-          color: isSelected ? "#ffffff" : "#cccccc",
-          whiteSpace: "nowrap",
-          userSelect: "none",
-          lineHeight: `${ROW_H}px`,
-        }}>
-          {node.name}
-        </span>
+        {/* Name / Rename Input */}
+        {isRenaming ? (
+          <input
+            autoFocus
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onBlur={handleRenameSubmit}
+            onKeyDown={e => {
+              if (e.key === "Enter") handleRenameSubmit();
+              if (e.key === "Escape") setIsRenaming(false);
+            }}
+            style={{
+              fontSize: "13px",
+              color: "#ffffff",
+              background: "#1e1e1e",
+              border: "1px solid #007acc",
+              outline: "none",
+              height: "18px",
+              padding: "0 2px",
+              fontFamily: "inherit",
+              width: "120px",
+            }}
+            onClick={e => e.stopPropagation()}
+          />
+        ) : (
+          <span style={{
+            fontSize: "13px",
+            color: isSelected ? "#ffffff" : "#cccccc",
+            whiteSpace: "nowrap",
+            userSelect: "none",
+            lineHeight: `${ROW_H}px`,
+          }}>
+            {node.name}
+          </span>
+        )}
 
         {/* Roblox Plus Button (Circle with plus) */}
-        {(hovered || isSelected) && (
+        {(hovered || isSelected) && !isRenaming && (
           <button
             onClick={e => { e.stopPropagation(); setShowInsertMenu(!showInsertMenu); }}
             style={{
@@ -470,13 +527,52 @@ function TreeItem({
             </svg>
           </button>
         )}
+
+        {/* Context Menu Popup */}
+        {showContextMenu && (
+          <div
+            ref={contextMenuRef}
+            className="fixed z-[300] w-40 py-1 rounded shadow-xl border"
+            style={{
+              background: "#2d2d30",
+              borderColor: "#454545",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              className="w-full px-3 py-1.5 text-left text-[12px] text-[#cccccc] hover:bg-[#094771] hover:text-white"
+              onClick={() => { setShowContextMenu(false); setIsRenaming(true); }}
+            >
+              Rename
+            </button>
+            <button
+              className="w-full px-3 py-1.5 text-left text-[12px] text-[#cccccc] hover:bg-[#094771] hover:text-white"
+              onClick={() => { setShowContextMenu(false); setShowInsertMenu(true); }}
+            >
+              Insert Object
+            </button>
+            <div className="h-[1px] bg-[#454545] my-1" />
+            <button
+              className="w-full px-3 py-1.5 text-left text-[12px] text-[#ff4444] hover:bg-[#cc0000] hover:text-white"
+              onClick={() => { 
+                if (confirm(`Are you sure you want to delete ${node.name}?`)) {
+                  onDelete?.(node.fullPath, node.name);
+                }
+                setShowContextMenu(false);
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Insert Object Menu */}
+      {/* Insert Object Menu Popup */}
       {showInsertMenu && (
-        <div style={{ position: "relative" }}>
-          <InsertObjectMenu parentPath={node.fullPath} onInsert={onInsert} onClose={handleCloseMenu} />
-        </div>
+        <InsertObjectMenu parentPath={node.fullPath} onInsert={onInsert} onClose={handleCloseMenu} />
       )}
 
       {/* Children */}
@@ -489,6 +585,8 @@ function TreeItem({
           parentIsLasts={[...parentIsLasts, isLast]}
           selectedPath={selectedPath}
           setSelectedPath={setSelectedPath}
+          onRename={onRename}
+          onDelete={onDelete}
         />
       ))}
     </div>

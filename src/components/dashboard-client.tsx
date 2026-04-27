@@ -249,7 +249,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       } catch {
         // ignore
       }
-    }, 3000);
+    }, 1500);
     return () => clearInterval(interval);
   }, [sessionKey, showToast]);
 
@@ -724,6 +724,40 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   }, [sessionKey, showToast]);
 
   // Feature: Insert instance from Explorer tree
+  const handleRename = useCallback(async (path: string, newName: string) => {
+    if (!sessionKey) return;
+    try {
+      await fetch("/api/insert-instance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionKey,
+          payload: { action: "rename_instance", oldPath: path, newName }
+        }),
+      });
+    } catch (err) {
+      console.error("Rename error:", err);
+    }
+  }, [sessionKey]);
+
+  const handleDelete = useCallback(async (path: string, name: string) => {
+    if (!sessionKey) return;
+    try {
+      const parts = path.split(".");
+      const parent = parts.slice(0, -1).join(".") || "Workspace";
+      await fetch("/api/insert-instance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionKey,
+          payload: { action: "delete", parent, name }
+        }),
+      });
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
+  }, [sessionKey]);
+
   const handleAddInstance = useCallback(async (parentPath: string, className: string, name: string) => {
     if (!sessionKey) {
       showToast("No active session. Connect your plugin first.", "error");
@@ -823,7 +857,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           {/* Roblox Explorer Tree */}
           {projectTree.length > 0 && (
             <div className="overflow-y-auto overflow-x-hidden custom-scrollbar -mx-5 px-0" style={{ maxHeight: "calc(100vh - 380px)" }}>
-              <WorkspaceTree paths={projectTree} onAddInstance={handleAddInstance} />
+              <WorkspaceTree 
+                paths={projectTree} 
+                onAddInstance={handleAddInstance} 
+                onRename={handleRename}
+                onDelete={handleDelete}
+              />
             </div>
           )}
         </div>
