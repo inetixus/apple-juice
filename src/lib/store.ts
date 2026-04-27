@@ -336,3 +336,17 @@ export async function trackUserUsage(userId: string, tokens: number) {
     console.error("trackUserUsage error", err);
   }
 }
+
+export async function grantBonusCredits(userId: string, credits: number) {
+  if (credits <= 0) return;
+  const key = usageKeyFor(userId);
+  const redis = getRedis();
+  try {
+    // 1 credit = TOKENS_PER_CREDIT
+    // Decrementing usage effectively grants credits
+    const tokensToGrant = credits * TOKENS_PER_CREDIT;
+    await redis.decrby(key, tokensToGrant);
+  } catch (err) {
+    console.error("grantBonusCredits error", err);
+  }
+}

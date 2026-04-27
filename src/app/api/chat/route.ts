@@ -266,7 +266,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
         model: modelName,
         temperature: mode === "thinking" ? 0.4 : 0.2,
         messages: apiMessages,
-        max_tokens: mode === "thinking" ? 8192 : 4096,
+        max_tokens: 8192,
       }),
     });
 

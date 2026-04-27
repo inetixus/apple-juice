@@ -54,6 +54,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [availableModels, setAvailableModels] = useState<string[]>(FALLBACK_MODELS);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [secretCode, setSecretCode] = useState("");
+  const [isRedeeming, setIsRedeeming] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPluginConnected, setIsPluginConnected] = useState(false);
@@ -500,6 +502,30 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     void loadModels(inputValue, undefined, finalProvider);
     setShowSettings(false);
   }
+
+  const handleRedeemCode = async () => {
+    if (!secretCode.trim()) return;
+    setIsRedeeming(true);
+    try {
+      const res = await fetch("/api/redeem-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: secretCode, userId: window.localStorage.getItem("apple-juice-user-id") || "anonymous" })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message, "success");
+        setSecretCode("");
+        void fetchUsage(); // Refresh credit count
+      } else {
+        showToast(data.error || "Invalid code", "error");
+      }
+    } catch (e) {
+      showToast("Failed to redeem code", "error");
+    } finally {
+      setIsRedeeming(false);
+    }
+  };
 
   function addRecentPrompt(value: string) {
     const next = [value, ...recentPrompts.filter((item) => item !== value)].slice(0, 6);
@@ -1458,11 +1484,41 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 }}
                 className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
               >
+                {availableModels.length === 0 && (
+                  <option value="" disabled>No models available</option>
+                )}
                 {availableModels.map((model) => (
                   <option key={model} value={model} className="bg-[#13151a]">{model}</option>
                 ))}
               </select>
             </div>
+
+            <div className="pt-4 border-t border-white/[0.04]">
+              <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="secret-code-input">
+                Secret Code
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  id="secret-code-input"
+                  type="text"
+                  value={secretCode}
+                  onChange={(e) => setSecretCode(e.target.value)}
+                  placeholder="Enter code..."
+                  className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleRedeemCode();
+                  }}
+                />
+                <button 
+                  onClick={handleRedeemCode} 
+                  disabled={isRedeeming || !secretCode.trim()}
+                  className="px-3 py-1.5 bg-[#ccff00]/10 text-[#ccff00] text-[11px] font-medium rounded-lg hover:bg-[#ccff00]/20 transition-colors disabled:opacity-40"
+                >
+                  {isRedeeming ? "..." : "Redeem"}
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

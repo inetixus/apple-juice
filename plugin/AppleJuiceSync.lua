@@ -388,7 +388,7 @@ local function injectSingleScript(scriptData)
 
 	local parentInstance = resolvePath(parentPath)
 	if not parentInstance then
-		parentInstance = game:GetService("ServerScriptService")
+		return false, "Parent path '" .. tostring(parentPath) .. "' not found. Make sure you create the parent first.", nil
 	end
 
 	local undoFn = nil
