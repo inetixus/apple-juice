@@ -155,10 +155,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             if (data.tree) {
               const lines = (data.tree as string).split('\n').map(l => l.trim()).filter(l => l.length > 0);
               const newTree = Array.from(new Set(lines));
-              setProjectTree(prev => {
-                if (JSON.stringify(prev) === JSON.stringify(newTree)) return prev;
-                return newTree;
-              });
+              if (newTree.length > 0) {
+                setProjectTree(prev => {
+                  if (JSON.stringify(prev) === JSON.stringify(newTree)) return prev;
+                  return newTree;
+                });
+              }
             }
 
             if (data.fileResponse && data.fileResponse.name) {

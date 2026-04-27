@@ -490,9 +490,9 @@ local function getProjectTree()
 end
 
 local lastTreeHash = ""
-local function reportTree(sessionKey)
+local function reportTree(sessionKey, force)
 	local tree = getProjectTree()
-	if tree == lastTreeHash then return end
+	if not force and tree == lastTreeHash then return end
 	lastTreeHash = tree
 	task.spawn(function()
 		pcall(function()
@@ -568,8 +568,8 @@ local function pollLoop(sessionKey)
 
 	while running and not unloading do
 		pollTicks += 1
-		-- Report tree on every poll if it changed for maximum responsiveness
-		reportTree(sessionKey)
+		-- Report tree on every poll if it changed. Force a report every 60 polls (~30s) to prevent cache expiry.
+		reportTree(sessionKey, pollTicks % 60 == 1)
 
 		local ok, data, err = requestPoll(sessionKey)
 
@@ -651,7 +651,7 @@ local function pollLoop(sessionKey)
 				
 				-- Trigger immediate tree update after any injection
 				if injected then
-					task.spawn(function() reportTree(sessionKey) end)
+					task.spawn(function() reportTree(sessionKey, true) end)
 				end
 
 				if injected and not isManual and StudioTestService then
