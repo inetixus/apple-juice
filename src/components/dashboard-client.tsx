@@ -83,7 +83,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const autoFixTimerRef = useRef<any>(null);
   const lastGeneratedScriptsRef = useRef<{ name: string; parent: string; type: string; code: string }[]>([]);
   const MAX_AUTO_FIX_RETRIES = 3;
-  const [autoSync, setAutoSync] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   // Feature: Asset search
   const [assetQuery, setAssetQuery] = useState("");
@@ -640,7 +639,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           openaiKey: openaiKey.trim(),
           mode,
           fileContents: attachedFiles.length > 0 ? attachedFiles : undefined,
-          autoSync,
+          autoSync: true,
         }),
       });
 
@@ -705,39 +704,31 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         };
       }
 
-      if (autoSync) {
-        setPluginStatus(`Script synced to Studio. Running playtest...`);
-        showToast("Script generated and synced!", "success");
-        playSound('success');
-        setIsGenerating(false);
-        setMessages((current) => [...current, buildAssistantMessage(payload, payloadFiles, false, isHidden)]);
-        setThinkingSteps([]);
-        // Reset auto-fix retries for this new generation
-        autoFixRetriesRef.current = 0;
-        // Store the generated scripts for auto-fix context
-        if (payload.scripts && Array.isArray(payload.scripts)) {
-          lastGeneratedScriptsRef.current = payload.scripts.map((s: any) => ({
-            name: s.name || "Unknown",
-            parent: s.parent || "ServerScriptService",
-            type: s.type || "Script",
-            code: s.code || "",
-          }));
-        } else if (payload.code) {
-          lastGeneratedScriptsRef.current = [{
-            name: payload.scriptName || "AIScript",
-            parent: payload.scriptParent || "ServerScriptService",
-            type: payload.scriptType || "Script",
-            code: payload.code || "",
-          }];
-        }
-        void fetchUsage();
-      } else {
-        setPluginStatus("Code generated. Review changes before syncing.");
-        setIsGenerating(false);
-        setMessages((current) => [...current, buildAssistantMessage(payload, payloadFiles, true, isHidden)]);
-        setThinkingSteps([]);
-        void fetchUsage();
+      setPluginStatus(`Script synced to Studio. Running playtest...`);
+      showToast("Script generated and synced!", "success");
+      playSound('success');
+      setIsGenerating(false);
+      setMessages((current) => [...current, buildAssistantMessage(payload, payloadFiles, false, isHidden)]);
+      setThinkingSteps([]);
+      // Reset auto-fix retries for this new generation
+      autoFixRetriesRef.current = 0;
+      // Store the generated scripts for auto-fix context
+      if (payload.scripts && Array.isArray(payload.scripts)) {
+        lastGeneratedScriptsRef.current = payload.scripts.map((s: any) => ({
+          name: s.name || "Unknown",
+          parent: s.parent || "ServerScriptService",
+          type: s.type || "Script",
+          code: s.code || "",
+        }));
+      } else if (payload.code) {
+        lastGeneratedScriptsRef.current = [{
+          name: payload.scriptName || "AIScript",
+          parent: payload.scriptParent || "ServerScriptService",
+          type: payload.scriptType || "Script",
+          code: payload.code || "",
+        }];
       }
+      void fetchUsage();
 
     } catch (error) {
       stepTimeoutsRef.current.forEach(clearTimeout);
