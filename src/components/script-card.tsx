@@ -1,5 +1,5 @@
 "use client";
-import { FileCode2, Copy, ChevronDown, ChevronUp, Trash2, Box } from "lucide-react";
+import { FileCode2, Copy, ChevronDown, ChevronUp, Trash2, Box, Folder, Layout, MousePointer2, Image, Type, Database, Palette, Ghost } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import * as Diff from "diff";
@@ -69,6 +69,27 @@ type ScriptMeta = {
   originalCode?: string;
 };
 
+const typeIconMap: Record<string, any> = {
+  Script: FileCode2,
+  LocalScript: FileCode2,
+  ModuleScript: FileCode2,
+  Folder: Folder,
+  ScreenGui: Layout,
+  Frame: Layout,
+  TextButton: MousePointer2,
+  ImageButton: MousePointer2,
+  ImageLabel: Image,
+  TextLabel: Type,
+  DataStore: Database,
+  Color3: Palette,
+  Part: Box,
+  Model: Box,
+  RemoteEvent: Zap,
+  BindableEvent: Zap,
+  RemoteFunction: Cpu,
+  BindableFunction: Cpu,
+};
+
 export function ScriptCard({ script }: { script: ScriptMeta }) {
   const [expanded, setExpanded] = useState(false);
   const isDelete = script.action === "delete";
@@ -78,19 +99,21 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
     try { await navigator.clipboard.writeText(script.code); } catch { /* ignore */ }
   }
 
+  const IconComponent = typeIconMap[script.type || "Script"] || Ghost;
+
   return (
-    <div className={`mt-4 rounded-xl border ${isDelete ? 'border-red-500/20 bg-red-500/5' : isAsset ? 'border-purple-500/20 bg-purple-500/5' : 'border-white/10 bg-[#0a0c10]'} overflow-hidden`}>
+    <div className={`mt-2 rounded-lg border ${isDelete ? 'border-red-500/20 bg-red-500/5' : isAsset ? 'border-purple-500/20 bg-purple-500/5' : 'border-white/10 bg-[#0a0c10]'} overflow-hidden`}>
       <button
         onClick={() => !isDelete && !isAsset && setExpanded((e) => !e)}
-        className={`w-full flex items-center gap-3.5 px-5 py-4 ${(!isDelete && !isAsset) ? 'hover:bg-white/[0.03] cursor-pointer' : 'cursor-default'} transition-colors`}
+        className={`w-full flex items-center gap-2.5 px-3 py-2.5 ${(!isDelete && !isAsset) ? 'hover:bg-white/[0.03] cursor-pointer' : 'cursor-default'} transition-colors`}
       >
-        <div className={`flex h-10 w-10 items-center justify-center rounded-lg border flex-shrink-0 ${isDelete ? 'bg-red-500/10 border-red-500/20' : isAsset ? 'bg-purple-500/10 border-purple-500/20' : 'bg-[#ccff00]/10 border-[#ccff00]/20'}`}>
-          {isDelete ? <Trash2 className="h-5 w-5 text-red-400" /> : isAsset ? <Box className="h-5 w-5 text-purple-400" /> : <FileCode2 className="h-5 w-5 text-[#ccff00]" />}
+        <div className={`flex h-8 w-8 items-center justify-center rounded-md border flex-shrink-0 ${isDelete ? 'bg-red-500/10 border-red-500/20' : isAsset ? 'bg-purple-500/10 border-purple-500/20' : 'bg-[#ccff00]/10 border-[#ccff00]/20'}`}>
+          {isDelete ? <Trash2 className="h-4 w-4 text-red-400" /> : isAsset ? <Box className="h-4 w-4 text-purple-400" /> : <IconComponent className="h-4 w-4 text-[#ccff00]" />}
         </div>
         <div className="flex-1 text-left min-w-0">
-          <p className={`text-[15px] font-semibold truncate ${isDelete ? 'text-red-400' : isAsset ? 'text-purple-400' : 'text-white'}`}>{script.name}</p>
-          <p className="text-xs text-[#8a8f98] mt-0.5">
-            {isDelete ? 'To be deleted' : isAsset ? `Roblox Asset` : `${script.lineCount} lines · ${script.type || 'Script'}`} · {script.parent}
+          <p className={`text-[13px] font-semibold truncate ${isDelete ? 'text-red-400' : isAsset ? 'text-purple-400' : 'text-white'}`}>{script.name}</p>
+          <p className="text-[10px] text-[#8a8f98] mt-0.5">
+            {isDelete ? 'To be deleted' : isAsset ? `Roblox Asset` : (script.lineCount > 0 ? `${script.lineCount} lines · ` : '') + (script.type || 'Script')} · {script.parent}
           </p>
         </div>
         {!isDelete && !isAsset && (
@@ -142,7 +165,7 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
               </div>
             </div>
           ) : (
-            <div className="max-h-[500px] overflow-auto font-mono text-[13px] bg-[#050505] p-5 leading-relaxed">
+            <div className="max-h-[400px] overflow-auto font-mono text-[12px] bg-[#050505] p-3 leading-relaxed">
               <Highlight
                 theme={luauTheme}
                 code={script.code.trim()}
@@ -152,7 +175,7 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
                   <pre>
                     {tokens.map((line, i) => (
                       <div key={i} {...getLineProps({ line })}>
-                        <span className="inline-block w-8 select-none opacity-20 text-right pr-3 text-[10px]">{i + 1}</span>
+                        <span className="inline-block w-6 select-none opacity-20 text-right pr-2 text-[9px]">{i + 1}</span>
                         {line.map((token, key) => (
                           <span key={key} {...getTokenProps({ token })} />
                         ))}

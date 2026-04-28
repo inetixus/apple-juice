@@ -1075,7 +1075,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                   <div className="p-1.5 rounded-lg bg-violet-500/20 text-violet-400 group-open:animate-pulse">
                                     <Brain className="h-4 w-4" />
                                   </div>
-                                  <span className="tracking-wide uppercase text-[10px]">Architectural Reasoning</span>
+                                  <span className="tracking-wide uppercase text-[10px]">Reasoning</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <span className="text-[9px] font-mono opacity-40 uppercase">
@@ -1106,7 +1106,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         {message.scripts && message.scripts.length > 0 && (
                           <div className="space-y-2 w-full max-w-[500px]">
                             {message.scripts.length > 1 && <SystemArchitecture scripts={message.scripts} />}
-                            <p className="text-[12px] font-medium text-white/30">{message.scripts.length} scripts generated</p>
+                            <p className="text-[11px] font-medium text-white/20 tracking-tight uppercase ml-1">{message.scripts.length} instances created</p>
                             {message.scripts.map((s, i) => (
                               <ScriptCard key={i} script={s} />
                             ))}

@@ -77,70 +77,64 @@ export function SystemArchitecture({ scripts }: { scripts: ScriptMeta[] }) {
   if (scripts.length <= 1) return null;
 
   return (
-    <div className="mt-4 mb-2">
-      <div className="flex items-center gap-2 mb-3">
-        <Network className="h-4 w-4 text-[#ccff00]" />
-        <h3 className="text-sm font-semibold text-white/80 uppercase tracking-wider">System Architecture</h3>
-      </div>
-      
-      <div 
-        ref={containerRef}
-        className="relative bg-[#0a0c10] border border-white/10 rounded-xl p-6 overflow-hidden flex items-center justify-center min-h-[160px]"
-      >
-        {/* SVG overlay for lines */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-          {lines.map((line, i) => (
-            <path
-              key={i}
-              d={`M ${line.x2} ${line.y2} C ${line.x2 + 40} ${line.y2}, ${line.x1 - 40} ${line.y1}, ${line.x1} ${line.y1}`}
-              fill="none"
-              stroke="rgba(204, 255, 0, 0.3)"
-              strokeWidth="2"
-              className="animate-in fade-in duration-1000"
-              style={{ strokeDasharray: "4 4" }}
-            />
-          ))}
-          
-          {/* Arrow heads at target */}
-          {lines.map((line, i) => (
-            <circle key={`dot-${i}`} cx={line.x2 + 4} cy={line.y2} r="3" fill="#ccff00" className="opacity-50" />
-          ))}
-        </svg>
-        
-        <div className="relative z-10 w-full flex flex-col md:flex-row justify-around items-stretch gap-8 md:gap-16">
-          
-          {/* Roots Column */}
-          <div className="flex flex-col gap-4 items-center justify-center w-full">
-            <span className="text-[10px] text-white/30 uppercase tracking-widest mb-1">Providers / Modules</span>
-            {roots.map(script => (
-              <div 
-                key={script.name}
-                id={`node-${script.name}`}
-                className="w-full max-w-[200px] bg-[#14161a] border border-white/5 rounded-lg p-3 shadow-lg flex items-center gap-3 transition-transform hover:scale-105"
-              >
-                <div className="h-8 w-8 rounded-md bg-[#ccff00]/10 flex items-center justify-center flex-shrink-0">
-                  <Layers className="h-4 w-4 text-[#ccff00]" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-white truncate">{script.name}</p>
-                  <p className="text-[10px] text-white/40 truncate">{script.type || 'Script'}</p>
-                </div>
-              </div>
-            ))}
+    <div className="mt-4 mb-2 animate-in fade-in slide-in-from-top-2 duration-500">
+      <details className="group bg-[#0a0c10]/50 border border-white/[0.08] rounded-xl overflow-hidden shadow-xl">
+        <summary className="cursor-pointer text-[12px] font-bold text-[#ccff00]/80 hover:text-[#ccff00] hover:bg-[#ccff00]/5 transition-all flex items-center justify-between px-4 py-3 select-none list-none [&::-webkit-details-marker]:hidden group-open:border-b border-white/[0.08]">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 rounded-lg bg-[#ccff00]/10 text-[#ccff00]">
+              <Network className="h-4 w-4" />
+            </div>
+            <span className="tracking-wide uppercase text-[10px]">System Architecture</span>
           </div>
-
-          {/* Dependents Column */}
-          {dependents.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-mono opacity-40 uppercase">
+              {scripts.length} Components
+            </span>
+            <div className="w-5 h-5 rounded-full flex items-center justify-center bg-white/5 group-open:rotate-180 transition-transform duration-300">
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-white/40" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 1L5 5L9 1" />
+              </svg>
+            </div>
+          </div>
+        </summary>
+        
+        <div 
+          ref={containerRef}
+          className="relative bg-[#050505] p-4 overflow-hidden flex items-center justify-center min-h-[140px] backdrop-blur-sm"
+        >
+          {/* SVG overlay for lines */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+            {lines.map((line, i) => (
+              <path
+                key={i}
+                d={`M ${line.x2} ${line.y2} C ${line.x2 + 40} ${line.y2}, ${line.x1 - 40} ${line.y1}, ${line.x1} ${line.y1}`}
+                fill="none"
+                stroke="rgba(204, 255, 0, 0.3)"
+                strokeWidth="2"
+                className="animate-in fade-in duration-1000"
+                style={{ strokeDasharray: "4 4" }}
+              />
+            ))}
+            
+            {/* Arrow heads at target */}
+            {lines.map((line, i) => (
+              <circle key={`dot-${i}`} cx={line.x2 + 4} cy={line.y2} r="3" fill="#ccff00" className="opacity-50" />
+            ))}
+          </svg>
+          
+          <div className="relative z-10 w-full flex flex-col md:flex-row justify-around items-stretch gap-8 md:gap-16">
+            
+            {/* Roots Column */}
             <div className="flex flex-col gap-4 items-center justify-center w-full">
-              <span className="text-[10px] text-white/30 uppercase tracking-widest mb-1">Consumers</span>
-              {dependents.map(script => (
+              <span className="text-[10px] text-white/30 uppercase tracking-widest mb-1">Providers / Modules</span>
+              {roots.map(script => (
                 <div 
                   key={script.name}
                   id={`node-${script.name}`}
                   className="w-full max-w-[200px] bg-[#14161a] border border-white/5 rounded-lg p-3 shadow-lg flex items-center gap-3 transition-transform hover:scale-105"
                 >
-                  <div className="h-8 w-8 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0">
-                    <FileCode2 className="h-4 w-4 text-white/60" />
+                  <div className="h-8 w-8 rounded-md bg-[#ccff00]/10 flex items-center justify-center flex-shrink-0">
+                    <Layers className="h-4 w-4 text-[#ccff00]" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-white truncate">{script.name}</p>
@@ -149,10 +143,32 @@ export function SystemArchitecture({ scripts }: { scripts: ScriptMeta[] }) {
                 </div>
               ))}
             </div>
-          )}
-          
+
+            {/* Dependents Column */}
+            {dependents.length > 0 && (
+              <div className="flex flex-col gap-4 items-center justify-center w-full">
+                <span className="text-[10px] text-white/30 uppercase tracking-widest mb-1">Consumers</span>
+                {dependents.map(script => (
+                  <div 
+                    key={script.name}
+                    id={`node-${script.name}`}
+                    className="w-full max-w-[200px] bg-[#14161a] border border-white/5 rounded-lg p-3 shadow-lg flex items-center gap-3 transition-transform hover:scale-105"
+                  >
+                    <div className="h-8 w-8 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0">
+                      <FileCode2 className="h-4 w-4 text-white/60" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-white truncate">{script.name}</p>
+                      <p className="text-[10px] text-white/40 truncate">{script.type || 'Script'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+          </div>
         </div>
-      </div>
+      </details>
     </div>
   );
 }
