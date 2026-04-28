@@ -1520,8 +1520,6 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
             </div>
           </div>
         )}
-          </div>
-        </div>
       </div>
       {showSettings && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) setShowSettings(false); }}>
@@ -1688,10 +1686,6 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
           </div>
         </div>
       )}
-      </div>
-      </div>
-      </div>
-      </div>
       </div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </main>
