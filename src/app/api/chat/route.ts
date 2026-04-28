@@ -248,22 +248,124 @@ When ONLY ONE simple script or action is needed, output a JSON object with:
 ${mode === "thinking" ? '- "thinking": your step-by-step reasoning (string)' : ""}
 
 CRITICAL: PREMIUM UI DESIGN & HIERARCHY:
-1. MODERN AESTHETIC: Use dark mode (#0A0C10) with neon accents and glassmorphism (Transparency 0.2, BackgroundBlur).
-2. CENTERING & POSITIONING: To prevent UI from being stuck in corners, ALWAYS set the AnchorPoint of main frames to Vector2.new(0.5, 0.5) and the Position to UDim2.fromScale(0.5, 0.5) to center them perfectly.
-3. HIERARCHY & PARENTING: For multi-part UIs, ensure the dot-path in "parent" is absolute. (e.g., Parent a Frame to "StarterGui.MyUI", and parent a Button to "StarterGui.MyUI.Frame").
-4. LAYOUT MANAGERS: When placing multiple parts together (buttons, items, etc.), ALWAYS use a UIListLayout or UIGridLayout inside the parent container. Set Padding and FillDirection appropriately.
-5. PADDING: Never let content touch the edges. Always add a UIPadding child (e.g., 15px) to any container with child elements.
-6. ROUNDING: Apply UICorner to ALL interactive elements.
-7. RESPONSIVENESS: Use UDim2 SCALE ({0.8, 0}, {0.4, 0}). Only use Offset for tiny fixed elements like borders or icon margins.
-8. COMPOSITION: Break complex UIs into logical sections (Header, Body, Footer) using separate Frames.
+1. MODERN AESTHETIC: Use dark mode backgrounds (BackgroundColor3 = Color3.fromRGB(10,12,16)) with neon accent colors (e.g., Color3.fromRGB(204,255,0) for highlights). Apply glassmorphism with BackgroundTransparency = 0.15 and add UIStroke with Transparency 0.7 for glass borders.
+2. CENTERING & POSITIONING: ALWAYS set AnchorPoint = Vector2.new(0.5, 0.5) and Position = UDim2.fromScale(0.5, 0.5) on root frames to center them. For non-centered elements, use UDim2.fromScale() with appropriate values.
+3. DEFAULT SIZING — MANDATORY SIZE TABLE (never use {0,0,0,0}):
+   - ScreenGui: No size needed, it covers the screen automatically. Set ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling.
+   - Root/Main Frame: UDim2.fromScale(0.4, 0.55) (roughly 40% width, 55% height — adjust per context).
+   - Header Frame: UDim2.new(1, 0, 0, 50) (full width, 50px tall).
+   - Section/Body Frame: UDim2.new(1, 0, 1, -50) (full width, fill remaining height).
+   - TextLabel: UDim2.new(1, 0, 0, 36) (full width, 36px tall) or use AutomaticSize = Enum.AutomaticSize.Y.
+   - TextButton: UDim2.new(0.4, 0, 0, 44) (40% width, 44px tall).
+   - ImageLabel: UDim2.fromOffset(64, 64) minimum, or fromScale for responsive.
+   - ScrollingFrame: UDim2.new(1, 0, 1, -60) (fill remaining, leave room for header). Set ScrollBarThickness = 4, ScrollBarImageColor3 = Color3.fromRGB(60,60,60), AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(0,0,0,0).
+   - Frame (card/item): UDim2.new(1, 0, 0, 80) (full width, 80px tall for list items).
+4. HIERARCHY & PARENTING: For multi-part UIs, the dot-path in "parent" MUST be absolute. Example hierarchy:
+   - ScreenGui → parent: "StarterGui", name: "ShopUI"
+   - Main Frame → parent: "StarterGui.ShopUI", name: "MainFrame"
+   - Header → parent: "StarterGui.ShopUI.MainFrame", name: "Header"
+   - UICorner → parent: "StarterGui.ShopUI.MainFrame", name: "Corner"
+   - Body → parent: "StarterGui.ShopUI.MainFrame", name: "Body"
+   - Item → parent: "StarterGui.ShopUI.MainFrame.Body", name: "Item1"
+5. LAYOUT MANAGERS: ALWAYS use a UIListLayout or UIGridLayout when a container has multiple children:
+   - UIListLayout: Set Padding (UDim.new(0, 8)), FillDirection, HorizontalAlignment, VerticalAlignment, SortOrder = Enum.SortOrder.LayoutOrder.
+   - UIGridLayout: Set CellSize (UDim2.fromOffset(100, 100)), CellPadding (UDim2.fromOffset(8, 8)).
+6. PADDING: Add UIPadding to EVERY container. Minimum 10px on all sides: PaddingLeft=UDim.new(0,12), PaddingRight=UDim.new(0,12), PaddingTop=UDim.new(0,12), PaddingBottom=UDim.new(0,12).
+7. ROUNDING: Add UICorner with CornerRadius = UDim.new(0, 12) to ALL Frames and Buttons. Use 8px for small elements, 16px for large cards.
+8. RESPONSIVENESS: Prefer UDim2 Scale values (UDim2.fromScale(0.8, 0.5)) for sizing. Only use Offset for small fixed elements (icons, padding, borders).
+9. COMPOSITION: Break UIs into Header, Body, Footer frames. Each gets its own UICorner, UIPadding, and appropriate sizing.
+10. TEXT STYLING: Always set TextSize (18-24 for titles, 14-16 for body), Font = Enum.Font.GothamBold (titles) or Enum.Font.Gotham (body), TextColor3 = Color3.fromRGB(255,255,255). Use RichText = true for inline formatting like <b>, <i>, <font color>, <stroke>.
+
+CRITICAL: ADVANCED UI ANIMATION & INTERACTION (USE THESE IN EVERY UI):
+11. TWEENSERVICE ANIMATIONS — Use TweenService for ALL UI transitions. NEVER just set properties directly for visual changes:
+   - OPEN/CLOSE: Tween the main frame from Size=UDim2.fromScale(0,0) to its target size with EasingStyle.Back, EasingDirection.Out, 0.4s. On close, reverse it.
+   - FADE IN: Tween BackgroundTransparency from 1→target and TextTransparency from 1→0 on open.
+   - SLIDE IN: Tween Position from off-screen (e.g., UDim2.fromScale(0.5, 1.5)) to center (UDim2.fromScale(0.5, 0.5)).
+   - Example pattern in LocalScript code:
+     local TweenService = game:GetService("TweenService")
+     local tweenInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+     TweenService:Create(frame, tweenInfo, {Size = targetSize, BackgroundTransparency = 0.05}):Play()
+12. HOVER EFFECTS — Every TextButton and clickable element MUST have hover animations:
+   - On MouseEnter: Tween BackgroundColor3 to a lighter shade (+15 per channel), tween Size to 1.03x scale, add UIStroke glow.
+   - On MouseLeave: Tween back to original values.
+   - On MouseButton1Down: Tween Size to 0.97x (press effect), then on MouseButton1Up tween back.
+   - Example: button.MouseEnter:Connect(function() TweenService:Create(button, TweenInfo.new(0.15), {BackgroundColor3 = hoverColor}):Play() end)
+13. CLICK FEEDBACK — On button click, play a brief scale-bounce: shrink to 0.95 over 0.05s, then expand to 1.0 over 0.15s with EasingStyle.Back.
+14. SCROLL ANIMATIONS — When items are added to a ScrollingFrame, tween each new item's Transparency from 1→0 and Position from offset to final, staggered by 0.05s per item index.
+15. NOTIFICATION/TOAST SYSTEM — For feedback (purchase success, errors), create a small Frame at top-center that slides down from off-screen, displays for 2.5s, then slides back up and destroys itself.
+16. TAB SYSTEMS — For multi-tab UIs, tween an "indicator bar" Frame under the active tab. On tab switch, tween indicator Position to new tab and crossfade the content frames (old fades out 0.2s, new fades in 0.2s).
+17. LOADING STATES — Show a spinning indicator or pulsing dot animation while data loads. Use a repeating tween: Rotation 0→360 with RepeatCount = -1.
+18. GRADIENT OVERLAYS — Add UIGradient to headers and accent elements. Use Color = ColorSequence.new({ColorSequenceKeypoint.new(0, accentColor), ColorSequenceKeypoint.new(1, darkerColor)}). Animate the Offset for a shimmer effect.
+19. SHADOW/DEPTH — Create shadow layers: duplicate the main frame behind it, offset by (0,4,0,4), set BackgroundColor3 to black, BackgroundTransparency = 0.7, and add a large UICorner. This creates depth.
+20. CLOSE BUTTON — Every UI MUST have a close button ("X" or similar) in the top-right of the header. It should tween-close the UI, not just set Visible=false. Apply rotation tween on hover (0→90°).
+
+CRITICAL: COMPLETE UI ARCHITECTURE PATTERNS:
+21. SHOP UI PATTERN: ScreenGui → MainFrame (centered, glassmorphic) → Header (title + close btn + coin display) → TabBar (category buttons with sliding indicator) → Body (ScrollingFrame with UIGridLayout) → ItemCards (image, name, price, buy button with hover effects) → Footer (selected item details). Include a LocalScript that handles: opening/closing tweens, tab switching with crossfade, buy button confirmation dialog, purchase RemoteEvent, coin counter animation (tween NumberValue display), error toast notifications.
+22. INVENTORY UI PATTERN: Similar to shop but with: equipped indicator glow (UIStroke with animated color), drag-to-equip, item rarity color borders (Common=gray, Rare=blue, Epic=purple, Legendary=gold with gradient shimmer), item count badges, search/filter bar at top.
+23. MAIN MENU PATTERN: Full-screen overlay → Logo with scale-bounce entrance → Title with typewriter effect → Buttons stack (Play, Shop, Settings, Credits) each sliding in from left with stagger delay → Background blur (set parent frame BackgroundTransparency = 0.3, add large blur via full-screen semi-transparent frame).
+24. HUD PATTERN: Non-intrusive corners — health bar (top-left, gradient fill tween), currency display (top-right, coin icon + animated count), minimap frame (bottom-right), hotbar (bottom-center, slot highlight on selection).
+25. DIALOG/MODAL PATTERN: Overlay (full-screen, BackgroundColor3=black, BackgroundTransparency=0.5) → Dialog box (centered, slides in from bottom) → Title + message + action buttons. Clicking overlay closes dialog.
+
+PROPERTIES REFERENCE for the "properties" JSON field:
+   - Size: "UDim2.new(sx,ox,sy,oy)" or "UDim2.fromScale(sx,sy)" or "UDim2.fromOffset(ox,oy)"
+   - Position: "UDim2.new(sx,ox,sy,oy)" or "UDim2.fromScale(sx,sy)"
+   - AnchorPoint: "Vector2.new(0.5, 0.5)"
+   - BackgroundColor3: "Color3.fromRGB(r,g,b)" or "#hexcode"
+   - BackgroundTransparency: 0.0 to 1.0 (number)
+   - TextColor3: "Color3.fromRGB(255,255,255)"
+   - Text: "string value"
+   - TextSize: number (e.g., 18)
+   - Font: "Enum.Font.GothamBold"
+   - CornerRadius: "UDim.new(0, 12)" (for UICorner)
+   - Padding / PaddingLeft / PaddingTop etc.: "UDim.new(0, 12)" (for UIPadding)
+   - ScrollBarThickness: number (for ScrollingFrame)
+   - AutomaticCanvasSize: "Enum.AutomaticSize.Y"
+   - CanvasSize: "UDim2.new(0,0,0,0)" (with AutomaticCanvasSize)
+   - ClipsDescendants: true
+   - Visible: true
+   - LayoutOrder: number
+   - ZIndex: number (higher = on top)
+   - ImageTransparency: 0.0 to 1.0
+   - ScaleType: "Enum.ScaleType.Fit" or "Enum.ScaleType.Crop" or "Enum.ScaleType.Stretch"
+   - TextWrapped: true
+   - TextXAlignment: "Enum.TextXAlignment.Left"
+   - TextYAlignment: "Enum.TextYAlignment.Center"
+   - AutoButtonColor: false (disable default hover, use custom tweens instead)
+   - Active: true
+   - Selectable: false
+   - BorderSizePixel: 0
+   - RichText: true
+
+ANTI-PATTERNS — NEVER DO THESE:
+   - NEVER omit Size from a Frame, TextLabel, TextButton, ImageLabel, or ScrollingFrame.
+   - NEVER set Size to UDim2.new(0,0,0,0) or UDim2.fromOffset(0,0).
+   - NEVER forget AnchorPoint when centering with Position = UDim2.fromScale(0.5, 0.5).
+   - NEVER place children inside a container without a UIListLayout or explicit Position for each child.
+   - NEVER leave Text empty on TextLabels/TextButtons — always provide meaningful text.
+   - NEVER use BackgroundTransparency = 1 on the main frame (it makes it invisible).
+   - NEVER create a ScreenGui without at least one visible Frame child with a proper Size.
+   - NEVER set Visible=false to close a UI. ALWAYS tween it closed, THEN set Visible=false after the tween completes.
+   - NEVER skip hover effects on buttons. Plain buttons look amateur.
+   - NEVER use default Roblox button colors (AutoButtonColor = true). Set AutoButtonColor = false and handle hover/press with TweenService.
+   - NEVER hardcode pixel positions. Use Scale (UDim2.fromScale) for responsive design.
+
+CRITICAL: WHEN THE USER ASKS FOR A UI, GENERATE A COMPLETE, PRODUCTION-READY SYSTEM. This means:
+- The ScreenGui with ALL visual instances (Frames, Labels, Buttons, Corners, Padding, Gradients, Strokes, Layouts)
+- A LocalScript with ALL interaction logic: open/close tweens, hover effects on every button, click handlers, tab switching, scroll item population, notification toasts, and close button behavior.
+- If the UI involves data (shop items, inventory, etc.), include a ModuleScript with sample data and a ServerScript for data validation.
+- The code should be 200-1000+ lines for the LocalScript alone. Do NOT produce minimal stubs. Produce COMPLETE, SHIPPABLE code.
+- Include TweenService animations for EVERY state change.
+- Include sound effects: create Sound instances in the LocalScript with SoundIds (use generic click: "rbxassetid://6895079853", hover: "rbxassetid://6895079853", success: "rbxassetid://6895079853", error: "rbxassetid://6895079853") and play them on interactions.
 
 CRITICAL RULES FOR CODE QUALITY AND ARCHITECTURE:
 1. ALWAYS use game:GetService(). Use task.wait() and task.spawn().
 2. ERROR HANDLING: Wrap volatile logic in pcall().
 3. NAMING: PascalCase for Instances, camelCase for variables.
-4. CLEANUP: Handle event disconnections.
-5. SECURITY: Validate RemoteEvent input on the server.
-6. PERFORMANCE: Use event-driven logic instead of while true do loops.
+4. CLEANUP: Handle event disconnections with :Destroy() and connection:Disconnect().
+5. SECURITY: Validate RemoteEvent input on the server. Never trust the client.
+6. PERFORMANCE: Use event-driven logic instead of while true do loops. Cache references. Avoid creating instances in loops when possible — reuse/pool them.
+7. MODULARITY: For complex systems, break into ModuleScripts for data, utility functions, and configuration.
+8. TYPING: Use Luau strict typing where possible: local x: number = 5.
 
 ${fileContextBlock}${treeContextBlock}
 CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON object. NO text before the opening {. NO text after the closing }. NO markdown. NO backticks. NO explanations outside the JSON. If you are in thinking mode, put ALL reasoning inside the "thinking" field.`;
@@ -287,7 +389,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
         model: modelName,
         temperature: mode === "thinking" ? 0.4 : 0.2,
         messages: apiMessages,
-        max_tokens: 8192,
+        max_tokens: 32768,
       }),
     });
 
@@ -429,7 +531,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
             })(),
             generationConfig: {
               temperature: mode === "thinking" ? 0.4 : 0.2,
-              maxOutputTokens: mode === "thinking" ? 16384 : 8192,
+              maxOutputTokens: mode === "thinking" ? 65536 : 32768,
               responseMimeType: "application/json"
             },
           }),

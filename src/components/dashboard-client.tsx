@@ -85,6 +85,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const MAX_AUTO_FIX_RETRIES = 3;
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastPromptRef = useRef<string>("");
+  const [autoEnhance, setAutoEnhance] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   // Feature: Asset search
   const [assetQuery, setAssetQuery] = useState("");
@@ -572,68 +573,92 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const promptSnippet = trimmed.length > 25 ? trimmed.substring(0, 25) + "..." : trimmed;
     const isAsset = trimmed.toLowerCase().includes("insert") || trimmed.toLowerCase().includes("build") || trimmed.toLowerCase().includes("model") || trimmed.toLowerCase().includes("part");
 
-    if (mode === "thinking") {
-      setThinkingSteps([{ icon: "thinking", label: `Deep reasoning about "${promptSnippet}"...`, done: false }]);
-
-      const fileNames = attachedFiles.map(f => f.name).join(", ");
-
-      const t1 = setTimeout(() => {
-        setThinkingSteps(prev => {
-          if (prev.length === 1 && !prev[0].done) {
-            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Reading ${fileNames}...` : "Planning architecture...", done: false }];
-          }
-          return prev;
-        });
-
-        const t2 = setTimeout(() => {
-          setThinkingSteps(prev => {
-            if (prev.length === 2 && !prev[1].done) {
-              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: isAsset ? "Locating asset..." : "Writing code...", done: false }];
-            }
-            return prev;
-          });
-        }, 2500 + Math.random() * 3000);
-        stepTimeoutsRef.current.push(t2);
-      }, 2000 + Math.random() * 2500);
-
-      stepTimeoutsRef.current.push(t1);
-    } else {
-      setThinkingSteps([{ icon: "thinking", label: `Analyzing request: "${promptSnippet}"...`, done: false }]);
-
-      const fileNames = attachedFiles.map(f => f.name).join(", ");
-
-      const t1 = setTimeout(() => {
-        setThinkingSteps(prev => {
-          if (prev.length === 1 && !prev[0].done) {
-            return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Reading ${fileNames}...` : "Checking workspace folders...", done: false }];
-          }
-          return prev;
-        });
-
-        const t2 = setTimeout(() => {
-          setThinkingSteps(prev => {
-            if (prev.length === 2 && !prev[1].done) {
-              const scriptTypes = ["LocalScript", "ModuleScript", "ServerScript"];
-              const typeFound = scriptTypes.find(t => trimmed.toLowerCase().includes(t.toLowerCase())) || "code";
-              return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: isAsset ? "Preparing asset..." : `Writing ${typeFound}...`, done: false }];
-            }
-            return prev;
-          });
-        }, 1500 + Math.random() * 2000);
-        stepTimeoutsRef.current.push(t2);
-      }, 1000 + Math.random() * 1500);
-
-      stepTimeoutsRef.current.push(t1);
-    }
-
     try {
+      let finalPromptText = trimmed;
+      
+      if (autoEnhance && !overridePrompt && !isAsset) {
+        setThinkingSteps([{ icon: "thinking", label: "Enhancing prompt...", done: false }]);
+        const enhanceRes = await fetch("/api/enhance-prompt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: trimmed,
+            provider,
+            apiKey: apiKey.trim(),
+            openaiKey: openaiKey.trim()
+          }),
+          signal: abortControllerRef.current.signal,
+        });
+        if (enhanceRes.ok) {
+          const enhanceData = await enhanceRes.json();
+          if (enhanceData.enhancedPrompt) {
+            finalPromptText = enhanceData.enhancedPrompt;
+            setPluginStatus("Prompt enhanced. Generating Luau...");
+          }
+        }
+      }
+
+      if (mode === "thinking") {
+        setThinkingSteps([{ icon: "thinking", label: `Deep reasoning about "${promptSnippet}"...`, done: false }]);
+
+        const fileNames = attachedFiles.map(f => f.name).join(", ");
+
+        const t1 = setTimeout(() => {
+          setThinkingSteps(prev => {
+            if (prev.length === 1 && !prev[0].done) {
+              return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Reading ${fileNames}...` : "Planning architecture...", done: false }];
+            }
+            return prev;
+          });
+
+          const t2 = setTimeout(() => {
+            setThinkingSteps(prev => {
+              if (prev.length === 2 && !prev[1].done) {
+                return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: isAsset ? "Locating asset..." : "Writing code...", done: false }];
+              }
+              return prev;
+            });
+          }, 2500 + Math.random() * 3000);
+          stepTimeoutsRef.current.push(t2);
+        }, 2000 + Math.random() * 2500);
+
+        stepTimeoutsRef.current.push(t1);
+      } else {
+        setThinkingSteps([{ icon: "thinking", label: `Analyzing request: "${promptSnippet}"...`, done: false }]);
+
+        const fileNames = attachedFiles.map(f => f.name).join(", ");
+
+        const t1 = setTimeout(() => {
+          setThinkingSteps(prev => {
+            if (prev.length === 1 && !prev[0].done) {
+              return [{ ...prev[0], done: true }, { icon: "looking", label: fileNames ? `Reading ${fileNames}...` : "Checking workspace folders...", done: false }];
+            }
+            return prev;
+          });
+
+          const t2 = setTimeout(() => {
+            setThinkingSteps(prev => {
+              if (prev.length === 2 && !prev[1].done) {
+                const scriptTypes = ["LocalScript", "ModuleScript", "ServerScript"];
+                const typeFound = scriptTypes.find(t => trimmed.toLowerCase().includes(t.toLowerCase())) || "code";
+                return [prev[0], { ...prev[1], done: true }, { icon: "generating", label: isAsset ? "Preparing asset..." : `Writing ${typeFound}...`, done: false }];
+              }
+              return prev;
+            });
+          }, 1500 + Math.random() * 2000);
+          stepTimeoutsRef.current.push(t2);
+        }, 1000 + Math.random() * 1500);
+
+        stepTimeoutsRef.current.push(t1);
+      }
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: attachedAsset
-            ? `[System Note: The user has attached the Roblox asset "${attachedAsset.name}" (ID: ${attachedAsset.id}) to this message. Please fulfill their request, using this asset if appropriate. If they don't specify what to do with it, insert it into Workspace.]\n\n${trimmed}`
-            : trimmed,
+            ? `[System Note: The user has attached the Roblox asset "${attachedAsset.name}" (ID: ${attachedAsset.id}) to this message. Please fulfill their request, using this asset if appropriate. If they don't specify what to do with it, insert it into Workspace.]\n\n${finalPromptText}`
+            : finalPromptText,
           messages: newMessages.map(m => ({
             role: m.role,
             content: m.attachedAsset
@@ -1386,6 +1411,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       Attach
                     </button>
 
+                    <button
+                      className={\`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] transition-all \${autoEnhance ? 'text-[#ccff00] bg-[#ccff00]/10 border border-[#ccff00]/20' : 'text-white/40 hover:text-white hover:bg-white/[0.05] border border-transparent'}\`}
+                      onClick={() => setAutoEnhance(!autoEnhance)}
+                      title="AI will review and improve your prompt before generating"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Enhance
+                    </button>
+
                     {(provider == "google" ? googleKey.trim() : openaiKey.trim()).length == 0 ? (() => {
                       const pct = Math.max(0, Math.min(100, ((usage.totalTokens - usage.usedTokens) / usage.totalTokens) * 100));
                       const hue = Math.round(pct * 1.2); // green at 100%, red at 0%
@@ -1445,9 +1479,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                             abortControllerRef.current.abort();
                           }
                         }}
-                        className="px-3 py-2 rounded-xl text-[12px] font-bold bg-red-500 text-white hover:bg-red-600 transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                        title="Stop Generation"
+                        className="p-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)]"
                       >
-                        Stop Generation
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <rect x="7" y="7" width="10" height="10" rx="1.5" />
+                        </svg>
                       </button>
                     ) : (
                       <button
