@@ -1,5 +1,6 @@
 "use client";
 import { FileCode2, Copy, ChevronDown, ChevronUp, Trash2, Box, Folder, Layout, MousePointer2, Image, Type, Database, Palette, Ghost, Zap, Cpu } from "lucide-react";
+import { motion } from "framer-motion";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import * as Diff from "diff";
