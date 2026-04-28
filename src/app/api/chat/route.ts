@@ -359,7 +359,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     const result = processResponse(content, raw);
     code = result.code;
     raw = result.raw;
-    const preambleReasoning = result.preamble;
+    preambleReasoning = result.preamble;
     modelUsed = effectiveModel;
   } else if (effectiveProvider === "google") {
     const requestedModel = (effectiveModel || "gemini-3-flash").trim();
