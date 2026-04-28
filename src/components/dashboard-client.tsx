@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState, useCallback } from "react";
-import { Paperclip, Zap, Brain, X, Search, Share2, Sparkles, Network, Trash2, LayoutDashboard, Play, StopCircle, RefreshCw } from "lucide-react";
+import { Paperclip, Zap, Brain, X, Search, Share2, Sparkles, Network, Trash2, LayoutDashboard } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
