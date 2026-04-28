@@ -298,16 +298,21 @@ end
 local TEST_DURATION = 6 -- seconds
 
 local function runPlaytest(sessionKey)
-	-- Only run if not already in run mode
-	if RunService:IsRunMode() then
-		reportLog(sessionKey, "[APPLE_JUICE_TEST_SKIP]")
-		return
+	-- If already auto-testing, stop and restart
+	if isAutoTesting then
+		isAutoTesting = false
+		pcall(function() if RunService:IsRunMode() then RunService:Stop() end end)
+		task.wait(0.5)
+	elseif RunService:IsRunMode() then
+		-- If manually running, stop first to apply new code
+		pcall(function() RunService:Stop() end)
+		task.wait(0.5)
 	end
 
 	isAutoTesting = true
 	testErrors = {}
 	testWarnings = {}
-	setStatus("Running playtest (…" .. TEST_DURATION .. "s)...", "waiting")
+	setStatus("Running playtest (" .. TEST_DURATION .. "s)...", "waiting")
 
 	task.spawn(function()
 		local startTime = os.clock()

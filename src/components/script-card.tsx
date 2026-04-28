@@ -59,13 +59,13 @@ const luauTheme: PrismTheme = {
   ],
 };
 
-type ScriptMeta = { 
-  name: string; 
-  parent: string; 
+type ScriptMeta = {
+  name: string;
+  parent: string;
   type?: string;
   action?: "create" | "delete" | "insert_asset" | "stop_playtest";
-  lineCount: number; 
-  code: string; 
+  lineCount: number;
+  code: string;
   originalCode?: string;
 };
 
@@ -102,7 +102,14 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
   const IconComponent = typeIconMap[script.type || "Script"] || Ghost;
 
   return (
-    <div className={`mt-2 rounded-lg border ${isDelete ? 'border-red-500/20 bg-red-500/5' : isAsset ? 'border-purple-500/20 bg-purple-500/5' : 'border-white/10 bg-[#0a0c10]'} overflow-hidden`}>
+    <motion.div 
+      id={`script-${script.name.replace(/\s+/g, '-')}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className={`mt-3 rounded-2xl border ${isDelete ? 'border-red-500/20 bg-red-500/5' : isAsset ? 'border-purple-500/20 bg-purple-500/5' : 'border-white/10 bg-[#0a0c10] shadow-xl'} overflow-hidden transition-colors`}
+    >
       <button
         onClick={() => !isDelete && !isAsset && setExpanded((e) => !e)}
         className={`w-full flex items-center gap-2.5 px-3 py-2.5 ${(!isDelete && !isAsset) ? 'hover:bg-white/[0.03] cursor-pointer' : 'cursor-default'} transition-colors`}
@@ -134,7 +141,7 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
                   const colorClass = part.added ? "text-green-400" : part.removed ? "text-red-400" : "text-white/70";
                   const bgClass = part.added ? "bg-green-500/10" : part.removed ? "bg-red-500/10" : "";
                   const prefix = part.added ? "+ " : part.removed ? "- " : "  ";
-                  
+
                   return (
                     <div key={index} className={`${bgClass} w-full`}>
                       <Highlight
@@ -188,6 +195,6 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

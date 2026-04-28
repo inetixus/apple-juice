@@ -37,13 +37,13 @@ export async function POST(req: Request) {
 
   const systemOpenAIKey = process.env.OPENAI_API_KEY || "";
   const systemGoogleKey = process.env.GOOGLE_API_KEY || "";
-  
+
   const clientKey = provider === "google" ? apiKey : (openaiKey || apiKey);
   const isUsingCustomKey = !!clientKey && clientKey !== systemOpenAIKey && clientKey !== systemGoogleKey;
 
   let effectiveProvider = provider;
   let effectiveModel = model;
-  
+
   if (!isUsingCustomKey) {
     effectiveProvider = "google";
     if (effectiveModel.toLowerCase().startsWith("gpt-")) {
@@ -58,10 +58,10 @@ export async function POST(req: Request) {
   if (!isUsingCustomKey) {
     const usage = await getUserUsage(ownerUserId);
     if (usage.usedTokens >= usage.totalTokens) {
-      return Response.json({ 
-        error: "Daily limit reached", 
+      return Response.json({
+        error: "Daily limit reached",
         message: "You have used all 50 apple credits for today. Credits will reset tomorrow. To continue without limits, use your own API key in Settings.",
-        usage 
+        usage
       }, { status: 429 });
     }
   }
@@ -78,14 +78,14 @@ export async function POST(req: Request) {
   let raw = "";
   let modelUsed = model;
 
-  type PluginPayload = { 
+  type PluginPayload = {
     action?: "create" | "delete" | "insert_asset" | "stop_playtest";
     type?: "Script" | "LocalScript" | "ModuleScript" | "Asset";
-    parent?: string; 
-    name?: string; 
-    code?: string; 
+    parent?: string;
+    name?: string;
+    code?: string;
     assetId?: number | string;
-    message?: string; 
+    message?: string;
     suggestions?: string[];
     scripts?: PluginPayload[];
   };
@@ -109,7 +109,7 @@ export async function POST(req: Request) {
     // This handles cases where the AI dumps thinking text before the JSON
     const firstBrace = cleaned.indexOf('{');
     if (firstBrace === -1) return null;
-    
+
     // Try progressively from each '{' to find a valid JSON object
     for (let i = firstBrace; i < cleaned.length; i++) {
       if (cleaned[i] !== '{') continue;
@@ -210,7 +210,7 @@ export async function POST(req: Request) {
     // ignore redis error
   }
 
-  const thinkingInstructions = mode === "thinking" 
+  const thinkingInstructions = mode === "thinking"
     ? `\nYou MUST include a "thinking" field (a string) in your JSON output that contains your HIGHLY ADVANCED, step-by-step reasoning about:
 1. Deep conceptual and mechanical breakdown of the user's request.
 2. Advanced Roblox architecture, including data flow, state management, and network optimization.
@@ -247,16 +247,24 @@ When ONLY ONE simple script or action is needed, output a JSON object with:
 - "suggestions": array of 3 short strings
 ${mode === "thinking" ? '- "thinking": your step-by-step reasoning (string)' : ""}
 
+CRITICAL: PREMIUM UI DESIGN & HIERARCHY:
+1. MODERN AESTHETIC: Use dark mode (#0A0C10) with neon accents and glassmorphism (Transparency 0.2, BackgroundBlur).
+2. CENTERING & POSITIONING: To prevent UI from being stuck in corners, ALWAYS set the AnchorPoint of main frames to Vector2.new(0.5, 0.5) and the Position to UDim2.fromScale(0.5, 0.5) to center them perfectly.
+3. HIERARCHY & PARENTING: For multi-part UIs, ensure the dot-path in "parent" is absolute. (e.g., Parent a Frame to "StarterGui.MyUI", and parent a Button to "StarterGui.MyUI.Frame").
+4. LAYOUT MANAGERS: When placing multiple parts together (buttons, items, etc.), ALWAYS use a UIListLayout or UIGridLayout inside the parent container. Set Padding and FillDirection appropriately.
+5. PADDING: Never let content touch the edges. Always add a UIPadding child (e.g., 15px) to any container with child elements.
+6. ROUNDING: Apply UICorner to ALL interactive elements.
+7. RESPONSIVENESS: Use UDim2 SCALE ({0.8, 0}, {0.4, 0}). Only use Offset for tiny fixed elements like borders or icon margins.
+8. COMPOSITION: Break complex UIs into logical sections (Header, Body, Footer) using separate Frames.
+
 CRITICAL RULES FOR CODE QUALITY AND ARCHITECTURE:
-1. DOUBLE-CHECK YOUR CODE: Before returning the JSON, review your Luau code for syntax errors, infinite loops without task.wait(), missing variables, and incorrect parent references. Ensure the code works flawlessly out of the box.
-2. ROBUSTNESS: Include proper error handling, type checking where applicable, and robust event connections.
-3. DEFAULT to "type": "Script" with "parent": "ServerScriptService" ONLY for pure server-side orchestration.
-4. Use "LocalScript" ONLY for client-side code (UI, camera, input handling). Place in "StarterPlayer.StarterPlayerScripts" or "StarterGui".
-5. Use "ModuleScript" for configuration, shared logic, or state management. Place in "ReplicatedStorage" or "ServerStorage". 
-6. The code must be a standalone, runnable script. Do NOT wrap server logic in a module that returns a table unless explicitly requested or necessary for architecture.
-7. If the user asks to "make a build" or "insert a [thing]", you can use "action": "insert_asset" with a Toolbox assetId. 
-8. If the user asks for a UI/GUI, you can either generate a LocalScript that builds it programmatically, OR output multiple JSON objects in the "scripts" array with types like "ScreenGui", "Frame", "TextLabel" and use the "properties" field to style them. Set parent to "StarterGui" for the root ScreenGui, and set the parent of child elements to the dot path of the ScreenGui (e.g. "StarterGui.MyUI").
-9. If the user asks to "stop the playtest" or "end test", output ONLY: {"action": "stop_playtest", "message": "Stopping playtest...", "suggestions": []}
+1. ALWAYS use game:GetService(). Use task.wait() and task.spawn().
+2. ERROR HANDLING: Wrap volatile logic in pcall().
+3. NAMING: PascalCase for Instances, camelCase for variables.
+4. CLEANUP: Handle event disconnections.
+5. SECURITY: Validate RemoteEvent input on the server.
+6. PERFORMANCE: Use event-driven logic instead of while true do loops.
+
 ${fileContextBlock}${treeContextBlock}
 CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON object. NO text before the opening {. NO text after the closing }. NO markdown. NO backticks. NO explanations outside the JSON. If you are in thinking mode, put ALL reasoning inside the "thinking" field.`;
 
@@ -410,8 +418,8 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
               }
               return [{ role: "user", parts: [{ text: prompt }] }];
             })(),
-            generationConfig: { 
-              temperature: mode === "thinking" ? 0.4 : 0.2, 
+            generationConfig: {
+              temperature: mode === "thinking" ? 0.4 : 0.2,
               maxOutputTokens: mode === "thinking" ? 16384 : 8192,
               responseMimeType: "application/json"
             },
@@ -428,23 +436,23 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
         const content = extractContent(bodyText, true);
         if (content) {
           const result = processResponse(content, bodyText);
-          
+
           // If processResponse returned empty (thinking text detected), skip this result
           if (!result.code && !result.raw) {
             console.warn("Model returned thinking text instead of JSON, trying next model...");
             continue;
           }
-          
+
           code = result.code;
           raw = result.raw;
           preambleReasoning = result.preamble;
           modelUsed = candidate;
-          
+
           try {
             const parsed = JSON.parse(bodyText);
             tokensUsed = parsed?.usageMetadata?.totalTokenCount || 0;
           } catch { /* ignore */ }
-          
+
           break;
         }
       } catch (err) {
@@ -487,7 +495,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
   const structuredFinal = tryParsePluginPayload(raw) || null;
   const isMultiScript = structuredFinal?.scripts && Array.isArray(structuredFinal.scripts) && structuredFinal.scripts.length > 0;
   const isDelete = !isMultiScript && structuredFinal?.action === "delete";
-  
+
   if (!code && !isDelete && !isMultiScript) return Response.json({ error: "Model returned empty output", detail: raw }, { status: 502 });
 
   const messageId = crypto.randomUUID();
@@ -515,17 +523,19 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     }));
 
     // Store the entire scripts array as a single plugin payload
-    const pluginPayload = JSON.stringify({ scripts: scriptResults.map(s => ({
-      action: s.action,
-      type: s.type,
-      parent: s.parent,
-      name: s.name,
-      code: s.code,
-      assetId: (s as any).assetId,
-    }))});
+    const pluginPayload = JSON.stringify({
+      scripts: scriptResults.map(s => ({
+        action: s.action,
+        type: s.type,
+        parent: s.parent,
+        name: s.name,
+        code: s.code,
+        assetId: (s as any).assetId,
+      }))
+    });
     await upsertGeneratedCode(sessionKey, pluginPayload, messageId, autoSync);
 
-    const finalMessage = structuredFinal?.message ?? 
+    const finalMessage = structuredFinal?.message ??
       `I've created ${scripts.length} scripts for you: ${scriptResults.map(s => s.name).join(", ")}.`;
     const finalSuggestions = structuredFinal?.suggestions ?? [
       "Test all scripts together",
@@ -550,7 +560,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
   const finalName = structuredFinal?.name ?? `GeneratedScript_${messageId.slice(0, 8)}`;
   const finalCode = structuredFinal?.code ?? code;
   const finalType = structuredFinal?.type ?? "Script";
-  const finalMessage = structuredFinal?.message ?? 
+  const finalMessage = structuredFinal?.message ??
     (isDelete ? `I've removed the script called "${finalName}" from ${finalParent}.` : `I've created a ${finalType} called "${finalName}" and placed it in ${finalParent}. The script is ready to sync to your Studio.`);
   const finalSuggestions = structuredFinal?.suggestions ?? [
     "Add error handling and logging",
@@ -560,13 +570,13 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
   const lineCount = finalCode ? finalCode.split("\n").length : 0;
   const thinking = (structuredFinal as any)?.thinking || (typeof preambleReasoning === 'string' ? preambleReasoning : undefined);
 
-  const pluginPayload = JSON.stringify({ 
+  const pluginPayload = JSON.stringify({
     action: isDelete ? "delete" : (structuredFinal?.action || "create"),
     type: finalType,
-    parent: finalParent, 
-    name: finalName, 
+    parent: finalParent,
+    name: finalName,
     code: finalCode,
-    assetId: structuredFinal?.assetId 
+    assetId: structuredFinal?.assetId
   });
 
   await upsertGeneratedCode(sessionKey, pluginPayload, messageId, autoSync);

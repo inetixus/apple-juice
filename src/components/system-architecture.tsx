@@ -78,7 +78,7 @@ export function SystemArchitecture({ scripts }: { scripts: ScriptMeta[] }) {
 
   return (
     <div className="mt-4 mb-2 animate-in fade-in slide-in-from-top-2 duration-500">
-      <details className="group bg-[#0a0c10]/50 border border-white/[0.08] rounded-xl overflow-hidden shadow-xl">
+      <details className="group bg-[#0a0c10]/50 border border-white/[0.08] rounded-2xl overflow-hidden shadow-xl">
         <summary className="cursor-pointer text-[12px] font-bold text-[#ccff00]/80 hover:text-[#ccff00] hover:bg-[#ccff00]/5 transition-all flex items-center justify-between px-4 py-3 select-none list-none [&::-webkit-details-marker]:hidden group-open:border-b border-white/[0.08]">
           <div className="flex items-center gap-3">
             <div className="p-1.5 rounded-lg bg-[#ccff00]/10 text-[#ccff00]">
@@ -131,13 +131,21 @@ export function SystemArchitecture({ scripts }: { scripts: ScriptMeta[] }) {
                 <div 
                   key={script.name}
                   id={`node-${script.name}`}
-                  className="w-full max-w-[200px] bg-[#14161a] border border-white/5 rounded-lg p-3 shadow-lg flex items-center gap-3 transition-transform hover:scale-105"
+                  onClick={() => {
+                    const el = document.getElementById(`script-${script.name.replace(/\s+/g, '-')}`);
+                    if (el) {
+                      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      el.classList.add('ring-2', 'ring-[#ccff00]', 'ring-offset-4', 'ring-offset-black');
+                      setTimeout(() => el.classList.remove('ring-2', 'ring-[#ccff00]', 'ring-offset-4', 'ring-offset-black'), 2000);
+                    }
+                  }}
+                  className="w-full max-w-[200px] bg-[#14161a] border border-white/5 rounded-lg p-3 shadow-lg flex items-center gap-3 transition-all hover:scale-105 hover:border-[#ccff00]/40 cursor-pointer group"
                 >
-                  <div className="h-8 w-8 rounded-md bg-[#ccff00]/10 flex items-center justify-center flex-shrink-0">
+                  <div className="h-8 w-8 rounded-md bg-[#ccff00]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#ccff00]/20 transition-colors">
                     <Layers className="h-4 w-4 text-[#ccff00]" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-white truncate">{script.name}</p>
+                    <p className="text-xs font-semibold text-white truncate group-hover:text-[#ccff00] transition-colors">{script.name}</p>
                     <p className="text-[10px] text-white/40 truncate">{script.type || 'Script'}</p>
                   </div>
                 </div>
@@ -152,13 +160,21 @@ export function SystemArchitecture({ scripts }: { scripts: ScriptMeta[] }) {
                   <div 
                     key={script.name}
                     id={`node-${script.name}`}
-                    className="w-full max-w-[200px] bg-[#14161a] border border-white/5 rounded-lg p-3 shadow-lg flex items-center gap-3 transition-transform hover:scale-105"
+                    onClick={() => {
+                      const el = document.getElementById(`script-${script.name.replace(/\s+/g, '-')}`);
+                      if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.classList.add('ring-2', 'ring-blue-500', 'ring-offset-4', 'ring-offset-black');
+                        setTimeout(() => el.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-4', 'ring-offset-black'), 2000);
+                      }
+                    }}
+                    className="w-full max-w-[200px] bg-[#14161a] border border-white/5 rounded-lg p-3 shadow-lg flex items-center gap-3 transition-all hover:scale-105 hover:border-blue-500/40 cursor-pointer group"
                   >
-                    <div className="h-8 w-8 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0">
-                      <FileCode2 className="h-4 w-4 text-white/60" />
+                    <div className="h-8 w-8 rounded-md bg-blue-500/10 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500/20 transition-colors">
+                      <FileCode2 className="h-4 w-4 text-blue-400" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-white truncate">{script.name}</p>
+                      <p className="text-xs font-semibold text-white truncate group-hover:text-blue-400 transition-colors">{script.name}</p>
                       <p className="text-[10px] text-white/40 truncate">{script.type || 'Script'}</p>
                     </div>
                   </div>

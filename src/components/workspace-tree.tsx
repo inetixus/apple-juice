@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type TreeNode = {
   name: string;
@@ -669,10 +670,11 @@ export function WorkspaceTree({
       style={{
         background: "#252526",
         border: "1px solid #3c3c3c",
-        borderRadius: "0px",
+        borderRadius: "16px",
         overflow: "hidden",
         fontFamily: "'Source Sans Pro', 'Segoe UI', system-ui, sans-serif",
         fontSize: "13px",
+        boxShadow: "0 10px 30px -10px rgba(0,0,0,0.5)",
       }}
     >
       {/* Header - mimics exact Roblox Studio Explorer header */}
@@ -743,23 +745,32 @@ export function WorkspaceTree({
         </div>
       )}
 
-      {/* Tree content */}
-      <div style={{ padding: "1px 0" }}>
-        {displayTree.map((node, i) => (
-          <TreeItem
-            key={node.fullPath}
-            node={node}
-            onInsert={handleInsert}
-            isLast={i === displayTree.length - 1}
-            parentIsLasts={[]}
-            selectedPath={selectedPath}
-            setSelectedPath={setSelectedPath}
-            onRename={onRename}
-            onDelete={onDelete}
-            renamingPath={renamingPath}
-            setRenamingPath={setRenamingPath}
-          />
-        ))}
+      <div style={{ padding: "4px 0" }}>
+        <AnimatePresence initial={false}>
+          {displayTree.map((node, i) => (
+            <motion.div
+              key={node.fullPath}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2, delay: i * 0.02 }}
+            >
+              <TreeItem
+                key={node.fullPath}
+                node={node}
+                onInsert={handleInsert}
+                isLast={i === displayTree.length - 1}
+                parentIsLasts={[]}
+                selectedPath={selectedPath}
+                setSelectedPath={setSelectedPath}
+                onRename={onRename}
+                onDelete={onDelete}
+                renamingPath={renamingPath}
+                setRenamingPath={setRenamingPath}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState, useCallback } from "react";
-import { Paperclip, Zap, Brain, X, Search, Share2, Sparkles } from "lucide-react";
+import { Paperclip, Zap, Brain, X, Search, Share2, Sparkles, Network, Trash2, LayoutDashboard, Play, StopCircle, RefreshCw } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,6 +55,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [availableModels, setAvailableModels] = useState<string[]>(FALLBACK_MODELS);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   const [secretCode, setSecretCode] = useState("");
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -82,7 +83,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const autoFixTimerRef = useRef<any>(null);
   const lastGeneratedScriptsRef = useRef<{ name: string; parent: string; type: string; code: string }[]>([]);
   const MAX_AUTO_FIX_RETRIES = 3;
-  const autoSync = true;
+  const [autoSync, setAutoSync] = useState(true);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   // Feature: Asset search
   const [assetQuery, setAssetQuery] = useState("");
   const [assetResults, setAssetResults] = useState<{ id: number; name: string; creator: string; thumbnail: string }[]>([]);
@@ -92,10 +94,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   // Feature: Live Share
 
   const examplePrompts = useMemo(() => [
-    "Make a combat system...",
-    "Make a pet system...",
-    "Create a shop UI with a coin system...",
-    "Make a round system..."
+    "Create a professional sword combat system with raycast hit detection, 3-hit combos, and server-side hit validation.",
+    "Build a premium Round System with an Intermission timer, Map Voting UI, and automated player teleportation logic.",
+    "Create a high-end Shop UI with categories, item previews, and a robust DataStore-backed coin currency system.",
+    "Develop a pet system with smooth follow physics, egg hatching animations, and a rarity-based inventory UI.",
+    "Generate a glassmorphic main menu with smooth transitions, settings (SFX/Music), and a play button that tweens the camera."
   ], []);
 
   const [placeholderText, setPlaceholderText] = useState("");
@@ -991,13 +994,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   <div className="px-4 py-3 border-b border-white/5">
                     <p className="text-sm font-semibold text-white truncate">{username}</p>
                     <p className="text-[10px] text-white/30">Roblox Developer</p>
-                  </div>
                   <button
                     onClick={() => { setShowProfileMenu(false); setShowSettings(s => !s); }}
                     className="w-full text-left px-4 py-2.5 text-sm text-white/60 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" /></svg>
                     Settings
+                  </button>
+                  <button
+                    onClick={() => { setShowDebug(d => !d); setShowProfileMenu(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 ${showDebug ? 'text-[#ccff00] bg-[#ccff00]/5' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                  >
+                    <Network className="h-3.5 w-3.5" />
+                    {showDebug ? "Hide Auto-Fix Logs" : "Show Auto-Fix Logs"}
                   </button>
                   <button
                     onClick={() => signOut({ callbackUrl: "/" })}
@@ -1038,12 +1047,18 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             /* CHAT MESSAGES */
             <div className="flex-1 flex flex-col pt-24 pb-56 px-4 md:px-10 lg:px-20 max-w-5xl w-full">
               <div className="space-y-4">
-                {messages.filter(m => !m.isHidden).map((message) => (
+                {messages.filter(m => showDebug || !m.isHidden).map((message) => (
                   <div key={message.id} className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${message.role == 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-2xl text-[14px] leading-relaxed ${message.role == 'user'
                         ? 'bg-white/[0.08] text-white border border-white/[0.12] rounded-br-sm'
                         : 'bg-transparent text-white border border-white/[0.07] rounded-bl-sm bg-gradient-to-b from-white/[0.03] to-white/[0.01] shadow-lg'
                       }`}>
+                      {message.isHidden && (
+                        <div className="mb-2 px-2 py-0.5 rounded bg-violet-500/10 border border-violet-500/20 text-[9px] text-violet-300 uppercase font-bold tracking-widest flex items-center gap-1.5 self-start">
+                          <div className="w-1 h-1 rounded-full bg-violet-400 animate-pulse" />
+                          Background Auto-Fix Loop
+                        </div>
+                      )}
                       <div className="space-y-3">
                         {message.attachments && message.attachments.length > 0 && (
                           <div className="flex flex-wrap gap-2">
@@ -1415,22 +1430,95 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     </button>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {messages.length == 0 && isPluginConnected && (
-              <div className="mt-6 flex flex-wrap justify-center gap-3 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
-                <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a combat system")}>
-                  <span className="text-[16px]">⚔️</span> Make a combat system
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a pet system")}>
-                  <span className="text-[16px]">🐶</span> Make a pet system
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31]/80 hover:bg-[#2b2d31] border border-white/[0.04] rounded-full text-[13px] font-medium text-white/70 hover:text-white transition-colors shadow-lg" onClick={() => setPrompt("Make a round system")}>
-                  <span className="text-[16px]">⏱️</span> Make a round system
-                </button>
+                <div className="flex items-center justify-between mt-4 px-1">
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => {
+                        if (confirm("Are you sure you want to clear your chat history?")) {
+                          setMessages([]);
+                          setGameLogs([]);
+                          lastGeneratedScriptsRef.current = [];
+                        }
+                      }}
+                      className="flex items-center gap-1.5 text-[11px] text-white/20 hover:text-red-400/60 transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Clear History
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (isAnalyzing) return;
+                        setIsAnalyzing(true);
+                        const allCode = lastGeneratedScriptsRef.current.map(s => `--- ${s.name} ---\n${s.code}`).join("\n\n");
+                        submitPrompt(`CRITICAL PROJECT ANALYSIS REQUEST:
+Please analyze all the scripts generated so far for:
+1. Performance bottlenecks or memory leaks.
+2. Architectural inconsistencies.
+3. Potential bugs or edge cases.
+4. UI polish suggestions.
+
+Current Project Code:
+${allCode}
+
+Provide a structured report with scores (0-100) and specific improvement tasks.`);
+                        setTimeout(() => setIsAnalyzing(false), 5000);
+                      }}
+                      className={`flex items-center gap-1.5 text-[11px] transition-colors ${isAnalyzing ? 'text-violet-400 animate-pulse' : 'text-white/20 hover:text-violet-400/60'}`}
+                    >
+                      <LayoutDashboard className="h-3 w-3" />
+                      {isAnalyzing ? "Analyzing..." : "Analyze Project"}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white/[0.03] border border-white/[0.05]">
+                      <span className="text-[10px] text-white/30 uppercase font-bold tracking-tighter">Auto-Sync</span>
+                      <button
+                        onClick={() => setAutoSync(!autoSync)}
+                        className={`relative w-8 h-4 rounded-full transition-all duration-300 ${autoSync ? 'bg-[#ccff00]' : 'bg-white/10'}`}
+                      >
+                        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-black transition-all duration-300 ${autoSync ? 'left-4.5' : 'left-0.5'}`} style={{ left: autoSync ? '18px' : '2px' }} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
+          </div>
+        </div>
+
+        {messages.length == 0 && isPluginConnected && (
+          <div className="mt-8 flex flex-col items-center gap-4 w-full animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300 relative z-10">
+            <p className="text-[10px] text-white/20 uppercase font-bold tracking-widest mb-2">Quick Start Blueprints</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button 
+                className="flex items-center gap-2.5 px-5 py-2.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/20 rounded-full text-[13px] font-medium text-white/60 hover:text-white transition-all shadow-xl group" 
+                onClick={() => submitPrompt("Create a professional sword combat system with raycast hit detection, 3-hit combos, and server-side hit validation.")}
+              >
+                <span className="text-[16px] group-hover:scale-110 transition-transform">⚔️</span> Sword Combat System
+              </button>
+              <button 
+                className="flex items-center gap-2.5 px-5 py-2.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/20 rounded-full text-[13px] font-medium text-white/60 hover:text-white transition-all shadow-xl group" 
+                onClick={() => submitPrompt("Build a premium Round System with an Intermission timer, Map Voting UI, and automated player teleportation logic.")}
+              >
+                <span className="text-[16px] group-hover:scale-110 transition-transform">⏱️</span> Advanced Round System
+              </button>
+              <button 
+                className="flex items-center gap-2.5 px-5 py-2.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/20 rounded-full text-[13px] font-medium text-white/60 hover:text-white transition-all shadow-xl group" 
+                onClick={() => submitPrompt("Create a high-end Shop UI with categories, item previews, and a robust DataStore-backed coin currency system.")}
+              >
+                <span className="text-[16px] group-hover:scale-110 transition-transform">🛒</span> Premium Item Shop
+              </button>
+              <button 
+                className="flex items-center gap-2.5 px-5 py-2.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/20 rounded-full text-[13px] font-medium text-white/60 hover:text-white transition-all shadow-xl group" 
+                onClick={() => submitPrompt("Generate a glassmorphic main menu with smooth transitions, settings (SFX/Music), and a play button that tweens the camera.")}
+              >
+                <span className="text-[16px] group-hover:scale-110 transition-transform">🖼️</span> Glassmorphic Menu UI
+              </button>
+            </div>
+          </div>
+        )}
           </div>
         </div>
       </div>
