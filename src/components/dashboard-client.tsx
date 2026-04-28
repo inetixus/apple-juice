@@ -994,6 +994,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   <div className="px-4 py-3 border-b border-white/5">
                     <p className="text-sm font-semibold text-white truncate">{username}</p>
                     <p className="text-[10px] text-white/30">Roblox Developer</p>
+                  </div>
                   <button
                     onClick={() => { setShowProfileMenu(false); setShowSettings(s => !s); }}
                     className="w-full text-left px-4 py-2.5 text-sm text-white/60 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
@@ -1687,6 +1688,11 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
           </div>
         </div>
       )}
+      </div>
+      </div>
+      </div>
+      </div>
+      </div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </main>
   );
