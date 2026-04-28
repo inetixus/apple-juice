@@ -83,6 +83,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const autoFixTimerRef = useRef<any>(null);
   const lastGeneratedScriptsRef = useRef<{ name: string; parent: string; type: string; code: string }[]>([]);
   const MAX_AUTO_FIX_RETRIES = 3;
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastPromptRef = useRef<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   // Feature: Asset search
   const [assetQuery, setAssetQuery] = useState("");
@@ -543,6 +545,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       return;
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
@@ -557,6 +564,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     setPrompt("");
     setLastError(null);
     addRecentPrompt(trimmed);
+    lastPromptRef.current = trimmed;
     setIsGenerating(true);
     playSound('whoosh');
     setPluginStatus("Generating Luau and syncing it to the pairing session...");
@@ -641,6 +649,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           fileContents: attachedFiles.length > 0 ? attachedFiles : undefined,
           autoSync: true,
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       stepTimeoutsRef.current.forEach(clearTimeout);
@@ -733,6 +742,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     } catch (error) {
       stepTimeoutsRef.current.forEach(clearTimeout);
       stepTimeoutsRef.current = [];
+
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setPluginStatus("Generation stopped by user.");
+        showToast("Generation stopped.", "success");
+        setTimeout(() => setThinkingSteps([]), 1000);
+        setIsGenerating(false);
+        return;
+      }
+
       let detail = error instanceof Error ? error.message : "Unknown error";
 
       try {
@@ -1403,23 +1421,45 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
                   <div className="flex items-center gap-2">
                     {lastError && (
+                      <>
+                        <button
+                          className="px-3 py-2 rounded-xl text-[12px] font-medium text-[#ccff00] hover:bg-[#ccff00]/10 border border-[#ccff00]/20 transition-all"
+                          onClick={() => { setPrompt(lastPromptRef.current); submitPrompt(lastPromptRef.current); }}
+                          disabled={isGenerating}
+                        >
+                          Retry
+                        </button>
+                        <button
+                          className="px-3 py-2 rounded-xl text-[12px] font-medium text-red-400 hover:bg-red-500/10 border border-red-500/20 transition-all"
+                          onClick={handleAutoFix}
+                          disabled={isGenerating}
+                        >
+                          Repair
+                        </button>
+                      </>
+                    )}
+                    {isGenerating ? (
                       <button
-                        className="px-3 py-2 rounded-xl text-[12px] font-medium text-red-400 hover:bg-red-500/10 transition-all"
-                        onClick={handleAutoFix}
-                        disabled={isGenerating}
+                        onClick={() => {
+                          if (abortControllerRef.current) {
+                            abortControllerRef.current.abort();
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl text-[12px] font-bold bg-red-500 text-white hover:bg-red-600 transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)]"
                       >
-                        Repair
+                        Stop Generation
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => submitPrompt()}
+                        disabled={!isPluginConnected || prompt.trim() == ""}
+                        className="p-2 rounded-xl bg-white text-black hover:bg-zinc-200 disabled:opacity-40 transition-all disabled:shadow-none"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
                       </button>
                     )}
-                    <button
-                      onClick={() => submitPrompt()}
-                      disabled={!isPluginConnected || isGenerating || prompt.trim() == ""}
-                      className="p-2 rounded-xl bg-white text-black hover:bg-zinc-200 disabled:opacity-40 transition-all disabled:shadow-none"
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
-                    </button>
                   </div>
                 </div>
 

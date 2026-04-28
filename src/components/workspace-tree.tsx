@@ -450,11 +450,6 @@ function TreeItem({
           // Only expand on double click if not renaming
           if (e.detail === 2 && isExpandable && !isRenaming) setOpen(!open);
         }}
-        onDoubleClick={() => {
-          if (!isRenaming) {
-            startRename();
-          }
-        }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onContextMenu={e => {
@@ -528,12 +523,18 @@ function TreeItem({
             onClick={e => e.stopPropagation()}
           />
         ) : (
-          <span style={{
+          <span 
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              if (!isRenaming) startRename();
+            }}
+            style={{
             fontSize: "13px",
             color: isSelected ? "#ffffff" : "#cccccc",
             whiteSpace: "nowrap",
             userSelect: "none",
             lineHeight: `${ROW_H}px`,
+            cursor: "text",
           }}>
             {node.name}
           </span>
@@ -607,21 +608,33 @@ function TreeItem({
       )}
 
       {/* Children */}
-      {open && node.children.map((child, i) => (
-        <TreeItem
-          key={child.fullPath}
-          node={child}
-          onInsert={onInsert}
-          isLast={i === node.children.length - 1}
-          parentIsLasts={[...parentIsLasts, isLast]}
-          selectedPath={selectedPath}
-          setSelectedPath={setSelectedPath}
-          onRename={onRename}
-          onDelete={onDelete}
-          renamingPath={renamingPath}
-          setRenamingPath={setRenamingPath}
-        />
-      ))}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            {node.children.map((child, i) => (
+              <TreeItem
+                key={child.fullPath}
+                node={child}
+                onInsert={onInsert}
+                isLast={i === node.children.length - 1}
+                parentIsLasts={[...parentIsLasts, isLast]}
+                selectedPath={selectedPath}
+                setSelectedPath={setSelectedPath}
+                onRename={onRename}
+                onDelete={onDelete}
+                renamingPath={renamingPath}
+                setRenamingPath={setRenamingPath}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

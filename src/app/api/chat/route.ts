@@ -324,20 +324,29 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
       }
     }
 
-    // Check if the content is clearly NOT Luau code (it's thinking/reasoning text)
-    const trimmed = content.trim();
-    const looksLikeThinking = (
-      trimmed.toLowerCase().startsWith('thinking') ||
-      trimmed.startsWith('**') ||
-      trimmed.startsWith('# ') ||
-      trimmed.startsWith('## ') ||
-      trimmed.includes('conceptual') ||
-      trimmed.includes('architectural plan') ||
-      (trimmed.split('\n').length > 5 && !trimmed.includes('local ') && !trimmed.includes('function') && !trimmed.includes('game:GetService'))
-    );
+    // If we have a markdown code block, extract it
+    const codeBlockMatch = content.match(/```(?:luau|lua)\n([\s\S]*?)```/i) || content.match(/```\n([\s\S]*?)```/i);
+    if (codeBlockMatch) {
+      const cleanCode = codeBlockMatch[1].trim();
+      return {
+        code: cleanCode,
+        raw: JSON.stringify({
+          action: "create",
+          type: "Script",
+          parent: "ServerScriptService",
+          name: "AIGeneratedFallback",
+          code: cleanCode,
+        }),
+        preamble: content.substring(0, codeBlockMatch.index).trim()
+      };
+    }
 
-    if (looksLikeThinking) {
-      // This is thinking text, not code. Return empty so the caller can handle it.
+    // Check if the content is clearly NOT Luau code
+    const trimmed = content.trim();
+    const isLikelyCode = trimmed.includes('local ') || trimmed.includes('function') || trimmed.includes('game:GetService');
+
+    if (!isLikelyCode) {
+      // This is thinking text or malformed output, not code.
       return { code: "", raw: "" };
     }
 
