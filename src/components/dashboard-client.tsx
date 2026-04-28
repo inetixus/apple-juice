@@ -1450,7 +1450,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
                     <button
                       onClick={() => {
-                        if (isAnalyzing) return;
+                        if (isAnalyzing || !isPluginConnected) return;
                         setIsAnalyzing(true);
                         const allCode = lastGeneratedScriptsRef.current.map(s => `--- ${s.name} ---\n${s.code}`).join("\n\n");
                         submitPrompt(`CRITICAL PROJECT ANALYSIS REQUEST:
@@ -1466,7 +1466,8 @@ ${allCode}
 Provide a structured report with scores (0-100) and specific improvement tasks.`);
                         setTimeout(() => setIsAnalyzing(false), 5000);
                       }}
-                      className={`flex items-center gap-1.5 text-[11px] transition-colors ${isAnalyzing ? 'text-violet-400 animate-pulse' : 'text-white/20 hover:text-violet-400/60'}`}
+                      disabled={!isPluginConnected || isAnalyzing}
+                      className={`flex items-center gap-1.5 text-[11px] transition-colors ${!isPluginConnected ? 'opacity-30 cursor-not-allowed text-white/20' : isAnalyzing ? 'text-violet-400 animate-pulse' : 'text-white/20 hover:text-violet-400/60'}`}
                     >
                       <LayoutDashboard className="h-3 w-3" />
                       {isAnalyzing ? "Analyzing..." : "Analyze Project"}
@@ -1474,15 +1475,6 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 px-2 py-1 rounded-lg bg-white/[0.03] border border-white/[0.05]">
-                      <span className="text-[10px] text-white/30 uppercase font-bold tracking-tighter">Auto-Sync</span>
-                      <button
-                        onClick={() => setAutoSync(!autoSync)}
-                        className={`relative w-8 h-4 rounded-full transition-all duration-300 ${autoSync ? 'bg-[#ccff00]' : 'bg-white/10'}`}
-                      >
-                        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-black transition-all duration-300 ${autoSync ? 'left-4.5' : 'left-0.5'}`} style={{ left: autoSync ? '18px' : '2px' }} />
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
