@@ -178,6 +178,19 @@ export async function POST(req: Request) {
     return null;
   }
 
+  function getPreamble(text?: string): string | null {
+    if (!text) return null;
+    let cleaned = text.trim();
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+    const firstBrace = cleaned.indexOf('{');
+    if (firstBrace > 20) {
+      // Return everything before the first brace as preamble
+      return cleaned.substring(0, firstBrace).trim();
+    }
+    return null;
+  }
+
   // Build file context block
   let fileContextBlock = "";
   if (fileContents.length > 0) {
@@ -291,14 +304,15 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     }
   }
 
-  function processResponse(content: string, rawText: string): { code: string; raw: string } {
+  function processResponse(content: string, rawText: string): { code: string; raw: string; preamble?: string } {
     const structured = tryParsePluginPayload(content) || tryParsePluginPayload(rawText);
+    const preamble = getPreamble(content) || getPreamble(rawText) || undefined;
     if (structured) {
       if (structured.scripts && Array.isArray(structured.scripts)) {
-        return { code: "", raw: JSON.stringify(structured) };
+        return { code: "", raw: JSON.stringify(structured), preamble };
       }
       if (structured.code) {
-        return { code: structured.code, raw: JSON.stringify(structured) };
+        return { code: structured.code, raw: JSON.stringify(structured), preamble };
       }
     }
 
@@ -334,6 +348,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
 
   let code = "";
   let tokensUsed = 0;
+  let preambleReasoning: string | undefined = undefined;
 
   if (effectiveModel.toLowerCase().startsWith("gpt-") && finalOpenAIKey) {
     const { ok, text, tokens } = await callOpenAI(finalOpenAIKey, effectiveModel);
@@ -344,6 +359,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     const result = processResponse(content, raw);
     code = result.code;
     raw = result.raw;
+    const preambleReasoning = result.preamble;
     modelUsed = effectiveModel;
   } else if (effectiveProvider === "google") {
     const requestedModel = (effectiveModel || "gemini-3-flash").trim();
@@ -421,6 +437,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
           
           code = result.code;
           raw = result.raw;
+          preambleReasoning = result.preamble;
           modelUsed = candidate;
           
           try {
@@ -463,6 +480,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     const result = processResponse(content, raw);
     code = result.code;
     raw = result.raw;
+    preambleReasoning = result.preamble;
     modelUsed = effectiveModel;
   }
 
@@ -514,7 +532,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
       "Add error handling",
       "Create a configuration module",
     ];
-    const thinking = (structuredFinal as any)?.thinking;
+    const thinking = (structuredFinal as any)?.thinking || (typeof preambleReasoning === 'string' ? preambleReasoning : undefined);
 
     return Response.json({
       ok: true,
@@ -540,7 +558,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     "Build a matching client-side script",
   ];
   const lineCount = finalCode ? finalCode.split("\n").length : 0;
-  const thinking = (structuredFinal as any)?.thinking;
+  const thinking = (structuredFinal as any)?.thinking || (typeof preambleReasoning === 'string' ? preambleReasoning : undefined);
 
   const pluginPayload = JSON.stringify({ 
     action: isDelete ? "delete" : (structuredFinal?.action || "create"),

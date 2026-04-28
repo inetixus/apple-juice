@@ -8,35 +8,52 @@ import { Highlight, themes, type PrismTheme } from "prism-react-renderer";
 const luauTheme: PrismTheme = {
   ...themes.vsDark,
   plain: {
-    color: "#e2e8f0",
+    color: "#D4D4D4",
     backgroundColor: "transparent",
   },
   styles: [
     ...themes.vsDark.styles,
     {
-      types: ["keyword", "operator"],
+      types: ["keyword"],
       style: {
-        color: "#ccff00",
-        fontWeight: "bold",
+        color: "#F86D7C",
+      },
+    },
+    {
+      types: ["operator", "punctuation"],
+      style: {
+        color: "#FFFFFF",
       },
     },
     {
       types: ["string", "char"],
       style: {
-        color: "#10b981",
+        color: "#ADF195",
       },
     },
     {
-      types: ["function", "inserted"],
+      types: ["function"],
       style: {
-        color: "#60a5fa",
+        color: "#66C3FA",
       },
     },
     {
       types: ["comment"],
       style: {
-        color: "#4b5563",
+        color: "#666666",
         fontStyle: "italic",
+      },
+    },
+    {
+      types: ["number", "boolean"],
+      style: {
+        color: "#FFC600",
+      },
+    },
+    {
+      types: ["builtin", "constant"],
+      style: {
+        color: "#84D6F7",
       },
     },
   ],

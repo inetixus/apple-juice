@@ -38,6 +38,7 @@ type ChatMessage = {
   attachments?: { name: string }[];
   attachedAsset?: { id: number; name: string; thumbnail: string };
   pendingSync?: boolean;
+  isHidden?: boolean;
 };
 
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
@@ -274,7 +275,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       fixPrompt += `4. Respect the server/client boundary (no client APIs in server scripts)\n`;
                       fixPrompt += `5. Keep the same script name(s) and parent location(s) so they overwrite the broken version\n`;
 
-                      submitPrompt(fixPrompt);
+                      submitPrompt(fixPrompt, true);
                     }, 2000);
                   } else if (autoFixRetriesRef.current >= MAX_AUTO_FIX_RETRIES) {
                     setPluginStatus(`Auto-fix failed after ${MAX_AUTO_FIX_RETRIES} attempts. Use the Repair button to try manually.`);
@@ -533,7 +534,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     window.localStorage.setItem("apple-juice-recent-prompts", JSON.stringify(next));
   }
 
-  async function submitPrompt(overridePrompt?: string | any) {
+  async function submitPrompt(overridePrompt?: string | any, isHidden: boolean = false) {
     const targetPrompt = typeof overridePrompt === "string" ? overridePrompt : prompt;
     const trimmed = targetPrompt.trim();
     if (!trimmed || !sessionKey) {
@@ -546,6 +547,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       content: trimmed,
       attachments: attachedFiles.length > 0 ? attachedFiles.map(f => ({ name: f.name })) : undefined,
       attachedAsset: attachedAsset || undefined,
+      isHidden,
     };
 
     const newMessages = [...messages, userMessage];
@@ -669,11 +671,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       setAttachedFiles([]);
       setAttachedAsset(null);
 
-      function buildAssistantMessage(p: typeof payload, files: { name: string; content: string }[], pendingSync: boolean): ChatMessage {
+      function buildAssistantMessage(p: typeof payload, files: { name: string; content: string }[], pendingSync: boolean, isHidden: boolean = false): ChatMessage {
         return {
           id: crypto.randomUUID(),
           role: "assistant",
           content: p.message || "Here is the code you requested.",
+          isHidden,
           script: (!p.scripts && p.scriptName) ? {
             name: p.scriptName,
             parent: p.scriptParent || "ServerScriptService",
@@ -704,7 +707,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         showToast("Script generated and synced!", "success");
         playSound('success');
         setIsGenerating(false);
-        setMessages((current) => [...current, buildAssistantMessage(payload, payloadFiles, false)]);
+        setMessages((current) => [...current, buildAssistantMessage(payload, payloadFiles, false, isHidden)]);
         setThinkingSteps([]);
         // Reset auto-fix retries for this new generation
         autoFixRetriesRef.current = 0;
@@ -728,7 +731,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       } else {
         setPluginStatus("Code generated. Review changes before syncing.");
         setIsGenerating(false);
-        setMessages((current) => [...current, buildAssistantMessage(payload, payloadFiles, true)]);
+        setMessages((current) => [...current, buildAssistantMessage(payload, payloadFiles, true, isHidden)]);
         setThinkingSteps([]);
         void fetchUsage();
       }
@@ -1035,7 +1038,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             /* CHAT MESSAGES */
             <div className="flex-1 flex flex-col pt-24 pb-56 px-4 md:px-10 lg:px-20 max-w-5xl w-full">
               <div className="space-y-4">
-                {messages.map((message) => (
+                {messages.filter(m => !m.isHidden).map((message) => (
                   <div key={message.id} className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${message.role == 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-2xl text-[14px] leading-relaxed ${message.role == 'user'
                         ? 'bg-white/[0.08] text-white border border-white/[0.12] rounded-br-sm'
@@ -1065,21 +1068,35 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         </p>
 
                         {message.thinking && (
-                          <details className="group mt-3 bg-white/[0.02] border border-white/[0.05] rounded-xl overflow-hidden">
-                            <summary className="cursor-pointer text-[11px] font-medium text-white/40 hover:text-white/80 hover:bg-white/[0.04] transition-all flex items-center justify-between px-3 py-2 select-none list-none [&::-webkit-details-marker]:hidden">
-                              <div className="flex items-center gap-2">
-                                <Brain className="h-3.5 w-3.5 text-violet-400/70" />
-                                <span>Advanced AI Reasoning</span>
+                          <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-500">
+                            <details className="group bg-gradient-to-br from-violet-500/[0.05] to-fuchsia-500/[0.05] border border-violet-500/10 rounded-2xl overflow-hidden shadow-lg shadow-violet-500/5">
+                              <summary className="cursor-pointer text-[12px] font-bold text-violet-300/80 hover:text-violet-200 hover:bg-violet-500/10 transition-all flex items-center justify-between px-4 py-3 select-none list-none [&::-webkit-details-marker]:hidden group-open:border-b border-violet-500/10">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-1.5 rounded-lg bg-violet-500/20 text-violet-400 group-open:animate-pulse">
+                                    <Brain className="h-4 w-4" />
+                                  </div>
+                                  <span className="tracking-wide uppercase text-[10px]">Architectural Reasoning</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] font-mono opacity-40 uppercase">
+                                    {message.thinking.length > 500 ? "Deep Analysis" : "Detailed"}
+                                  </span>
+                                  <div className="w-5 h-5 rounded-full flex items-center justify-center bg-violet-500/10 group-open:rotate-180 transition-transform duration-300">
+                                    <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-violet-400/60" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M1 1L5 5L9 1" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              </summary>
+                              <div className="p-5 text-[13px] leading-relaxed text-white/60 whitespace-pre-wrap bg-black/40 font-medium selection:bg-violet-500/30 selection:text-white backdrop-blur-md">
+                                {message.thinking}
+                                <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-2 text-[10px] text-white/20 italic">
+                                  <Sparkles className="h-3 w-3" />
+                                  <span>Reasoning generated by Advanced Apple Juice Logic</span>
+                                </div>
                               </div>
-                              <span className="text-[10px] bg-black/20 px-1.5 py-0.5 rounded border border-white/[0.05] group-open:bg-violet-500/20 group-open:text-violet-300 transition-colors">
-                                <span className="group-open:hidden">Show</span>
-                                <span className="hidden group-open:inline">Hide</span>
-                              </span>
-                            </summary>
-                            <div className="p-4 text-[12px] leading-relaxed text-white/50 whitespace-pre-wrap border-t border-white/[0.05] bg-black/20 font-mono">
-                              {message.thinking}
-                            </div>
-                          </details>
+                            </details>
+                          </div>
                         )}
 
                         {message.script && (
