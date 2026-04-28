@@ -1412,7 +1412,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     </button>
 
                     <button
-                      className={\`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] transition-all \${autoEnhance ? 'text-[#ccff00] bg-[#ccff00]/10 border border-[#ccff00]/20' : 'text-white/40 hover:text-white hover:bg-white/[0.05] border border-transparent'}\`}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] transition-all ${autoEnhance ? 'text-[#ccff00] bg-[#ccff00]/10 border border-[#ccff00]/20' : 'text-white/40 hover:text-white hover:bg-white/[0.05] border border-transparent'}`}
                       onClick={() => setAutoEnhance(!autoEnhance)}
                       title="AI will review and improve your prompt before generating"
                     >
