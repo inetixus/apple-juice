@@ -101,10 +101,10 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
       <motion.div
         initial={false}
         animate={{ height: isOpen ? "auto" : 0, opacity: isOpen ? 1 : 0 }}
-        transition={{ duration: 0.15 }}
+        transition={{ duration: 0.1 }}
         className="overflow-hidden"
       >
-        <p className="pb-4 text-sm leading-relaxed text-white/70 max-w-2xl">{answer}</p>
+        <p className="pb-4 text-sm leading-relaxed text-white font-medium max-w-2xl">{answer}</p>
       </motion.div>
     </div>
   );
@@ -138,21 +138,21 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#060a12] text-white selection:bg-[#ccff00] selection:text-black relative overflow-hidden font-sans">
-      {/* ━━━ PREMIUM GRADIENT BACKGROUND ━━━ */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.4),transparent_60%),radial-gradient(circle_at_bottom_left,rgba(220,38,38,0.2),transparent_60%),radial-gradient(circle_at_center,rgba(29,78,216,0.15),transparent_80%)] pointer-events-none z-0" />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none z-0" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#060a12] via-[#080c16] to-[#0a0e1a] pointer-events-none z-0" />
+    <div className="min-h-screen bg-[#05070a] text-white selection:bg-[#ccff00] selection:text-black relative overflow-hidden font-sans">
+      {/* ━━━ HIGH-SATURATION GRADIENT BACKGROUND ━━━ */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(29,78,216,0.6),transparent_50%),radial-gradient(circle_at_20%_80%,rgba(37,99,235,0.4),transparent_50%),radial-gradient(circle_at_center,rgba(30,58,138,0.2),transparent_70%)] pointer-events-none z-0 scale-150 opacity-80" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#05070a] via-[#080c16] to-[#0a0e1a] pointer-events-none z-0" />
 
       {/* ━━━ NAVBAR ━━━ */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex justify-center py-4 px-6`}>
-        <div className={`w-full max-w-[1400px] transition-all duration-300 h-16 flex items-center justify-between px-6 lg:px-10 border transition-all ${
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 flex justify-center ${scrolled ? "py-4 px-6" : "py-0 px-0"}`}>
+        <div className={`transition-all duration-500 flex items-center justify-between border ${
           scrolled 
-            ? "bg-[#0b101b]/80 backdrop-blur-xl border-white/10 rounded-2xl shadow-2xl" 
-            : "bg-transparent border-transparent rounded-none"
+            ? "w-full max-w-[1200px] h-16 px-6 bg-[#0b101b]/90 backdrop-blur-xl border-white/10 rounded-2xl shadow-2xl" 
+            : "w-full max-w-full h-20 px-12 bg-black/20 backdrop-blur-sm border-transparent border-b border-white/5 rounded-none"
         }`}>
           <div className="flex items-center gap-4">
-            <div className="h-9 w-9 rounded-xl bg-[#ccff00] flex items-center justify-center shadow-[0_0_20px_rgba(204,255,0,0.3)]">
+            <div className="h-9 w-9 rounded-xl bg-[#ccff00] flex items-center justify-center shadow-[0_0_25px_rgba(204,255,0,0.4)]">
               <svg viewBox="0 0 24 24" className="h-6 w-6 text-black" fill="currentColor">
                 <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
                 <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
@@ -160,20 +160,20 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
               </svg>
             </div>
-            <span className="text-lg md:text-xl font-black tracking-[0.2em] uppercase font-sans text-white">Apple Juice</span>
+            <span className="text-xl font-black tracking-[0.25em] uppercase text-white">Apple Juice</span>
           </div>
 
-          <div className="hidden md:flex items-center gap-10">
-            <a href="#features" className="text-sm font-medium text-white/60 hover:text-white transition-colors">Features</a>
-            <a href="#terminal" className="text-sm font-medium text-white/60 hover:text-white transition-colors">Demo</a>
-            <a href="#faq" className="text-sm font-medium text-white/60 hover:text-white transition-colors">FAQ</a>
+          <div className="hidden md:flex items-center gap-12">
+            <a href="#features" className="text-xs font-bold uppercase tracking-widest text-white/70 hover:text-[#ccff00] transition-colors">Features</a>
+            <a href="#terminal" className="text-xs font-bold uppercase tracking-widest text-white/70 hover:text-[#ccff00] transition-colors">Demo</a>
+            <a href="#faq" className="text-xs font-bold uppercase tracking-widest text-white/70 hover:text-[#ccff00] transition-colors">FAQ</a>
           </div>
 
           <button
             onClick={() => session ? window.location.href = "/dashboard" : setShowAuthGuide(true)}
-            className="h-10 px-6 rounded-xl bg-white text-black text-xs font-bold uppercase tracking-wider hover:bg-[#ccff00] hover:-translate-y-0.5 active:scale-95 transition-all shadow-lg"
+            className="h-11 px-8 rounded-xl bg-[#ccff00] text-black text-xs font-black uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_20px_rgba(204,255,0,0.2)]"
           >
-            {session ? "Dashboard" : "Sign In"}
+            {session ? "Dashboard" : "Get Juice"}
           </button>
         </div>
       </nav>
@@ -235,14 +235,14 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
 
               <div className="flex flex-col xl:flex-row">
-                <div className="flex-1 p-4 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden h-[300px] min-h-[300px] overflow-y-auto bg-[#0a0e1a]/50">
+                <div className="flex-1 p-4 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden h-[340px] min-h-[340px] overflow-y-auto bg-[#0a0e1a]/50">
                   <AnimatePresence mode="wait">
                     <motion.pre
                       key={activeScriptIndex}
                       initial={{ opacity: 0, x: 20, y: 10 }}
                       animate={{ opacity: 1, x: 0, y: 0 }}
                       exit={{ opacity: 0, x: -20, y: -10 }}
-                      transition={{ duration: 0.15 }}
+                      transition={{ duration: 0.1 }}
                       className="font-mono text-[10px] xl:text-[11px] leading-relaxed"
                     >
                       <Highlight
