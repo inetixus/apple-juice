@@ -65,11 +65,16 @@ export const authOptions: NextAuthOptions = {
         (token as { picture?: string }).picture = (profile as { picture?: string })?.picture ?? "";
 
         // ── Antigravity identity mapping ──
-        // Look up whether this Google email is linked to an Antigravity account
+        // Auto-link this Google email to an Antigravity account using the email as the ID
         const email = (profile as { email?: string })?.email;
         if (email) {
           try {
-            const agMapping = await getAntigravityMapping(email);
+            let agMapping = await getAntigravityMapping(email);
+            // If they don't have a mapping yet, create one automatically
+            if (!agMapping) {
+              const { linkAntigravityAccount } = await import("@/lib/antigravity");
+              agMapping = await linkAntigravityAccount(email, email); // use email as the ID
+            }
             if (agMapping) {
               (token as { antigravityId?: string }).antigravityId = agMapping.antigravityUserId;
             }
