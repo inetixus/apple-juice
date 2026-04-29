@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { getAntigravityMapping } from "@/lib/antigravity";
 
 type RobloxProfile = {
   sub?: string;
@@ -62,6 +63,20 @@ export const authOptions: NextAuthOptions = {
         (token as { provider?: string }).provider = "google";
         (token as { email?: string }).email = (profile as { email?: string })?.email ?? "";
         (token as { picture?: string }).picture = (profile as { picture?: string })?.picture ?? "";
+
+        // ── Antigravity identity mapping ──
+        // Look up whether this Google email is linked to an Antigravity account
+        const email = (profile as { email?: string })?.email;
+        if (email) {
+          try {
+            const agMapping = await getAntigravityMapping(email);
+            if (agMapping) {
+              (token as { antigravityId?: string }).antigravityId = agMapping.antigravityUserId;
+            }
+          } catch (err) {
+            console.warn("Antigravity mapping lookup failed:", err instanceof Error ? err.message : String(err));
+          }
+        }
       }
       return token;
     },
@@ -74,6 +89,9 @@ export const authOptions: NextAuthOptions = {
           (token as { provider?: string }).provider ?? "roblox";
         (session.user as { image?: string | null }).image =
           (token as { picture?: string }).picture ?? null;
+        // Expose Antigravity link status to the frontend
+        (session.user as { antigravityId?: string | null }).antigravityId =
+          (token as { antigravityId?: string }).antigravityId ?? null;
       }
       return session;
     },

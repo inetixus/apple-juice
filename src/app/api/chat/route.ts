@@ -2,6 +2,11 @@ import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSession, upsertGeneratedCode, getUserUsage, trackUserUsage, getRedis } from "@/lib/store";
+import {
+  getAntigravityMapping,
+  checkAntigravityBalance,
+  relayToAntigravity,
+} from "@/lib/antigravity";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -44,11 +49,21 @@ export async function POST(req: Request) {
   let effectiveProvider = provider;
   let effectiveModel = model;
 
-  if (!isUsingCustomKey) {
+  // ── Antigravity provider auto-detection ──
+  // If the user explicitly chose "antigravity", or if they have a linked
+  // Antigravity account and aren't using a custom key, route through Antigravity.
+  const userEmail = (session?.user as { email?: string } | undefined)?.email || "";
+  const isAntigravityExplicit = provider === "antigravity";
+
+  if (!isUsingCustomKey && !isAntigravityExplicit) {
     effectiveProvider = "google";
     if (effectiveModel.toLowerCase().startsWith("gpt-")) {
       effectiveModel = "gemini-3-flash";
     }
+  }
+
+  if (isAntigravityExplicit) {
+    effectiveProvider = "antigravity";
   }
 
   const finalGoogleKey = (effectiveProvider === "google" && clientKey) ? clientKey : systemGoogleKey;
@@ -385,7 +400,75 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
   let tokensUsed = 0;
   let preambleReasoning: string | undefined = undefined;
 
-  if (effectiveModel.toLowerCase().startsWith("gpt-") && finalOpenAIKey) {
+  // ── Antigravity Provider Path ──────────────────────────────────────────────
+  if (effectiveProvider === "antigravity") {
+    // 1. Look up identity mapping
+    const agMapping = userEmail ? await getAntigravityMapping(userEmail) : null;
+    if (!agMapping) {
+      return Response.json({
+        error: "account_not_linked",
+        message: "Your account is not linked to Antigravity. Go to Settings → Antigravity to connect your account.",
+      }, { status: 403 });
+    }
+
+    // 2. Check credit balance
+    const balance = await checkAntigravityBalance(userEmail, agMapping);
+    if (balance.credits <= 0) {
+      return Response.json({
+        error: "insufficient_credits",
+        message: "You've run out of Antigravity credits. Top up your Antigravity account to continue using AI features.",
+        balance: { credits: balance.credits, maxCredits: balance.maxCredits, tier: balance.tier },
+      }, { status: 429 });
+    }
+
+    // 3. Build messages array for the relay
+    const agMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+    ];
+    if (body.messages && body.messages.length > 0) {
+      agMessages.push(...(body.messages as { role: "user" | "assistant"; content: string }[]));
+    } else {
+      agMessages.push({ role: "user", content: prompt });
+    }
+
+    // 4. Relay through Antigravity API
+    const agResult = await relayToAntigravity(agMapping, {
+      model: effectiveModel,
+      messages: agMessages,
+      temperature: mode === "thinking" ? 0.4 : 0.2,
+      max_tokens: mode === "thinking" ? 65536 : 32768,
+    });
+
+    if (!agResult.ok) {
+      return Response.json({
+        error: agResult.error || "Antigravity request failed",
+        provider: "antigravity",
+        model: effectiveModel,
+      }, { status: agResult.status });
+    }
+
+    // 5. Extract content and process through existing pipeline
+    const agContent = agResult.data?.choices?.[0]?.message?.content?.trim() || "";
+    tokensUsed = agResult.tokensUsed;
+    modelUsed = agResult.data?.model || effectiveModel;
+
+    if (agContent) {
+      const result = processResponse(agContent, agContent);
+      code = result.code;
+      raw = result.raw;
+      preambleReasoning = result.preamble;
+    }
+
+    if (!code && !raw) {
+      return Response.json({
+        error: "Antigravity returned empty output",
+        detail: agContent,
+        provider: "antigravity",
+      }, { status: 502 });
+    }
+
+  // ── OpenAI Provider Path ───────────────────────────────────────────────────
+  } else if (effectiveModel.toLowerCase().startsWith("gpt-") && finalOpenAIKey) {
     const { ok, text, tokens } = await callOpenAI(finalOpenAIKey, effectiveModel);
     raw = text;
     tokensUsed = tokens;
@@ -396,6 +479,8 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     raw = result.raw;
     preambleReasoning = result.preamble;
     modelUsed = effectiveModel;
+
+  // ── Google Provider Path ───────────────────────────────────────────────────
   } else if (effectiveProvider === "google") {
     const requestedModel = (effectiveModel || "gemini-3-flash").trim();
     const GOOGLE_FALLBACK_MODELS = [
@@ -505,6 +590,8 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     if (!code && !raw) {
       return Response.json({ error: "LLM request failed", detail: lastResponseBody, attemptedModels, provider: effectiveProvider, requestedModel }, { status: 502 });
     }
+
+  // ── Default Fallback Path ──────────────────────────────────────────────────
   } else {
     // Default: OpenAI using provided apiKey
     const { ok, text, tokens } = await callOpenAI(finalGoogleKey || finalOpenAIKey, effectiveModel);
