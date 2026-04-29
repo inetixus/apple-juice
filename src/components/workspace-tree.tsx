@@ -489,7 +489,7 @@ function TreeItem({
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={(e) => {
+            onChange={() => {
               onSelect(node.fullPath, false, true);
             }}
             onClick={e => e.stopPropagation()}
