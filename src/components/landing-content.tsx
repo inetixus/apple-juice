@@ -148,8 +148,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 flex justify-center ${scrolled ? "py-4 px-6" : "py-0 px-0"}`}>
         <div className={`transition-all duration-500 flex items-center justify-between border ${
           scrolled 
-            ? "w-full max-w-[1200px] h-16 px-6 bg-[#0b101b]/90 backdrop-blur-xl border-white/10 rounded-2xl shadow-2xl" 
-            : "w-full max-w-full h-20 px-12 bg-black/20 backdrop-blur-sm border-transparent border-b border-white/5 rounded-none"
+            ? "w-full max-w-[1200px] h-16 px-12 bg-[#0b101b]/90 backdrop-blur-xl border-white/10 rounded-2xl shadow-2xl" 
+            : "w-full max-w-full h-20 px-8 bg-black/20 backdrop-blur-sm border-transparent border-b border-white/5 rounded-none"
         }`}>
           <div className="flex items-center gap-4">
             <div className="h-9 w-9 rounded-xl bg-[#ccff00] flex items-center justify-center shadow-[0_0_25px_rgba(204,255,0,0.4)]">
@@ -164,9 +164,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           </div>
 
           <div className="hidden md:flex items-center gap-12">
-            <a href="#features" className="text-xs font-bold uppercase tracking-widest text-white/70 hover:text-[#ccff00] transition-colors">Features</a>
-            <a href="#terminal" className="text-xs font-bold uppercase tracking-widest text-white/70 hover:text-[#ccff00] transition-colors">Demo</a>
-            <a href="#faq" className="text-xs font-bold uppercase tracking-widest text-white/70 hover:text-[#ccff00] transition-colors">FAQ</a>
+            <a href="#features" className="text-xs font-bold uppercase tracking-widest text-white hover:text-[#ccff00] transition-colors">Features</a>
+            <a href="#terminal" className="text-xs font-bold uppercase tracking-widest text-white hover:text-[#ccff00] transition-colors">Demo</a>
+            <a href="#faq" className="text-xs font-bold uppercase tracking-widest text-white hover:text-[#ccff00] transition-colors">FAQ</a>
           </div>
 
           <button
@@ -377,15 +377,15 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </section>
 
       {/* ━━━ FAQ ━━━ */}
-      <section id="faq" className="px-6 pb-20">
-        <div className="max-w-[700px] mx-auto">
+      <section id="faq" className="px-6 pb-20 relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.15),transparent_70%)] pointer-events-none" />
+        <div className="max-w-[700px] mx-auto relative z-10">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-5xl font-black uppercase tracking-[-0.02em] text-white">
               Questions?
             </h2>
           </div>
-
-          <div className="rounded-xl border border-white/10 bg-[#0f141f] px-6">
+          <div className="rounded-xl border border-white/20 bg-[#1a1d24] px-6 shadow-2xl shadow-blue-500/5">
             {FAQ_ITEMS.map((item, i) => (
               <FaqItem key={i} question={item.question} answer={item.answer} />
             ))}
