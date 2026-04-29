@@ -338,14 +338,14 @@ const INDENT = 16; // Roblox indent is roughly 16px
 const ROW_H = 22;  // Roblox row height is ~22px
 
 function TreeItem({
-  node, onInsert, isLast, parentIsLasts, selectedPath, setSelectedPath, onRename, onDelete, renamingPath, setRenamingPath,
+  node, onInsert, isLast, parentIsLasts, selectedPaths, setSelectedPaths, onRename, onDelete, renamingPath, setRenamingPath,
 }: {
   node: TreeNode;
   onInsert: (parentPath: string, className: string, name: string) => void;
   isLast: boolean;
   parentIsLasts: boolean[];
-  selectedPath: string | null;
-  setSelectedPath: (path: string | null) => void;
+  selectedPaths: string[];
+  setSelectedPaths: (paths: string[] | ((prev: string[]) => string[])) => void;
   onRename?: (path: string, newName: string) => void;
   onDelete?: (path: string, name: string) => void;
   renamingPath: string | null;
@@ -362,7 +362,7 @@ function TreeItem({
   const isSubmittingRef = useRef<boolean>(false);
 
   const isRenaming = renamingPath === node.fullPath;
-  const isSelected = selectedPath === node.fullPath;
+  const isSelected = selectedPaths.includes(node.fullPath);
   const hasChildren = node.children.length > 0;
   const isExpandable = hasChildren;
   const handleCloseMenu = useCallback(() => setShowInsertMenu(false), []);
@@ -446,7 +446,11 @@ function TreeItem({
           outlineOffset: "-1px",
         }}
         onClick={(e) => {
-          setSelectedPath(node.fullPath);
+          if (e.ctrlKey || e.metaKey) {
+            setSelectedPaths(prev => prev.includes(node.fullPath) ? prev.filter(p => p !== node.fullPath) : [...prev, node.fullPath]);
+          } else {
+            setSelectedPaths([node.fullPath]);
+          }
           // Only expand on double click if not renaming
           if (e.detail === 2 && isExpandable && !isRenaming) setOpen(!open);
         }}
@@ -454,7 +458,9 @@ function TreeItem({
         onMouseLeave={() => setHovered(false)}
         onContextMenu={e => {
           e.preventDefault();
-          setSelectedPath(node.fullPath);
+          if (!selectedPaths.includes(node.fullPath)) {
+            setSelectedPaths([node.fullPath]);
+          }
           setShowContextMenu(true);
         }}
       >
@@ -481,6 +487,23 @@ function TreeItem({
             </svg>
           )}
         </div>
+
+        {/* Checkbox for selection */}
+        {(hovered || isSelected) && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setSelectedPaths(prev => [...prev, node.fullPath]);
+              } else {
+                setSelectedPaths(prev => prev.filter(p => p !== node.fullPath));
+              }
+            }}
+            onClick={e => e.stopPropagation()}
+            style={{ marginRight: "4px", cursor: "pointer", accentColor: "#ccff00" }}
+          />
+        )}
 
         {/* Icon */}
         <div style={{ width:"16px", height:"16px", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", marginRight:"4px" }}>
@@ -624,8 +647,8 @@ function TreeItem({
                 onInsert={onInsert}
                 isLast={i === node.children.length - 1}
                 parentIsLasts={[...parentIsLasts, isLast]}
-                selectedPath={selectedPath}
-                setSelectedPath={setSelectedPath}
+                selectedPaths={selectedPaths}
+                setSelectedPaths={setSelectedPaths}
                 onRename={onRename}
                 onDelete={onDelete}
                 renamingPath={renamingPath}
@@ -642,17 +665,27 @@ function TreeItem({
 // ─── Exported Component ──────────────────────────────────────────────────────
 
 export function WorkspaceTree({
-  paths, onAddInstance, onRename, onDelete,
+  paths, onAddInstance, onRename, onDelete, selectedPaths, onSelectionChange,
 }: {
   paths: string[];
   onAddInstance?: (parentPath: string, className: string, name: string) => void;
   onRename?: (path: string, newName: string) => void;
   onDelete?: (path: string, name: string) => void;
+  selectedPaths?: string[];
+  onSelectionChange?: (paths: string[]) => void;
 }) {
   const tree = useMemo(() => buildTree(paths), [paths]);
   const [filterText, setFilterText] = useState("");
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [internalSelectedPaths, setInternalSelectedPaths] = useState<string[]>([]);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
+
+  const currentSelectedPaths = selectedPaths ?? internalSelectedPaths;
+
+  const handleSelectionChange = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
+    const next = typeof updater === "function" ? updater(currentSelectedPaths) : updater;
+    if (!selectedPaths) setInternalSelectedPaths(next);
+    if (onSelectionChange) onSelectionChange(next);
+  }, [currentSelectedPaths, selectedPaths, onSelectionChange]);
 
   const handleInsert = useCallback(
     (parentPath: string, className: string, name: string) => {
@@ -774,8 +807,8 @@ export function WorkspaceTree({
                 onInsert={handleInsert}
                 isLast={i === displayTree.length - 1}
                 parentIsLasts={[]}
-                selectedPath={selectedPath}
-                setSelectedPath={setSelectedPath}
+                selectedPaths={currentSelectedPaths}
+                setSelectedPaths={handleSelectionChange}
                 onRename={onRename}
                 onDelete={onDelete}
                 renamingPath={renamingPath}

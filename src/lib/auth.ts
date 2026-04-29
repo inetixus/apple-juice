@@ -1,4 +1,5 @@
 import type { NextAuthOptions } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
 
 type RobloxProfile = {
   sub?: string;
@@ -36,9 +37,14 @@ export const authOptions: NextAuthOptions = {
         return {
           id,
           name: profile.preferred_username ?? profile.name ?? "Roblox User",
+          image: null,
         };
       },
     },
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET_OAUTH || "",
+    }),
   ],
   callbacks: {
     async jwt({ token, account, profile }) {
@@ -47,6 +53,15 @@ export const authOptions: NextAuthOptions = {
         token.sub = p.sub ?? token.sub;
         (token as { username?: string }).username =
           p.preferred_username ?? p.name ?? (token as { username?: string }).username;
+        (token as { provider?: string }).provider = "roblox";
+      }
+      if (account?.provider === "google") {
+        token.sub = account.providerAccountId ?? token.sub;
+        (token as { username?: string }).username =
+          (profile as { name?: string })?.name ?? token.name ?? "Google User";
+        (token as { provider?: string }).provider = "google";
+        (token as { email?: string }).email = (profile as { email?: string })?.email ?? "";
+        (token as { picture?: string }).picture = (profile as { picture?: string })?.picture ?? "";
       }
       return token;
     },
@@ -54,7 +69,11 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as { id?: string }).id = token.sub ?? "";
         session.user.name =
-          (token as { username?: string }).username ?? session.user.name ?? "Roblox User";
+          (token as { username?: string }).username ?? session.user.name ?? "User";
+        (session.user as { provider?: string }).provider =
+          (token as { provider?: string }).provider ?? "roblox";
+        (session.user as { image?: string | null }).image =
+          (token as { picture?: string }).picture ?? null;
       }
       return session;
     },

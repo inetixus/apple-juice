@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     if (usage.usedTokens >= usage.totalTokens) {
       return Response.json({
         error: "Daily limit reached",
-        message: "You have used all 50 apple credits for today. Credits will reset tomorrow. To continue without limits, use your own API key in Settings.",
+        message: "You have used all 50 credits for this week. Credits reset every Monday. To continue without limits, use your own API key in Settings.",
         usage
       }, { status: 429 });
     }

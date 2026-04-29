@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState, useCallback } from "react";
-import { Paperclip, Zap, Brain, X, Search, Share2, Sparkles, Network, Trash2, LayoutDashboard } from "lucide-react";
+import { Paperclip, Zap, Brain, X, Search, Share2, Sparkles, Network, Trash2, LayoutDashboard, Menu } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,6 +59,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [secretCode, setSecretCode] = useState("");
   const [isRedeeming, setIsRedeeming] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPluginConnected, setIsPluginConnected] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -68,7 +69,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [gameLogs, setGameLogs] = useState<string[]>([]);
   const [mode, setMode] = useState<"fast" | "thinking">("fast");
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; content: string }[]>([]);
-  const [usage, setUsage] = useState({ usedTokens: 0, totalTokens: 50000 });
+  const [usage, setUsage] = useState({ usedTokens: 0, totalTokens: 50000, usedCredits: 0, totalCredits: 50 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
@@ -131,6 +132,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   }, [placeholderText, isDeleting, promptIndex, messages.length, examplePrompts]);
 
   const [projectTree, setProjectTree] = useState<string[]>([]);
+  const [selectedTreePaths, setSelectedTreePaths] = useState<string[]>([]);
   const [atMenu, setAtMenu] = useState<{ visible: boolean; x: number; y: number; filter: string; selectionIndex: number }>({
     visible: false,
     x: 0,
@@ -901,9 +903,34 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   }, [sessionKey, showToast]);
 
   return (
-    <main className="h-screen bg-[#24262b] text-white flex overflow-hidden font-sans">
+    <main className="h-screen bg-[#24262b] text-white flex overflow-hidden font-sans relative">
+      {/* Mobile Header */}
+      <div className="md:hidden absolute top-0 left-0 right-0 h-14 bg-[#1e1f24] border-b border-white/[0.04] flex items-center justify-between px-4 z-[50]">
+        <div className="flex items-center gap-2">
+            <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor">
+                <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
+                <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
+                <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
+            <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg leading-none">Apple Juice</span>
+        </div>
+        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white/70 hover:text-white p-2 focus:outline-none">
+          <Menu className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Overlay for mobile menu */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-[55] md:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* SIDEBAR */}
-      <div className="w-[220px] flex-shrink-0 border-r border-white/[0.04] bg-[#1e1f24] flex flex-col justify-between relative z-40">
+      <div className={`fixed md:static inset-y-0 left-0 z-[60] w-[260px] md:w-[220px] flex-shrink-0 border-r border-white/[0.04] bg-[#1e1f24] flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="p-5 space-y-6 overflow-y-auto flex-1">
           <div className="flex items-center gap-2 mb-2">
             <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]">
@@ -970,13 +997,44 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
           {/* Roblox Explorer Tree */}
           {projectTree.length > 0 && (
-            <div className="overflow-y-auto overflow-x-hidden custom-scrollbar -mx-5 px-0" style={{ maxHeight: "calc(100vh - 380px)" }}>
-              <WorkspaceTree 
-                paths={projectTree} 
-                onAddInstance={handleAddInstance} 
-                onRename={handleRename}
-                onDelete={handleDelete}
-              />
+            <div className="flex flex-col gap-2">
+              <div className="overflow-y-auto overflow-x-hidden custom-scrollbar -mx-5 px-0" style={{ maxHeight: "calc(100vh - 380px)" }}>
+                <WorkspaceTree 
+                  paths={projectTree} 
+                  onAddInstance={handleAddInstance} 
+                  onRename={handleRename}
+                  onDelete={handleDelete}
+                  selectedPaths={selectedTreePaths}
+                  onSelectionChange={setSelectedTreePaths}
+                />
+              </div>
+              {selectedTreePaths.length > 0 && (
+                <button
+                  onClick={() => {
+                    const fileMentions = selectedTreePaths.map(p => `@${p}`).join(', ');
+                    const promptText = `Please analyze and fix any bugs in the following files: ${fileMentions}. If there are errors, please resolve them completely.`;
+                    setPrompt(promptText);
+                    
+                    // Trigger fetching the files to attach them
+                    selectedTreePaths.forEach(file => {
+                       fetch('/api/request-file', {
+                         method: 'POST',
+                         body: JSON.stringify({ key: sessionKey, fileName: file })
+                       }).catch(() => { });
+                    });
+                    
+                    // We don't submit immediately to let the user see the prompt and files attach, 
+                    // or we could auto-submit. The instructions say "sends the specified files to the ai".
+                    // Let's submit after a short delay to allow files to attach.
+                    setTimeout(() => submitPrompt(promptText), 500);
+                    setSelectedTreePaths([]);
+                  }}
+                  className="w-full bg-[#ccff00] text-black font-bold py-2 rounded-lg hover:bg-[#d4ff33] transition-colors flex items-center justify-center gap-2 text-[13px] shadow-sm mt-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Fix Bugs ({selectedTreePaths.length})
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1007,11 +1065,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col h-full bg-[#1c1d21] relative overflow-hidden">
+      <div className="flex-1 flex flex-col h-full bg-[#1c1d21] relative overflow-hidden pt-14 md:pt-0">
         {/* Top Right Header */}
-        <header className="absolute top-0 right-0 p-6 flex items-center gap-4 z-50 pointer-events-none w-full justify-end">
-          <div className="pointer-events-auto flex items-center gap-4">
-            <div className="bg-[#10b981] text-white font-bold px-4 py-2 rounded-full text-xs shadow-lg shadow-[#10b981]/20 cursor-pointer hover:bg-[#0ea5e9] hover:shadow-[#0ea5e9]/20 transition-all">
+        <header className="absolute top-14 md:top-0 right-0 p-3 md:p-6 flex items-center gap-2 md:gap-4 z-40 pointer-events-none w-full justify-end">
+          <div className="pointer-events-auto flex items-center gap-2 md:gap-4">
+            <div className="hidden md:block bg-[#10b981] text-white font-bold px-4 py-2 rounded-full text-xs shadow-lg shadow-[#10b981]/20 cursor-pointer hover:bg-[#0ea5e9] hover:shadow-[#0ea5e9]/20 transition-all">
               Store Purchases
             </div>
             {/* Profile avatar with dropdown */}
@@ -1368,10 +1426,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   }}
                 />
 
-                <div className="flex items-center justify-between gap-3 pt-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2 md:gap-3 pt-2 flex-wrap sm:flex-nowrap">
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar w-full sm:w-auto flex-shrink-0">
                     {/* Mode toggle */}
-                    <div className="relative flex items-center bg-black/20 rounded-xl border border-white/[0.04] p-0.5 w-[140px]">
+                    <div className="relative flex items-center bg-black/20 rounded-xl border border-white/[0.04] p-0.5 w-[140px] flex-shrink-0">
                       {/* Sliding pill background */}
                       <div
                         className="absolute top-0.5 bottom-0.5 rounded-lg transition-all duration-300 ease-in-out"
@@ -1423,7 +1481,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     {(provider == "google" ? googleKey.trim() : openaiKey.trim()).length == 0 ? (() => {
                       const pct = Math.max(0, Math.min(100, ((usage.totalTokens - usage.usedTokens) / usage.totalTokens) * 100));
                       const hue = Math.round(pct * 1.2); // green at 100%, red at 0%
-                      const creditsAvailable = Math.max(0, usage.totalTokens - usage.usedTokens);
+                      const creditsAvailable = Math.max(0, (usage.totalCredits || 50) - (usage.usedCredits || 0));
                       return (
                         <div className="hidden sm:flex relative h-8 w-32 bg-black/40 rounded-lg overflow-hidden border border-white/[0.08] items-center justify-center group ml-2 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
                           {/* Main Wave Layer */}

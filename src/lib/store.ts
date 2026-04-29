@@ -21,9 +21,9 @@ const PREFIX = "apple-juice:session:";
 const IP_PREFIX = "apple-juice:ip:";
 const USAGE_PREFIX = "apple-juice:usage:";
 
-export const MAX_CREDITS_PER_DAY = 50;
+export const MAX_CREDITS_PER_WEEK = 50;
 export const TOKENS_PER_CREDIT = 1000;
-export const MAX_TOKENS_PER_DAY = MAX_CREDITS_PER_DAY * TOKENS_PER_CREDIT;
+export const MAX_TOKENS_PER_WEEK = MAX_CREDITS_PER_WEEK * TOKENS_PER_CREDIT;
 
 let _redis: Redis | null = null;
 export function getRedis(): Redis {
@@ -308,9 +308,18 @@ export async function consumeLogs(sessionKey: string) {
   }
 }
 
+function getISOWeek(date: Date): string {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
 function usageKeyFor(userId: string) {
-  const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-  return `${USAGE_PREFIX}${userId}:${date}`;
+  const week = getISOWeek(new Date());
+  return `${USAGE_PREFIX}${userId}:${week}`;
 }
 
 export async function getUserUsage(userId: string) {
@@ -318,9 +327,9 @@ export async function getUserUsage(userId: string) {
   const used = await getRedis().get<number>(key);
   return {
     usedTokens: used || 0,
-    totalTokens: MAX_TOKENS_PER_DAY,
+    totalTokens: MAX_TOKENS_PER_WEEK,
     usedCredits: Math.floor((used || 0) / TOKENS_PER_CREDIT),
-    totalCredits: MAX_CREDITS_PER_DAY,
+    totalCredits: MAX_CREDITS_PER_WEEK,
   };
 }
 
@@ -331,7 +340,7 @@ export async function trackUserUsage(userId: string, tokens: number) {
   try {
     await redis.incrby(key, tokens);
     // Set expiry to 48 hours to clean up old keys
-    await redis.expire(key, 60 * 60 * 48);
+    await redis.expire(key, 60 * 60 * 24 * 8); // 8 days TTL for weekly keys
   } catch (err) {
     console.error("trackUserUsage error", err);
   }

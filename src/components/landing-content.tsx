@@ -56,9 +56,9 @@ const FAQ_ITEMS = [
       "Yes. Apple Juice is free and open-source (MIT License). You only pay for AI inference — either through your own OpenAI or Google AI Studio API key, or by using the platform's shared credit pool.",
   },
   {
-    question: "What data does Roblox share when I sign in?",
+    question: "What data do you receive when I sign in?",
     answer:
-      "When you authorize Apple Juice via Roblox's OAuth 2.0 consent screen, Roblox shares only your User ID and public profile. We never receive your password, Robux balance, purchase history, or inventory. You can revoke access at any time from your Roblox account settings under \"Connected Apps\".",
+      "If you authorize via Roblox, we receive only your User ID and public profile. If you use Google, we receive your email and basic profile. We NEVER receive your password, Robux balance, purchase history, or inventory. You can revoke access at any time from your account settings.",
   },
   {
     question: "Do you store my AI provider API keys?",
@@ -472,17 +472,25 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
       {/* ━━━ OAUTH GUIDE MODAL ━━━ */}
       {showAuthGuide && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAuthGuide(false);
+          }}
+        >
           <div className="w-full max-w-2xl bg-[#111113] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="h-16 flex items-center px-8 border-b border-white/5 bg-[#0a0a0c]">
+            <div className="h-16 flex items-center justify-between px-8 border-b border-white/5 bg-[#0a0a0c]">
               <span className="font-bold text-lg tracking-wide text-white">How we authenticate you</span>
+              <button onClick={() => setShowAuthGuide(false)} className="sm:hidden text-white/50 hover:text-white p-2 -mr-2">
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
             </div>
             
             {/* Body */}
             <div className="p-8 sm:p-10 overflow-y-auto max-h-[75vh]">
               <p className="text-[#8a8f98] text-base leading-relaxed mb-8">
-                Clicking &ldquo;Continue&rdquo; will open the <strong className="text-white">official Roblox authorization screen</strong> — hosted at roblox.com and operated entirely by Roblox. Here is exactly what is shared and how it is used:
+                Clicking &ldquo;Continue&rdquo; will open an <strong className="text-white">official authorization screen</strong> for either Roblox or Google. Here is exactly what is shared and how it is used:
               </p>
               
               <div className="space-y-6">
@@ -498,10 +506,10 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                     Roblox will ask you to grant Apple Juice access to your <strong className="text-white">User ID</strong> and <strong className="text-white">public profile</strong>, as shown on Roblox&apos;s consent screen.
                   </p>
                   <ul className="text-sm text-[#8a8f98] space-y-2 list-disc pl-5">
-                    <li>We use your User ID to identify your dashboard session and display your avatar.</li>
+                    <li>We use your User ID/Email to identify your dashboard session.</li>
                     <li><strong className="text-[#ccff00]">We NEVER receive your password.</strong></li>
-                    <li><strong className="text-[#ccff00]">We NEVER receive your Robux balance, purchase history, or inventory.</strong></li>
-                    <li>You can revoke access at any time via your Roblox account settings under &ldquo;Connected Apps&rdquo;.</li>
+                    <li><strong className="text-[#ccff00]">We NEVER receive your Robux balance or private data.</strong></li>
+                    <li>You can revoke access at any time via your account provider settings.</li>
                   </ul>
                   {/* Why OAuth? callout */}
                   <div className="mt-4 flex items-start gap-2.5 p-3 rounded-lg bg-white/5 border border-white/10">
@@ -577,15 +585,27 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setShowAuthGuide(false)}
-                  className="px-6 py-2.5 rounded-lg border border-white/10 text-white hover:bg-white/5 text-sm font-medium transition-colors"
+                  className="px-4 py-2.5 rounded-lg border border-white/10 text-white hover:bg-white/5 text-sm font-medium transition-colors hidden sm:block"
                 >
                   Cancel
                 </button>
                 <button 
-                  onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
-                  className="px-8 py-2.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-sm font-bold transition-colors shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                  className="px-6 py-2.5 rounded-lg bg-white/10 text-white border border-white/20 hover:bg-white/20 text-sm font-bold transition-colors flex items-center gap-2"
                 >
-                  Continue to Roblox Sign-In →
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  </svg>
+                  Google
+                </button>
+                <button 
+                  onClick={() => signIn("roblox", { callbackUrl: "/dashboard" })}
+                  className="px-6 py-2.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-sm font-bold transition-colors shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                >
+                  Roblox
                 </button>
               </div>
             </div>
