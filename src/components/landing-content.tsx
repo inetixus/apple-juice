@@ -267,8 +267,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                     </motion.pre>
                   </AnimatePresence>
                 </div>
+              </div>
 
-                <div className="w-full xl:w-56 p-3 space-y-2 bg-[#060a12] flex-shrink-0">
+              <div className="w-full xl:w-56 p-3 space-y-2 bg-[#060a12] flex-shrink-0">
                   <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-white/50 mb-3 ml-1">
                     Generated Files
                   </p>
