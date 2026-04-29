@@ -148,7 +148,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 flex justify-center ${scrolled ? "py-4 px-6" : "py-0 px-0"}`}>
         <div className={`transition-all duration-500 flex items-center justify-between border ${
           scrolled 
-            ? "w-full max-w-[1200px] h-16 px-12 bg-[#0b101b]/90 backdrop-blur-xl border-white/10 rounded-2xl shadow-2xl" 
+            ? "w-full max-w-[1200px] h-16 px-9 bg-[#0b101b]/90 backdrop-blur-xl border-white/10 rounded-2xl shadow-2xl" 
             : "w-full max-w-full h-20 px-8 bg-black/20 backdrop-blur-sm border-transparent border-b border-white/5 rounded-none"
         }`}>
           <div className="flex items-center gap-4">
@@ -179,7 +179,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </nav>
 
       {/* ━━━ HERO & TERMINAL ━━━ */}
-      <section className="relative pt-32 lg:pt-40 pb-20 px-6 lg:px-12 xl:px-20 z-10">
+      <section className="relative pt-32 lg:pt-40 pb-20 px-6 lg:px-12 xl:px-20 z-10 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.2),transparent_50%)] pointer-events-none" />
 
         <div className="w-full max-w-[1600px] mx-auto relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16 xl:gap-24">
           
@@ -223,8 +224,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           </div>
 
           {/* Terminal Mockup */}
-          <div id="terminal" className="hidden md:block flex-1 w-full max-w-2xl lg:max-w-none">
-            <div className="rounded-2xl border border-white/10 bg-[#0f141f] overflow-hidden relative z-10 shadow-2xl">
+          <div id="terminal" className="hidden md:block flex-1 w-full max-w-2xl lg:max-w-none h-[450px] min-h-[450px]">
+            <div className="rounded-2xl border border-white/10 bg-[#0f141f] overflow-hidden relative z-10 shadow-2xl h-full">
               <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#060a12]">
                 <div className="flex gap-1.5">
                   <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
@@ -297,8 +298,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </section>
 
       {/* ━━━ FEATURES ━━━ */}
-      <section id="features" className="px-6 pb-20">
-        <div className="max-w-[1100px] mx-auto">
+      <section id="features" className="px-6 pb-20 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.1),transparent_50%)] pointer-events-none" />
+        <div className="max-w-[1100px] mx-auto relative z-10">
           <div className="text-center mb-16">
             <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-[#ccff00] mb-2">
               Why Apple Juice
