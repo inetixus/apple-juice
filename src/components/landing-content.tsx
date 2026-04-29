@@ -138,18 +138,18 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#05070a] text-white selection:bg-[#ccff00] selection:text-black relative overflow-hidden font-sans">
-      {/* ━━━ HIGH-SATURATION GRADIENT BACKGROUND ━━━ */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(29,78,216,0.6),transparent_50%),radial-gradient(circle_at_20%_80%,rgba(37,99,235,0.4),transparent_50%),radial-gradient(circle_at_center,rgba(30,58,138,0.2),transparent_70%)] pointer-events-none z-0 scale-150 opacity-80" />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:50px_50px] pointer-events-none z-0" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#05070a] via-[#080c16] to-[#0a0e1a] pointer-events-none z-0" />
+    <div className="min-h-screen bg-[#060a12] text-white selection:bg-[#ccff00] selection:text-black relative overflow-hidden font-sans">
+      {/* ━━━ PREMIUM GRADIENT BACKGROUND ━━━ */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.15),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(220,38,38,0.05),transparent_50%),radial-gradient(circle_at_center,rgba(29,78,216,0.1),transparent_60%)] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#060a12] via-[#080c16] to-[#0a0e1a] pointer-events-none z-0" />
 
       {/* ━━━ NAVBAR ━━━ */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 flex justify-center ${scrolled ? "py-4 px-6" : "py-0 px-0"}`}>
-        <div className={`transition-all duration-500 flex items-center justify-between border ${
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex justify-center px-6 ${scrolled ? "py-4" : "py-6"}`}>
+        <div className={`w-full max-w-[1200px] transition-all duration-300 flex items-center justify-between ${
           scrolled 
-            ? "w-full max-w-[1200px] h-16 px-9 bg-[#0b101b]/90 backdrop-blur-xl border-white/10 rounded-2xl shadow-2xl" 
-            : "w-full max-w-full h-20 px-8 bg-black/20 backdrop-blur-sm border-transparent border-b border-white/5 rounded-none"
+            ? "h-16 px-6 bg-[#0b101b]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl" 
+            : "h-16 px-2 bg-transparent border border-transparent rounded-none"
         }`}>
           <div className="flex items-center gap-4">
             <div className="h-9 w-9 rounded-xl bg-[#ccff00] flex items-center justify-center shadow-[0_0_25px_rgba(204,255,0,0.4)]">
@@ -224,9 +224,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           </div>
 
           {/* Terminal Mockup */}
-          <div id="terminal" className="hidden md:block flex-1 w-full max-w-2xl lg:max-w-none h-[450px] min-h-[450px]">
-            <div className="rounded-2xl border border-white/10 bg-[#0f141f] overflow-hidden relative z-10 shadow-2xl h-full">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#060a12]">
+          <div id="terminal" className="hidden md:block flex-1 w-full max-w-2xl lg:max-w-none">
+            <div className="rounded-2xl border border-white/10 bg-[#0f141f] overflow-hidden relative z-10 shadow-2xl flex flex-col h-[480px] xl:h-[380px]">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#060a12] flex-shrink-0">
                 <div className="flex gap-1.5">
                   <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
                   <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
@@ -235,9 +235,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 <span className="ml-3 text-[11px] text-white/50 font-mono">Apple Juice — AI Output</span>
               </div>
 
-              <div className="flex flex-col xl:flex-row">
-                <div className="flex-1 p-4 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden h-[340px] min-h-[340px] overflow-y-auto bg-[#0a0e1a]/50">
-                  <AnimatePresence mode="wait">
+              <div className="flex flex-col xl:flex-row flex-1 overflow-hidden">
+                <div className="flex-1 p-4 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden overflow-y-auto bg-[#0a0e1a]/50">
+                  <AnimatePresence mode="popLayout">
                     <motion.pre
                       key={activeScriptIndex}
                       initial={{ opacity: 0, x: 20, y: 10 }}
