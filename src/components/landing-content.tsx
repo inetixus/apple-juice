@@ -139,28 +139,28 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
   return (
     <div className="min-h-screen bg-[#060a12] text-white selection:bg-[#ccff00] selection:text-black relative font-sans">
-      {/* ━━━ PREMIUM GRADIENT BACKGROUND ━━━ */}
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.15),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(220,38,38,0.05),transparent_50%),radial-gradient(circle_at_center,rgba(29,78,216,0.1),transparent_60%)] pointer-events-none z-0" />
+      {/* ━━━ PREMIUM FIXED GRADIENT BACKGROUND ━━━ */}
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(29,78,216,0.25),transparent_60%),radial-gradient(circle_at_15%_85%,rgba(37,99,235,0.15),transparent_50%),radial-gradient(circle_at_center,rgba(30,58,138,0.1),transparent_70%)] pointer-events-none z-0" />
       <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none z-0" />
-      <div className="fixed inset-0 bg-gradient-to-b from-transparent via-[#080c16]/50 to-[#0a0e1a]/80 pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-gradient-to-b from-transparent via-[#080c16]/30 to-[#0a0e1a]/90 pointer-events-none z-0" />
 
       {/* ━━━ NAVBAR ━━━ */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex justify-center ${scrolled ? "py-4 px-6" : "py-0 px-0"}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex justify-center ${scrolled ? "py-4 px-4 md:px-6" : "py-0 px-0"}`}>
         <div className={`w-full transition-all duration-300 flex items-center justify-between ${
           scrolled 
-            ? "h-16 px-10 bg-[#0b101b]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl" 
-            : "h-20 px-8 lg:px-12 bg-transparent border border-transparent rounded-none"
+            ? "h-14 md:h-16 px-6 md:px-12 bg-[#0b101b]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl" 
+            : "h-16 md:h-20 px-6 md:px-10 bg-transparent border border-transparent rounded-none"
         }`}>
-          <div className="flex items-center gap-4">
-            <div className="h-9 w-9 rounded-xl bg-[#ccff00] flex items-center justify-center shadow-[0_0_25px_rgba(204,255,0,0.4)]">
-              <svg viewBox="0 0 24 24" className="h-6 w-6 text-black" fill="currentColor">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl bg-[#ccff00] flex items-center justify-center shadow-[0_0_25px_rgba(204,255,0,0.4)] flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 md:h-6 md:w-6 text-black" fill="currentColor">
                 <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
                 <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
                 <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
               </svg>
             </div>
-            <span className="text-xl font-black tracking-[0.25em] uppercase text-white">Apple Juice</span>
+            <span className="text-base md:text-xl font-black tracking-[0.15em] md:tracking-[0.25em] uppercase text-white">Apple Juice</span>
           </div>
 
           <div className="hidden md:flex items-center gap-12">
@@ -171,7 +171,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
           <button
             onClick={() => session ? window.location.href = "/dashboard" : setShowAuthGuide(true)}
-            className="h-11 px-8 rounded-xl bg-[#ccff00] text-black text-xs font-black uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_20px_rgba(204,255,0,0.2)]"
+            className="h-10 md:h-11 px-5 md:px-8 rounded-xl bg-[#ccff00] text-black text-[10px] md:text-xs font-black uppercase tracking-widest hover:bg-white transition-all shadow-[0_0_20px_rgba(204,255,0,0.2)] whitespace-nowrap"
           >
             {session ? "Dashboard" : "Get Juice"}
           </button>
@@ -179,8 +179,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </nav>
 
       {/* ━━━ HERO & TERMINAL ━━━ */}
-      <section className="relative pt-32 lg:pt-40 pb-20 px-6 lg:px-12 xl:px-20 z-10 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.2),transparent_50%)] pointer-events-none" />
+      <section className="relative pt-32 lg:pt-40 pb-20 px-6 lg:px-12 xl:px-20 z-10">
 
         <div className="w-full max-w-[1600px] mx-auto relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16 xl:gap-24">
           
@@ -224,8 +223,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           </div>
 
           {/* Terminal Mockup */}
-          <div id="terminal" className="hidden md:block flex-1 w-full max-w-2xl lg:max-w-none">
-            <div className="rounded-2xl border border-white/10 bg-[#0f141f] overflow-hidden relative z-10 shadow-2xl flex flex-col h-[400px]">
+          <div id="terminal" className="flex-1 w-full max-w-2xl lg:max-w-none mt-10 lg:mt-0">
+            <div className="rounded-2xl border border-white/10 bg-[#0f141f] overflow-hidden relative z-10 shadow-2xl flex flex-col h-[480px] xl:h-[400px]">
               <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#060a12] flex-shrink-0 h-[45px]">
                 <div className="flex gap-1.5">
                   <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
@@ -235,8 +234,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 <span className="ml-3 text-[11px] text-white/50 font-mono">Apple Juice — AI Output</span>
               </div>
 
-              <div className="flex flex-col xl:flex-row flex-1 h-[355px]">
-                <div className="flex-1 border-b xl:border-b-0 xl:border-r border-white/10 bg-[#0a0e1a]/50 relative">
+              <div className="flex flex-col xl:flex-row flex-1 h-[435px] xl:h-[355px]">
+                <div className="flex-1 border-b xl:border-b-0 xl:border-r border-white/10 bg-[#0a0e1a]/50 relative overflow-hidden">
                   <div className="absolute inset-0 overflow-y-auto p-4">
                     <AnimatePresence mode="wait">
                       <motion.pre
@@ -245,7 +244,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
                         transition={{ duration: 0.15 }}
-                        className="font-mono text-[10px] xl:text-[11px] leading-relaxed absolute"
+                        className="font-mono text-[10px] xl:text-[11px] leading-relaxed"
                       >
                       <Highlight
                         theme={luauTheme}
@@ -269,27 +268,27 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 </div>
               </div>
 
-              <div className="w-full xl:w-56 p-3 space-y-2 bg-[#060a12] flex-shrink-0">
-                  <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-white/50 mb-3 ml-1">
+              <div className="w-full xl:w-56 p-3 bg-[#060a12] flex-shrink-0 flex flex-row xl:flex-col gap-2 overflow-x-auto xl:overflow-visible no-scrollbar border-t border-white/5 xl:border-none">
+                  <p className="hidden xl:block text-[9px] tracking-[0.2em] uppercase font-bold text-white/50 mb-1 ml-1">
                     Generated Files
                   </p>
                   {MULTI_SCRIPTS.map((s, i) => (
                     <div
                       key={i}
                       onClick={() => setActiveScriptIndex(i)}
-                      className={`flex items-center justify-between p-2.5 rounded-xl border transition-all duration-300 cursor-pointer ${
+                      className={`flex flex-shrink-0 min-w-[150px] xl:min-w-0 items-center justify-between p-2.5 rounded-xl border transition-all duration-300 cursor-pointer ${
                         activeScriptIndex === i 
                           ? 'bg-white/10 border-white/30' 
                           : 'bg-[#1a1d23]/50 border-transparent hover:border-white/10'
                       }`}
                     >
                       <div className="truncate pr-2">
-                        <p className={`text-[13px] font-semibold truncate ${activeScriptIndex === i ? 'text-white' : 'text-white/60'}`}>{s.name}</p>
-                        <p className="text-[11px] text-white/40 mt-1 truncate">
-                          {s.type} · {s.parent}
+                        <p className={`text-xs md:text-[13px] font-semibold truncate ${activeScriptIndex === i ? 'text-white' : 'text-white/60'}`}>{s.name}</p>
+                        <p className="text-[10px] md:text-[11px] text-white/40 mt-0.5 md:mt-1 truncate">
+                          {s.type}
                         </p>
                       </div>
-                      <span className="text-[11px] text-white/20 font-mono flex-shrink-0">{s.lines}L</span>
+                      <span className="text-[10px] md:text-[11px] text-white/20 font-mono flex-shrink-0">{s.lines}L</span>
                     </div>
                   ))}
                 </div>
@@ -301,7 +300,6 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
       {/* ━━━ FEATURES ━━━ */}
       <section id="features" className="px-6 pb-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.1),transparent_50%)] pointer-events-none" />
         <div className="max-w-[1100px] mx-auto relative z-10">
           <div className="text-center mb-16">
             <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-[#ccff00] mb-2">
@@ -312,67 +310,67 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <Brain className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
+                <Brain className="h-4 w-4 md:h-5 md:w-5 text-black" />
               </div>
-              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Chain-of-Thought</h3>
-              <p className="text-[9px] md:text-sm text-white/60 leading-relaxed">
+              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Chain-of-Thought</h3>
+              <p className="text-xs md:text-sm text-white/60 leading-relaxed">
                 Enable Thinking Mode and the model reasons through your feature step-by-step.
               </p>
             </div>
 
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <Layers className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" />
+            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
+                <Layers className="h-4 w-4 md:h-5 md:w-5 text-black" />
               </div>
-              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Multi-File Output</h3>
-              <p className="text-[9px] md:text-sm text-white/60 leading-relaxed">
+              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Multi-File Output</h3>
+              <p className="text-xs md:text-sm text-white/60 leading-relaxed">
                 Generate interconnected systems across multiple scripts simultaneously.
               </p>
             </div>
 
             {/* Card 3 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <RefreshCw className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" />
+            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
+                <RefreshCw className="h-4 w-4 md:h-5 md:w-5 text-black" />
               </div>
-              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Self-Healing Debug</h3>
-              <p className="text-[9px] md:text-sm text-white/70 leading-relaxed">
+              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Self-Healing Debug</h3>
+              <p className="text-xs md:text-sm text-white/70 leading-relaxed">
                 Apple Juice streams Studio errors and the AI directly proposes targeted fixes.
               </p>
             </div>
 
             {/* Card 4 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               </div>
-              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Zero-Latency Sync</h3>
-              <p className="text-[9px] md:text-sm text-white/70 leading-relaxed">
+              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Zero-Latency Sync</h3>
+              <p className="text-xs md:text-sm text-white/70 leading-relaxed">
                 A highly optimized plugin maintains a fast WebSocket connection.
               </p>
             </div>
 
             {/* Card 5 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
               </div>
-              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Context-Aware AI</h3>
-              <p className="text-[9px] md:text-sm text-white/70 leading-relaxed">
-                The model uses your entire existing codebase as context for consistent logic.
+              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Context-Aware AI</h3>
+              <p className="text-xs md:text-sm text-white/70 leading-relaxed">
+                The model uses your entire codebase as context for consistent logic.
               </p>
             </div>
 
             {/* Card 6 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-200 relative overflow-hidden flex flex-col">
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-200 relative overflow-hidden flex flex-col">
+              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
-              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Secure & Private</h3>
-              <p className="text-[9px] md:text-sm text-white/80 leading-relaxed">
+              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Secure & Private</h3>
+              <p className="text-xs md:text-sm text-white/80 leading-relaxed">
                 Your API keys are stored exclusively in your browser for absolute privacy.
               </p>
             </div>
@@ -382,7 +380,6 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
       {/* ━━━ FAQ ━━━ */}
       <section id="faq" className="px-6 pb-20 relative">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.15),transparent_70%)] pointer-events-none" />
         <div className="max-w-[700px] mx-auto relative z-10">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-5xl font-black uppercase tracking-[-0.02em] text-white">
