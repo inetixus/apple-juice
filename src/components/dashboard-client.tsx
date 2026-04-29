@@ -1750,6 +1750,9 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   const newKey = val == "google" ? storedGoogle : storedOpen;
                   setApiKey(newKey);
                   window.localStorage.setItem("apple-juice-provider", val);
+                  if (val === "antigravity") {
+                    void fetchAntigravityBalance();
+                  }
                 }}
                 className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
               >
@@ -1758,52 +1761,56 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 <option value="antigravity" className="bg-[#13151a]">⚡ Antigravity</option>
               </select>
             </div>
-            <div>
-              <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
-                API Key
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="api-key-input"
-                  type="password"
-                  value={provider == "google" ? googleKey : openaiKey}
-                  onChange={(event) => {
-                    const v = event.target.value;
-                    if (provider == "google") setGoogleKey(v);
-                    else setOpenaiKey(v);
-                    setApiKey(v);
-                  }}
-                  placeholder={provider == "google" ? "Google API Key" : "sk-..."}
-                  className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
-                />
-                <button onClick={saveApiKey} className="px-2.5 py-1.5 bg-white/10 text-white text-[11px] rounded-lg hover:bg-white/20 transition-colors">
-                  Save
-                </button>
-              </div>
-              <button onClick={() => loadModels()} disabled={isLoadingModels} className="mt-2 text-[11px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40">
-                {isLoadingModels ? "Loading models..." : "↻ Refresh models"}
-              </button>
-            </div>
-            <div>
-              <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="model-select">Model</label>
-              <select
-                id="model-select"
-                value={selectedModel}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setSelectedModel(value);
-                  window.localStorage.setItem("apple-juice-model", value);
-                }}
-                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
-              >
-                {availableModels.length === 0 && (
-                  <option value="" disabled>No models available</option>
-                )}
-                {availableModels.map((model) => (
-                  <option key={model} value={model} className="bg-[#13151a]">{model}</option>
-                ))}
-              </select>
-            </div>
+            {provider !== "antigravity" && (
+              <>
+                <div>
+                  <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
+                    API Key
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="api-key-input"
+                      type="password"
+                      value={provider == "google" ? googleKey : openaiKey}
+                      onChange={(event) => {
+                        const v = event.target.value;
+                        if (provider == "google") setGoogleKey(v);
+                        else setOpenaiKey(v);
+                        setApiKey(v);
+                      }}
+                      placeholder={provider == "google" ? "Google API Key" : "sk-..."}
+                      className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
+                    />
+                    <button onClick={saveApiKey} className="px-2.5 py-1.5 bg-white/10 text-white text-[11px] rounded-lg hover:bg-white/20 transition-colors">
+                      Save
+                    </button>
+                  </div>
+                  <button onClick={() => loadModels()} disabled={isLoadingModels} className="mt-2 text-[11px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40">
+                    {isLoadingModels ? "Loading models..." : "↻ Refresh models"}
+                  </button>
+                </div>
+                <div>
+                  <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="model-select">Model</label>
+                  <select
+                    id="model-select"
+                    value={selectedModel}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setSelectedModel(value);
+                      window.localStorage.setItem("apple-juice-model", value);
+                    }}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
+                  >
+                    {availableModels.length === 0 && (
+                      <option value="" disabled>No models available</option>
+                    )}
+                    {availableModels.map((model) => (
+                      <option key={model} value={model} className="bg-[#13151a]">{model}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
 
             <div className="pt-4 border-t border-white/[0.04] space-y-4">
               <div className="flex items-center justify-between">
