@@ -293,11 +293,10 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       <section id="features" className="px-6 pb-20">
         <div className="max-w-[1100px] mx-auto">
           {/* Section label */}
-          <div className="text-center mb-10">
+          <div className="text-center mb-16">
             <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-[#ccff00] mb-2">
               Why Apple Juice
             </p>
-          <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-black uppercase tracking-[-0.02em] text-white">
               Zero Friction.
             </h2>
