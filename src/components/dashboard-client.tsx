@@ -48,7 +48,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [projectName, setProjectName] = useState("Active Session");
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [provider, setProvider] = useState<"openai" | "google">("openai");
+  const [provider, setProvider] = useState<"openai" | "google" | "antigravity">("openai");
   const [openaiKey, setOpenaiKey] = useState("");
   const [googleKey, setGoogleKey] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
@@ -95,6 +95,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [showAssetSearch, setShowAssetSearch] = useState(false);
   const [isSearchingAssets, setIsSearchingAssets] = useState(false);
   const [attachedAsset, setAttachedAsset] = useState<{ id: number; name: string; thumbnail: string } | null>(null);
+  // Feature: Antigravity integration
+  const [agLinked, setAgLinked] = useState(false);
+  const [agUserId, setAgUserId] = useState("");
+  const [agBalance, setAgBalance] = useState<{ credits: number; maxCredits: number; tier: string } | null>(null);
+  const [agLinkInput, setAgLinkInput] = useState("");
+  const [agKeyInput, setAgKeyInput] = useState("");
+  const [agLinking, setAgLinking] = useState(false);
   // Feature: Live Share
 
   const examplePrompts = useMemo(() => [
@@ -330,7 +337,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
     const savedProvider = (window.localStorage.getItem("apple-juice-provider") || "openai") as
       | "openai"
-      | "google";
+      | "google"
+      | "antigravity";
     const savedOpen =
       window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
     const savedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
@@ -372,6 +380,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     setAutoRetry(savedAutoRetry);
 
     void fetchUsage();
+
+    // Check Antigravity link status
+    void checkAntigravityLink();
   }, []);
 
   async function fetchUsage() {
@@ -388,6 +399,79 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }
     } catch {
       // ignore
+    }
+  }
+
+  async function checkAntigravityLink() {
+    try {
+      const res = await fetch("/api/antigravity/link");
+      if (res.ok) {
+        const data = await res.json();
+        setAgLinked(!!data.linked);
+        if (data.linked) {
+          setAgUserId(data.antigravityUserId || "");
+          void fetchAntigravityBalance();
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function fetchAntigravityBalance() {
+    try {
+      const res = await fetch("/api/antigravity/balance");
+      if (res.ok) {
+        const data = await res.json();
+        setAgBalance({ credits: data.credits || 0, maxCredits: data.maxCredits || 0, tier: data.tier || "free" });
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function linkAntigravityAccount() {
+    if (!agLinkInput.trim()) return;
+    setAgLinking(true);
+    try {
+      const res = await fetch("/api/antigravity/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ antigravityUserId: agLinkInput.trim(), apiKey: agKeyInput.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAgLinked(true);
+        setAgUserId(data.antigravityUserId || agLinkInput.trim());
+        showToast("Antigravity account linked!", "success");
+        setAgLinkInput("");
+        setAgKeyInput("");
+        void fetchAntigravityBalance();
+      } else {
+        showToast(data.error || "Failed to link account", "error");
+      }
+    } catch {
+      showToast("Failed to link Antigravity account", "error");
+    } finally {
+      setAgLinking(false);
+    }
+  }
+
+  async function unlinkAntigravityAccount() {
+    try {
+      const res = await fetch("/api/antigravity/link", { method: "DELETE" });
+      if (res.ok) {
+        setAgLinked(false);
+        setAgUserId("");
+        setAgBalance(null);
+        if (provider === "antigravity") {
+          setProvider("google");
+          window.localStorage.setItem("apple-juice-provider", "google");
+        }
+        showToast("Antigravity account unlinked.", "success");
+      }
+    } catch {
+      showToast("Failed to unlink account", "error");
     }
   }
 
@@ -496,7 +580,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   function saveApiKey() {
     const inputValue = (provider === "google" ? googleKey : openaiKey).trim();
     const detectedGoogle = looksLikeGoogleKey(inputValue);
-    const finalProvider: "openai" | "google" = detectedGoogle ? "google" : provider;
+    const finalProvider: "openai" | "google" | "antigravity" = detectedGoogle ? "google" : provider;
 
     if (finalProvider === "google") {
       window.localStorage.setItem("apple-juice-google-key", inputValue);
@@ -1707,7 +1791,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 id="provider-select"
                 value={provider}
                 onChange={(e) => {
-                  const val = e.target.value as "openai" | "google";
+                  const val = e.target.value as "openai" | "google" | "antigravity";
                   const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
                   const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
                   setProvider(val);
@@ -1721,7 +1805,11 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
               >
                 <option value="openai" className="bg-[#13151a]">OpenAI</option>
                 <option value="google" className="bg-[#13151a]">Google AI Studio</option>
+                <option value="antigravity" className="bg-[#13151a]">⚡ Antigravity</option>
               </select>
+              {provider === "antigravity" && !agLinked && (
+                <p className="text-[10px] text-amber-400/80 mt-1">⚠ Link your Antigravity account below to use this provider.</p>
+              )}
             </div>
             <div>
               <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
@@ -1813,6 +1901,75 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* ── Antigravity Account Linking ── */}
+            <div className="pt-4 border-t border-white/[0.04] space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] font-bold text-white/80 uppercase tracking-wider">⚡ Antigravity</span>
+                {agLinked && (
+                  <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-[9px] font-bold rounded-full">LINKED</span>
+                )}
+              </div>
+
+              {agLinked ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between bg-white/[0.04] rounded-lg px-3 py-2">
+                    <div>
+                      <p className="text-[11px] text-white/60">Account</p>
+                      <p className="text-[12px] text-white font-mono">{agUserId}</p>
+                    </div>
+                    <button
+                      onClick={unlinkAntigravityAccount}
+                      className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors"
+                    >
+                      Unlink
+                    </button>
+                  </div>
+                  {agBalance && (
+                    <div className="flex items-center justify-between bg-white/[0.04] rounded-lg px-3 py-2">
+                      <div>
+                        <p className="text-[11px] text-white/60">Credits</p>
+                        <p className="text-[14px] font-bold" style={{ color: agBalance.credits > 0 ? '#ccff00' : '#ef4444' }}>
+                          {agBalance.credits.toLocaleString()}
+                          <span className="text-[10px] text-white/30 font-normal ml-1">/ {agBalance.maxCredits.toLocaleString()}</span>
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-white/30 uppercase">{agBalance.tier}</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={fetchAntigravityBalance}
+                    className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+                  >
+                    ↻ Refresh balance
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[10px] text-white/30">Link your Antigravity account to use your credit balance for AI requests.</p>
+                  <Input
+                    value={agLinkInput}
+                    onChange={(e) => setAgLinkInput(e.target.value)}
+                    placeholder="Antigravity User ID"
+                    className="bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
+                  />
+                  <Input
+                    type="password"
+                    value={agKeyInput}
+                    onChange={(e) => setAgKeyInput(e.target.value)}
+                    placeholder="API Key (optional — uses platform key if empty)"
+                    className="bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
+                  />
+                  <button
+                    onClick={linkAntigravityAccount}
+                    disabled={agLinking || !agLinkInput.trim()}
+                    className="w-full px-3 py-2 bg-[#ccff00]/10 text-[#ccff00] text-[11px] font-bold rounded-lg hover:bg-[#ccff00]/20 transition-colors disabled:opacity-40"
+                  >
+                    {agLinking ? "Linking..." : "Link Antigravity Account"}
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>
