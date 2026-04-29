@@ -149,7 +149,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
               </svg>
             </div>
-            <span className="text-lg md:text-xl font-black tracking-[0.2em] uppercase font-sans text-white drop-shadow-md">Apple Juice</span>
+            <span className="text-lg md:text-xl font-black tracking-[0.2em] uppercase font-sans text-white">Apple Juice</span>
           </div>
 
           <div className="hidden md:flex items-center gap-10">
@@ -160,7 +160,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
           <button
             onClick={() => session ? window.location.href = "/dashboard" : setShowAuthGuide(true)}
-            className="h-10 px-6 rounded-xl bg-white text-black text-sm font-bold hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+            className="h-10 px-6 rounded-xl bg-white text-black text-sm font-bold hover:bg-zinc-200 transition-colors border border-white/20"
           >
             {session ? "Dashboard" : "Sign In"}
           </button>
@@ -169,15 +169,15 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
       {/* ━━━ HERO & TERMINAL ━━━ */}
       <section className="relative pt-32 lg:pt-40 pb-20 px-6 lg:px-12 xl:px-20 z-10">
-        {/* Deep background glow */}
-        <div className="absolute top-[-10%] lg:top-0 left-1/2 lg:left-[20%] -translate-x-1/2 w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-[150px] pointer-events-none animate-blob-drift" />
+        {/* Clean background */}
+        <div className="absolute top-0 left-0 w-full h-full bg-[#000000]" />
 
         <div className="w-full max-w-[1600px] mx-auto relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16 xl:gap-24">
           
           {/* Hero Content */}
           <div className="flex-1 text-center lg:text-left flex flex-col items-center lg:items-start">
             {/* Eyebrow */}
-            <div className="inline-flex flex-col sm:flex-row items-center gap-3 px-4 py-2 rounded-2xl border border-white/10 bg-[#0a0a0a] mb-8 lg:mb-10 shadow-[0_0_20px_rgba(204,255,0,0.05)] animate-fade-up">
+            <div className="inline-flex flex-col sm:flex-row items-center gap-3 px-4 py-2 rounded-2xl border border-white/10 bg-[#0a0a0a] mb-8 lg:mb-10 animate-fade-up">
               <div className="flex items-center">
                 <Sparkles className="h-3.5 w-3.5 text-[#ccff00] mr-2" />
                 <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98]">
@@ -204,11 +204,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               {/* Primary Shine Button */}
               <button
                 onClick={() => session ? window.location.href = "/dashboard" : signIn("", { callbackUrl: "/dashboard" })}
-                className="relative inline-flex h-14 w-full sm:w-auto items-center justify-center px-10 py-2 font-bold text-white transition-all rounded-xl bg-[#101317] border border-white/10 hover:border-white/20 hover:shadow-[0_0_30px_rgba(204,255,0,0.1)] group overflow-hidden"
-                style={{
-                  backgroundImage: 'linear-gradient(110deg, #101317 40%, rgba(204, 255, 0, 0.15) 50%, #101317 60%)',
-                  backgroundSize: '200% auto',
-                }}
+                className="relative inline-flex h-14 w-full sm:w-auto items-center justify-center px-10 py-2 font-bold text-white transition-all rounded-xl bg-[#101317] border border-white/10 hover:border-white/20 group overflow-hidden"
               >
                 <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.25)_30%,rgba(204,255,0,0.25)_40%,transparent_50%)] bg-[length:200%_auto]" />
                 <span className="relative z-10 flex items-center gap-2">
@@ -227,7 +223,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           {/* Terminal Mockup (Hidden on mobile) */}
           <div id="terminal" className="hidden md:block flex-1 w-full max-w-2xl lg:max-w-none">
             {/* macOS-style window chrome */}
-            <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-black/50 overflow-hidden relative z-10">
+            <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] overflow-hidden relative z-10">
               {/* Title bar */}
               <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#0a0a0a]">
                 <div className="flex gap-1.5">

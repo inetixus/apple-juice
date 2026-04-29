@@ -109,7 +109,7 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -2 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className={`mt-3 rounded-2xl border ${isDelete ? 'border-red-500/20 bg-red-500/5' : isAsset ? 'border-purple-500/20 bg-purple-500/5' : 'border-white/10 bg-[#0a0c10] shadow-xl'} overflow-hidden transition-colors`}
+      className={`mt-3 rounded-2xl border ${isDelete ? 'border-red-500/20 bg-red-500/5' : isAsset ? 'border-purple-500/20 bg-purple-500/5' : 'border-white/10 bg-[#0a0c10]'} overflow-hidden transition-colors`}
     >
       <button
         onClick={() => !isDelete && !isAsset && setExpanded((e) => !e)}

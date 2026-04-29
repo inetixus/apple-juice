@@ -548,7 +548,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   }
 
   async function submitPrompt(overridePrompt?: string | any, isHidden: boolean = false) {
-    const targetPrompt = typeof overridePrompt === "string" ? overridePrompt : prompt;
+    const isRetry = typeof overridePrompt === 'object' && overridePrompt?.isRetry;
+    const targetPrompt = typeof overridePrompt === "string" 
+      ? overridePrompt 
+      : (isRetry ? (overridePrompt?.text || lastPromptRef.current) : prompt);
+    
     const trimmed = targetPrompt.trim();
     if (!trimmed || !sessionKey) {
       return;
@@ -559,21 +563,33 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     }
     abortControllerRef.current = new AbortController();
 
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: trimmed,
-      attachments: attachedFiles.length > 0 ? attachedFiles.map(f => ({ name: f.name })) : undefined,
-      attachedAsset: attachedAsset || undefined,
-      isHidden,
-    };
+    let messageId = "";
+    let contextMessages = messages;
 
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setPrompt("");
-    setLastError(null);
-    addRecentPrompt(trimmed);
-    lastPromptRef.current = trimmed;
+    if (!isRetry) {
+      const userMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: trimmed,
+        attachments: attachedFiles.length > 0 ? attachedFiles.map(f => ({ name: f.name })) : undefined,
+        attachedAsset: attachedAsset || undefined,
+        isHidden,
+      };
+
+      messageId = userMessage.id;
+      contextMessages = [...messages, userMessage];
+      setMessages(contextMessages);
+      setPrompt("");
+      setLastError(null);
+      addRecentPrompt(trimmed);
+      lastPromptRef.current = trimmed;
+    } else {
+      // Find the ID of the existing message we're retrying for
+      const lastUser = [...messages].reverse().find(m => m.role === 'user');
+      messageId = lastUser?.id || "";
+      contextMessages = messages;
+    }
+
     setIsGenerating(true);
     playSound('whoosh');
     setPluginStatus("Generating Luau and syncing it to the pairing session...");
@@ -667,7 +683,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           prompt: attachedAsset
             ? `[System Note: The user has attached the Roblox asset "${attachedAsset.name}" (ID: ${attachedAsset.id}) to this message. Please fulfill their request, using this asset if appropriate. If they don't specify what to do with it, insert it into Workspace.]\n\n${finalPromptText}`
             : finalPromptText,
-          messages: newMessages.map(m => ({
+          messages: contextMessages.map(m => ({
             role: m.role,
             content: m.attachedAsset
               ? `[System Note: Attached Asset "${m.attachedAsset.name}" (ID: ${m.attachedAsset.id})]\n${m.content}`
@@ -781,6 +797,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         showToast("Generation stopped.", "success");
         setTimeout(() => setThinkingSteps([]), 1000);
         setIsGenerating(false);
+        
+        // Remove the user message bubble if the request was cancelled
+        if (messageId) {
+          setMessages(current => current.filter(m => m.id !== messageId));
+          if (!isHidden) setPrompt(trimmed);
+        }
         return;
       }
 
@@ -798,10 +820,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }
 
       if (detail.includes("503") || detail.includes("high demand") || detail.includes("UNAVAILABLE")) {
-        if (autoRetry && !overridePrompt?.isRetry) {
+        if (autoRetry && !isRetry) {
           setPluginStatus("AI is busy. Auto-retrying in 3 seconds...");
           setTimeout(() => {
-            submitPrompt({ ... (typeof overridePrompt === 'string' ? { text: overridePrompt } : overridePrompt || {}), isRetry: true });
+            submitPrompt({ text: trimmed, isRetry: true }, isHidden);
           }, 3000);
           return;
         }
@@ -813,6 +835,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       playSound('error');
       setTimeout(() => setThinkingSteps([]), 1000);
       setIsGenerating(false);
+      
+      // Remove the user message bubble if the request failed and we're not retrying
+      if (messageId) {
+        setMessages(current => current.filter(m => m.id !== messageId));
+        if (!isHidden) setPrompt(trimmed);
+      }
+      
       void fetchUsage();
     }
   }
@@ -920,7 +949,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       {/* Mobile Header */}
       <div className="md:hidden absolute top-0 left-0 right-0 h-14 bg-[#1e1f24] border-b border-white/[0.04] flex items-center justify-between px-4 z-[50]">
         <div className="flex items-center gap-2">
-            <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]">
+            <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] border border-[#ccff00]/50">
               <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor">
                 <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
                 <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
@@ -929,7 +958,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               </svg>
             </div>
             <div className="flex flex-col">
-              <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg leading-none">Apple Juice</span>
+              <span className="font-extrabold text-white tracking-tight text-lg leading-none">Apple Juice</span>
               <span className="text-[8px] text-white/20 mt-0.5 italic leading-none">Made from developers to developers</span>
             </div>
         </div>
@@ -941,7 +970,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       {/* Overlay for mobile menu */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 z-[55] md:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/60 z-[55] md:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
@@ -950,7 +979,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       <div className={`fixed md:static inset-y-0 left-0 z-[60] w-[260px] md:w-[220px] flex-shrink-0 border-r border-white/[0.04] bg-[#1e1f24] flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="p-5 space-y-6 overflow-y-auto flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]">
+            <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] border border-[#ccff00]/50">
               <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor">
                 <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
                 <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
@@ -960,7 +989,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2 whitespace-nowrap">
-                <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg leading-none">Apple Juice</span>
+                <span className="font-extrabold text-white tracking-tight text-lg leading-none">Apple Juice</span>
                 <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/50 uppercase tracking-widest font-bold leading-none mt-0.5">pre-beta</span>
               </div>
               <span className="text-[9px] text-white/20 mt-1 italic">Made from developers to developers</span>
@@ -976,7 +1005,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 window.localStorage.removeItem("apple-juice-chat-history");
               }
             }}
-            className="w-full bg-white text-black font-semibold py-2 rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-[13px] shadow-sm"
+            className="w-full bg-white text-black font-semibold py-2 rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-[13px] border border-white/20"
           >
             + New Project
           </button>
@@ -1050,7 +1079,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     setTimeout(() => submitPrompt(promptText), 500);
                     setSelectedTreePaths([]);
                   }}
-                  className="w-full bg-[#ccff00] text-black font-bold py-2 rounded-lg hover:bg-[#d4ff33] transition-colors flex items-center justify-center gap-2 text-[13px] shadow-sm mt-2"
+                  className="w-full bg-[#ccff00] text-black font-bold py-2 rounded-lg hover:bg-[#d4ff33] transition-colors flex items-center justify-center gap-2 text-[13px] border border-[#ccff00]/50 mt-2"
                 >
                   <Sparkles className="w-4 h-4" />
                   Fix Bugs ({selectedTreePaths.length})
@@ -1139,20 +1168,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         <div className="flex-1 overflow-y-auto relative z-10 flex flex-col w-full items-center">
           {messages.length == 0 && (
             /* EMPTY STATE BACKGROUND */
-            <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center z-0">
-              <div className="relative w-full max-w-5xl h-[600px] flex items-center justify-center">
-                <div className="absolute top-[15%] left-[5%] w-48 h-32 bg-[#2a2c33]/80 rounded-xl opacity-40 rotate-[-8deg] blur-[2px] shadow-2xl overflow-hidden border border-white/5">
-                  <div className="w-full h-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 mix-blend-overlay"></div>
-                </div>
-                <div className="absolute top-[20%] right-[10%] w-56 h-36 bg-[#2a2c33]/80 rounded-xl opacity-50 rotate-[6deg] blur-[1px] shadow-2xl overflow-hidden border border-white/5">
-                  <div className="w-full h-full bg-gradient-to-bl from-[#ccff00]/10 to-transparent mix-blend-overlay"></div>
-                </div>
-                <div className="absolute bottom-[20%] left-[15%] w-40 h-28 bg-[#2a2c33]/80 rounded-xl opacity-30 rotate-[12deg] blur-[3px] shadow-2xl overflow-hidden border border-white/5">
-                  <div className="w-full h-full bg-gradient-to-tr from-sky-500/10 to-transparent mix-blend-overlay"></div>
-                </div>
-                <div className="absolute bottom-[15%] right-[20%] w-64 h-40 bg-[#2a2c33]/80 rounded-xl opacity-60 rotate-[-4deg] shadow-2xl overflow-hidden border border-white/5">
-                  <div className="w-full h-full bg-gradient-to-tl from-emerald-500/10 to-transparent mix-blend-overlay"></div>
-                </div>
+            <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center z-0 opacity-10">
+              <div className="grid grid-cols-4 gap-8">
+                {[...Array(12)].map((_, i) => (
+                  <div key={i} className="w-32 h-32 border border-white/10 rounded-xl" />
+                ))}
               </div>
             </div>
           )}
@@ -1164,8 +1184,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 {messages.filter(m => showDebug || !m.isHidden).map((message) => (
                   <div key={message.id} className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${message.role == 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-2xl text-[14px] leading-relaxed ${message.role == 'user'
-                        ? 'bg-white/[0.08] text-white border border-white/[0.12] rounded-br-sm'
-                        : 'bg-transparent text-white border border-white/[0.07] rounded-bl-sm bg-gradient-to-b from-white/[0.03] to-white/[0.01] shadow-lg'
+                        ? 'bg-white/5 text-white border border-white/10 rounded-br-sm'
+                        : 'bg-[#1e1f24] text-white border border-white/[0.05] rounded-bl-sm'
                       }`}>
                       {message.isHidden && (
                         <div className="mb-2 px-2 py-0.5 rounded bg-violet-500/10 border border-violet-500/20 text-[9px] text-violet-300 uppercase font-bold tracking-widest flex items-center gap-1.5 self-start">
@@ -1186,7 +1206,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         )}
 
                         {message.attachedAsset && (
-                          <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5 border border-purple-500/20 text-[11px] text-white/90 shadow-sm shadow-purple-500/5 mb-2">
+                          <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5 border border-purple-500/20 text-[11px] text-white/90 mb-2">
                             <img src={message.attachedAsset.thumbnail} className="w-5 h-5 rounded object-cover" />
                             <span className="truncate max-w-[150px]">{message.attachedAsset.name}</span>
                           </div>
@@ -1198,7 +1218,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
                         {message.thinking && (
                           <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-500">
-                            <details className="group bg-gradient-to-br from-violet-500/[0.05] to-fuchsia-500/[0.05] border border-violet-500/10 rounded-2xl overflow-hidden shadow-lg shadow-violet-500/5">
+                            <details className="group bg-white/5 border border-white/5 rounded-2xl overflow-hidden">
                               <summary className="cursor-pointer text-[12px] font-bold text-violet-300/80 hover:text-violet-200 hover:bg-violet-500/10 transition-all flex items-center justify-between px-4 py-3 select-none list-none [&::-webkit-details-marker]:hidden group-open:border-b border-violet-500/10">
                                 <div className="flex items-center gap-3">
                                   <div className="p-1.5 rounded-lg bg-violet-500/20 text-violet-400 group-open:animate-pulse">
@@ -1217,7 +1237,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                   </div>
                                 </div>
                               </summary>
-                              <div className="p-5 text-[13px] leading-relaxed text-white/60 whitespace-pre-wrap bg-black/40 font-medium selection:bg-violet-500/30 selection:text-white backdrop-blur-md">
+                              <div className="p-5 text-[13px] leading-relaxed text-white/60 whitespace-pre-wrap bg-black/20 font-medium selection:bg-violet-500/30 selection:text-white">
                                 {message.thinking}
                                 <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-2 text-[10px] text-white/20 italic">
                                   <Sparkles className="h-3 w-3" />
@@ -1261,7 +1281,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         {message.pendingSync && (
                           <div className="mt-4 pt-3 border-t border-[#ccff00]/20 flex justify-end">
                             <button
-                              className="bg-[#ccff00] text-black font-bold px-5 py-2 rounded-lg text-[13px] shadow-[0_0_15px_rgba(204,255,0,0.3)] hover:bg-[#d4ff33] transition-all"
+                              className="bg-[#ccff00] text-black font-bold px-5 py-2 rounded-lg text-[13px] border border-[#ccff00]/50 hover:bg-[#d4ff33] transition-all"
                               onClick={async () => {
                                 showToast("Accepting changes...", "info");
                                 const res = await fetch("/api/accept-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionKey }) });
@@ -1294,13 +1314,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           <div className="w-full flex flex-col items-center">
             {messages.length == 0 && (
               <div className="text-center mb-6">
-                <h1 className="text-[32px] md:text-[42px] font-medium tracking-tight text-white drop-shadow-xl leading-tight">
+                <h1 className="text-[32px] md:text-[42px] font-medium tracking-tight text-white leading-tight">
                   Describe a <span className="font-serif italic text-white/80">game mechanic...</span>
                 </h1>
               </div>
             )}
 
-            <div className={`w-full ${messages.length == 0 ? "bg-[#2b2d31]/90 backdrop-blur-xl shadow-2xl" : "max-w-4xl bg-[#26282d]"} border border-white/[0.05] rounded-2xl p-3`}>
+            <div className={`w-full ${messages.length == 0 ? "bg-[#2b2d31] shadow-none" : "max-w-4xl bg-[#26282d]"} border border-white/10 rounded-2xl p-3`}>
               <div className="w-full space-y-3">
                 {attachedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
