@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useMemo, useState, useCallback } from "react";
-import { Paperclip, Zap, Brain, X, Search, Share2, Sparkles, Network, Trash2, LayoutDashboard, Menu, RefreshCw } from "lucide-react";
+import { Paperclip, Zap, Search, Sparkles, LayoutDashboard, RefreshCw } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 import { ToastContainer, useToasts } from "@/components/ui/toast";
 import { ScriptCard } from "@/components/script-card";
