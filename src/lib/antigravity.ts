@@ -156,13 +156,22 @@ export async function checkAntigravityBalance(
   const apiUrl = getApiUrl();
 
   try {
+    const isGoogleKey = apiKey.startsWith("AIza");
+    const headers: Record<string, string> = {
+      "X-User-Id": mapping.antigravityUserId,
+      "Content-Type": "application/json",
+    };
+
+    if (isGoogleKey) {
+      headers["X-Goog-Api-Key"] = apiKey;
+    } else {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
+    console.log(`[Antigravity] Fetching balance for ${googleEmail} at ${apiUrl}/user/balance...`);
     const res = await fetch(`${apiUrl}/user/balance`, {
       method: "GET",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "X-User-Id": mapping.antigravityUserId,
-        "Content-Type": "application/json",
-      },
+      headers,
     });
 
     if (!res.ok) {
@@ -230,13 +239,21 @@ export async function relayToAntigravity(
   const apiUrl = getApiUrl();
 
   try {
+    const isGoogleKey = apiKey.startsWith("AIza");
+    const headers: Record<string, string> = {
+      "X-User-Id": mapping.antigravityUserId,
+      "Content-Type": "application/json",
+    };
+
+    if (isGoogleKey) {
+      headers["X-Goog-Api-Key"] = apiKey;
+    } else {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
     const res = await fetch(`${apiUrl}/v1/chat/completions`, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "X-User-Id": mapping.antigravityUserId,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         model: request.model || "gemini-2.5-flash",
         messages: request.messages,
