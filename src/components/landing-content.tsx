@@ -149,7 +149,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
               </svg>
             </div>
-            <span className="text-xl md:text-2xl font-black tracking-[0.2em] uppercase font-sans text-white drop-shadow-md">Apple Juice</span>
+            <span className="text-lg md:text-xl font-black tracking-[0.2em] uppercase font-sans text-white drop-shadow-md">Apple Juice</span>
           </div>
 
           <div className="hidden md:flex items-center gap-10">
@@ -160,7 +160,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
           <button
             onClick={() => session ? window.location.href = "/dashboard" : setShowAuthGuide(true)}
-            className="h-11 px-7 rounded-xl bg-white text-black text-base font-bold hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.4)]"
+            className="h-10 px-6 rounded-xl bg-white text-black text-sm font-bold hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)]"
           >
             {session ? "Dashboard" : "Sign In"}
           </button>
@@ -189,14 +189,14 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </div>
 
             {/* Headline */}
-            <h1 className="text-6xl sm:text-7xl lg:text-[4.5rem] xl:text-[5rem] font-extrabold tracking-[-0.04em] leading-[1.05] text-white mb-6 lg:mb-8 animate-fade-up-delay">
+            <h1 className="text-4xl sm:text-6xl lg:text-[4rem] xl:text-[4.5rem] font-extrabold tracking-[-0.04em] leading-[1.1] text-white mb-6 lg:mb-8 animate-fade-up-delay">
               The AI Code Studio <br />
-              for <span className="font-serif italic font-medium text-[#ccff00]">Roblox</span> Developers.
+              for <span className="font-serif italic font-medium text-[#ccff00]">Roblox</span>.
             </h1>
 
             {/* Subtext */}
-            <p className="max-w-xl lg:max-w-lg text-lg sm:text-xl text-[#8a8f98] leading-relaxed mb-10 lg:mb-12 mx-auto lg:mx-0 animate-fade-up-delay-2">
-              Describe what you want to build. Apple Juice generates production-ready Luau code and injects it directly into Roblox Studio — no copy-pasting, no context switching.
+            <p className="max-w-xl lg:max-w-lg text-base sm:text-lg text-[#8a8f98] leading-relaxed mb-8 lg:mb-10 mx-auto lg:mx-0 animate-fade-up-delay-2">
+              Describe what you want to build. Apple Juice generates Luau code and injects it directly into Studio — no copy-pasting required.
             </p>
 
             {/* Lemonade-style Buttons */}
@@ -212,7 +212,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               >
                 <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.25)_30%,rgba(204,255,0,0.25)_40%,transparent_50%)] bg-[length:200%_auto]" />
                 <span className="relative z-10 flex items-center gap-2">
-                  Start Prototyping
+                  Get Started
                   <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </span>
               </button>
@@ -241,7 +241,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               {/* Content */}
               <div className="flex flex-col xl:flex-row">
                 {/* Code panel */}
-                <div className="flex-1 p-4 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden h-[250px] overflow-y-auto custom-scrollbar">
+                <div className="flex-1 p-4 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden h-[220px] overflow-y-auto custom-scrollbar">
                   <AnimatePresence mode="wait">
                     <motion.pre
                       key={activeScriptIndex}
@@ -307,86 +307,86 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       <section id="features" className="px-6 pb-20">
         <div className="max-w-[1100px] mx-auto">
           {/* Section label */}
-          <div className="text-center mb-12">
-            <p className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#ccff00] mb-3">
+          <div className="text-center mb-10">
+            <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-[#ccff00] mb-2">
               Why Apple Juice
             </p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-              Engineering-Grade. Zero Friction.
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Zero Friction.
             </h2>
           </div>
 
           {/* Feature cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
             {/* Card 1 */}
             <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
-                <Brain className="h-4 w-4 md:h-5 md:w-5 text-white/80" />
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
+                <Brain className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" />
               </div>
-              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Chain-of-Thought</h3>
-              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
-                Enable Thinking Mode and the model reasons through your feature step-by-step before writing code. Results in smarter Luau that requires fewer manual fixes.
+              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Chain-of-Thought</h3>
+              <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
+                Enable Thinking Mode and the model reasons through your feature step-by-step.
               </p>
             </div>
 
             {/* Card 2 */}
             <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
-                <Layers className="h-4 w-4 md:h-5 md:w-5 text-white/80" />
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
+                <Layers className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" />
               </div>
-              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Multi-File Output</h3>
-              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
-                Generate interconnected systems. Orchestrate ModuleScripts, ServerScripts, and LocalScripts simultaneously into the correct Explorer locations instantly.
+              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Multi-File Output</h3>
+              <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
+                Generate interconnected systems across multiple scripts simultaneously.
               </p>
             </div>
 
             {/* Card 3 */}
             <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
-                <RefreshCw className="h-4 w-4 md:h-5 md:w-5 text-white/80" />
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
+                <RefreshCw className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" />
               </div>
-              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Self-Healing Debug</h3>
-              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
-                Apple Juice streams Studio errors. When an exception is detected, the AI directly proposes a targeted fix, cutting your debugging time down to zero.
+              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Self-Healing Debug</h3>
+              <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
+                Apple Juice streams Studio errors and the AI directly proposes targeted fixes.
               </p>
             </div>
 
             {/* Card 4 */}
             <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-[50px] group-hover:bg-blue-500/10 transition-colors" />
-              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               </div>
-              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Zero-Latency Sync</h3>
-              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
-                A highly optimized plugin maintains a fast WebSocket connection. Code materializes in your Explorer the millisecond it's generated.
+              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Zero-Latency Sync</h3>
+              <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
+                A highly optimized plugin maintains a fast WebSocket connection.
               </p>
             </div>
 
             {/* Card 5 */}
             <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-[50px] group-hover:bg-red-500/10 transition-colors" />
-              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
               </div>
-              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Context-Aware AI</h3>
-              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
-                Let Apple Juice read your project tree. The model uses your entire existing codebase as context for consistent stylistic patterns.
+              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Context-Aware AI</h3>
+              <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
+                The model uses your entire existing codebase as context for consistent logic.
               </p>
             </div>
 
             {/* Card 6 */}
             <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-[50px] group-hover:bg-purple-500/10 transition-colors" />
-              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
-              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Secure & Private</h3>
-              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
-                Your API keys are stored exclusively in your browser and interact directly with OpenAI or Google. Our servers act only as a transparent proxy.
+              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Secure & Private</h3>
+              <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
+                Your API keys are stored exclusively in your browser for absolute privacy.
               </p>
             </div>
           </div>
@@ -396,12 +396,12 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       {/* ━━━ FAQ ━━━ */}
       <section id="faq" className="px-6 pb-20">
         <div className="max-w-[700px] mx-auto">
-          <div className="text-center mb-10">
-            <p className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98] mb-3">
+          <div className="text-center mb-8">
+            <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-[#8a8f98] mb-2">
               FAQ
             </p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              Frequently Asked Questions
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              Questions?
             </h2>
           </div>
 

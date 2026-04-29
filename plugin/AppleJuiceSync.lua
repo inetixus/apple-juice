@@ -472,6 +472,23 @@ local function injectSingleScript(scriptData)
 		return true, "Stop playtest action received.", nil
 	end
 
+	if action == "execute_luau" then
+		local codeToRun = scriptData.code or ""
+		if codeToRun == "" then return false, "No code provided for execution", nil end
+		
+		local ok, err = pcall(function()
+			local fn = loadstring(codeToRun)
+			if not fn then error("Failed to compile Luau code") end
+			fn()
+		end)
+		
+		if ok then
+			return true, "Executed Luau successfully.", nil
+		else
+			return false, "Execution Error: " .. tostring(err), nil
+		end
+	end
+
 	if action == "rename_instance" then
 		local oldPath = scriptData.oldPath
 		local newName = scriptData.newName
