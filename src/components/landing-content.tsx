@@ -89,9 +89,9 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
     <div className="border-b border-white/5">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between py-6 text-left group"
+        className="flex w-full items-center justify-between py-4 text-left group"
       >
-        <span className="text-[15px] font-medium text-white/90 group-hover:text-white transition-colors">
+        <span className="text-sm font-medium text-white/90 group-hover:text-white transition-colors">
           {question}
         </span>
         <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -104,7 +104,7 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
         transition={{ duration: 0.25 }}
         className="overflow-hidden"
       >
-        <p className="pb-6 text-sm leading-relaxed text-white/40 max-w-2xl">{answer}</p>
+        <p className="pb-4 text-sm leading-relaxed text-white/40 max-w-2xl">{answer}</p>
       </motion.div>
     </div>
   );
@@ -168,7 +168,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </nav>
 
       {/* ━━━ HERO & TERMINAL ━━━ */}
-      <section className="relative pt-40 lg:pt-52 pb-32 px-6 lg:px-12 xl:px-20 z-10">
+      <section className="relative pt-32 lg:pt-40 pb-20 px-6 lg:px-12 xl:px-20 z-10">
         {/* Deep background glow */}
         <div className="absolute top-[-10%] lg:top-0 left-1/2 lg:left-[20%] -translate-x-1/2 w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-[150px] pointer-events-none animate-blob-drift" />
 
@@ -237,15 +237,15 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               {/* Content */}
               <div className="flex flex-col xl:flex-row">
                 {/* Code panel */}
-                <div className="flex-1 p-5 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden min-h-[400px]">
+                <div className="flex-1 p-4 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden h-[250px] overflow-y-auto custom-scrollbar">
                   <AnimatePresence mode="wait">
                     <motion.pre
                       key={activeScriptIndex}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.3 }}
-                      className="font-mono text-[12px] xl:text-[13px] leading-[1.8]"
+                      exit={{ opacity: 0, y: -5 }}
+                      transition={{ duration: 0.2 }}
+                      className="font-mono text-[10px] xl:text-[11px] leading-relaxed"
                     >
                       <Highlight
                         theme={luauTheme}
@@ -269,15 +269,15 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 </div>
 
                 {/* File list panel */}
-                <div className="w-full xl:w-64 p-5 space-y-3 bg-[#050505] flex-shrink-0">
-                  <p className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98] mb-5">
+                <div className="w-full xl:w-56 p-3 space-y-2 bg-[#050505] flex-shrink-0">
+                  <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-[#8a8f98] mb-3 ml-1">
                     Generated Files
                   </p>
                   {MULTI_SCRIPTS.map((s, i) => (
                     <div
                       key={i}
                       onClick={() => setActiveScriptIndex(i)}
-                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 cursor-pointer ${
+                      className={`flex items-center justify-between p-2.5 rounded-lg border transition-all duration-300 cursor-pointer ${
                         activeScriptIndex === i 
                           ? 'bg-white/10 border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.1)]' 
                           : 'bg-[#0a0a0a] border-white/10 hover:border-white/20'
@@ -300,88 +300,88 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </section>
 
       {/* ━━━ FEATURES ━━━ */}
-      <section id="features" className="px-6 pb-40">
+      <section id="features" className="px-6 pb-20">
         <div className="max-w-[1100px] mx-auto">
           {/* Section label */}
-          <div className="text-center mb-20">
-            <p className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#ccff00] mb-4">
+          <div className="text-center mb-12">
+            <p className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#ccff00] mb-3">
               Why Apple Juice
             </p>
-            <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
               Engineering-Grade. Zero Friction.
             </h2>
           </div>
 
           {/* Feature cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Card 1 */}
-            <div className="group p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
-                <Brain className="h-6 w-6 text-white/80" />
+              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
+                <Brain className="h-5 w-5 text-white/80" />
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Chain-of-Thought Reasoning</h3>
-              <p className="text-[#8a8f98] leading-relaxed">
+              <h3 className="text-lg font-bold mb-2 text-white">Chain-of-Thought Reasoning</h3>
+              <p className="text-sm text-[#8a8f98] leading-relaxed">
                 Enable Thinking Mode and the model reasons through your feature step-by-step before writing a single line of code. Complex systems get a thorough first-principles analysis, resulting in smarter, more robust Luau that requires fewer manual fixes.
               </p>
             </div>
 
             {/* Card 2 */}
-            <div className="group p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
-                <Layers className="h-6 w-6 text-white/80" />
+              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
+                <Layers className="h-5 w-5 text-white/80" />
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Multi-File Architecture</h3>
-              <p className="text-[#8a8f98] leading-relaxed">
+              <h3 className="text-lg font-bold mb-2 text-white">Multi-File Architecture</h3>
+              <p className="text-sm text-[#8a8f98] leading-relaxed">
                 Generate entire interconnected systems in one shot. Apple Juice can orchestrate ModuleScripts, ServerScripts, and LocalScripts simultaneously — wiring them together with remote events and placing them into the correct Explorer locations instantly.
               </p>
             </div>
 
             {/* Card 3 */}
-            <div className="group p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
-                <RefreshCw className="h-6 w-6 text-white/80" />
+              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
+                <RefreshCw className="h-5 w-5 text-white/80" />
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Self-Healing Debug Loop</h3>
-              <p className="text-[#8a8f98] leading-relaxed">
+              <h3 className="text-lg font-bold mb-2 text-white">Self-Healing Debug Loop</h3>
+              <p className="text-sm text-[#8a8f98] leading-relaxed">
                 Apple Juice streams your Roblox console output in real time. When a runtime error or exception is detected, the AI automatically analyzes the stack trace and directly proposes a targeted fix, cutting your debugging time down to zero.
               </p>
             </div>
 
             {/* Card 4 */}
-            <div className="group p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-[50px] group-hover:bg-blue-500/10 transition-colors" />
-              <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
-                <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Zero-Latency Studio Sync</h3>
-              <p className="text-[#8a8f98] leading-relaxed">
+              <h3 className="text-lg font-bold mb-2 text-white">Zero-Latency Studio Sync</h3>
+              <p className="text-sm text-[#8a8f98] leading-relaxed">
                 A highly optimized Studio plugin maintains a persistent, lightning-fast WebSocket connection to your web session. The code materializes in your Explorer tree the exact millisecond the language model finishes generation — completely eliminating clipboard copying.
               </p>
             </div>
 
             {/* Card 5 */}
-            <div className="group p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-[50px] group-hover:bg-red-500/10 transition-colors" />
-              <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
-                <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Context-Aware Generation</h3>
-              <p className="text-[#8a8f98] leading-relaxed">
+              <h3 className="text-lg font-bold mb-2 text-white">Context-Aware Generation</h3>
+              <p className="text-sm text-[#8a8f98] leading-relaxed">
                 Upload existing scripts directly or let Apple Juice dynamically read your current project tree. The model uses your entire existing codebase as context, ensuring that generated components match your naming conventions, stylistic patterns, and game architecture.
               </p>
             </div>
 
             {/* Card 6 */}
-            <div className="group p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-[50px] group-hover:bg-purple-500/10 transition-colors" />
-              <div className="h-12 w-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10">
-                <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
+                <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-white">Secure by Architecture</h3>
-              <p className="text-[#8a8f98] leading-relaxed">
+              <h3 className="text-lg font-bold mb-2 text-white">Secure by Architecture</h3>
+              <p className="text-sm text-[#8a8f98] leading-relaxed">
                 Your AI provider API keys are stored exclusively in your browser's local memory and interact directly with OpenAI or Google. Our servers act only as a transparent proxy. Furthermore, authentication leverages the official, robust Roblox OAuth 2.0 API.
               </p>
             </div>
@@ -390,10 +390,10 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </section>
 
       {/* ━━━ FAQ ━━━ */}
-      <section id="faq" className="px-6 pb-40">
+      <section id="faq" className="px-6 pb-20">
         <div className="max-w-[700px] mx-auto">
-          <div className="text-center mb-16">
-            <p className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98] mb-4">
+          <div className="text-center mb-10">
+            <p className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98] mb-3">
               FAQ
             </p>
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
@@ -401,7 +401,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </h2>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] px-8">
+          <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] px-6">
             {FAQ_ITEMS.map((item, i) => (
               <FaqItem key={i} question={item.question} answer={item.answer} />
             ))}
@@ -410,16 +410,16 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </section>
 
       {/* ━━━ BOTTOM CTA ━━━ */}
-      <section className="px-6 pb-40">
-        <div className="max-w-[800px] mx-auto text-center p-16 rounded-[2rem] bg-[#0a0a0a] border border-white/10 relative overflow-hidden">
+      <section className="px-6 pb-24">
+        <div className="max-w-[800px] mx-auto text-center p-10 lg:p-12 rounded-[2rem] bg-[#0a0a0a] border border-white/10 relative overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-red-600/10 rounded-full blur-[100px] pointer-events-none" />
           
           <div className="relative z-10">
-            <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-6">
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
               Ship your next feature tonight.
             </h2>
-            <p className="text-lg text-[#8a8f98] mb-10 max-w-xl mx-auto">
-              Join Roblox developers who go from idea to working Luau code in minutes. <br/> <strong className="text-white mt-2 block">Ready to ditch the credits? Bring your own API key and get zero limits.</strong>
+            <p className="text-[15px] text-[#8a8f98] mb-8 max-w-xl mx-auto">
+              Join Roblox developers who go from idea to working Luau code in minutes. <br/> <strong className="text-white mt-1 block">Ready to ditch the credits? Bring your own API key and get zero limits.</strong>
             </p>
             
             <button
