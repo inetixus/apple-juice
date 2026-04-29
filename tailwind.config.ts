@@ -5,6 +5,10 @@ const config: Config = {
   content: ["./src/app/**/*.{js,ts,jsx,tsx,mdx}", "./src/components/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
+      fontFamily: {
+        inter: ["var(--font-inter)"],
+        space: ["var(--font-space)"],
+      },
       animation: {
         shine: "shine 4s linear infinite",
         wave: "wave 3s linear infinite",
