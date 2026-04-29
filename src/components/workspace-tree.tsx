@@ -338,13 +338,15 @@ const INDENT = 16; // Roblox indent is roughly 16px
 const ROW_H = 22;  // Roblox row height is ~22px
 
 function TreeItem({
-  node, onInsert, isLast, parentIsLasts, selectedPaths, setSelectedPaths, onRename, onDelete, renamingPath, setRenamingPath,
+  node, onInsert, isLast, parentIsLasts, selectedPaths, onRename, onDelete, renamingPath, setRenamingPath, onSelect,
 }: {
   node: TreeNode;
   onInsert: (parentPath: string, className: string, name: string) => void;
   isLast: boolean;
   parentIsLasts: boolean[];
   selectedPaths: string[];
+  onRename?: (path: string, newName: string) => void;
+  onDelete?: (path: string, name: string) => void;
   renamingPath: string | null;
   setRenamingPath: (path: string | null) => void;
   onSelect: (path: string, isShift: boolean, isCtrl: boolean) => void;
