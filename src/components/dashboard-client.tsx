@@ -976,10 +976,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       )}
 
       {/* SIDEBAR */}
-      <div className={`fixed md:static inset-y-0 left-0 z-[60] w-[260px] md:w-[220px] flex-shrink-0 border-r border-white/[0.04] bg-[#1e1f24] flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
+      <div className={`fixed md:static inset-y-0 left-0 z-[60] w-[260px] md:w-[220px] flex-shrink-0 border-r border-white/[0.04] bg-[#16191f] flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="p-5 space-y-6 overflow-y-auto flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]">
+            <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00]">
               <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor">
                 <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
                 <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
@@ -1005,14 +1005,14 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 window.localStorage.removeItem("apple-juice-chat-history");
               }
             }}
-            className="w-full bg-white text-black font-semibold py-2 rounded-lg hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-[13px] shadow-sm"
+            className="w-full bg-white text-black font-semibold py-2 rounded-xl hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-[13px]"
           >
             + New Project
           </button>
 
           <div>
             <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-3">Projects</span>
-            <div className="text-sm text-white/90 cursor-pointer py-1.5 flex items-center gap-2 bg-white/5 px-3 -mx-3 rounded-lg truncate">
+            <div className="text-sm text-white/90 cursor-pointer py-1.5 flex items-center gap-2 bg-white/5 px-3 -mx-3 rounded-xl truncate">
               {projectName}
             </div>
           </div>
@@ -1037,7 +1037,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           {sessionKey && (
             <button
               onClick={copyShareLink}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.04] text-[11px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.04] text-[11px] text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-all"
             >
               <Share2 className="h-3 w-3" />
               <span>Share Session</span>
@@ -1079,7 +1079,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     setTimeout(() => submitPrompt(promptText), 500);
                     setSelectedTreePaths([]);
                   }}
-                  className="w-full bg-[#ccff00] text-black font-bold py-2 rounded-lg hover:bg-[#d4ff33] transition-colors flex items-center justify-center gap-2 text-[13px] shadow-sm mt-2"
+                  className="w-full bg-[#ccff00] text-black font-bold py-2 rounded-xl hover:bg-[#d4ff33] transition-colors flex items-center justify-center gap-2 text-[13px]"
                 >
                   <Sparkles className="w-4 h-4" />
                   Fix Bugs ({selectedTreePaths.length})
@@ -1108,18 +1108,18 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             </div>
             <span className="text-white/30">&rsaquo;</span>
           </button>
-          <button className="w-full text-white/30 hover:text-white py-1.5 rounded-lg text-[11px] transition-colors" onClick={() => signOut({ callbackUrl: "/" })}>
+          <button className="w-full text-white/30 hover:text-white py-1.5 rounded-xl text-[11px] transition-colors" onClick={() => signOut({ callbackUrl: "/" })}>
             Sign Out
           </button>
         </div>
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col h-full bg-[#1c1d21] relative overflow-hidden pt-14 md:pt-0">
+      <div className="flex-1 flex flex-col h-full bg-[#0A0C10] relative overflow-hidden pt-14 md:pt-0">
         {/* Top Right Header */}
         <header className="absolute top-14 md:top-0 right-0 p-3 md:p-6 flex items-center gap-2 md:gap-4 z-40 pointer-events-none w-full justify-end">
           <div className="pointer-events-auto flex items-center gap-2 md:gap-4">
-            <div className="hidden md:block bg-[#10b981] text-white font-bold px-4 py-2 rounded-full text-xs shadow-lg shadow-[#10b981]/20 cursor-pointer hover:bg-[#0ea5e9] hover:shadow-[#0ea5e9]/20 transition-all">
+            <div className="hidden md:block bg-[#10b981] text-white font-bold px-4 py-2 rounded-xl text-xs cursor-pointer hover:bg-[#0ea5e9] transition-all">
               Store Purchases
             </div>
             {/* Profile avatar with dropdown */}
@@ -1132,7 +1132,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 )}
               </button>
               {showProfileMenu && (
-                <div className="absolute right-0 top-11 w-48 bg-[#111113] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-[100]">
+                <div className="absolute right-0 top-11 w-48 bg-[#16191f] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-[100]">
                   <div className="px-4 py-3 border-b border-white/5">
                     <p className="text-sm font-semibold text-white truncate">{username}</p>
                     <p className="text-[10px] text-white/30">Roblox Developer</p>
@@ -1170,16 +1170,16 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             /* EMPTY STATE BACKGROUND */
             <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center z-0">
               <div className="relative w-full max-w-5xl h-[600px] flex items-center justify-center">
-                <div className="absolute top-[15%] left-[5%] w-48 h-32 bg-[#2a2c33]/80 rounded-xl opacity-40 rotate-[-8deg] blur-[2px] shadow-2xl overflow-hidden border border-white/5">
+                <div className="absolute top-[15%] left-[5%] w-48 h-32 bg-[#16191f]/80 rounded-xl opacity-40 rotate-[-8deg] blur-[2px] overflow-hidden border border-white/5">
                   <div className="w-full h-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 mix-blend-overlay"></div>
                 </div>
-                <div className="absolute top-[20%] right-[10%] w-56 h-36 bg-[#2a2c33]/80 rounded-xl opacity-50 rotate-[6deg] blur-[1px] shadow-2xl overflow-hidden border border-white/5">
+                <div className="absolute top-[20%] right-[10%] w-56 h-36 bg-[#16191f]/80 rounded-xl opacity-50 rotate-[6deg] blur-[1px] overflow-hidden border border-white/5">
                   <div className="w-full h-full bg-gradient-to-bl from-[#ccff00]/10 to-transparent mix-blend-overlay"></div>
                 </div>
-                <div className="absolute bottom-[20%] left-[15%] w-40 h-28 bg-[#2a2c33]/80 rounded-xl opacity-30 rotate-[12deg] blur-[3px] shadow-2xl overflow-hidden border border-white/5">
+                <div className="absolute bottom-[20%] left-[15%] w-40 h-28 bg-[#16191f]/80 rounded-xl opacity-30 rotate-[12deg] blur-[3px] overflow-hidden border border-white/5">
                   <div className="w-full h-full bg-gradient-to-tr from-sky-500/10 to-transparent mix-blend-overlay"></div>
                 </div>
-                <div className="absolute bottom-[15%] right-[20%] w-64 h-40 bg-[#2a2c33]/80 rounded-xl opacity-60 rotate-[-4deg] shadow-2xl overflow-hidden border border-white/5">
+                <div className="absolute bottom-[15%] right-[20%] w-64 h-40 bg-[#16191f]/80 rounded-xl opacity-60 rotate-[-4deg] overflow-hidden border border-white/5">
                   <div className="w-full h-full bg-gradient-to-tl from-emerald-500/10 to-transparent mix-blend-overlay"></div>
                 </div>
               </div>
@@ -1192,9 +1192,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               <div className="space-y-4">
                 {messages.filter(m => showDebug || !m.isHidden).map((message) => (
                   <div key={message.id} className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${message.role == 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-2xl text-[14px] leading-relaxed ${message.role == 'user'
-                        ? 'bg-white/[0.08] text-white border border-white/[0.12] rounded-br-sm'
-                        : 'bg-transparent text-white border border-white/[0.07] rounded-bl-sm bg-gradient-to-b from-white/[0.03] to-white/[0.01] shadow-lg'
+                    <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-xl text-[14px] leading-relaxed ${message.role == 'user'
+                        ? 'bg-[#ccff00] text-black font-semibold'
+                        : 'bg-[#16191f] text-white border border-white/10'
                       }`}>
                       {message.isHidden && (
                         <div className="mb-2 px-2 py-0.5 rounded bg-violet-500/10 border border-violet-500/20 text-[9px] text-violet-300 uppercase font-bold tracking-widest flex items-center gap-1.5 self-start">
@@ -1206,7 +1206,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         {message.attachments && message.attachments.length > 0 && (
                           <div className="flex flex-wrap gap-2">
                             {message.attachments.map((a, i) => (
-                              <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-[11px] text-white/40">
+                              <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[11px] text-white/40">
                                 <Paperclip className="h-2.5 w-2.5" />
                                 {a.name}
                               </span>
@@ -1215,7 +1215,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         )}
 
                         {message.attachedAsset && (
-                          <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/5 border border-purple-500/20 text-[11px] text-white/90 shadow-sm shadow-purple-500/5 mb-2">
+                          <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white/5 border border-purple-500/20 text-[11px] text-white/90 mb-2">
                             <img src={message.attachedAsset.thumbnail} className="w-5 h-5 rounded object-cover" />
                             <span className="truncate max-w-[150px]">{message.attachedAsset.name}</span>
                           </div>
@@ -1227,8 +1227,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
                         {message.thinking && (
                           <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-500">
-                            <details className="group bg-gradient-to-br from-violet-500/[0.05] to-fuchsia-500/[0.05] border border-violet-500/10 rounded-2xl overflow-hidden shadow-lg shadow-violet-500/5">
-                              <summary className="cursor-pointer text-[12px] font-bold text-violet-300/80 hover:text-violet-200 hover:bg-violet-500/10 transition-all flex items-center justify-between px-4 py-3 select-none list-none [&::-webkit-details-marker]:hidden group-open:border-b border-violet-500/10">
+                            <details className="group bg-[#0A0C10] border border-white/10 rounded-xl overflow-hidden">
+                              <summary className="cursor-pointer text-[12px] font-bold text-violet-300/80 hover:text-violet-200 hover:bg-white/5 transition-all flex items-center justify-between px-4 py-3 select-none list-none [&::-webkit-details-marker]:hidden border-b border-white/5">
                                 <div className="flex items-center gap-3">
                                   <div className="p-1.5 rounded-lg bg-violet-500/20 text-violet-400 group-open:animate-pulse">
                                     <Brain className="h-4 w-4" />
@@ -1239,14 +1239,14 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                   <span className="text-[9px] font-mono opacity-40 uppercase">
                                     {message.thinking.length > 500 ? "Deep Analysis" : "Detailed"}
                                   </span>
-                                  <div className="w-5 h-5 rounded-full flex items-center justify-center bg-violet-500/10 group-open:rotate-180 transition-transform duration-300">
+                                  <div className="w-5 h-5 rounded-full flex items-center justify-center bg-white/5 group-open:rotate-180 transition-transform duration-300">
                                     <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg" className="stroke-violet-400/60" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                       <path d="M1 1L5 5L9 1" />
                                     </svg>
                                   </div>
                                 </div>
                               </summary>
-                              <div className="p-5 text-[13px] leading-relaxed text-white/60 whitespace-pre-wrap bg-black/40 font-medium selection:bg-violet-500/30 selection:text-white backdrop-blur-md">
+                              <div className="p-5 text-[13px] leading-relaxed text-white/60 whitespace-pre-wrap bg-[#16191f] font-medium selection:bg-violet-500/30 selection:text-white backdrop-blur-md">
                                 {message.thinking}
                                 <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-2 text-[10px] text-white/20 italic">
                                   <Sparkles className="h-3 w-3" />
@@ -1277,7 +1277,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                               {message.suggestions.map((sugg, i) => (
                                 <button
                                   key={i}
-                                  className="text-[12px] px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
+                                  className="text-[12px] px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
                                   onClick={() => setPrompt(sugg)}
                                 >
                                   {sugg}
@@ -1290,7 +1290,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         {message.pendingSync && (
                           <div className="mt-4 pt-3 border-t border-[#ccff00]/20 flex justify-end">
                             <button
-                              className="bg-[#ccff00] text-black font-bold px-5 py-2 rounded-lg text-[13px] shadow-[0_0_15px_rgba(204,255,0,0.3)] hover:bg-[#d4ff33] transition-all"
+                              className="bg-[#ccff00] text-black font-bold px-5 py-2 rounded-xl text-[13px] hover:bg-[#d4ff33] transition-all"
                               onClick={async () => {
                                 showToast("Accepting changes...", "info");
                                 const res = await fetch("/api/accept-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionKey }) });
@@ -1318,23 +1318,23 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         </div>
 
         {/* The Universal Input Bar wrapper */}
-        <div className={`transition-all duration-700 ease-in-out ${messages.length == 0 ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4 z-30 bg-transparent" : "absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#1c1d21] via-[#1c1d21] to-transparent pt-12 pb-6 px-4 flex justify-center z-20"}`}>
+        <div className={`transition-all duration-700 ease-in-out ${messages.length == 0 ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4 z-30 bg-transparent" : "absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#0A0C10] via-[#0A0C10] to-transparent pt-12 pb-6 px-4 flex justify-center z-20"}`}>
 
           <div className="w-full flex flex-col items-center">
             {messages.length == 0 && (
               <div className="text-center mb-6">
-                <h1 className="text-[32px] md:text-[42px] font-medium tracking-tight text-white drop-shadow-xl leading-tight">
-                  Describe a <span className="font-serif italic text-white/80">game mechanic...</span>
+                <h1 className="text-[32px] md:text-[42px] font-black uppercase tracking-tight text-white leading-tight">
+                  DESCRIBE A <span className="text-[#ccff00]">GAME MECHANIC</span>
                 </h1>
               </div>
             )}
 
-            <div className={`w-full ${messages.length == 0 ? "bg-[#2b2d31]/90 backdrop-blur-xl shadow-2xl" : "max-w-4xl bg-[#26282d]"} border border-white/[0.05] rounded-2xl p-3`}>
+            <div className={`w-full ${messages.length == 0 ? "bg-[#16191f] border border-white/10" : "max-w-4xl bg-[#16191f] border border-white/10"} rounded-xl p-3`}>
               <div className="w-full space-y-3">
                 {attachedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {attachedAsset && (
-                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/[0.06] border border-purple-500/30 text-[11px] text-white/90 shadow-sm shadow-purple-500/10">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-xl bg-white/[0.06] border border-purple-500/30 text-[11px] text-white/90">
                         <img src={attachedAsset.thumbnail} className="w-4 h-4 rounded-sm object-cover" />
                         <span className="truncate max-w-[120px]">{attachedAsset.name}</span>
                         <button onClick={() => setAttachedAsset(null)} className="ml-0.5 text-white/40 hover:text-white transition-colors">
@@ -1343,7 +1343,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       </span>
                     )}
                     {attachedFiles.map((f, i) => (
-                      <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/[0.12] text-[11px] text-white/80">
+                      <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.06] border border-white/[0.12] text-[11px] text-white/80">
                         <Paperclip className="h-2.5 w-2.5" />
                         {f.name}
                         <button onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx != i))} className="ml-0.5 hover:text-white transition-colors">
@@ -1419,7 +1419,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
                   {atMenu.visible && (
                     <div
-                      className="fixed z-[200] w-64 bg-[#111113] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
+                      className="fixed z-[200] w-64 bg-[#16191f] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
                       style={{ left: atMenu.x, top: atMenu.y - (Math.min(projectTree.filter(f => f.toLowerCase().includes(atMenu.filter.toLowerCase())).length, 5) * 40) }}
                     >
                       <div className="px-3 py-2 border-b border-white/5 bg-white/5">
