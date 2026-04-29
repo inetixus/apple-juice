@@ -101,10 +101,10 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
       <motion.div
         initial={false}
         animate={{ height: isOpen ? "auto" : 0, opacity: isOpen ? 1 : 0 }}
-        transition={{ duration: 0.25 }}
+        transition={{ duration: 0.15 }}
         className="overflow-hidden"
       >
-        <p className="pb-4 text-sm leading-relaxed text-white/40 max-w-2xl">{answer}</p>
+        <p className="pb-4 text-sm leading-relaxed text-white/70 max-w-2xl">{answer}</p>
       </motion.div>
     </div>
   );
@@ -140,9 +140,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
   return (
     <div className="min-h-screen bg-[#060a12] text-white selection:bg-[#ccff00] selection:text-black relative overflow-hidden font-sans">
       {/* ━━━ PREMIUM GRADIENT BACKGROUND ━━━ */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(30,58,138,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(153,27,27,0.1),transparent_40%)] pointer-events-none z-0" />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none z-0" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#060a12] via-transparent to-[#0a0e1a] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,0.4),transparent_60%),radial-gradient(circle_at_bottom_left,rgba(220,38,38,0.2),transparent_60%),radial-gradient(circle_at_center,rgba(29,78,216,0.15),transparent_80%)] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#060a12] via-[#080c16] to-[#0a0e1a] pointer-events-none z-0" />
 
       {/* ━━━ NAVBAR ━━━ */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex justify-center py-4 px-6`}>
@@ -197,7 +197,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             {/* Headline */}
             <h1 className="text-[40px] sm:text-[60px] md:text-[85px] font-black leading-[0.9] tracking-[-0.04em] mb-8 animate-fade-up-delay-1 text-white">
               The Open-Source <br /> 
-              <span className="font-space italic bg-gradient-to-r from-red-500 via-orange-500 to-red-600 bg-clip-text text-transparent">AI Code Tool</span> <br /> 
+              <span className="font-space italic bg-gradient-to-r from-red-500 via-orange-500 to-red-600 bg-clip-text text-transparent px-2">AI Code Tool</span> <br /> 
               for Roblox.
             </h1>
 
@@ -235,14 +235,14 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
 
               <div className="flex flex-col xl:flex-row">
-                <div className="flex-1 p-4 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden h-[220px] overflow-y-auto">
+                <div className="flex-1 p-4 border-b xl:border-b-0 xl:border-r border-white/10 overflow-hidden h-[300px] min-h-[300px] overflow-y-auto bg-[#0a0e1a]/50">
                   <AnimatePresence mode="wait">
                     <motion.pre
                       key={activeScriptIndex}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
-                      transition={{ duration: 0.2 }}
+                      initial={{ opacity: 0, x: 20, y: 10 }}
+                      animate={{ opacity: 1, x: 0, y: 0 }}
+                      exit={{ opacity: 0, x: -20, y: -10 }}
+                      transition={{ duration: 0.15 }}
                       className="font-mono text-[10px] xl:text-[11px] leading-relaxed"
                     >
                       <Highlight
@@ -363,12 +363,12 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </div>
 
             {/* Card 6 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-200 relative overflow-hidden flex flex-col">
               <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
               <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Secure & Private</h3>
-              <p className="text-[9px] md:text-sm text-white/70 leading-relaxed">
+              <p className="text-[9px] md:text-sm text-white/80 leading-relaxed">
                 Your API keys are stored exclusively in your browser for absolute privacy.
               </p>
             </div>
@@ -385,7 +385,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </h2>
           </div>
 
-          <div className="rounded-xl border border-white/10 bg-[#16191f] px-6">
+          <div className="rounded-xl border border-white/10 bg-[#0f141f] px-6">
             {FAQ_ITEMS.map((item, i) => (
               <FaqItem key={i} question={item.question} answer={item.answer} />
             ))}
@@ -395,12 +395,12 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
       {/* ━━━ BOTTOM CTA ━━━ */}
       <section className="px-6 pb-24">
-        <div className="max-w-[800px] mx-auto text-center p-10 lg:p-12 rounded-[2rem] bg-[#16191f] border border-white/10 relative overflow-hidden">
+        <div className="max-w-[800px] mx-auto text-center p-10 lg:p-12 rounded-[2rem] bg-[#0f141f] border border-white/10 relative overflow-hidden">
           <div className="relative z-10">
             <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-[-0.02em] mb-4">
               Ship your next feature tonight.
             </h2>
-            <p className="text-[15px] text-[#8a8f98] mb-8 max-w-xl mx-auto">
+            <p className="text-[15px] text-white/70 mb-8 max-w-xl mx-auto font-medium">
               Join Roblox developers who go from idea to working Luau code in minutes. <br/> <strong className="text-white mt-1 block">Ready to ditch the credits? Bring your own API key and get zero limits.</strong>
             </p>
             
@@ -416,10 +416,10 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </section>
 
       {/* ━━━ FOOTER ━━━ */}
-      <footer className="border-t border-white/10 px-6 py-12 bg-[#090a0d]">
+      <footer className="border-t border-white/10 px-6 py-12 bg-[#060a12]">
         <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className="h-7 w-7 rounded-lg bg-[#ccff00] flex items-center justify-center">
+            <div className="h-7 w-7 rounded-lg bg-[#ccff00] flex items-center justify-center shadow-[0_0_15px_rgba(204,255,0,0.4)]">
               <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor">
                 <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
                 <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
@@ -429,21 +429,18 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-black tracking-widest uppercase text-white">Apple Juice</span>
-              <span className="text-[10px] text-[#8a8f98]/60 mt-1">Made from developers to developers</span>
+              <span className="text-[10px] text-white/50 mt-1 uppercase tracking-tighter font-medium">Made from developers to developers</span>
             </div>
           </div>
           
           <div className="flex items-center gap-6">
-            <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Twitter</a>
-            <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">GitHub</a>
-            <a href="#" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Discord</a>
-            <a href="mailto:info@apple-juice.online" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Support</a>
-            <a href="/tos" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Terms</a>
-            <a href="/privacy" className="text-sm text-[#8a8f98] hover:text-white transition-colors">Privacy</a>
-            <a href="/eula" className="text-sm text-[#8a8f98] hover:text-white transition-colors">EULA</a>
+            <a href="#" className="text-sm text-white/60 hover:text-[#ccff00] transition-colors">Twitter</a>
+            <a href="#" className="text-sm text-white/60 hover:text-[#ccff00] transition-colors">GitHub</a>
+            <a href="#" className="text-sm text-white/60 hover:text-[#ccff00] transition-colors">Discord</a>
+            <a href="mailto:info@apple-juice.online" className="text-sm text-white/60 hover:text-[#ccff00] transition-colors">Support</a>
           </div>
 
-          <p className="text-[11px] text-[#8a8f98] text-center md:text-right max-w-xs">
+          <p className="text-[11px] text-white/40 text-center md:text-right max-w-xs">
             Independent open-source project. Not affiliated with or endorsed by Roblox Corporation. Roblox® is a trademark of Roblox Corporation.
           </p>
         </div>
