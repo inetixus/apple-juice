@@ -131,17 +131,16 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#05050a] text-white selection:bg-blue-500 selection:text-white relative overflow-hidden">
-      {/* ━━━ BACKGROUND GRID & AMBIENT GRADIENTS ━━━ */}
-      <div className="absolute inset-0 bg-[url('https://res.cloudinary.com/dbuzl20eu/image/upload/v1691456100/grid_wqvngf.png')] bg-[length:32px_32px] opacity-[0.03] pointer-events-none z-0" />
-      <div className="fixed top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-blue-600/50 blur-[200px] pointer-events-none z-0 mix-blend-screen animate-blob-drift" />
-      <div className="fixed bottom-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full bg-red-600/50 blur-[200px] pointer-events-none z-0 mix-blend-screen animate-blob-drift-reverse" />
+    <div className="min-h-screen bg-[#000000] text-white selection:bg-[#ccff00] selection:text-black relative overflow-hidden font-sans">
+      {/* ━━━ MINIMALIST GRID BACKGROUND ━━━ */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#000000]/50 to-[#000000] pointer-events-none z-0" />
 
       {/* ━━━ NAVBAR ━━━ */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#05050a]/50 backdrop-blur-md border-b border-white/10">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
         <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-12 xl:px-20 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-[#ccff00] flex items-center justify-center shadow-[0_0_15px_rgba(204,255,0,0.3)]">
+            <div className="h-10 w-10 rounded-none bg-[#ccff00] flex items-center justify-center">
               <svg viewBox="0 0 24 24" className="h-6 w-6 text-black" fill="currentColor">
                 <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
                 <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
@@ -149,7 +148,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
               </svg>
             </div>
-            <span className="text-lg md:text-xl font-black tracking-[0.2em] uppercase font-sans text-white drop-shadow-md">Apple Juice</span>
+            <span className="text-lg md:text-xl font-black tracking-[0.2em] uppercase font-sans text-white">Apple Juice</span>
           </div>
 
           <div className="hidden md:flex items-center gap-10">
@@ -160,7 +159,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
           <button
             onClick={() => session ? window.location.href = "/dashboard" : setShowAuthGuide(true)}
-            className="h-10 px-6 rounded-xl bg-white text-black text-sm font-bold hover:bg-zinc-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+            className="h-10 px-6 rounded-none bg-white text-black text-sm font-bold uppercase tracking-wider hover:bg-[#ccff00] transition-colors"
           >
             {session ? "Dashboard" : "Sign In"}
           </button>
@@ -169,29 +168,25 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
       {/* ━━━ HERO & TERMINAL ━━━ */}
       <section className="relative pt-32 lg:pt-40 pb-20 px-6 lg:px-12 xl:px-20 z-10">
-        {/* Deep background glow */}
-        <div className="absolute top-[-10%] lg:top-0 left-1/2 lg:left-[20%] -translate-x-1/2 w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-[150px] pointer-events-none animate-blob-drift" />
 
         <div className="w-full max-w-[1600px] mx-auto relative z-10 flex flex-col lg:flex-row items-center justify-between gap-16 xl:gap-24">
           
           {/* Hero Content */}
           <div className="flex-1 text-center lg:text-left flex flex-col items-center lg:items-start">
             {/* Eyebrow */}
-            <div className="inline-flex flex-col sm:flex-row items-center gap-3 px-4 py-2 rounded-2xl border border-white/10 bg-[#0a0a0a] mb-8 lg:mb-10 shadow-[0_0_20px_rgba(204,255,0,0.05)] animate-fade-up">
+            <div className="inline-flex flex-col sm:flex-row items-center gap-3 px-4 py-2 rounded-none border border-white/10 bg-black mb-8 lg:mb-10 animate-fade-up">
               <div className="flex items-center">
-                <Sparkles className="h-3.5 w-3.5 text-[#ccff00] mr-2" />
+                <Sparkles className="h-3 w-3 text-[#ccff00] mr-2" />
                 <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98]">
                   Open Source · Free Forever · Roblox OAuth 2.0
                 </span>
               </div>
-              <div className="hidden sm:block h-3 w-[1px] bg-white/10" />
-              <span className="text-[10px] font-medium text-[#ccff00] italic">Made from developers to developers</span>
             </div>
 
             {/* Headline */}
-            <h1 className="text-4xl sm:text-6xl lg:text-[4rem] xl:text-[4.5rem] font-extrabold tracking-[-0.04em] leading-[1.1] text-white mb-6 lg:mb-8 animate-fade-up-delay">
+            <h1 className="text-4xl sm:text-6xl lg:text-[4rem] xl:text-[4.5rem] font-black tracking-[-0.02em] uppercase leading-[1] text-white mb-6 lg:mb-8 animate-fade-up-delay">
               The AI Code Studio <br />
-              for <span className="font-serif italic font-medium text-[#ccff00]">Roblox</span>.
+              for <span className="text-[#ccff00]">Roblox</span>.
             </h1>
 
             {/* Subtext */}
@@ -199,27 +194,18 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               Describe what you want to build. Apple Juice generates Luau code and injects it directly into Studio — no copy-pasting required.
             </p>
 
-            {/* Lemonade-style Buttons */}
-            <div className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto animate-fade-up-delay-2">
-              {/* Primary Shine Button */}
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto animate-fade-up-delay-2">
               <button
-                onClick={() => session ? window.location.href = "/dashboard" : signIn("", { callbackUrl: "/dashboard" })}
-                className="relative inline-flex h-14 w-full sm:w-auto items-center justify-center px-10 py-2 font-bold text-white transition-all rounded-xl bg-[#101317] border border-white/10 hover:border-white/20 hover:shadow-[0_0_30px_rgba(204,255,0,0.1)] group overflow-hidden"
-                style={{
-                  backgroundImage: 'linear-gradient(110deg, #101317 40%, rgba(204, 255, 0, 0.15) 50%, #101317 60%)',
-                  backgroundSize: '200% auto',
-                }}
+                onClick={() => session ? window.location.href = "/dashboard" : setShowAuthGuide(true)}
+                className="h-14 w-full sm:w-auto px-10 bg-[#ccff00] text-black font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 hover:bg-[#b3e600] transition-colors border border-transparent"
               >
-                <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.25)_30%,rgba(204,255,0,0.25)_40%,transparent_50%)] bg-[length:200%_auto]" />
-                <span className="relative z-10 flex items-center gap-2">
-                  Get Started
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </span>
+                Get Started
+                <ArrowRight className="h-4 w-4" />
               </button>
 
-              {/* Secondary Link Button */}
-              <button className="h-14 px-8 text-sm font-semibold text-[#8a8f98] hover:text-white transition-colors flex items-center justify-center gap-2 w-full sm:w-auto">
-                Watch Demo <span className="text-lg leading-none">→</span>
+              <button className="h-14 w-full sm:w-auto px-10 bg-transparent text-white font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 hover:bg-white/5 transition-colors border border-white/20">
+                Watch Demo
               </button>
             </div>
           </div>
@@ -227,7 +213,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           {/* Terminal Mockup (Hidden on mobile) */}
           <div id="terminal" className="hidden md:block flex-1 w-full max-w-2xl lg:max-w-none">
             {/* macOS-style window chrome */}
-            <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-black/50 overflow-hidden relative z-10">
+            <div className="rounded-none border border-white/20 bg-black overflow-hidden relative z-10">
               {/* Title bar */}
               <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#0a0a0a]">
                 <div className="flex gap-1.5">
@@ -281,10 +267,10 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                     <div
                       key={i}
                       onClick={() => setActiveScriptIndex(i)}
-                      className={`flex items-center justify-between p-2.5 rounded-lg border transition-all duration-300 cursor-pointer ${
+                      className={`flex items-center justify-between p-2.5 rounded-none border transition-all duration-300 cursor-pointer ${
                         activeScriptIndex === i 
-                          ? 'bg-white/10 border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.1)]' 
-                          : 'bg-[#0a0a0a] border-white/10 hover:border-white/20'
+                          ? 'bg-white/10 border-white/50' 
+                          : 'bg-black border-transparent hover:border-white/20'
                       }`}
                     >
                       <div className="truncate pr-2">
@@ -311,7 +297,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-[#ccff00] mb-2">
               Why Apple Juice
             </p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-[-0.02em] text-white">
               Zero Friction.
             </h2>
           </div>
@@ -319,72 +306,66 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           {/* Feature cards */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
             {/* Card 1 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
-                <Brain className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" />
+            <div className="group p-4 md:p-6 rounded-none bg-black border border-white/10 hover:border-[#ccff00] transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-none bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
+                <Brain className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" />
               </div>
-              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Chain-of-Thought</h3>
+              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Chain-of-Thought</h3>
               <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
                 Enable Thinking Mode and the model reasons through your feature step-by-step.
               </p>
             </div>
 
             {/* Card 2 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
-                <Layers className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" />
+            <div className="group p-4 md:p-6 rounded-none bg-black border border-white/10 hover:border-[#ccff00] transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-none bg-white flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
+                <Layers className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" />
               </div>
-              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Multi-File Output</h3>
+              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Multi-File Output</h3>
               <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
                 Generate interconnected systems across multiple scripts simultaneously.
               </p>
             </div>
 
             {/* Card 3 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
-                <RefreshCw className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" />
+            <div className="group p-4 md:p-6 rounded-none bg-black border border-white/10 hover:border-[#ccff00] transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-none bg-white flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
+                <RefreshCw className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" />
               </div>
-              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Self-Healing Debug</h3>
+              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Self-Healing Debug</h3>
               <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
                 Apple Juice streams Studio errors and the AI directly proposes targeted fixes.
               </p>
             </div>
 
             {/* Card 4 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-[50px] group-hover:bg-blue-500/10 transition-colors" />
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <div className="group p-4 md:p-6 rounded-none bg-black border border-white/10 hover:border-[#ccff00] transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-none bg-white flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               </div>
-              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Zero-Latency Sync</h3>
+              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Zero-Latency Sync</h3>
               <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
                 A highly optimized plugin maintains a fast WebSocket connection.
               </p>
             </div>
 
             {/* Card 5 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-[50px] group-hover:bg-red-500/10 transition-colors" />
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            <div className="group p-4 md:p-6 rounded-none bg-black border border-white/10 hover:border-[#ccff00] transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-none bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
               </div>
-              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Context-Aware AI</h3>
+              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Context-Aware AI</h3>
               <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
                 The model uses your entire existing codebase as context for consistent logic.
               </p>
             </div>
 
             {/* Card 6 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-[50px] group-hover:bg-purple-500/10 transition-colors" />
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-2 md:mb-4 relative z-10 flex-shrink-0">
-                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <div className="group p-4 md:p-6 rounded-none bg-black border border-white/10 hover:border-[#ccff00] transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-none bg-white flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
-              <h3 className="text-[12px] md:text-lg font-bold mb-1 md:mb-2 text-white leading-tight">Secure & Private</h3>
+              <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Secure & Private</h3>
               <p className="text-[9px] md:text-sm text-[#8a8f98] leading-relaxed">
                 Your API keys are stored exclusively in your browser for absolute privacy.
               </p>
@@ -397,15 +378,12 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       <section id="faq" className="px-6 pb-20">
         <div className="max-w-[700px] mx-auto">
           <div className="text-center mb-8">
-            <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-[#8a8f98] mb-2">
-              FAQ
-            </p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-[-0.02em] text-white">
               Questions?
             </h2>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] px-6">
+          <div className="rounded-none border border-white/10 bg-black px-6">
             {FAQ_ITEMS.map((item, i) => (
               <FaqItem key={i} question={item.question} answer={item.answer} />
             ))}
@@ -415,11 +393,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
 
       {/* ━━━ BOTTOM CTA ━━━ */}
       <section className="px-6 pb-24">
-        <div className="max-w-[800px] mx-auto text-center p-10 lg:p-12 rounded-[2rem] bg-[#0a0a0a] border border-white/10 relative overflow-hidden">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-red-600/10 rounded-full blur-[100px] pointer-events-none" />
-          
+        <div className="max-w-[800px] mx-auto text-center p-10 lg:p-12 rounded-none bg-black border border-white/10 relative overflow-hidden">
           <div className="relative z-10">
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
+            <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-[-0.02em] mb-4">
               Ship your next feature tonight.
             </h2>
             <p className="text-[15px] text-[#8a8f98] mb-8 max-w-xl mx-auto">
@@ -427,18 +403,11 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </p>
             
             <button
-              onClick={() => session ? window.location.href = "/dashboard" : signIn("", { callbackUrl: "/dashboard" })}
-              className="relative inline-flex h-14 items-center justify-center px-10 py-2 font-bold text-white transition-all rounded-xl bg-[#101317] border border-white/10 hover:border-white/20 hover:shadow-[0_0_30px_rgba(204,255,0,0.1)] group overflow-hidden"
-              style={{
-                backgroundImage: 'linear-gradient(110deg, #101317 40%, rgba(204, 255, 0, 0.15) 50%, #101317 60%)',
-                backgroundSize: '200% auto',
-              }}
+              onClick={() => session ? window.location.href = "/dashboard" : setShowAuthGuide(true)}
+              className="h-14 w-full sm:w-auto px-10 bg-[#ccff00] text-black font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 hover:bg-[#b3e600] transition-colors border border-transparent mx-auto"
             >
-              <div className="absolute inset-0 w-full h-full animate-shine bg-[linear-gradient(110deg,transparent_20%,rgba(204,255,0,0.25)_30%,rgba(204,255,0,0.25)_40%,transparent_50%)] bg-[length:200%_auto]" />
-              <span className="relative z-10 flex items-center gap-2">
-                Start Building for Free
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </span>
+              Start Building for Free
+              <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -457,7 +426,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </svg>
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-black tracking-[0.1em] font-serif italic text-[#8a8f98]">Apple Juice</span>
+              <span className="text-lg font-black tracking-widest uppercase text-white">Apple Juice</span>
               <span className="text-[10px] text-[#8a8f98]/60 mt-1">Made from developers to developers</span>
             </div>
           </div>
