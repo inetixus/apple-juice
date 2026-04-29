@@ -163,7 +163,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             <span className="text-base md:text-xl font-black tracking-[0.15em] md:tracking-[0.25em] uppercase text-white">Apple Juice</span>
           </div>
 
-          <div className="hidden md:flex items-center gap-12">
+          <div className={`hidden md:flex items-center transition-all duration-300 ${
+            scrolled ? "gap-10 bg-black/60 border border-white/5 px-8 py-2.5 rounded-2xl shadow-inner" : "gap-12 px-0 py-0"
+          }`}>
             <a href="#features" className="text-xs font-bold uppercase tracking-widest text-white hover:text-[#ccff00] transition-colors">Features</a>
             <a href="#terminal" className="text-xs font-bold uppercase tracking-widest text-white hover:text-[#ccff00] transition-colors">Demo</a>
             <a href="#faq" className="text-xs font-bold uppercase tracking-widest text-white hover:text-[#ccff00] transition-colors">FAQ</a>
