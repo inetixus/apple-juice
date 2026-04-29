@@ -455,7 +455,7 @@ function TreeItem({
         onContextMenu={e => {
           e.preventDefault();
           if (!selectedPaths.includes(node.fullPath)) {
-            setSelectedPaths([node.fullPath]);
+            onSelect(node.fullPath, false, false);
           }
           setShowContextMenu(true);
         }}
