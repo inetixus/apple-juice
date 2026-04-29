@@ -1115,7 +1115,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col h-full bg-[#0A0C10] relative overflow-hidden pt-14 md:pt-0">
+      <div className="flex-1 flex flex-col h-full bg-[#111318] relative overflow-hidden pt-14 md:pt-0">
         {/* Top Right Header */}
         <header className="absolute top-14 md:top-0 right-0 p-3 md:p-6 flex items-center gap-2 md:gap-4 z-40 pointer-events-none w-full justify-end">
           <div className="pointer-events-auto flex items-center gap-2 md:gap-4">
@@ -1193,8 +1193,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 {messages.filter(m => showDebug || !m.isHidden).map((message) => (
                   <div key={message.id} className={`flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300 ${message.role == 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] sm:max-w-[72%] px-4 py-3.5 rounded-xl text-[14px] leading-relaxed ${message.role == 'user'
-                        ? 'bg-[#ccff00] text-black font-semibold'
-                        : 'bg-[#16191f] text-white border border-white/10'
+                        ? 'bg-[#1a1d24] text-white border border-[#ccff00]/30'
+                        : 'bg-[#1a1d24] text-white border border-white/10'
                       }`}>
                       {message.isHidden && (
                         <div className="mb-2 px-2 py-0.5 rounded bg-violet-500/10 border border-violet-500/20 text-[9px] text-violet-300 uppercase font-bold tracking-widest flex items-center gap-1.5 self-start">
@@ -1227,7 +1227,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
                         {message.thinking && (
                           <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-500">
-                            <details className="group bg-[#0A0C10] border border-white/10 rounded-xl overflow-hidden">
+                            <details className="group bg-[#111318] border border-white/10 rounded-xl overflow-hidden">
                               <summary className="cursor-pointer text-[12px] font-bold text-violet-300/80 hover:text-violet-200 hover:bg-white/5 transition-all flex items-center justify-between px-4 py-3 select-none list-none [&::-webkit-details-marker]:hidden border-b border-white/5">
                                 <div className="flex items-center gap-3">
                                   <div className="p-1.5 rounded-lg bg-violet-500/20 text-violet-400 group-open:animate-pulse">
@@ -1318,7 +1318,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         </div>
 
         {/* The Universal Input Bar wrapper */}
-        <div className={`transition-all duration-700 ease-in-out ${messages.length == 0 ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4 z-30 bg-transparent" : "absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#0A0C10] via-[#0A0C10] to-transparent pt-12 pb-6 px-4 flex justify-center z-20"}`}>
+        <div className={`transition-all duration-700 ease-in-out ${messages.length == 0 ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4 z-30 bg-transparent" : "absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#111318] via-[#111318] to-transparent pt-12 pb-6 px-4 flex justify-center z-20"}`}>
 
           <div className="w-full flex flex-col items-center">
             {messages.length == 0 && (
@@ -1329,7 +1329,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               </div>
             )}
 
-            <div className={`w-full ${messages.length == 0 ? "bg-[#16191f] border border-white/10" : "max-w-4xl bg-[#16191f] border border-white/10"} rounded-xl p-3`}>
+            <div className={`w-full ${messages.length == 0 ? "bg-[#1a1d24] border border-white/10" : "max-w-4xl bg-[#1a1d24] border border-white/10"} rounded-xl p-3`}>
               <div className="w-full space-y-3">
                 {attachedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">

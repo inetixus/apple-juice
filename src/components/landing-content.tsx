@@ -131,13 +131,13 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0A0C10] text-white selection:bg-[#ccff00] selection:text-black relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-[#111318] text-white selection:bg-[#ccff00] selection:text-black relative overflow-hidden font-sans">
       {/* ━━━ MINIMALIST GRID BACKGROUND ━━━ */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none z-0" />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0A0C10]/50 to-[#0A0C10] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#111318]/50 to-[#111318] pointer-events-none z-0" />
 
       {/* ━━━ NAVBAR ━━━ */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0A0C10]/80 backdrop-blur-md border-b border-white/10">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#111318]/80 backdrop-blur-md border-b border-white/10">
         <div className="w-full max-w-[1600px] mx-auto px-6 lg:px-12 xl:px-20 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 rounded-xl bg-[#ccff00] flex items-center justify-center">
@@ -213,7 +213,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           {/* Terminal Mockup (Hidden on mobile) */}
           <div id="terminal" className="hidden md:block flex-1 w-full max-w-2xl lg:max-w-none">
             {/* macOS-style window chrome */}
-            <div className="rounded-2xl border border-white/10 bg-[#16191f] overflow-hidden relative z-10 shadow-2xl shadow-black/50">
+            <div className="rounded-2xl border border-white/10 bg-[#1a1d24] overflow-hidden relative z-10 shadow-2xl shadow-black/50">
               {/* Title bar */}
               <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-[#0a0a0a]">
                 <div className="flex gap-1.5">
@@ -305,7 +305,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           {/* Feature cards */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
             {/* Card 1 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#16191f] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#1a1d24] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
                 <Brain className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" />
               </div>
@@ -316,7 +316,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </div>
 
             {/* Card 2 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#16191f] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#1a1d24] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-white flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
                 <Layers className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" />
               </div>
@@ -327,7 +327,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </div>
 
             {/* Card 3 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#16191f] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#1a1d24] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-white flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
                 <RefreshCw className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" />
               </div>
@@ -338,7 +338,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </div>
 
             {/* Card 4 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#16191f] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#1a1d24] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-white flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               </div>
@@ -349,8 +349,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </div>
 
             {/* Card 5 */}
-            <div className="group p-4 md:p-6 rounded-none bg-black border border-white/10 hover:border-[#ccff00] transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-7 w-7 md:h-10 md:w-10 rounded-none bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#1a1d24] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
+              <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
               </div>
               <h3 className="text-[12px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Context-Aware AI</h3>
@@ -360,7 +360,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </div>
 
             {/* Card 6 */}
-            <div className="group p-4 md:p-6 rounded-2xl bg-[#16191f] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#1a1d24] border border-white/10 hover:border-[#ccff00]/50 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="h-7 w-7 md:h-10 md:w-10 rounded-xl bg-white flex items-center justify-center mb-2 md:mb-4 flex-shrink-0">
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
@@ -471,7 +471,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               
               <div className="space-y-6">
                 {/* Section 1 */}
-                <div className="bg-[#16191f] border border-white/5 rounded-xl p-6">
+                <div className="bg-[#1a1d24] border border-white/5 rounded-xl p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
                       <span className="text-blue-400 font-bold">1</span>
@@ -498,7 +498,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 </div>
 
                 {/* Section 2 */}
-                <div className="bg-[#16191f] border border-white/5 rounded-xl p-6">
+                <div className="bg-[#1a1d24] border border-white/5 rounded-xl p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="h-8 w-8 rounded-full bg-[#ccff00]/10 flex items-center justify-center border border-[#ccff00]/20">
                       <span className="text-[#ccff00] font-bold">2</span>
@@ -525,7 +525,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 </div>
 
                 {/* Step 3 — Next Steps */}
-                <div className="bg-[#16191f] border border-white/5 rounded-xl p-6">
+                <div className="bg-[#1a1d24] border border-white/5 rounded-xl p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="h-8 w-8 rounded-full bg-[#090a0d] flex items-center justify-center border border-white/10">
                       <span className="text-white/60 font-bold">3</span>
