@@ -945,9 +945,14 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   }, [sessionKey, showToast]);
 
   return (
-    <main className="h-screen bg-[#24262b] text-white flex overflow-hidden font-sans relative">
+    <main className="h-screen bg-[#060a12] text-white flex overflow-hidden font-sans relative">
+      {/* ━━━ PREMIUM FIXED GRADIENT BACKGROUND ━━━ */}
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(29,78,216,0.25),transparent_60%),radial-gradient(circle_at_15%_85%,rgba(37,99,235,0.15),transparent_50%),radial-gradient(circle_at_center,rgba(30,58,138,0.1),transparent_70%)] pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-gradient-to-b from-transparent via-[#080c16]/30 to-[#0a0e1a]/90 pointer-events-none z-0" />
+
       {/* Mobile Header */}
-      <div className="md:hidden absolute top-0 left-0 right-0 h-14 bg-[#1e1f24] border-b border-white/[0.04] flex items-center justify-between px-4 z-[50]">
+      <div className="md:hidden absolute top-0 left-0 right-0 h-14 bg-[#0b101b]/90 backdrop-blur-xl border-b border-white/[0.04] flex items-center justify-between px-4 z-[50]">
         <div className="flex items-center gap-2">
             <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00] shadow-[0_0_10px_rgba(204,255,0,0.2)]">
               <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor">
@@ -976,7 +981,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       )}
 
       {/* SIDEBAR */}
-      <div className={`fixed md:static inset-y-0 left-0 z-[60] w-[260px] md:w-[220px] flex-shrink-0 border-r border-white/[0.04] bg-[#16191f] flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
+      <div className={`fixed md:static inset-y-0 left-0 z-[60] w-[260px] md:w-[220px] flex-shrink-0 border-r border-white/[0.04] bg-[#080c16]/80 backdrop-blur-xl flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="p-5 space-y-6 overflow-y-auto flex-1">
           <div className="flex items-center gap-2 mb-2">
             <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00]">
@@ -1115,7 +1120,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       </div>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 flex flex-col h-full bg-[#111318] relative overflow-hidden pt-14 md:pt-0">
+      <div className="flex-1 flex flex-col h-full bg-transparent relative overflow-hidden pt-14 md:pt-0">
         {/* Top Right Header */}
         <header className="absolute top-14 md:top-0 right-0 p-3 md:p-6 flex items-center gap-2 md:gap-4 z-40 pointer-events-none w-full justify-end">
           <div className="pointer-events-auto flex items-center gap-2 md:gap-4">
@@ -1132,7 +1137,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 )}
               </button>
               {showProfileMenu && (
-                <div className="absolute right-0 top-11 w-48 bg-[#16191f] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-[100]">
+                <div className="absolute right-0 top-11 w-48 bg-[#0b101b]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-[100]">
                   <div className="px-4 py-3 border-b border-white/5">
                     <p className="text-sm font-semibold text-white truncate">{username}</p>
                     <p className="text-[10px] text-white/30">Roblox Developer</p>
@@ -1318,7 +1323,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         </div>
 
         {/* The Universal Input Bar wrapper */}
-        <div className={`transition-all duration-700 ease-in-out ${messages.length == 0 ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4 z-30 bg-transparent" : "absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#111318] via-[#111318] to-transparent pt-12 pb-6 px-4 flex justify-center z-20"}`}>
+        <div className={`transition-all duration-700 ease-in-out ${messages.length == 0 ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4 z-30 bg-transparent" : "absolute bottom-0 left-0 w-full bg-gradient-to-t from-[#0a0e1a] via-[#0a0e1a]/95 to-transparent pt-12 pb-6 px-4 flex justify-center z-20"}`}>
 
           <div className="w-full flex flex-col items-center">
             {messages.length == 0 && (
