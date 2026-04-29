@@ -177,11 +177,15 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           {/* Hero Content */}
           <div className="flex-1 text-center lg:text-left flex flex-col items-center lg:items-start">
             {/* Eyebrow */}
-            <div className="inline-flex items-center px-4 py-2 rounded-full border border-white/10 bg-[#0a0a0a] mb-8 lg:mb-10 shadow-[0_0_20px_rgba(204,255,0,0.05)] animate-fade-up">
-              <Sparkles className="h-3.5 w-3.5 text-[#ccff00] mr-2" />
-              <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98]">
-                Open Source · Free Forever · Roblox OAuth 2.0
-              </span>
+            <div className="inline-flex flex-col sm:flex-row items-center gap-3 px-4 py-2 rounded-2xl border border-white/10 bg-[#0a0a0a] mb-8 lg:mb-10 shadow-[0_0_20px_rgba(204,255,0,0.05)] animate-fade-up">
+              <div className="flex items-center">
+                <Sparkles className="h-3.5 w-3.5 text-[#ccff00] mr-2" />
+                <span className="text-[10px] tracking-[0.2em] uppercase font-bold text-[#8a8f98]">
+                  Open Source · Free Forever · Roblox OAuth 2.0
+                </span>
+              </div>
+              <div className="hidden sm:block h-3 w-[1px] bg-white/10" />
+              <span className="text-[10px] font-medium text-[#ccff00] italic">Made from developers to developers</span>
             </div>
 
             {/* Headline */}
@@ -220,8 +224,8 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             </div>
           </div>
 
-          {/* Terminal Mockup */}
-          <div id="terminal" className="flex-1 w-full max-w-2xl lg:max-w-none">
+          {/* Terminal Mockup (Hidden on mobile) */}
+          <div id="terminal" className="hidden md:block flex-1 w-full max-w-2xl lg:max-w-none">
             {/* macOS-style window chrome */}
             <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-black/50 overflow-hidden relative z-10">
               {/* Title bar */}
@@ -313,76 +317,76 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
           </div>
 
           {/* Feature cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {/* Card 1 */}
-            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
-                <Brain className="h-5 w-5 text-white/80" />
+              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
+                <Brain className="h-4 w-4 md:h-5 md:w-5 text-white/80" />
               </div>
-              <h3 className="text-lg font-bold mb-2 text-white">Chain-of-Thought Reasoning</h3>
-              <p className="text-sm text-[#8a8f98] leading-relaxed">
-                Enable Thinking Mode and the model reasons through your feature step-by-step before writing a single line of code. Complex systems get a thorough first-principles analysis, resulting in smarter, more robust Luau that requires fewer manual fixes.
+              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Chain-of-Thought</h3>
+              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
+                Enable Thinking Mode and the model reasons through your feature step-by-step before writing code. Results in smarter Luau that requires fewer manual fixes.
               </p>
             </div>
 
             {/* Card 2 */}
-            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
-                <Layers className="h-5 w-5 text-white/80" />
+              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
+                <Layers className="h-4 w-4 md:h-5 md:w-5 text-white/80" />
               </div>
-              <h3 className="text-lg font-bold mb-2 text-white">Multi-File Architecture</h3>
-              <p className="text-sm text-[#8a8f98] leading-relaxed">
-                Generate entire interconnected systems in one shot. Apple Juice can orchestrate ModuleScripts, ServerScripts, and LocalScripts simultaneously — wiring them together with remote events and placing them into the correct Explorer locations instantly.
+              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Multi-File Output</h3>
+              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
+                Generate interconnected systems. Orchestrate ModuleScripts, ServerScripts, and LocalScripts simultaneously into the correct Explorer locations instantly.
               </p>
             </div>
 
             {/* Card 3 */}
-            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[50px] group-hover:bg-white/10 transition-colors" />
-              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
-                <RefreshCw className="h-5 w-5 text-white/80" />
+              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
+                <RefreshCw className="h-4 w-4 md:h-5 md:w-5 text-white/80" />
               </div>
-              <h3 className="text-lg font-bold mb-2 text-white">Self-Healing Debug Loop</h3>
-              <p className="text-sm text-[#8a8f98] leading-relaxed">
-                Apple Juice streams your Roblox console output in real time. When a runtime error or exception is detected, the AI automatically analyzes the stack trace and directly proposes a targeted fix, cutting your debugging time down to zero.
+              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Self-Healing Debug</h3>
+              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
+                Apple Juice streams Studio errors. When an exception is detected, the AI directly proposes a targeted fix, cutting your debugging time down to zero.
               </p>
             </div>
 
             {/* Card 4 */}
-            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-[50px] group-hover:bg-blue-500/10 transition-colors" />
-              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               </div>
-              <h3 className="text-lg font-bold mb-2 text-white">Zero-Latency Studio Sync</h3>
-              <p className="text-sm text-[#8a8f98] leading-relaxed">
-                A highly optimized Studio plugin maintains a persistent, lightning-fast WebSocket connection to your web session. The code materializes in your Explorer tree the exact millisecond the language model finishes generation — completely eliminating clipboard copying.
+              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Zero-Latency Sync</h3>
+              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
+                A highly optimized plugin maintains a fast WebSocket connection. Code materializes in your Explorer the millisecond it's generated.
               </p>
             </div>
 
             {/* Card 5 */}
-            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-[50px] group-hover:bg-red-500/10 transition-colors" />
-              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
               </div>
-              <h3 className="text-lg font-bold mb-2 text-white">Context-Aware Generation</h3>
-              <p className="text-sm text-[#8a8f98] leading-relaxed">
-                Upload existing scripts directly or let Apple Juice dynamically read your current project tree. The model uses your entire existing codebase as context, ensuring that generated components match your naming conventions, stylistic patterns, and game architecture.
+              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Context-Aware AI</h3>
+              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
+                Let Apple Juice read your project tree. The model uses your entire existing codebase as context for consistent stylistic patterns.
               </p>
             </div>
 
             {/* Card 6 */}
-            <div className="group p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden">
+            <div className="group p-4 md:p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-all duration-300 relative overflow-hidden flex flex-col">
               <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full blur-[50px] group-hover:bg-purple-500/10 transition-colors" />
-              <div className="h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 relative z-10">
-                <svg viewBox="0 0 24 24" className="h-5 w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 md:mb-4 relative z-10 flex-shrink-0">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-white/80" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
               </div>
-              <h3 className="text-lg font-bold mb-2 text-white">Secure by Architecture</h3>
-              <p className="text-sm text-[#8a8f98] leading-relaxed">
-                Your AI provider API keys are stored exclusively in your browser's local memory and interact directly with OpenAI or Google. Our servers act only as a transparent proxy. Furthermore, authentication leverages the official, robust Roblox OAuth 2.0 API.
+              <h3 className="text-[13px] md:text-lg font-bold mb-1.5 md:mb-2 text-white leading-tight">Secure & Private</h3>
+              <p className="text-[10px] md:text-sm text-[#8a8f98] leading-relaxed">
+                Your API keys are stored exclusively in your browser and interact directly with OpenAI or Google. Our servers act only as a transparent proxy.
               </p>
             </div>
           </div>
@@ -445,13 +449,17 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
         <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="h-7 w-7 rounded-lg bg-[#ccff00] flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10 2v3" />
-                <rect x="5" y="5" width="14" height="17" rx="3" />
-                <path d="M5 10h14" />
+              <svg viewBox="0 0 24 24" className="h-4 w-4 text-black" fill="currentColor">
+                <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
+                <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
+                <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
               </svg>
             </div>
-            <span className="text-lg font-black tracking-[0.1em] font-serif italic text-[#8a8f98]">Apple Juice</span>
+            <div className="flex flex-col">
+              <span className="text-lg font-black tracking-[0.1em] font-serif italic text-[#8a8f98]">Apple Juice</span>
+              <span className="text-[10px] text-[#8a8f98]/60 mt-1">Made from developers to developers</span>
+            </div>
           </div>
           
           <div className="flex items-center gap-6">

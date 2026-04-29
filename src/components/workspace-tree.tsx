@@ -345,11 +345,9 @@ function TreeItem({
   isLast: boolean;
   parentIsLasts: boolean[];
   selectedPaths: string[];
-  setSelectedPaths: (paths: string[] | ((prev: string[]) => string[])) => void;
-  onRename?: (path: string, newName: string) => void;
-  onDelete?: (path: string, name: string) => void;
   renamingPath: string | null;
   setRenamingPath: (path: string | null) => void;
+  onSelect: (path: string, isShift: boolean, isCtrl: boolean) => void;
 }) {
   const [open, setOpen] = useState(node.depth < 1);
   const [showInsertMenu, setShowInsertMenu] = useState(false);
@@ -446,11 +444,7 @@ function TreeItem({
           outlineOffset: "-1px",
         }}
         onClick={(e) => {
-          if (e.ctrlKey || e.metaKey) {
-            setSelectedPaths(prev => prev.includes(node.fullPath) ? prev.filter(p => p !== node.fullPath) : [...prev, node.fullPath]);
-          } else {
-            setSelectedPaths([node.fullPath]);
-          }
+          onSelect(node.fullPath, e.shiftKey, e.ctrlKey || e.metaKey);
           // Only expand on double click if not renaming
           if (e.detail === 2 && isExpandable && !isRenaming) setOpen(!open);
         }}
@@ -494,11 +488,7 @@ function TreeItem({
             type="checkbox"
             checked={isSelected}
             onChange={(e) => {
-              if (e.target.checked) {
-                setSelectedPaths(prev => [...prev, node.fullPath]);
-              } else {
-                setSelectedPaths(prev => prev.filter(p => p !== node.fullPath));
-              }
+              onSelect(node.fullPath, false, true);
             }}
             onClick={e => e.stopPropagation()}
             style={{ marginRight: "4px", cursor: "pointer", accentColor: "#ccff00" }}
@@ -648,11 +638,11 @@ function TreeItem({
                 isLast={i === node.children.length - 1}
                 parentIsLasts={[...parentIsLasts, isLast]}
                 selectedPaths={selectedPaths}
-                setSelectedPaths={setSelectedPaths}
                 onRename={onRename}
                 onDelete={onDelete}
                 renamingPath={renamingPath}
                 setRenamingPath={setRenamingPath}
+                onSelect={onSelect}
               />
             ))}
           </motion.div>
@@ -678,14 +668,51 @@ export function WorkspaceTree({
   const [filterText, setFilterText] = useState("");
   const [internalSelectedPaths, setInternalSelectedPaths] = useState<string[]>([]);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const lastSelectedPathRef = useRef<string | null>(null);
+
+  const flatPaths = useMemo(() => {
+    const result: string[] = [];
+    const flatten = (nodes: TreeNode[]) => {
+      for (const node of nodes) {
+        result.push(node.fullPath);
+        flatten(node.children);
+      }
+    };
+    flatten(tree);
+    return result;
+  }, [tree]);
 
   const currentSelectedPaths = selectedPaths ?? internalSelectedPaths;
 
-  const handleSelectionChange = useCallback((updater: string[] | ((prev: string[]) => string[])) => {
-    const next = typeof updater === "function" ? updater(currentSelectedPaths) : updater;
+  const handleSelect = useCallback((path: string, isShift: boolean, isCtrl: boolean) => {
+    let next: string[] = [];
+    if (isShift && lastSelectedPathRef.current) {
+      const startIdx = flatPaths.indexOf(lastSelectedPathRef.current);
+      const endIdx = flatPaths.indexOf(path);
+      if (startIdx !== -1 && endIdx !== -1) {
+        const min = Math.min(startIdx, endIdx);
+        const max = Math.max(startIdx, endIdx);
+        const range = flatPaths.slice(min, max + 1);
+        if (isCtrl) {
+          next = Array.from(new Set([...currentSelectedPaths, ...range]));
+        } else {
+          next = range;
+        }
+      } else {
+        next = [path];
+      }
+    } else if (isCtrl) {
+      next = currentSelectedPaths.includes(path) 
+        ? currentSelectedPaths.filter(p => p !== path) 
+        : [...currentSelectedPaths, path];
+    } else {
+      next = [path];
+    }
+    
+    if (!isShift) lastSelectedPathRef.current = path;
     if (!selectedPaths) setInternalSelectedPaths(next);
     if (onSelectionChange) onSelectionChange(next);
-  }, [currentSelectedPaths, selectedPaths, onSelectionChange]);
+  }, [currentSelectedPaths, flatPaths, selectedPaths, onSelectionChange]);
 
   const handleInsert = useCallback(
     (parentPath: string, className: string, name: string) => {
@@ -808,11 +835,11 @@ export function WorkspaceTree({
                 isLast={i === displayTree.length - 1}
                 parentIsLasts={[]}
                 selectedPaths={currentSelectedPaths}
-                setSelectedPaths={handleSelectionChange}
                 onRename={onRename}
                 onDelete={onDelete}
                 renamingPath={renamingPath}
                 setRenamingPath={setRenamingPath}
+                onSelect={handleSelect}
               />
             </motion.div>
           ))}

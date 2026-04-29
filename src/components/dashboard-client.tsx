@@ -87,6 +87,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastPromptRef = useRef<string>("");
   const [autoEnhance, setAutoEnhance] = useState(false);
+  const [autoRetry, setAutoRetry] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   // Feature: Asset search
   const [assetQuery, setAssetQuery] = useState("");
@@ -367,6 +368,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     if (effectiveKey) {
       void loadModels(effectiveKey, savedModel);
     }
+    const savedAutoRetry = window.localStorage.getItem("apple-juice-auto-retry") === "true";
+    setAutoRetry(savedAutoRetry);
+
     void fetchUsage();
   }, []);
 
@@ -794,6 +798,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }
 
       if (detail.includes("503") || detail.includes("high demand") || detail.includes("UNAVAILABLE")) {
+        if (autoRetry && !overridePrompt?.isRetry) {
+          setPluginStatus("AI is busy. Auto-retrying in 3 seconds...");
+          setTimeout(() => {
+            submitPrompt({ ... (typeof overridePrompt === 'string' ? { text: overridePrompt } : overridePrompt || {}), isRetry: true });
+          }, 3000);
+          return;
+        }
         detail = "The AI model is currently experiencing high demand. Please try again in a few moments or switch to a different model in settings.";
       }
 
@@ -914,9 +925,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
                 <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
                 <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
               </svg>
             </div>
-            <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg leading-none">Apple Juice</span>
+            <div className="flex flex-col">
+              <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg leading-none">Apple Juice</span>
+              <span className="text-[8px] text-white/20 mt-0.5 italic leading-none">Made from developers to developers</span>
+            </div>
         </div>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-white/70 hover:text-white p-2 focus:outline-none">
           <Menu className="h-5 w-5" />
@@ -940,11 +955,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
                 <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
                 <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
               </svg>
             </div>
-            <div className="flex items-center gap-2 whitespace-nowrap">
-              <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg leading-none">Apple Juice</span>
-              <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/50 uppercase tracking-widest font-bold leading-none mt-0.5">pre-beta</span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg leading-none">Apple Juice</span>
+                <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/50 uppercase tracking-widest font-bold leading-none mt-0.5">pre-beta</span>
+              </div>
+              <span className="text-[9px] text-white/20 mt-1 italic">Made from developers to developers</span>
             </div>
           </div>
 
@@ -1717,29 +1736,48 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
               </select>
             </div>
 
-            <div className="pt-4 border-t border-white/[0.04]">
-              <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="secret-code-input">
-                Secret Code
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="secret-code-input"
-                  type="text"
-                  value={secretCode}
-                  onChange={(e) => setSecretCode(e.target.value)}
-                  placeholder="Enter code..."
-                  className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleRedeemCode();
+            <div className="pt-4 border-t border-white/[0.04] space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[12px] font-medium text-white/80">Auto-Retry on Traffic</span>
+                  <span className="text-[10px] text-white/30">Automatically retry if AI is busy</span>
+                </div>
+                <button
+                  onClick={() => {
+                    const next = !autoRetry;
+                    setAutoRetry(next);
+                    window.localStorage.setItem("apple-juice-auto-retry", String(next));
                   }}
-                />
-                <button 
-                  onClick={handleRedeemCode} 
-                  disabled={isRedeeming || !secretCode.trim()}
-                  className="px-3 py-1.5 bg-[#ccff00]/10 text-[#ccff00] text-[11px] font-medium rounded-lg hover:bg-[#ccff00]/20 transition-colors disabled:opacity-40"
+                  className={`w-8 h-4 rounded-full relative transition-colors duration-200 ${autoRetry ? 'bg-[#ccff00]' : 'bg-white/10'}`}
                 >
-                  {isRedeeming ? "..." : "Redeem"}
+                  <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${autoRetry ? 'translate-x-4' : 'translate-x-0'}`} />
                 </button>
+              </div>
+
+              <div>
+                <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="secret-code-input">
+                  Secret Code
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    id="secret-code-input"
+                    type="text"
+                    value={secretCode}
+                    onChange={(e) => setSecretCode(e.target.value)}
+                    placeholder="Enter code..."
+                    className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleRedeemCode();
+                    }}
+                  />
+                  <button 
+                    onClick={handleRedeemCode} 
+                    disabled={isRedeeming || !secretCode.trim()}
+                    className="px-3 py-1.5 bg-[#ccff00]/10 text-[#ccff00] text-[11px] font-medium rounded-lg hover:bg-[#ccff00]/20 transition-colors disabled:opacity-40"
+                  >
+                    {isRedeeming ? "..." : "Redeem"}
+                  </button>
+                </div>
               </div>
             </div>
 
