@@ -376,8 +376,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       if (res.ok) {
         const data = await res.json();
         setUsage({
-          usedTokens: data.usedTokens,
-          totalTokens: data.totalTokens,
+          usedTokens: data.usedTokens || 0,
+          totalTokens: data.totalTokens || 50000,
+          usedCredits: data.usedCredits || 0,
+          totalCredits: data.totalCredits || 50,
         });
       }
     } catch {
