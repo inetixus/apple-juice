@@ -2,7 +2,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getProject, getProjectMessages, saveProjectMessages } from "@/lib/store";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -19,7 +20,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   return Response.json({ messages });
 }
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });

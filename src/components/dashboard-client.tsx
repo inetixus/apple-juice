@@ -415,14 +415,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         const data = await res.json();
         const loadedProjects = data.projects || [];
         setProjects(loadedProjects);
-        
-        if (loadedProjects.length === 0) {
-          await createNewProject("My First Project");
-        } else {
-          // Load the most recently active project
-          const lastActive = loadedProjects[0];
-          await switchProject(lastActive);
-        }
+        setActiveProjectId(null); // Explicitly stay in the lobby
       }
     } catch (err) {
       console.error("Failed to load projects", err);
@@ -1404,6 +1397,36 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             </div>
           </div>
         </header>
+        {/* Conditional Rendering: Lobby vs Chat */}
+        {!activeProjectId ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+            <div className="w-24 h-24 mb-6 rounded-3xl bg-gradient-to-br from-[#ccff00]/20 to-transparent border border-[#ccff00]/10 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" className="h-10 w-10 text-[#ccff00]" fill="currentColor">
+                <path d="M5.2 6.5L7.5 3h9l2.3 3.5H5.2z" fillOpacity="0.8" />
+                <path d="M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8H5z" />
+                <path d="M15 3V1.5A1.5 1.5 0 0 0 13.5 0H12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M14.5 14.5c0 1.5-1 2.5-2.5 2.5s-2.5-1-2.5-2.5 1-2.5 2.5-2.5c.3 0 .7.1 1 .2-.3.4-.3 1 0 1.4.3.4.9.4 1.3.1.1.2.2.5.2.8zM12.5 11c0-1-.8-1.5-1.5-1.5 0 1 .8 1.5 1.5 1.5z" fill="#ccff00" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-white mb-3">Welcome to Apple Juice</h1>
+            <p className="text-white/40 max-w-md text-sm leading-relaxed mb-8">
+              Select an existing project from the sidebar to continue your work, or create a new one to start building a new game mechanic.
+            </p>
+            <button
+              onClick={() => {
+                const name = window.prompt("Enter project name:", "New Project");
+                if (name) {
+                  void createNewProject(name);
+                }
+              }}
+              className="bg-[#ccff00] text-black px-6 py-3 rounded-xl font-bold hover:bg-[#d4ff33] transition-colors flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Create New Project
+            </button>
+          </div>
+        ) : (
+          <>
 
         {/* Dynamic Chat Area */}
         <div className="flex-1 overflow-y-auto relative z-10 flex flex-col w-full items-center">
@@ -1930,6 +1953,8 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
           </div>
         )}
       </div>
+      </>
+      )}
       {showSettings && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) setShowSettings(false); }}>
           <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
