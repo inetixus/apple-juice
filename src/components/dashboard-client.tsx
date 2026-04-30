@@ -1195,9 +1195,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             onClick={() => {
               const name = window.prompt("Enter project name:", "New Project");
               if (name) {
-                setProjectName(name);
-                setMessages([]);
-                window.localStorage.removeItem("apple-juice-chat-history");
+                void createNewProject(name);
               }
             }}
             className="w-full bg-white text-black font-semibold py-2 rounded-xl hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-[13px]"
@@ -1205,10 +1203,49 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             + New Project
           </button>
 
-          <div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2">
             <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-3">Projects</span>
-            <div className="text-sm text-white/90 cursor-pointer py-1.5 flex items-center gap-2 bg-white/5 px-3 -mx-3 rounded-xl truncate">
-              {projectName}
+            <div className="space-y-1">
+              {isProjectsLoading ? (
+                <div className="text-[11px] text-white/20 animate-pulse px-3">Loading projects...</div>
+              ) : (
+                projects.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => switchProject(p)}
+                    className={`group relative text-[13px] cursor-pointer py-2 px-3 rounded-xl transition-all flex items-center justify-between ${
+                      activeProjectId === p.id 
+                        ? "bg-white/10 text-white font-medium" 
+                        : "text-white/50 hover:bg-white/[0.03] hover:text-white/80"
+                    }`}
+                  >
+                    <span className="truncate flex-1 pr-2">{p.name}</span>
+                    {activeProjectId === p.id && (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const n = window.prompt("Rename project:", p.name);
+                            if (n) renameProject(p.id, n);
+                          }}
+                          className="p-1 hover:text-white transition-colors"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteProject(p.id);
+                          }}
+                          className="p-1 hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
