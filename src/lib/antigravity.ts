@@ -157,93 +157,86 @@ export async function checkAntigravityBalance(
 
   // 2. Fetch from Antigravity API
   const apiKey = resolveApiKey(mapping);
-  // Use the real internal gateway URL
-  const apiUrl = "https://cloudcode-pa.googleapis.com";
+  // We'll try both possible internal endpoints
+  const endpoints = [
+    "https://antigravity-pa.googleapis.com/v1internal:getUserStatus",
+    "https://cloudcode-pa.googleapis.com/v1internal:getUserStatus"
+  ];
 
-  try {
-    const isGoogleKey = apiKey.startsWith("AIza");
-    const headers: Record<string, string> = {
-      "X-User-Id": mapping.antigravityUserId,
-      "Content-Type": "application/json",
-    };
+  let lastError = "";
 
-    // If we have a per-user OAuth token, use it as Bearer
-    if (accessToken) {
-      headers["Authorization"] = `Bearer ${accessToken}`;
-    } else if (isGoogleKey) {
-      headers["X-Goog-Api-Key"] = apiKey;
-    } else {
-      headers["Authorization"] = `Bearer ${apiKey}`;
-    }
+  for (const endpoint of endpoints) {
+    try {
+      const isGoogleKey = apiKey.startsWith("AIza");
+      const headers: Record<string, string> = {
+        "X-User-Id": mapping.antigravityUserId,
+        "Content-Type": "application/json",
+      };
 
-    console.log(`[Antigravity] Fetching status for ${googleEmail} at ${apiUrl}/v1internal:getUserStatus...`);
-    const res = await fetch(`${apiUrl}/v1internal:getUserStatus`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({}),
-    });
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      } else if (isGoogleKey) {
+        headers["X-Goog-Api-Key"] = apiKey;
+      } else {
+        headers["Authorization"] = `Bearer ${apiKey}`;
+      }
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("Antigravity status check failed:", res.status, errorText);
+      console.log(`[Antigravity] Trying status check at ${endpoint}...`);
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({}),
+      });
 
-      // Return default mock quotas if the internal API is unreachable
-      return {
-        quotas: [
-          { model: "Gemini 3.1 Pro (High)", refreshesIn: "Calculating..." },
-          { model: "Gemini 3.1 Pro (Low)", refreshesIn: "Calculating..." },
-          { model: "Gemini 3 Flash", refreshesIn: "Calculating..." },
-          { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "Calculating..." },
-          { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "Calculating..." },
-          { model: "GPT-OSS 120B (Medium)", refreshesIn: "Calculating..." },
+      if (!res.ok) {
+        lastError = await res.text();
+        console.warn(`[Antigravity] Endpoint ${endpoint} failed:`, res.status, lastError);
+        continue;
+      }
+
+      const data = await res.json();
+      console.log(`[Antigravity] Successfully fetched status from ${endpoint}`);
+      
+      const quotas: AntigravityQuota[] = (data.modelQuotas || data.quotas || []).map((q: any) => ({
+        model: q.modelName || q.displayName || q.id || q.name || "Unknown Model",
+        refreshesIn: q.refreshTime ? formatRefreshTime(q.refreshTime) : "Available",
+      }));
+
+      const balance: AntigravityBalance = {
+        quotas: quotas.length > 0 ? quotas : [
+          { model: "Gemini 3.1 Pro (High)", refreshesIn: "Available" },
+          { model: "Gemini 3.1 Pro (Low)", refreshesIn: "Available" },
+          { model: "Gemini 3 Flash", refreshesIn: "Available" },
+          { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "Available" },
+          { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "Available" },
+          { model: "GPT-OSS 120B (Medium)", refreshesIn: "Available" },
         ],
         checkedAt: Date.now(),
       };
+
+      // 3. Cache and return
+      await redis.set(cacheKey, JSON.stringify(balance));
+      await redis.expire(cacheKey, BALANCE_CACHE_TTL);
+      return balance;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      console.warn(`[Antigravity] Error at ${endpoint}:`, lastError);
     }
-
-    const data = await res.json();
-    
-    // Map the internal getUserStatus response to our UI format
-    // The internal API returns a list of model quotas with refresh times
-    const quotas: AntigravityQuota[] = (data.modelQuotas || []).map((q: any) => ({
-      model: q.modelName || q.id || "Unknown Model",
-      refreshesIn: q.refreshTime ? formatRefreshTime(q.refreshTime) : "Refreshing...",
-    }));
-
-    const balance: AntigravityBalance = {
-      quotas: quotas.length > 0 ? quotas : [
-        { model: "Gemini 3.1 Pro (High)", refreshesIn: "Available" },
-        { model: "Gemini 3.1 Pro (Low)", refreshesIn: "Available" },
-        { model: "Gemini 3 Flash", refreshesIn: "Available" },
-        { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "Available" },
-        { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "Available" },
-        { model: "GPT-OSS 120B (Medium)", refreshesIn: "Available" },
-      ],
-      checkedAt: Date.now(),
-    };
-
-    // 3. Cache the result
-    await redis.set(cacheKey, JSON.stringify(balance));
-    await redis.expire(cacheKey, BALANCE_CACHE_TTL);
-
-    return balance;
-  } catch (err) {
-    console.error(
-      "Antigravity balance fetch error:",
-      err instanceof Error ? err.message : String(err)
-    );
-    return {
-      quotas: [
-        { model: "Gemini 3.1 Pro (High)", refreshesIn: "6 days, 1 hour" },
-        { model: "Gemini 3.1 Pro (Low)", refreshesIn: "6 days, 1 hour" },
-        { model: "Gemini 3 Flash", refreshesIn: "6 days, 0 hour" },
-        { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
-        { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
-        { model: "GPT-OSS 120B (Medium)", refreshesIn: "6 days, 6 hours" },
-      ],
-      checkedAt: Date.now(),
-    };
   }
+
+  // If we reach here, all endpoints failed
+  console.error("[Antigravity] All status check endpoints failed. Last error:", lastError);
+  return {
+    quotas: [
+      { model: "Gemini 3.1 Pro (High)", refreshesIn: accessToken ? "API Error" : "Log out/in required" },
+      { model: "Gemini 3.1 Pro (Low)", refreshesIn: accessToken ? "API Error" : "Log out/in required" },
+      { model: "Gemini 3 Flash", refreshesIn: accessToken ? "API Error" : "Log out/in required" },
+      { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: accessToken ? "API Error" : "Log out/in required" },
+      { model: "Claude Opus 4.6 (Thinking)", refreshesIn: accessToken ? "API Error" : "Log out/in required" },
+      { model: "GPT-OSS 120B (Medium)", refreshesIn: accessToken ? "API Error" : "Log out/in required" },
+    ],
+    checkedAt: Date.now(),
+  };
 }
 
 // ─── API Relay (Chat Completions Proxy) ──────────────────────────────────────

@@ -13,6 +13,15 @@ const GOOGLE_FALLBACK_MODELS = [
   "models/text-bison-001",
 ];
 
+const ANTIGRAVITY_MODELS = [
+  "Gemini 3.1 Pro (High)",
+  "Gemini 3.1 Pro (Low)",
+  "Gemini 3 Flash",
+  "Claude Sonnet 4.6 (Thinking)",
+  "Claude Opus 4.6 (Thinking)",
+  "GPT-OSS 120B (Medium)",
+];
+
 export async function POST(request: Request) {
   const body = (await request.json()) as ModelsBody;
   const apiKey = body.apiKey?.trim() || "";
@@ -23,6 +32,10 @@ export async function POST(request: Request) {
   }
 
   const effectiveApiKey = apiKey || (provider === "google" ? process.env.GOOGLE_API_KEY : process.env.OPENAI_API_KEY) || "";
+
+  if (provider === "antigravity") {
+    return Response.json({ models: ANTIGRAVITY_MODELS });
+  }
 
   if (provider === "google") {
     try {
