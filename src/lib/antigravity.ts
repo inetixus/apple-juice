@@ -243,7 +243,7 @@ function resolveModelId(displayName: string): string {
 export async function relayToAntigravity(
   mapping: AntigravityMapping,
   request: AntigravityChatRequest,
-  accessToken?: string,
+  _accessToken?: string,
   userEmail?: string
 ): Promise<{
   ok: boolean;
