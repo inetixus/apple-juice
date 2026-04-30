@@ -1868,7 +1868,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
 
                 <div className="space-y-4 pt-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-white/50 tracking-widest uppercase">MODEL QUOTA</span>
+                    <span className="text-[10px] font-bold text-white/50 tracking-widest uppercase">YOUR USAGE</span>
                     <button
                       onClick={fetchAntigravityBalance}
                       className="px-3 py-1.5 bg-white/[0.08] text-white hover:bg-white/[0.12] rounded-md text-[11px] font-medium transition-colors"
@@ -1878,32 +1878,40 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   </div>
                   
                   {agBalance ? (
-                    <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-black/20">
-                      {agBalance.quotas.map((quota, i) => (
-                        <div key={i} className="px-4 py-3 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[13px] font-medium text-white/90">{quota.model}</span>
-                            <span className="text-[11px] text-white/40">{quota.refreshesIn}</span>
+                    <div className="space-y-3">
+                      {/* Usage Stats */}
+                      <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-black/20">
+                        {agBalance.quotas.slice(0, 3).map((quota, i) => (
+                          <div key={i} className="px-4 py-3 border-b border-white/[0.04] last:border-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[13px] font-medium text-white/70">{quota.model}</span>
+                              <span className="text-[13px] font-bold text-[#ccff00]">{quota.refreshesIn}</span>
+                            </div>
                           </div>
-                          
-                          {/* Progress bars (visual mockup) */}
-                          <div className="flex gap-1.5 h-1">
-                            <div className="flex-1 bg-white/80 rounded-full" />
-                            <div className="flex-1 bg-white/80 rounded-full" />
-                            <div className="flex-1 bg-white/10 rounded-full" />
-                            <div className="flex-1 bg-white/10 rounded-full" />
-                          </div>
+                        ))}
+                      </div>
+
+                      {/* Available Models */}
+                      <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-black/20">
+                        <div className="px-4 py-2 bg-white/[0.03]">
+                          <span className="text-[10px] font-bold text-white/40 tracking-widest uppercase">AVAILABLE MODELS</span>
                         </div>
-                      ))}
+                        {agBalance.quotas.slice(3).map((quota, i) => (
+                          <div key={i} className="px-4 py-2.5 border-b border-white/[0.04] last:border-0 flex items-center justify-between">
+                            <span className="text-[12px] text-white/80">{quota.model}</span>
+                            <span className="px-2 py-0.5 bg-green-500/10 text-green-400 text-[10px] font-medium rounded-full">{quota.refreshesIn}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div className="border border-white/[0.08] rounded-xl px-4 py-8 text-center bg-black/20">
-                      <p className="text-[12px] text-white/40">Loading quotas...</p>
+                      <p className="text-[12px] text-white/40">Loading usage data...</p>
                     </div>
                   )}
                   
                   <p className="text-[11px] text-white/40 text-center">
-                    Usage is synced with your Google account. Quota refreshes based on your Antigravity plan.
+                    Powered by Google Gemini API. Each user uses their own Google quota.
                   </p>
                 </div>
               </div>

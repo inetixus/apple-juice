@@ -14,12 +14,11 @@ const GOOGLE_FALLBACK_MODELS = [
 ];
 
 const ANTIGRAVITY_MODELS = [
-  "Gemini 3.1 Pro (High)",
-  "Gemini 3.1 Pro (Low)",
+  "Gemini 3.1 Pro",
   "Gemini 3 Flash",
-  "Claude Sonnet 4.6 (Thinking)",
-  "Claude Opus 4.6 (Thinking)",
-  "GPT-OSS 120B (Medium)",
+  "Gemini 2.5 Pro",
+  "Gemini 2.5 Flash",
+  "Gemini 2.0 Flash",
 ];
 
 export async function POST(request: Request) {
