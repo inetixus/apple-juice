@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
   const effectiveApiKey = apiKey || (provider === "google" ? process.env.GOOGLE_API_KEY : process.env.OPENAI_API_KEY) || "";
 
-  if (provider === "antigravity") {
+  if (provider === "apple_juice_ai") {
     return Response.json({ models: ANTIGRAVITY_MODELS });
   }
 

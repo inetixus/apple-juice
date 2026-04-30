@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   // If the user explicitly chose "antigravity", or if they have a linked
   // Antigravity account and aren't using a custom key, route through Antigravity.
   const userEmail = (session?.user as { email?: string } | undefined)?.email || "";
-  const isAntigravityExplicit = provider === "antigravity";
+  const isAntigravityExplicit = provider === "apple_juice_ai";
 
   if (!isUsingCustomKey && !isAntigravityExplicit) {
     effectiveProvider = "google";
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
   }
 
   if (isAntigravityExplicit) {
-    effectiveProvider = "antigravity";
+    effectiveProvider = "apple_juice_ai";
   }
 
   const finalGoogleKey = (effectiveProvider === "google" && clientKey) ? clientKey : systemGoogleKey;
@@ -237,7 +237,11 @@ export async function POST(req: Request) {
 IMPORTANT: Put ALL of your advanced reasoning INSIDE the "thinking" field of the JSON object. Do NOT write any text outside the JSON. Your ENTIRE response must be a single valid JSON object.`
     : "";
 
-  const SYSTEM_PROMPT = `You are an expert Roblox Luau software architect and scripting assistant called Apple Juice.${thinkingInstructions}
+  const SYSTEM_PROMPT = `You are an expert Roblox Luau software architect and scripting assistant called Apple Juice AI.${thinkingInstructions}
+
+## OUTPUT STRUCTURE RULES
+1. **MESSAGE FIRST**: Always provide your friendly explanation/message first.
+2. **CODE AT THE BOTTOM**: Your JSON payload (including all script code) MUST be at the very bottom of your response. Do NOT put any text after the JSON object.
 
 ## WORKFLOW GUIDELINES
 1. **Explore & Analyze**: Use the provided PROJECT STRUCTURE to identify existing frameworks (Knit, Fusion, Roact, Rojo, etc.) and match their coding style.
@@ -399,8 +403,8 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
   let tokensUsed = 0;
   let preambleReasoning: string | undefined = undefined;
 
-  // ── Antigravity Provider Path ──────────────────────────────────────────────
-  if (effectiveProvider === "antigravity") {
+  // ── Apple Juice AI Provider Path ──────────────────────────────────────────
+  if (effectiveProvider === "apple_juice_ai") {
     // 1. Look up identity mapping
     const agMapping = userEmail ? await getAntigravityMapping(userEmail) : null;
     if (!agMapping) {

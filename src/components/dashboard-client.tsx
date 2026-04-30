@@ -48,7 +48,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [projectName, setProjectName] = useState("Active Session");
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [provider, setProvider] = useState<"openai" | "google" | "antigravity">("openai");
+  const [provider, setProvider] = useState<"openai" | "google" | "apple_juice_ai">("openai");
   const [openaiKey, setOpenaiKey] = useState("");
   const [googleKey, setGoogleKey] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
@@ -95,7 +95,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [showAssetSearch, setShowAssetSearch] = useState(false);
   const [isSearchingAssets, setIsSearchingAssets] = useState(false);
   const [attachedAsset, setAttachedAsset] = useState<{ id: number; name: string; thumbnail: string } | null>(null);
-  // Feature: Antigravity integration
+  // Feature: Apple Juice AI integration
   const [agLinked, setAgLinked] = useState(false);
   const [agBalance, setAgBalance] = useState<{ quotas: { model: string; refreshesIn: string }[] } | null>(null);
   // Feature: Live Share
@@ -335,7 +335,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const savedProvider = (window.localStorage.getItem("apple-juice-provider") || "openai") as
       | "openai"
       | "google"
-      | "antigravity";
+      | "apple_juice_ai";
     const savedOpen =
       window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
     const savedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
@@ -1742,7 +1742,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 id="provider-select"
                 value={provider}
                 onChange={(e) => {
-                  const val = e.target.value as "openai" | "google" | "antigravity";
+                  const val = e.target.value as "openai" | "google" | "apple_juice_ai";
                   const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
                   const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
                   setProvider(val);
@@ -1751,18 +1751,19 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   const newKey = val == "google" ? storedGoogle : storedOpen;
                   setApiKey(newKey);
                   window.localStorage.setItem("apple-juice-provider", val);
-                  if (val === "antigravity") {
+                  if (val === "apple_juice_ai") {
                     void fetchAntigravityBalance();
                   }
+                  void loadModels(newKey, undefined, val);
                 }}
                 className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
               >
                 <option value="openai" className="bg-[#13151a]">OpenAI</option>
                 <option value="google" className="bg-[#13151a]">Google AI Studio</option>
-                <option value="antigravity" className="bg-[#13151a]">⚡ Antigravity</option>
+                <option value="apple_juice_ai" className="bg-[#13151a]">⚡ Apple Juice AI</option>
               </select>
             </div>
-            {provider !== "antigravity" && (
+            {provider !== "apple_juice_ai" && (
               <div>
                 <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
                   API Key
