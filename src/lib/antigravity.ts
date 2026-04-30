@@ -260,25 +260,20 @@ export async function relayToAntigravity(
       "Content-Type": "application/json",
     };
 
-    // Prefer per-user OAuth token → fallback to platform API key
-    if (accessToken) {
-      headers["Authorization"] = `Bearer ${accessToken}`;
-    } else {
-      const platformKey = mapping.apiKey || getPlatformApiKey();
-      if (platformKey) {
-        // Use API key as query param instead (Gemini API style)
-        // We'll append it to the URL below
-      }
+    // The Gemini API requires an API key, so we use the platform key
+    // while continuing to track usage per-user internally via Redis.
+    const platformKey = mapping.apiKey || getPlatformApiKey();
+    if (!platformKey) {
+      return {
+        ok: false,
+        error: "Server configuration error: Missing Gemini API Key.",
+        status: 500,
+        tokensUsed: 0,
+      };
     }
-
-    // Build the URL (append API key if no OAuth token)
-    let finalUrl = apiUrl;
-    if (!accessToken) {
-      const platformKey = mapping.apiKey || getPlatformApiKey();
-      if (platformKey) {
-        finalUrl = `${apiUrl}?key=${encodeURIComponent(platformKey)}`;
-      }
-    }
+    
+    // Build the URL (append API key)
+    const finalUrl = `${apiUrl}?key=${encodeURIComponent(platformKey)}`;
 
     // Convert messages to Gemini "contents" format
     // System messages become a systemInstruction
