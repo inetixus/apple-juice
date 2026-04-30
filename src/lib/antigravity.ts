@@ -63,10 +63,8 @@ const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 /** Map display names → Gemini API model IDs */
 const MODEL_ID_MAP: Record<string, string> = {
-  "Gemini 1.5 Pro":       "gemini-1.5-pro",
-  "Gemini 1.5 Flash":     "gemini-1.5-flash",
-  "Gemini 2.0 Flash":     "gemini-2.0-flash-exp",
-  "Gemini Pro":           "gemini-pro",
+  "Gemini 1.5 Pro":       "gemini-1.5-pro-latest",
+  "Gemini 1.5 Flash":     "gemini-1.5-flash-latest",
 };
 
 function getPlatformApiKey(): string {
@@ -208,8 +206,6 @@ export async function checkAntigravityBalance(
       { model: "⏱️ Usage Period", refreshesIn: resetStr },
       { model: "Gemini 1.5 Pro", refreshesIn: "Available" },
       { model: "Gemini 1.5 Flash", refreshesIn: "Available" },
-      { model: "Gemini 2.0 Flash", refreshesIn: "Available" },
-      { model: "Gemini Pro", refreshesIn: "Available" },
     ],
     checkedAt: Date.now(),
   };

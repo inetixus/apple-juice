@@ -16,8 +16,6 @@ const GOOGLE_FALLBACK_MODELS = [
 const ANTIGRAVITY_MODELS = [
   "Gemini 1.5 Pro",
   "Gemini 1.5 Flash",
-  "Gemini 2.0 Flash",
-  "Gemini Pro",
 ];
 
 export async function POST(request: Request) {
