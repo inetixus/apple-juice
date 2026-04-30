@@ -738,10 +738,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   }
 
   async function submitPrompt(overridePrompt?: string | any, isHidden: boolean = false) {
-    const isRetry = typeof overridePrompt === 'object' && overridePrompt?.isRetry;
+    const isRetryObj = typeof overridePrompt === 'object';
+    const retryCount = isRetryObj ? (overridePrompt?.retryCount || 1) : 0;
+    const isRetry = retryCount > 0;
+    
     const targetPrompt = typeof overridePrompt === "string" 
       ? overridePrompt 
-      : (isRetry ? (overridePrompt?.text || lastPromptRef.current) : prompt);
+      : (isRetryObj ? (overridePrompt?.text || lastPromptRef.current) : prompt);
     
     const trimmed = targetPrompt.trim();
     if (!trimmed || !sessionKey) {
@@ -1009,15 +1012,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         // ignore
       }
 
-      if (detail.includes("503") || detail.includes("high demand") || detail.includes("UNAVAILABLE")) {
-        if (autoRetry && !isRetry) {
-          setPluginStatus("AI is busy. Auto-retrying in 3 seconds...");
+      const retryTriggers = ["500", "502", "503", "504", "429", "high demand", "unavailable", "fetch failed", "network error", "overloaded", "antigravity request failed"];
+      const detailLower = detail.toLowerCase();
+      const shouldRetry = retryTriggers.some(t => detailLower.includes(t));
+
+      if (shouldRetry) {
+        if (autoRetry && retryCount < 3) {
+          setPluginStatus(`AI is busy/failed. Auto-retrying in 3 seconds (Attempt ${retryCount + 1}/3)...`);
           setTimeout(() => {
-            submitPrompt({ text: trimmed, isRetry: true }, isHidden);
+            submitPrompt({ text: trimmed, retryCount: retryCount + 1 }, isHidden);
           }, 3000);
           return;
         }
-        detail = "The AI model is currently experiencing high demand. Please try again in a few moments or switch to a different model in settings.";
+        detail = "The AI model is currently experiencing high demand or failed. Please try again in a few moments.";
       }
 
       setPluginStatus(`Generation failed: ${detail}`);
