@@ -159,8 +159,8 @@ export async function checkAntigravityBalance(
   const apiKey = resolveApiKey(mapping);
   // We'll try both possible internal endpoints
   const endpoints = [
-    "https://antigravity-pa.googleapis.com/v1internal:getUserStatus",
-    "https://cloudcode-pa.googleapis.com/v1internal:getUserStatus"
+    "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota",
+    "https://antigravity-pa.googleapis.com/v1internal:retrieveUserQuota"
   ];
 
   let lastError = "";
