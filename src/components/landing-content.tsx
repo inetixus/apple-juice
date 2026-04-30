@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Brain, Layers, RefreshCw, ChevronDown, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronDown, Sparkles } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
