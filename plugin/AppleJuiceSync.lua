@@ -200,21 +200,38 @@ end
 LogService.MessageOut:Connect(function(message, messageType)
 	if running and isConnected and currentSessionKey then
 		if messageType == Enum.MessageType.MessageError then
-			-- During auto-testing, collect into the test buffer (don't forward yet)
-			if isAutoTesting then
-				table.insert(testErrors, {
-					message = message,
-					timestamp = os.clock(),
-				})
-			else
-				reportLog(currentSessionKey, message)
+			-- Ignore errors from Roblox Core or other Plugins
+			local isCoreError = message:match("CorePackages") or 
+								message:match("CoreGui") or 
+								message:match("Plugin_") or 
+								message:match("builtin_") or 
+								message:match("Studio")
+
+			if not isCoreError then
+				-- During auto-testing, collect into the test buffer (don't forward yet)
+				if isAutoTesting then
+					table.insert(testErrors, {
+						message = message,
+						timestamp = os.clock(),
+					})
+				else
+					reportLog(currentSessionKey, message)
+				end
 			end
 		elseif messageType == Enum.MessageType.MessageWarning then
-			if isAutoTesting then
-				table.insert(testWarnings, {
-					message = message,
-					timestamp = os.clock(),
-				})
+			local isCoreWarning = message:match("CorePackages") or 
+								  message:match("CoreGui") or 
+								  message:match("Plugin_") or 
+								  message:match("builtin_") or 
+								  message:match("Studio")
+			
+			if not isCoreWarning then
+				if isAutoTesting then
+					table.insert(testWarnings, {
+						message = message,
+						timestamp = os.clock(),
+					})
+				end
 			end
 		end
 	end
