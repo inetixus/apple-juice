@@ -359,3 +359,215 @@ export async function grantBonusCredits(userId: string, credits: number) {
     console.error("grantBonusCredits error", err);
   }
 }
+
+// ─── Multi-Project System ───────────────────────────────────────────────────
+
+const PROJECT_PREFIX = "apple-juice:project:";
+const USER_PROJECTS_PREFIX = "apple-juice:user-projects:";
+const PROJECT_MESSAGES_PREFIX = "apple-juice:project-msgs:";
+
+export type Project = {
+  id: string;
+  name: string;
+  ownerUserId: string;
+  sessionKey?: string;
+  provider?: string;
+  model?: string;
+  createdAt: number;
+  lastActiveAt: number;
+};
+
+export type ProjectMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+  model?: string;
+  scripts?: unknown[];
+  thinking?: string;
+};
+
+function projectKeyFor(projectId: string) {
+  return `${PROJECT_PREFIX}${projectId}`;
+}
+
+function userProjectsKeyFor(userId: string) {
+  return `${USER_PROJECTS_PREFIX}${userId}`;
+}
+
+function projectMessagesKeyFor(projectId: string) {
+  return `${PROJECT_MESSAGES_PREFIX}${projectId}`;
+}
+
+function generateProjectId(): string {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let id = "";
+  for (let i = 0; i < 12; i++) {
+    id += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return id;
+}
+
+/**
+ * Create a new project for a user.
+ */
+export async function createProject(userId: string, name: string): Promise<Project> {
+  const redis = getRedis();
+  const id = generateProjectId();
+  const now = Date.now();
+
+  const project: Project = {
+    id,
+    name,
+    ownerUserId: userId,
+    createdAt: now,
+    lastActiveAt: now,
+  };
+
+  // Store project data
+  await redis.set(projectKeyFor(id), JSON.stringify(project));
+
+  // Add to user's project index (stored as a JSON array of project IDs)
+  const indexKey = userProjectsKeyFor(userId);
+  const rawIndex = await redis.get(indexKey);
+  let projectIds: string[] = [];
+  if (rawIndex) {
+    try {
+      projectIds = (typeof rawIndex === "string" ? JSON.parse(rawIndex) : rawIndex) as string[];
+    } catch { /* corrupted */ }
+  }
+  projectIds.push(id);
+  await redis.set(indexKey, JSON.stringify(projectIds));
+
+  return project;
+}
+
+/**
+ * List all projects for a user.
+ */
+export async function listUserProjects(userId: string): Promise<Project[]> {
+  const redis = getRedis();
+  const indexKey = userProjectsKeyFor(userId);
+  const rawIndex = await redis.get(indexKey);
+  if (!rawIndex) return [];
+
+  let projectIds: string[];
+  try {
+    projectIds = (typeof rawIndex === "string" ? JSON.parse(rawIndex) : rawIndex) as string[];
+  } catch {
+    return [];
+  }
+
+  const projects: Project[] = [];
+  const validIds: string[] = [];
+
+  for (const id of projectIds) {
+    const raw = await redis.get(projectKeyFor(id));
+    if (raw) {
+      try {
+        const p = (typeof raw === "string" ? JSON.parse(raw) : raw) as Project;
+        projects.push(p);
+        validIds.push(id);
+      } catch { /* skip corrupted */ }
+    }
+  }
+
+  // Clean up index if some projects were deleted
+  if (validIds.length !== projectIds.length) {
+    await redis.set(indexKey, JSON.stringify(validIds));
+  }
+
+  // Sort by lastActiveAt descending
+  projects.sort((a, b) => b.lastActiveAt - a.lastActiveAt);
+  return projects;
+}
+
+/**
+ * Get a single project by ID.
+ */
+export async function getProject(projectId: string): Promise<Project | null> {
+  const raw = await getRedis().get(projectKeyFor(projectId));
+  if (!raw) return null;
+  try {
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as Project;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Update a project's fields.
+ */
+export async function updateProject(projectId: string, updates: Partial<Project>): Promise<Project | null> {
+  const redis = getRedis();
+  const key = projectKeyFor(projectId);
+  const raw = await redis.get(key);
+  if (!raw) return null;
+
+  try {
+    const project = (typeof raw === "string" ? JSON.parse(raw) : raw) as Project;
+    Object.assign(project, updates, { lastActiveAt: Date.now() });
+    await redis.set(key, JSON.stringify(project));
+    return project;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Delete a project and its messages.
+ */
+export async function deleteProject(userId: string, projectId: string): Promise<boolean> {
+  const redis = getRedis();
+
+  // Remove project data
+  await redis.del(projectKeyFor(projectId));
+  // Remove messages
+  await redis.del(projectMessagesKeyFor(projectId));
+
+  // Remove from user's project index
+  const indexKey = userProjectsKeyFor(userId);
+  const rawIndex = await redis.get(indexKey);
+  if (rawIndex) {
+    try {
+      let projectIds = (typeof rawIndex === "string" ? JSON.parse(rawIndex) : rawIndex) as string[];
+      projectIds = projectIds.filter(id => id !== projectId);
+      await redis.set(indexKey, JSON.stringify(projectIds));
+    } catch { /* ignore */ }
+  }
+
+  return true;
+}
+
+/**
+ * Save messages for a project. Replaces the entire message array.
+ */
+export async function saveProjectMessages(projectId: string, messages: ProjectMessage[]): Promise<void> {
+  const redis = getRedis();
+  // Only keep the last 200 messages to avoid hitting Redis limits
+  const trimmed = messages.slice(-200);
+  await redis.set(projectMessagesKeyFor(projectId), JSON.stringify(trimmed));
+  // Also touch lastActiveAt on the project
+  const projKey = projectKeyFor(projectId);
+  const raw = await redis.get(projKey);
+  if (raw) {
+    try {
+      const project = (typeof raw === "string" ? JSON.parse(raw) : raw) as Project;
+      project.lastActiveAt = Date.now();
+      await redis.set(projKey, JSON.stringify(project));
+    } catch { /* ignore */ }
+  }
+}
+
+/**
+ * Load messages for a project.
+ */
+export async function getProjectMessages(projectId: string): Promise<ProjectMessage[]> {
+  const raw = await getRedis().get(projectMessagesKeyFor(projectId));
+  if (!raw) return [];
+  try {
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as ProjectMessage[];
+  } catch {
+    return [];
+  }
+}

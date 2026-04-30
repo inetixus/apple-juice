@@ -17,6 +17,17 @@ type DashboardClientProps = {
   avatarUrl?: string;
 };
 
+type Project = {
+  id: string;
+  name: string;
+  ownerUserId: string;
+  sessionKey?: string;
+  provider?: string;
+  model?: string;
+  createdAt: number;
+  lastActiveAt: number;
+};
+
 type ScriptMeta = {
   name: string;
   parent: string;
@@ -44,8 +55,11 @@ type ChatMessage = {
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
 
 export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [isProjectsLoading, setIsProjectsLoading] = useState(true);
+  
   const [sessionKey, setSessionKey] = useState("");
-  const [projectName, setProjectName] = useState("Active Session");
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [provider, setProvider] = useState<"openai" | "google" | "apple_juice_ai">("openai");
@@ -360,15 +374,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }
     }
 
-    const savedMessages = window.localStorage.getItem("apple-juice-chat-history");
-    if (savedMessages) {
-      try {
-        const parsed = JSON.parse(savedMessages) as ChatMessage[];
-        setMessages(parsed);
-      } catch {
-        setMessages([]);
-      }
-    }
+    void loadProjects();
 
     if (effectiveKey) {
       void loadModels(effectiveKey, savedModel);
@@ -398,6 +404,155 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       // ignore
     }
   }
+
+  // ─── Multi-Project Management ───────────────────────────────────────────────
+
+  async function loadProjects() {
+    setIsProjectsLoading(true);
+    try {
+      const res = await fetch("/api/projects");
+      if (res.ok) {
+        const data = await res.json();
+        const loadedProjects = data.projects || [];
+        setProjects(loadedProjects);
+        
+        if (loadedProjects.length === 0) {
+          await createNewProject("My First Project");
+        } else {
+          // Load the most recently active project
+          const lastActive = loadedProjects[0];
+          await switchProject(lastActive);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load projects", err);
+    } finally {
+      setIsProjectsLoading(false);
+    }
+  }
+
+  async function createNewProject(name: string) {
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const newProj = data.project;
+        setProjects(prev => [newProj, ...prev]);
+        await switchProject(newProj);
+      }
+    } catch (err) {
+      console.error("Failed to create project", err);
+    }
+  }
+
+  async function switchProject(project: Project) {
+    setActiveProjectId(project.id);
+    if (project.sessionKey) {
+      setSessionKey(project.sessionKey);
+    } else {
+      setSessionKey("");
+    }
+    
+    // Load preferences if saved
+    if (project.provider) {
+      setProvider(project.provider as any);
+      window.localStorage.setItem("apple-juice-provider", project.provider);
+      if (project.provider === "apple_juice_ai") {
+        void fetchAntigravityBalance();
+      }
+    }
+    if (project.model) {
+      setSelectedModel(project.model);
+    }
+
+    // Fetch messages
+    try {
+      const res = await fetch(`/api/projects/${project.id}/messages`);
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data.messages || []);
+      } else {
+        setMessages([]);
+      }
+    } catch {
+      setMessages([]);
+    }
+  }
+
+  async function deleteProject(id: string) {
+    const confirm = window.confirm("Are you sure you want to delete this project? This cannot be undone.");
+    if (!confirm) return;
+
+    try {
+      const res = await fetch("/api/projects", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      });
+      if (res.ok) {
+        const updated = projects.filter(p => p.id !== id);
+        setProjects(updated);
+        if (activeProjectId === id) {
+          if (updated.length > 0) {
+            await switchProject(updated[0]);
+          } else {
+            await createNewProject("My First Project");
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to delete project", err);
+    }
+  }
+
+  async function renameProject(id: string, newName: string) {
+    if (!newName.trim()) return;
+    try {
+      const res = await fetch("/api/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, name: newName })
+      });
+      if (res.ok) {
+        setProjects(prev => prev.map(p => p.id === id ? { ...p, name: newName } : p));
+      }
+    } catch (err) {
+      console.error("Failed to rename project", err);
+    }
+  }
+
+  // Auto-save messages to the active project
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (activeProjectId && !isProjectsLoading) {
+      fetch(`/api/projects/${activeProjectId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages })
+      }).catch(err => console.error("Failed to save messages", err));
+    }
+  }, [messages, activeProjectId, isProjectsLoading]);
+
+  // Update session key in project when it changes
+  useEffect(() => {
+    if (activeProjectId && sessionKey && !isProjectsLoading) {
+      fetch("/api/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activeProjectId, sessionKey })
+      }).catch(() => {});
+    }
+  }, [sessionKey, activeProjectId, isProjectsLoading]);
+
+  // ──────────────────────────────────────────────────────────────────────────
 
   async function checkAntigravityLink() {
     try {

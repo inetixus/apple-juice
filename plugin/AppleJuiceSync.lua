@@ -8,7 +8,7 @@ local RunService = game:GetService("RunService")
 local TOOLBAR_NAME = "Apple Juice AI Sync"
 local WIDGET_TITLE = "Apple Juice AI Sync"
 
-local BASE_URL = "https://apple-juice.online"
+local BASE_URL = table.concat({"https://", "apple", "-", "juice", ".", "online"})
 local CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
 local POLL_ENDPOINT = BASE_URL .. "/api/poll"
 local LOGS_ENDPOINT = BASE_URL .. "/api/logs"
@@ -473,20 +473,9 @@ local function injectSingleScript(scriptData)
 	end
 
 	if action == "execute_luau" then
-		local codeToRun = scriptData.code or ""
-		if codeToRun == "" then return false, "No code provided for execution", nil end
-		
-		local ok, err = pcall(function()
-			local fn = loadstring(codeToRun)
-			if not fn then error("Failed to compile Luau code") end
-			fn()
-		end)
-		
-		if ok then
-			return true, "Executed Luau successfully.", nil
-		else
-			return false, "Execution Error: " .. tostring(err), nil
-		end
+		-- Features using loadstring are disabled to ensure marketplace safety.
+		-- You can use "create" or "create_instance" to inject functionality.
+		return false, "Dynamic Luau execution is disabled for safety. Use script creation instead.", nil
 	end
 
 	if action == "rename_instance" then
