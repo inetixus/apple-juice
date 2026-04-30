@@ -531,7 +531,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   function saveApiKey() {
     const inputValue = (provider === "google" ? googleKey : openaiKey).trim();
     const detectedGoogle = looksLikeGoogleKey(inputValue);
-    const finalProvider: "openai" | "google" | "antigravity" = detectedGoogle ? "google" : provider;
+    const finalProvider: "openai" | "google" | "apple_juice_ai" = detectedGoogle ? "google" : provider;
 
     if (finalProvider === "google") {
       window.localStorage.setItem("apple-juice-google-key", inputValue);
@@ -1858,7 +1858,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
             </div>
 
             {/* ── Antigravity Account Status ── */}
-            {provider === "antigravity" && (
+            {provider === "apple_juice_ai" && (
               <div className="pt-4 border-t border-white/[0.04] space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="text-[12px] font-bold text-white/80 uppercase tracking-wider">⚡ Antigravity Status</span>
