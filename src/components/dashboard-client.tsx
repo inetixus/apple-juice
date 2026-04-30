@@ -97,7 +97,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [attachedAsset, setAttachedAsset] = useState<{ id: number; name: string; thumbnail: string } | null>(null);
   // Feature: Antigravity integration
   const [agLinked, setAgLinked] = useState(false);
-  const [agBalance, setAgBalance] = useState<{ quotas: { model: string; refreshesIn: string }[] } | null>(null);
+  // Feature: Live Share
   // Feature: Live Share
 
   const examplePrompts = useMemo(() => [
@@ -417,8 +417,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     try {
       const res = await fetch("/api/antigravity/balance");
       if (res.ok) {
-        const data = await res.json();
-        setAgBalance({ quotas: data.quotas || [] });
+        // Balance fetch is ignored as real-time quotas aren't supported via API keys
       }
     } catch {
       // ignore
@@ -1762,55 +1761,53 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
               </select>
             </div>
             {provider !== "antigravity" && (
-              <>
-                <div>
-                  <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
-                    API Key
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="api-key-input"
-                      type="password"
-                      value={provider == "google" ? googleKey : openaiKey}
-                      onChange={(event) => {
-                        const v = event.target.value;
-                        if (provider == "google") setGoogleKey(v);
-                        else setOpenaiKey(v);
-                        setApiKey(v);
-                      }}
-                      placeholder={provider == "google" ? "Google API Key" : "sk-..."}
-                      className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
-                    />
-                    <button onClick={saveApiKey} className="px-2.5 py-1.5 bg-white/10 text-white text-[11px] rounded-lg hover:bg-white/20 transition-colors">
-                      Save
-                    </button>
-                  </div>
-                  <button onClick={() => loadModels()} disabled={isLoadingModels} className="mt-2 text-[11px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40">
-                    {isLoadingModels ? "Loading models..." : "↻ Refresh models"}
+              <div>
+                <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
+                  API Key
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    id="api-key-input"
+                    type="password"
+                    value={provider == "google" ? googleKey : openaiKey}
+                    onChange={(event) => {
+                      const v = event.target.value;
+                      if (provider == "google") setGoogleKey(v);
+                      else setOpenaiKey(v);
+                      setApiKey(v);
+                    }}
+                    placeholder={provider == "google" ? "Google API Key" : "sk-..."}
+                    className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
+                  />
+                  <button onClick={saveApiKey} className="px-2.5 py-1.5 bg-white/10 text-white text-[11px] rounded-lg hover:bg-white/20 transition-colors">
+                    Save
                   </button>
                 </div>
-                <div>
-                  <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="model-select">Model</label>
-                  <select
-                    id="model-select"
-                    value={selectedModel}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setSelectedModel(value);
-                      window.localStorage.setItem("apple-juice-model", value);
-                    }}
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
-                  >
-                    {availableModels.length === 0 && (
-                      <option value="" disabled>No models available</option>
-                    )}
-                    {availableModels.map((model) => (
-                      <option key={model} value={model} className="bg-[#13151a]">{model}</option>
-                    ))}
-                  </select>
-                </div>
-              </>
+                <button onClick={() => loadModels()} disabled={isLoadingModels} className="mt-2 text-[11px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40">
+                  {isLoadingModels ? "Loading models..." : "↻ Refresh models"}
+                </button>
+              </div>
             )}
+            <div>
+              <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="model-select">Model</label>
+              <select
+                id="model-select"
+                value={selectedModel}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setSelectedModel(value);
+                  window.localStorage.setItem("apple-juice-model", value);
+                }}
+                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
+              >
+                {availableModels.length === 0 && (
+                  <option value="" disabled>No models available</option>
+                )}
+                {availableModels.map((model) => (
+                  <option key={model} value={model} className="bg-[#13151a]">{model}</option>
+                ))}
+              </select>
+            </div>
 
             <div className="pt-4 border-t border-white/[0.04] space-y-4">
               <div className="flex items-center justify-between">
@@ -1868,43 +1865,8 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 </div>
 
                 <div className="space-y-4 pt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-white/50 tracking-widest uppercase">MODEL QUOTA</span>
-                    <button
-                      onClick={fetchAntigravityBalance}
-                      className="px-3 py-1.5 bg-white/[0.08] text-white hover:bg-white/[0.12] rounded-md text-[11px] font-medium transition-colors"
-                    >
-                      Refresh
-                    </button>
-                  </div>
-                  
-                  {agBalance ? (
-                    <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-black/20">
-                      {agBalance.quotas.map((quota, i) => (
-                        <div key={i} className="px-4 py-3 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[13px] font-medium text-white/90">{quota.model}</span>
-                            <span className="text-[11px] text-white/40">{quota.refreshesIn}</span>
-                          </div>
-                          
-                          {/* Progress bars (visual mockup) */}
-                          <div className="flex gap-1.5 h-1">
-                            <div className="flex-1 bg-white/80 rounded-full" />
-                            <div className="flex-1 bg-white/80 rounded-full" />
-                            <div className="flex-1 bg-white/10 rounded-full" />
-                            <div className="flex-1 bg-white/10 rounded-full" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="border border-white/[0.08] rounded-xl px-4 py-8 text-center bg-black/20">
-                      <p className="text-[12px] text-white/40">Loading quotas...</p>
-                    </div>
-                  )}
-                  
-                  <p className="text-[11px] text-white/40 text-center">
-                    View your available model quota. Quota refreshes periodically based on your plan.
+                  <p className="text-[11px] text-white/40 text-center bg-black/20 p-4 rounded-xl border border-white/[0.08]">
+                    You are connected to the Antigravity API. Real-time quota tracking is not supported by standard API keys, so usage is tracked via your local Apple Juice credits instead.
                   </p>
                 </div>
               </div>
