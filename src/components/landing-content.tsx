@@ -301,81 +301,183 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
       </section>
 
       {/* ━━━ FEATURES ━━━ */}
-      <section id="features" className="px-6 pb-20 relative overflow-hidden">
-        <div className="max-w-[1100px] mx-auto relative z-10">
+      <section id="features" className="px-6 pb-32 relative overflow-hidden">
+        <div className="max-w-[1200px] mx-auto relative z-10">
           <div className="text-center mb-16">
-            <p className="text-[9px] tracking-[0.2em] uppercase font-bold text-[#ccff00] mb-2">
-              Why Apple Juice
-            </p>
-            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-[-0.02em] text-white">
-              Zero Friction.
+            <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-white mb-4">
+              We handle the hard stuff
             </h2>
+            <p className="text-white/50 text-lg">
+              Safe code generation, automatic file sync with Studio and more
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <Brain className="h-4 w-4 md:h-5 md:w-5 text-black" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* LEFT COLUMN */}
+            <div className="flex flex-col gap-6">
+              {/* No More Copy Pasting */}
+              <div className="group rounded-3xl bg-[#13151a] border border-white/5 overflow-hidden relative flex flex-col h-[350px] transition-all duration-500 hover:border-white/10">
+                {/* Visual */}
+                <div className="absolute inset-0 top-0 h-[220px] flex items-center justify-center" style={{ perspective: '1000px' }}>
+                  <div className="relative w-[220px] h-[120px] group-hover:rotate-x-12 group-hover:-rotate-y-12 transition-transform duration-700 ease-out" style={{ transformStyle: 'preserve-3d' }}>
+                    {/* Background card */}
+                    <div className="absolute inset-0 bg-[#1e2128] rounded-xl border border-white/5 p-4 opacity-40 group-hover:translate-x-4 group-hover:-translate-y-4 group-hover:opacity-20 transition-all duration-700" style={{ transform: 'translateZ(-40px)' }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-4 h-4 rounded-full bg-white/20" />
+                        <div className="w-20 h-2 rounded bg-white/20" />
+                      </div>
+                      <div className="w-full h-2 rounded bg-white/10 mt-4" />
+                      <div className="w-2/3 h-2 rounded bg-white/10 mt-2" />
+                    </div>
+                    {/* Middle card */}
+                    <div className="absolute inset-0 bg-[#252830] rounded-xl border border-white/10 p-4 opacity-70 group-hover:translate-x-2 group-hover:-translate-y-2 group-hover:opacity-50 transition-all duration-700" style={{ transform: 'translateZ(0)' }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-4 h-4 rounded-full bg-white/30" />
+                        <div className="w-24 h-2 rounded bg-white/30" />
+                      </div>
+                      <div className="w-full h-2 rounded bg-white/20 mt-4" />
+                      <div className="w-3/4 h-2 rounded bg-white/20 mt-2" />
+                    </div>
+                    {/* Foreground card */}
+                    <div className="absolute inset-0 bg-[#2a2d36] rounded-xl border border-white/20 p-4 shadow-2xl transition-all duration-700" style={{ transform: 'translateZ(40px)' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                          <svg viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                        <span className="text-sm font-semibold text-white">Roblox Studio</span>
+                      </div>
+                      <p className="text-[11px] text-white/60 leading-tight mb-2">
+                        6 scripts received from Apple Juice sync.
+                      </p>
+                      <p className="text-[10px] text-emerald-400 font-mono">
+                        Automatic
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {/* Text content */}
+                <div className="mt-auto p-6 relative z-10 bg-gradient-to-t from-[#13151a] via-[#13151a] to-transparent pt-12">
+                  <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">No More Copy-Pasting</h3>
+                  <p className="text-sm text-white/50">Files automatically sync with Studio.</p>
+                </div>
               </div>
-              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Chain-of-Thought</h3>
-              <p className="text-xs md:text-sm text-white/60 leading-relaxed">
-                Enable Thinking Mode and the model reasons through your feature step-by-step.
-              </p>
+
+              {/* Agent Playtest */}
+              <div className="group rounded-3xl bg-[#13151a] border border-white/5 p-6 transition-all duration-500 hover:border-white/10 flex flex-col justify-end min-h-[200px]">
+                <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h0m6 0h0m-3 4h0"/></svg>
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">Agent Playtest</h3>
+                <p className="text-sm text-white/50">Apple Juice playtests your game and fixes issues automatically.</p>
+              </div>
             </div>
 
-            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <Layers className="h-4 w-4 md:h-5 md:w-5 text-black" />
+            {/* MIDDLE COLUMN */}
+            <div className="flex flex-col">
+              {/* Cross-Compatibility */}
+              <div className="group rounded-3xl bg-[#13151a] border border-white/5 overflow-hidden relative flex flex-col h-full min-h-[574px] transition-all duration-500 hover:border-white/10">
+                {/* Visual */}
+                <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+                  {/* Phone frame */}
+                  <div className="relative w-[240px] h-[480px] rounded-[36px] border-[6px] border-[#2a2d36] bg-black shadow-2xl group-hover:translate-y-[-10px] transition-transform duration-700 ease-out flex flex-col items-center justify-center overflow-hidden">
+                    <div className="absolute top-0 inset-x-0 h-6 flex justify-center">
+                      <div className="w-24 h-5 bg-[#2a2d36] rounded-b-xl" />
+                    </div>
+                    {/* App UI mockup */}
+                    <div className="absolute inset-0 mt-8 px-4 flex flex-col opacity-40">
+                       <div className="h-10 border-b border-white/10 flex justify-between items-center">
+                         <div className="w-4 h-4 rounded bg-white/20" />
+                         <div className="w-16 h-3 rounded bg-white/20" />
+                         <div className="w-4 h-4 rounded bg-white/20" />
+                       </div>
+                       <div className="mt-4 w-full h-8 rounded-lg bg-white/10" />
+                       <div className="mt-4 w-3/4 h-3 rounded bg-white/10" />
+                       <div className="mt-2 w-1/2 h-3 rounded bg-white/10" />
+                    </div>
+                    
+                    <div className="z-10 bg-black/60 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 shadow-2xl transform scale-95 group-hover:scale-105 transition-transform duration-700">
+                      <h4 className="text-2xl font-black tracking-widest text-white">COMING</h4>
+                    </div>
+
+                    {/* Keyboard mockup */}
+                    <div className="absolute bottom-2 inset-x-2 h-40 bg-[#1e2128] rounded-2xl flex flex-col gap-1 p-2 opacity-50 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-700">
+                       <div className="flex justify-center gap-1">
+                         {Array.from({length: 10}).map((_,i) => <div key={i} className="h-8 w-5 bg-white/10 rounded" />)}
+                       </div>
+                       <div className="flex justify-center gap-1">
+                         {Array.from({length: 9}).map((_,i) => <div key={i} className="h-8 w-5 bg-white/10 rounded" />)}
+                       </div>
+                       <div className="flex justify-center gap-1">
+                         {Array.from({length: 7}).map((_,i) => <div key={i} className="h-8 w-5 bg-white/10 rounded" />)}
+                       </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Text content */}
+                <div className="mt-auto p-6 relative z-10 bg-gradient-to-t from-[#13151a] via-[#13151a]/90 to-transparent pt-20">
+                  <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Cross-Compatibility</h3>
+                  <p className="text-sm text-white/50">Code small snippets or edit configs from your phone, tablet, or desktop.</p>
+                </div>
               </div>
-              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Multi-File Output</h3>
-              <p className="text-xs md:text-sm text-white/60 leading-relaxed">
-                Generate interconnected systems across multiple scripts simultaneously.
-              </p>
             </div>
 
-            {/* Card 3 */}
-            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <RefreshCw className="h-4 w-4 md:h-5 md:w-5 text-black" />
+            {/* RIGHT COLUMN */}
+            <div className="flex flex-col gap-6">
+              {/* Version Control */}
+              <div className="group rounded-3xl bg-[#13151a] border border-white/5 p-6 transition-all duration-500 hover:border-white/10 flex flex-col justify-end min-h-[200px]">
+                <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">Version Control</h3>
+                <p className="text-sm text-white/50">Control your project and rollback to any past prompt iterations.</p>
               </div>
-              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Self-Healing Debug</h3>
-              <p className="text-xs md:text-sm text-white/70 leading-relaxed">
-                Apple Juice streams Studio errors and the AI directly proposes targeted fixes.
-              </p>
+
+              {/* Fast and Accurate */}
+              <div className="group rounded-3xl bg-[#13151a] border border-white/5 overflow-hidden relative flex flex-col h-[350px] transition-all duration-500 hover:border-white/10">
+                {/* Visual */}
+                <div className="absolute inset-0 top-0 h-[220px] flex items-center justify-center overflow-hidden">
+                  <div className="w-full px-12 flex flex-col gap-3 transform -rotate-12 translate-x-4 translate-y-4 group-hover:rotate-0 group-hover:translate-x-0 group-hover:translate-y-0 transition-all duration-700 ease-out">
+                    
+                    <div className="w-full bg-[#1e2128] border border-white/10 p-3 rounded-xl flex items-center gap-3 shadow-lg opacity-40 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+                      <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                      </div>
+                      <span className="text-sm font-medium text-white/70">1. Project analysis</span>
+                    </div>
+
+                    <div className="w-full bg-[#252830] border border-white/10 p-3 rounded-xl flex items-center gap-3 shadow-xl opacity-60 group-hover:opacity-100 transition-opacity duration-500 delay-200">
+                      <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                      </div>
+                      <span className="text-sm font-medium text-white/80">2. Apple Juice context data</span>
+                    </div>
+
+                    <div className="w-full bg-[#2a2d36] border border-white/20 p-3 rounded-xl flex items-center gap-3 shadow-2xl opacity-80 group-hover:opacity-100 transition-opacity duration-500 delay-300">
+                      <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                      </div>
+                      <span className="text-sm font-semibold text-white">3. Model generation</span>
+                    </div>
+
+                  </div>
+                </div>
+                {/* Text content */}
+                <div className="mt-auto p-6 relative z-10 bg-gradient-to-t from-[#13151a] via-[#13151a] to-transparent pt-12">
+                  <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Fast and Accurate</h3>
+                  <p className="text-sm text-white/50">We improve generation by selectively passing our own context data in each prompt.</p>
+                </div>
+              </div>
             </div>
 
-            {/* Card 4 */}
-            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-              </div>
-              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Zero-Latency Sync</h3>
-              <p className="text-xs md:text-sm text-white/70 leading-relaxed">
-                A highly optimized plugin maintains a fast WebSocket connection.
-              </p>
-            </div>
-
-            {/* Card 5 */}
-            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col">
-              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-              </div>
-              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Context-Aware AI</h3>
-              <p className="text-xs md:text-sm text-white/70 leading-relaxed">
-                The model uses your entire codebase as context for consistent logic.
-              </p>
-            </div>
-
-            {/* Card 6 */}
-            <div className="group p-5 md:p-6 rounded-2xl bg-[#0f141f] border border-white/10 hover:border-[#ccff00]/40 hover:-translate-y-1 transition-all duration-200 relative overflow-hidden flex flex-col">
-              <div className="h-9 w-9 md:h-10 md:w-10 rounded-xl bg-[#ccff00] flex items-center justify-center mb-3 md:mb-4 flex-shrink-0 shadow-[0_0_15px_rgba(204,255,0,0.3)]">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 md:h-5 md:w-5 text-black" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              </div>
-              <h3 className="text-[15px] md:text-lg font-black uppercase mb-1 md:mb-2 text-white leading-tight">Secure & Private</h3>
-              <p className="text-xs md:text-sm text-white/80 leading-relaxed">
-                Your API keys are stored exclusively in your browser for absolute privacy.
-              </p>
-            </div>
           </div>
         </div>
       </section>
