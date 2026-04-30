@@ -135,7 +135,8 @@ function resolveApiKey(mapping: AntigravityMapping | null): string {
  */
 export async function checkAntigravityBalance(
   googleEmail: string,
-  mapping: AntigravityMapping
+  mapping: AntigravityMapping,
+  accessToken?: string
 ): Promise<AntigravityBalance> {
   const redis = getRedis();
   const cacheKey = `${AG_BALANCE_PREFIX}${googleEmail.toLowerCase()}`;
@@ -156,7 +157,8 @@ export async function checkAntigravityBalance(
 
   // 2. Fetch from Antigravity API
   const apiKey = resolveApiKey(mapping);
-  const apiUrl = getApiUrl();
+  // Use the real internal gateway URL
+  const apiUrl = "https://cloudcode-pa.googleapis.com";
 
   try {
     const isGoogleKey = apiKey.startsWith("AIza");
@@ -165,45 +167,57 @@ export async function checkAntigravityBalance(
       "Content-Type": "application/json",
     };
 
-    if (isGoogleKey) {
+    // If we have a per-user OAuth token, use it as Bearer
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    } else if (isGoogleKey) {
       headers["X-Goog-Api-Key"] = apiKey;
     } else {
       headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
-    console.log(`[Antigravity] Fetching balance for ${googleEmail} at ${apiUrl}/user/balance...`);
-    const res = await fetch(`${apiUrl}/user/balance`, {
-      method: "GET",
+    console.log(`[Antigravity] Fetching status for ${googleEmail} at ${apiUrl}/v1internal:getUserStatus...`);
+    const res = await fetch(`${apiUrl}/v1internal:getUserStatus`, {
+      method: "POST",
       headers,
+      body: JSON.stringify({}),
     });
 
     if (!res.ok) {
       const errorText = await res.text();
-      console.error("Antigravity balance check failed:", res.status, errorText);
+      console.error("Antigravity status check failed:", res.status, errorText);
 
-      // Return mock quotas based on the real Antigravity dashboard
+      // Return default mock quotas if the internal API is unreachable
       return {
         quotas: [
-          { model: "Gemini 3.1 Pro (High)", refreshesIn: "6 days, 1 hour" },
-          { model: "Gemini 3.1 Pro (Low)", refreshesIn: "6 days, 1 hour" },
-          { model: "Gemini 3 Flash", refreshesIn: "6 days, 0 hour" },
-          { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
-          { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
-          { model: "GPT-OSS 120B (Medium)", refreshesIn: "6 days, 6 hours" },
+          { model: "Gemini 3.1 Pro (High)", refreshesIn: "Calculating..." },
+          { model: "Gemini 3.1 Pro (Low)", refreshesIn: "Calculating..." },
+          { model: "Gemini 3 Flash", refreshesIn: "Calculating..." },
+          { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "Calculating..." },
+          { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "Calculating..." },
+          { model: "GPT-OSS 120B (Medium)", refreshesIn: "Calculating..." },
         ],
         checkedAt: Date.now(),
       };
     }
 
     const data = await res.json();
+    
+    // Map the internal getUserStatus response to our UI format
+    // The internal API returns a list of model quotas with refresh times
+    const quotas: AntigravityQuota[] = (data.modelQuotas || []).map((q: any) => ({
+      model: q.modelName || q.id || "Unknown Model",
+      refreshesIn: q.refreshTime ? formatRefreshTime(q.refreshTime) : "Refreshing...",
+    }));
+
     const balance: AntigravityBalance = {
-      quotas: data.quotas || [
-        { model: "Gemini 3.1 Pro (High)", refreshesIn: "6 days, 1 hour" },
-        { model: "Gemini 3.1 Pro (Low)", refreshesIn: "6 days, 1 hour" },
-        { model: "Gemini 3 Flash", refreshesIn: "6 days, 0 hour" },
-        { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
-        { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
-        { model: "GPT-OSS 120B (Medium)", refreshesIn: "6 days, 6 hours" },
+      quotas: quotas.length > 0 ? quotas : [
+        { model: "Gemini 3.1 Pro (High)", refreshesIn: "Available" },
+        { model: "Gemini 3.1 Pro (Low)", refreshesIn: "Available" },
+        { model: "Gemini 3 Flash", refreshesIn: "Available" },
+        { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "Available" },
+        { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "Available" },
+        { model: "GPT-OSS 120B (Medium)", refreshesIn: "Available" },
       ],
       checkedAt: Date.now(),
     };
@@ -245,7 +259,8 @@ export async function checkAntigravityBalance(
  */
 export async function relayToAntigravity(
   mapping: AntigravityMapping,
-  request: AntigravityChatRequest
+  request: AntigravityChatRequest,
+  accessToken?: string
 ): Promise<{
   ok: boolean;
   data?: AntigravityChatResponse;
@@ -254,7 +269,8 @@ export async function relayToAntigravity(
   tokensUsed: number;
 }> {
   const apiKey = resolveApiKey(mapping);
-  const apiUrl = getApiUrl();
+  // Real internal gateway
+  const apiUrl = "https://cloudcode-pa.googleapis.com";
 
   try {
     const isGoogleKey = apiKey.startsWith("AIza");
@@ -263,21 +279,28 @@ export async function relayToAntigravity(
       "Content-Type": "application/json",
     };
 
-    if (isGoogleKey) {
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    } else if (isGoogleKey) {
       headers["X-Goog-Api-Key"] = apiKey;
     } else {
       headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
-    const res = await fetch(`${apiUrl}/v1/chat/completions`, {
+    // Call the internal v1internal:generateContent endpoint
+    const res = await fetch(`${apiUrl}/v1internal:generateContent`, {
       method: "POST",
       headers,
       body: JSON.stringify({
         model: request.model || "gemini-2.5-flash",
-        messages: request.messages,
-        temperature: request.temperature ?? 0.2,
-        max_tokens: request.max_tokens ?? 32768,
-        stream: request.stream ?? false,
+        contents: request.messages.map(m => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }]
+        })),
+        generationConfig: {
+          temperature: request.temperature ?? 0.2,
+          maxOutputTokens: request.max_tokens ?? 32768,
+        },
       }),
     });
 
@@ -360,6 +383,23 @@ function stripAntigravityBranding(content: string): string {
   }
 
   return cleaned.trim();
+}
+
+/**
+ * Format internal timestamp into a human readable "X days, Y hours" string
+ */
+function formatRefreshTime(timestamp: string | number): string {
+  const future = new Date(timestamp).getTime();
+  const now = Date.now();
+  const diff = future - now;
+
+  if (diff <= 0) return "Refreshing now...";
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  
+  if (days > 0) return `Refreshes in ${days} days, ${hours} hours`;
+  return `Refreshes in ${hours} hours`;
 }
 
 // ─── Utility: Validate Antigravity Credentials ──────────────────────────────

@@ -45,6 +45,14 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET_OAUTH || "",
+      authorization: {
+        params: {
+          scope: "openid email profile https://www.googleapis.com/auth/cloud-platform",
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+        },
+      },
     }),
   ],
   callbacks: {
@@ -62,7 +70,8 @@ export const authOptions: NextAuthOptions = {
           (profile as { name?: string })?.name ?? token.name ?? "Google User";
         (token as { provider?: string }).provider = "google";
         (token as { email?: string }).email = (profile as { email?: string })?.email ?? "";
-        (token as { picture?: string }).picture = (profile as { picture?: string })?.picture ?? "";
+        (token as { picture?: string }).picture = (profile as { picture?: string }).picture ?? "";
+        (token as { accessToken?: string }).accessToken = account.access_token;
 
         // ── Antigravity identity mapping ──
         // Auto-link this Google email to an Antigravity account using the email as the ID
@@ -94,9 +103,10 @@ export const authOptions: NextAuthOptions = {
           (token as { provider?: string }).provider ?? "roblox";
         (session.user as { image?: string | null }).image =
           (token as { picture?: string }).picture ?? null;
-        // Expose Antigravity link status to the frontend
+        // Expose Antigravity link status and token to the frontend/backend
         (session.user as { antigravityId?: string | null }).antigravityId =
           (token as { antigravityId?: string }).antigravityId ?? null;
+        (session as { accessToken?: string }).accessToken = (token as { accessToken?: string }).accessToken;
       }
       return session;
     },

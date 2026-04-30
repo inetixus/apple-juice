@@ -423,12 +423,13 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     }
 
     // 4. Relay through Antigravity API
+    const accessToken = (session as { accessToken?: string })?.accessToken;
     const agResult = await relayToAntigravity(agMapping, {
       model: effectiveModel,
       messages: agMessages,
       temperature: mode === "thinking" ? 0.4 : 0.2,
       max_tokens: mode === "thinking" ? 65536 : 32768,
-    });
+    }, accessToken);
 
     if (!agResult.ok) {
       return Response.json({

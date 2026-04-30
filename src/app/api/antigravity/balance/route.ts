@@ -36,7 +36,8 @@ export async function GET() {
   }
 
   // 3. Fetch balance (uses Redis cache)
-  const balance = await checkAntigravityBalance(email, mapping);
+  const accessToken = (session as { accessToken?: string })?.accessToken;
+  const balance = await checkAntigravityBalance(email, mapping, accessToken);
 
   return Response.json({
     quotas: balance.quotas,
