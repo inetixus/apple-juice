@@ -1016,7 +1016,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       const detailLower = detail.toLowerCase();
       const shouldRetry = retryTriggers.some(t => detailLower.includes(t));
 
-      if (shouldRetry) {
+      if (detailLower.includes("denied access")) {
+        detail = "Your Google API Key project has been suspended or denied access by Google. Please generate a new key in Google AI Studio.";
+      } else if (shouldRetry) {
         if (autoRetry && retryCount < 3) {
           setPluginStatus(`AI is busy/failed. Auto-retrying in 3 seconds (Attempt ${retryCount + 1}/3)...`);
           setTimeout(() => {
