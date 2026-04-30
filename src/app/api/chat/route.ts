@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { getSession, upsertGeneratedCode, getUserUsage, trackUserUsage, getRedis } from "@/lib/store";
 import {
   getAntigravityMapping,
-  checkAntigravityBalance,
   relayToAntigravity,
 } from "@/lib/antigravity";
 
@@ -411,15 +410,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
       }, { status: 403 });
     }
 
-    // 2. Check credit balance
-    const balance = await checkAntigravityBalance(userEmail, agMapping);
-    if (balance.credits <= 0) {
-      return Response.json({
-        error: "insufficient_credits",
-        message: "You've run out of Antigravity credits. Top up your Antigravity account to continue using AI features.",
-        balance: { credits: balance.credits, maxCredits: balance.maxCredits, tier: balance.tier },
-      }, { status: 429 });
-    }
+    // If the user wants real Antigravity proxy credits, that logic can be restored later.
 
     // 3. Build messages array for the relay
     const agMessages: { role: "system" | "user" | "assistant"; content: string }[] = [

@@ -39,9 +39,7 @@ export async function GET() {
   const balance = await checkAntigravityBalance(email, mapping);
 
   return Response.json({
-    credits: balance.credits,
-    maxCredits: balance.maxCredits,
-    tier: balance.tier,
+    quotas: balance.quotas,
     cached: Date.now() - balance.checkedAt < 5000 ? false : true,
   });
 }

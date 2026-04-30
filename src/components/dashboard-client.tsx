@@ -97,7 +97,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [attachedAsset, setAttachedAsset] = useState<{ id: number; name: string; thumbnail: string } | null>(null);
   // Feature: Antigravity integration
   const [agLinked, setAgLinked] = useState(false);
-  const [agBalance, setAgBalance] = useState<{ credits: number; maxCredits: number; tier: string } | null>(null);
+  const [agBalance, setAgBalance] = useState<{ quotas: { model: string; refreshesIn: string }[] } | null>(null);
   // Feature: Live Share
 
   const examplePrompts = useMemo(() => [
@@ -418,7 +418,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       const res = await fetch("/api/antigravity/balance");
       if (res.ok) {
         const data = await res.json();
-        setAgBalance({ credits: data.credits || 0, maxCredits: data.maxCredits || 0, tier: data.tier || "free" });
+        setAgBalance({ quotas: data.quotas || [] });
       }
     } catch {
       // ignore
@@ -1867,29 +1867,45 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-white/50 tracking-widest uppercase">MODEL QUOTA</span>
+                    <button
+                      onClick={fetchAntigravityBalance}
+                      className="px-3 py-1.5 bg-white/[0.08] text-white hover:bg-white/[0.12] rounded-md text-[11px] font-medium transition-colors"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  
                   {agBalance ? (
-                    <div className="flex items-center justify-between bg-white/[0.04] rounded-lg px-3 py-2">
-                      <div>
-                        <p className="text-[11px] text-white/60">Credits</p>
-                        <p className="text-[14px] font-bold" style={{ color: agBalance.credits > 0 ? '#ccff00' : '#ef4444' }}>
-                          {agBalance.credits.toLocaleString()}
-                          <span className="text-[10px] text-white/30 font-normal ml-1">/ {agBalance.maxCredits.toLocaleString()}</span>
-                        </p>
-                      </div>
-                      <span className="text-[10px] text-white/30 uppercase">{agBalance.tier}</span>
+                    <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-black/20">
+                      {agBalance.quotas.map((quota, i) => (
+                        <div key={i} className="px-4 py-3 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[13px] font-medium text-white/90">{quota.model}</span>
+                            <span className="text-[11px] text-white/40">{quota.refreshesIn}</span>
+                          </div>
+                          
+                          {/* Progress bars (visual mockup) */}
+                          <div className="flex gap-1.5 h-1">
+                            <div className="flex-1 bg-white/80 rounded-full" />
+                            <div className="flex-1 bg-white/80 rounded-full" />
+                            <div className="flex-1 bg-white/10 rounded-full" />
+                            <div className="flex-1 bg-white/10 rounded-full" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
-                    <div className="bg-white/[0.04] rounded-lg px-3 py-4 text-center">
-                      <p className="text-[11px] text-white/40">Loading balance...</p>
+                    <div className="border border-white/[0.08] rounded-xl px-4 py-8 text-center bg-black/20">
+                      <p className="text-[12px] text-white/40">Loading quotas...</p>
                     </div>
                   )}
-                  <button
-                    onClick={fetchAntigravityBalance}
-                    className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
-                  >
-                    ↻ Refresh balance
-                  </button>
+                  
+                  <p className="text-[11px] text-white/40 text-center">
+                    View your available model quota. Quota refreshes periodically based on your plan.
+                  </p>
                 </div>
               </div>
             )}

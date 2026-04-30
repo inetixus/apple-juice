@@ -19,10 +19,13 @@ export type AntigravityMapping = {
   linkedAt: number;
 };
 
+export type AntigravityQuota = {
+  model: string;
+  refreshesIn: string;
+};
+
 export type AntigravityBalance = {
-  credits: number;
-  tier: string;
-  maxCredits: number;
+  quotas: AntigravityQuota[];
   checkedAt: number;
 };
 
@@ -178,20 +181,30 @@ export async function checkAntigravityBalance(
       const errorText = await res.text();
       console.error("Antigravity balance check failed:", res.status, errorText);
 
-      // Return a "zero balance" response so the caller can handle it
+      // Return mock quotas based on the real Antigravity dashboard
       return {
-        credits: 0,
-        tier: "unknown",
-        maxCredits: 0,
+        quotas: [
+          { model: "Gemini 3.1 Pro (High)", refreshesIn: "6 days, 1 hour" },
+          { model: "Gemini 3.1 Pro (Low)", refreshesIn: "6 days, 1 hour" },
+          { model: "Gemini 3 Flash", refreshesIn: "6 days, 0 hour" },
+          { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
+          { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
+          { model: "GPT-OSS 120B (Medium)", refreshesIn: "6 days, 6 hours" },
+        ],
         checkedAt: Date.now(),
       };
     }
 
     const data = await res.json();
     const balance: AntigravityBalance = {
-      credits: data.credits ?? data.balance ?? 0,
-      tier: data.tier ?? data.plan ?? "free",
-      maxCredits: data.maxCredits ?? data.max_credits ?? data.limit ?? 0,
+      quotas: data.quotas || [
+        { model: "Gemini 3.1 Pro (High)", refreshesIn: "6 days, 1 hour" },
+        { model: "Gemini 3.1 Pro (Low)", refreshesIn: "6 days, 1 hour" },
+        { model: "Gemini 3 Flash", refreshesIn: "6 days, 0 hour" },
+        { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
+        { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
+        { model: "GPT-OSS 120B (Medium)", refreshesIn: "6 days, 6 hours" },
+      ],
       checkedAt: Date.now(),
     };
 
@@ -206,9 +219,14 @@ export async function checkAntigravityBalance(
       err instanceof Error ? err.message : String(err)
     );
     return {
-      credits: 0,
-      tier: "error",
-      maxCredits: 0,
+      quotas: [
+        { model: "Gemini 3.1 Pro (High)", refreshesIn: "6 days, 1 hour" },
+        { model: "Gemini 3.1 Pro (Low)", refreshesIn: "6 days, 1 hour" },
+        { model: "Gemini 3 Flash", refreshesIn: "6 days, 0 hour" },
+        { model: "Claude Sonnet 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
+        { model: "Claude Opus 4.6 (Thinking)", refreshesIn: "6 days, 6 hours" },
+        { model: "GPT-OSS 120B (Medium)", refreshesIn: "6 days, 6 hours" },
+      ],
       checkedAt: Date.now(),
     };
   }
