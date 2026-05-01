@@ -123,6 +123,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
   const [activeScriptIndex, setActiveScriptIndex] = useState(0);
   const [showAuthGuide, setShowAuthGuide] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [isRobux, setIsRobux] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -553,6 +554,108 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
             </div>
 
+        </div>
+      </section>
+
+      {/* ━━━ PRICING ━━━ */}
+      <section id="pricing" className="px-6 pb-20 relative pt-10">
+        <div className="max-w-[1000px] mx-auto relative z-10">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-[-0.02em] text-white mb-6">
+              Pick Your <span className="text-[#ccff00]">Squeeze</span>
+            </h2>
+            <div className="inline-flex bg-[#1a1d24] p-1.5 rounded-2xl border border-white/10 items-center">
+              <button 
+                onClick={() => setIsRobux(false)}
+                className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${!isRobux ? "bg-white text-black shadow-lg" : "text-white/50 hover:text-white"}`}
+              >
+                Pay in USD
+              </button>
+              <button 
+                onClick={() => setIsRobux(true)}
+                className={`px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${isRobux ? "bg-[#00A2FF] text-white shadow-[0_0_15px_rgba(0,162,255,0.4)]" : "text-white/50 hover:text-white"}`}
+              >
+                Pay in Robux
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+            {/* LITE PLAN */}
+            <div className="bg-[#13151a] border border-white/5 rounded-[2rem] p-8 flex flex-col hover:border-white/10 transition-all duration-300">
+              <div className="text-[#ccff00] text-sm font-bold uppercase tracking-wider mb-2">Lite Plan</div>
+              <div className="text-4xl font-black text-white mb-2">{isRobux ? "0 R$" : "$0"}<span className="text-lg text-white/40 font-normal"> / forever</span></div>
+              <p className="text-sm text-white/50 mb-8 border-b border-white/5 pb-8">Perfect for testing the waters and small scripts.</p>
+              
+              <ul className="flex flex-col gap-4 mb-8 text-sm">
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> 1 Credit per day</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Basic Code Generation</li>
+                <li className="flex items-center gap-3 text-white/40"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg> No Stacking</li>
+                <li className="flex items-center gap-3 text-white/40"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg> 1 Project Limit</li>
+              </ul>
+            </div>
+
+            {/* PRO PLAN */}
+            <div className="bg-gradient-to-b from-[#1a1d24] to-[#13151a] border border-[#ccff00]/30 rounded-[2rem] p-8 flex flex-col relative transform md:-translate-y-4 shadow-[0_0_30px_rgba(204,255,0,0.1)]">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#ccff00] text-black text-xs font-black uppercase tracking-wider py-1.5 px-4 rounded-full">Most Popular</div>
+              <div className="text-white text-sm font-bold uppercase tracking-wider mb-2">Pro Plan</div>
+              <div className="text-4xl font-black text-white mb-2">{isRobux ? "1,200 R$" : "$9.99"}<span className="text-lg text-white/40 font-normal"> / month</span></div>
+              <p className="text-sm text-white/50 mb-8 border-b border-white/5 pb-8">Everything you need to ship a complete game.</p>
+              
+              <ul className="flex flex-col gap-4 mb-8 text-sm">
+                <li className="flex items-center gap-3 text-white"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> <strong>4 Credits per day</strong> (+20 bonus)</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Stack up to 10 Credits</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Claude 3.5 & GPT-4o Access</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Create up to 10 Projects</li>
+              </ul>
+              
+              <button className="mt-auto w-full bg-[#ccff00] text-black font-bold py-3 rounded-xl hover:bg-[#b3e600] transition-colors">Upgrade to Pro</button>
+            </div>
+
+            {/* ULTRA PLAN */}
+            <div className="bg-[#13151a] border border-[#7c3aed]/30 rounded-[2rem] p-8 flex flex-col hover:border-[#7c3aed]/50 transition-all duration-300 relative shadow-[0_0_30px_rgba(124,58,237,0.05)]">
+              <div className="text-[#7c3aed] text-sm font-bold uppercase tracking-wider mb-2">Ultra Plan</div>
+              <div className="text-4xl font-black text-white mb-2">{isRobux ? "2,500 R$" : "$19.99"}<span className="text-lg text-white/40 font-normal"> / month</span></div>
+              <p className="text-sm text-white/50 mb-8 border-b border-white/5 pb-8">For serious developers who want AI automation.</p>
+              
+              <ul className="flex flex-col gap-4 mb-8 text-sm">
+                <li className="flex items-center gap-3 text-white"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> <strong>12 Credits per day</strong> (+100 bonus)</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Stack up to 40 Credits</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Full Project RAG Context</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Unlimited Projects</li>
+              </ul>
+              
+              <button className="mt-auto w-full bg-[#1e2128] text-white font-bold py-3 rounded-xl hover:bg-[#252830] transition-colors border border-[#7c3aed]/50">Get Ultra</button>
+            </div>
+          </div>
+
+          {/* JUICE PACKS */}
+          <div className="bg-[#0f1115] border border-white/5 rounded-3xl p-8 md:p-10">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-black text-white">Need a quick squeeze?</h3>
+              <p className="text-white/50 text-sm mt-2">Grab a one-time Juice Pack to refill your credits instantly.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-[#13151a] border border-white/10 rounded-2xl p-6 flex flex-col text-center hover:border-white/20 transition-colors">
+                <div className="text-white/60 text-sm font-semibold mb-2">Small Squeeze</div>
+                <div className="text-2xl font-black text-white mb-1">{isRobux ? "350 R$" : "$2.99"}</div>
+                <div className="text-sm text-[#ccff00] font-bold mb-6">15 Credits</div>
+                <button className="w-full bg-white text-black font-bold py-2.5 rounded-lg text-sm hover:bg-gray-200 transition-colors">Purchase</button>
+              </div>
+              <div className="bg-[#1a1d24] border border-[#ccff00]/30 rounded-2xl p-6 flex flex-col text-center relative shadow-[0_0_20px_rgba(204,255,0,0.05)]">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#ccff00] text-black text-[10px] font-black uppercase tracking-wider py-1 px-3 rounded-full">Value</div>
+                <div className="text-white/60 text-sm font-semibold mb-2">Big Squeeze</div>
+                <div className="text-2xl font-black text-white mb-1">{isRobux ? "950 R$" : "$7.99"}</div>
+                <div className="text-sm text-[#ccff00] font-bold mb-6">50 Credits</div>
+                <button className="w-full bg-[#ccff00] text-black font-bold py-2.5 rounded-lg text-sm hover:bg-[#b3e600] transition-colors">Purchase</button>
+              </div>
+              <div className="bg-[#13151a] border border-white/10 rounded-2xl p-6 flex flex-col text-center hover:border-white/20 transition-colors">
+                <div className="text-white/60 text-sm font-semibold mb-2">Industrial Squeeze</div>
+                <div className="text-2xl font-black text-white mb-1">{isRobux ? "3,000 R$" : "$24.99"}</div>
+                <div className="text-sm text-[#ccff00] font-bold mb-6">200 Credits</div>
+                <button className="w-full bg-white text-black font-bold py-2.5 rounded-lg text-sm hover:bg-gray-200 transition-colors">Purchase</button>
+              </div>
+            </div>
           </div>
         </div>
       </section>

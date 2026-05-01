@@ -21,9 +21,27 @@ const PREFIX = "apple-juice:session:";
 const IP_PREFIX = "apple-juice:ip:";
 const USAGE_PREFIX = "apple-juice:usage:";
 
-export const MAX_CREDITS_PER_WEEK = 50;
 export const TOKENS_PER_CREDIT = 1000;
-export const MAX_TOKENS_PER_WEEK = MAX_CREDITS_PER_WEEK * TOKENS_PER_CREDIT;
+
+export const PLAN_LIMITS = {
+  lite: {
+    dailyCredits: 1,
+    maxProjects: 1,
+    stackLimit: 1,
+  },
+  pro: {
+    dailyCredits: 4,
+    maxProjects: 15,
+    stackLimit: 10,
+  },
+  ultra: {
+    dailyCredits: 12,
+    maxProjects: 9999,
+    stackLimit: 40,
+  }
+} as const;
+
+export type UserPlan = keyof typeof PLAN_LIMITS;
 
 let _redis: Redis | null = null;
 export function getRedis(): Redis {
@@ -308,28 +326,37 @@ export async function consumeLogs(sessionKey: string) {
   }
 }
 
-function getISOWeek(date: Date): string {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+function usageKeyFor(userId: string) {
+  const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  return `${USAGE_PREFIX}${userId}:${date}`;
 }
 
-function usageKeyFor(userId: string) {
-  const week = getISOWeek(new Date());
-  return `${USAGE_PREFIX}${userId}:${week}`;
+export async function getUserPlan(userId: string): Promise<UserPlan> {
+  const redis = getRedis();
+  const plan = await redis.get<UserPlan>(`apple-juice:user-plan:${userId}`);
+  return plan || "lite";
+}
+
+export async function setUserPlan(userId: string, plan: UserPlan) {
+  const redis = getRedis();
+  await redis.set(`apple-juice:user-plan:${userId}`, plan);
 }
 
 export async function getUserUsage(userId: string) {
+  const plan = await getUserPlan(userId);
+  const limits = PLAN_LIMITS[plan];
   const key = usageKeyFor(userId);
   const used = await getRedis().get<number>(key);
+  
+  const dailyTokens = limits.dailyCredits * TOKENS_PER_CREDIT;
+
   return {
     usedTokens: used || 0,
-    totalTokens: MAX_TOKENS_PER_WEEK,
+    totalTokens: dailyTokens,
     usedCredits: Math.floor((used || 0) / TOKENS_PER_CREDIT),
-    totalCredits: MAX_CREDITS_PER_WEEK,
+    totalCredits: limits.dailyCredits,
+    plan,
+    limits
   };
 }
 
@@ -340,7 +367,7 @@ export async function trackUserUsage(userId: string, tokens: number) {
   try {
     await redis.incrby(key, tokens);
     // Set expiry to 48 hours to clean up old keys
-    await redis.expire(key, 60 * 60 * 24 * 8); // 8 days TTL for weekly keys
+    await redis.expire(key, 60 * 60 * 48); 
   } catch (err) {
     console.error("trackUserUsage error", err);
   }
