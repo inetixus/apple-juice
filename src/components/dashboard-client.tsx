@@ -2235,6 +2235,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
       )}
       </div>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <div className="fixed bottom-4 right-4 text-[10px] text-white/10 pointer-events-none">v1.0.8-vertex-final</div>
     </main>
   );
 }
