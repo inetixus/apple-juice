@@ -12,11 +12,11 @@ export async function POST(req: Request) {
     const systemOpenAIKey = process.env.OPENAI_API_KEY || "";
     const systemGoogleKey = process.env.GOOGLE_API_KEY || "";
     
-    const clientKey = (provider === "google" || provider === "google_vertex") ? (apiKey || "") : (openaiKey || apiKey || "");
+    let clientKey = (provider === "google" || provider === "google_vertex") ? (apiKey || "") : (openaiKey || apiKey || "");
 
-    // CRITICAL: Prevent JSON leakage into OpenAI headers
-    if (clientKey && clientKey.trim().startsWith("{") && (provider === "openai" || provider === "google")) {
-      return Response.json({ enhancedPrompt: prompt }); 
+    // CRITICAL: Wipe JSON keys if they leak into OpenAI/Google providers
+    if (clientKey && clientKey.trim().startsWith("{") && provider !== "google_vertex") {
+      clientKey = ""; 
     }
 
     const isUsingCustomKey = !!clientKey && clientKey !== systemOpenAIKey && clientKey !== systemGoogleKey;

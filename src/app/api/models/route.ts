@@ -62,11 +62,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "apiKey is required" }, { status: 400 });
   }
 
-  const effectiveApiKey = (provider === "google" || provider === "google_vertex") ? (apiKey || "") : (apiKey || "");
+  let effectiveApiKey = (provider === "google" || provider === "google_vertex") ? (apiKey || "") : (apiKey || "");
   
-  // CRITICAL: Prevent JSON leakage into OpenAI/Google headers
-  if (effectiveApiKey && effectiveApiKey.trim().startsWith("{") && (provider === "openai" || provider === "google")) {
-    return Response.json({ error: "Invalid API Key format for this provider", models: FALLBACK_MODELS }, { status: 400 });
+  // CRITICAL: Wipe JSON keys if they leak into OpenAI/Google providers
+  if (effectiveApiKey && effectiveApiKey.trim().startsWith("{") && provider !== "google_vertex") {
+    effectiveApiKey = "";
   }
 
   if (provider === "apple_juice_ai") {
