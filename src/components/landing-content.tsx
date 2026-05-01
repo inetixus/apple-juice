@@ -318,47 +318,44 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               {/* No More Copy Pasting */}
               <div className="group rounded-3xl bg-[#13151a] border border-white/5 overflow-hidden relative flex flex-col h-[350px] transition-all duration-500 hover:border-white/10">
                 {/* Visual */}
-                <div className="absolute inset-0 top-0 h-[220px] flex items-center justify-center" style={{ perspective: '1000px' }}>
-                  <div className="relative w-[220px] h-[120px] group-hover:rotate-x-12 group-hover:-rotate-y-12 transition-transform duration-700 ease-out" style={{ transformStyle: 'preserve-3d' }}>
+                <div className="absolute inset-0 top-0 h-[220px] flex items-center justify-center">
+                  <div className="relative w-[220px] h-[70px] mt-10">
                     {/* Background card */}
-                    <div className="absolute inset-0 bg-[#1e2128] rounded-xl border border-white/5 p-4 opacity-40 group-hover:translate-x-4 group-hover:-translate-y-4 group-hover:opacity-20 transition-all duration-700" style={{ transform: 'translateZ(-40px)' }}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-4 h-4 rounded-full bg-white/20" />
-                        <div className="w-20 h-2 rounded bg-white/20" />
+                    <div className="absolute inset-0 bg-[#1e2128] rounded-xl border border-white/5 p-3 opacity-60 transform -rotate-[20deg] translate-y-[-25px] translate-x-[25px] hover:-translate-y-[35px] hover:z-30 hover:opacity-100 hover:rotate-0 hover:scale-105 transition-all duration-300 cursor-pointer shadow-lg flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-md bg-blue-500/20 flex items-center justify-center text-blue-400">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                       </div>
-                      <div className="w-full h-2 rounded bg-white/10 mt-4" />
-                      <div className="w-2/3 h-2 rounded bg-white/10 mt-2" />
+                      <div className="flex-1">
+                        <div className="text-[10px] font-semibold text-white/90">WeaponSystem.lua</div>
+                        <div className="text-[9px] text-white/50">Synced to ReplicatedStorage</div>
+                      </div>
                     </div>
                     {/* Middle card */}
-                    <div className="absolute inset-0 bg-[#252830] rounded-xl border border-white/10 p-4 opacity-70 group-hover:translate-x-2 group-hover:-translate-y-2 group-hover:opacity-50 transition-all duration-700" style={{ transform: 'translateZ(0)' }}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-4 h-4 rounded-full bg-white/30" />
-                        <div className="w-24 h-2 rounded bg-white/30" />
+                    <div className="absolute inset-0 bg-[#252830] rounded-xl border border-white/10 p-3 opacity-80 transform -rotate-[20deg] translate-y-[-10px] translate-x-[10px] hover:-translate-y-[20px] hover:z-30 hover:opacity-100 hover:rotate-0 hover:scale-105 transition-all duration-300 cursor-pointer shadow-xl flex items-center gap-3 z-10">
+                      <div className="w-6 h-6 rounded-md bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                       </div>
-                      <div className="w-full h-2 rounded bg-white/20 mt-4" />
-                      <div className="w-3/4 h-2 rounded bg-white/20 mt-2" />
+                      <div className="flex-1">
+                        <div className="text-[10px] font-semibold text-white/90">Config.lua created</div>
+                        <div className="text-[9px] text-white/50">Synced to ServerStorage</div>
+                      </div>
                     </div>
                     {/* Foreground card */}
-                    <div className="absolute inset-0 bg-[#2a2d36] rounded-xl border border-white/20 p-4 shadow-2xl transition-all duration-700" style={{ transform: 'translateZ(40px)' }}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                          <svg viewBox="0 0 24 24" className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        </div>
-                        <span className="text-sm font-semibold text-white">Roblox Studio</span>
+                    <div className="absolute inset-0 bg-[#2a2d36] rounded-xl border border-white/20 p-3 opacity-100 transform -rotate-[20deg] translate-y-[5px] translate-x-[-5px] hover:-translate-y-[5px] hover:z-30 hover:opacity-100 hover:rotate-0 hover:scale-105 transition-all duration-300 cursor-pointer shadow-2xl flex items-center gap-3 z-20">
+                      <div className="w-6 h-6 rounded-md bg-purple-500/20 flex items-center justify-center text-purple-400">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                       </div>
-                      <p className="text-[11px] text-white/60 leading-tight mb-2">
-                        6 scripts received from Apple Juice sync.
-                      </p>
-                      <p className="text-[10px] text-emerald-400 font-mono">
-                        Automatic
-                      </p>
+                      <div className="flex-1">
+                        <div className="text-[10px] font-semibold text-white/90">MainHandler.lua updated</div>
+                        <div className="text-[9px] text-white/50">Auto-resolved 3 conflicts</div>
+                      </div>
                     </div>
                   </div>
                 </div>
                 {/* Text content */}
-                <div className="mt-auto p-6 relative z-10 bg-gradient-to-t from-[#13151a] via-[#13151a] to-transparent pt-12">
-                  <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                <div className="mt-auto p-6 relative z-10 bg-gradient-to-t from-[#13151a] via-[#13151a] to-transparent pt-12 pointer-events-none">
+                  <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center bg-white/5">
+                    <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">No More Copy-Pasting</h3>
                   <p className="text-sm text-white/50">Files automatically sync with Studio.</p>
@@ -366,12 +363,23 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               </div>
 
               {/* Agent Playtest */}
-              <div className="group rounded-3xl bg-[#13151a] border border-white/5 p-6 transition-all duration-500 hover:border-white/10 flex flex-col justify-end min-h-[200px]">
-                <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h0m6 0h0m-3 4h0"/></svg>
+              <div className="group rounded-3xl bg-[#13151a] border border-white/5 overflow-hidden relative flex flex-col h-[200px] transition-all duration-500 hover:border-white/10">
+                <div className="absolute inset-0 top-0 h-[100px] flex items-center justify-center overflow-hidden">
+                  <div className="relative w-[80%] bg-[#060a12]/80 rounded-lg border border-white/5 p-2 flex flex-col gap-1.5 overflow-hidden group-hover:border-red-500/20 transition-colors duration-500 mt-4">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-white/50 font-mono">Running tests...</span>
+                      <span className="text-[9px] text-red-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">[Error] nil value in Weapon.lua:14</span>
+                      <span className="text-[9px] text-emerald-400 font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-300">{`> Auto-fixing... Resolved.`}</span>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">Agent Playtest</h3>
-                <p className="text-sm text-white/50">Apple Juice playtests your game and fixes issues automatically.</p>
+                <div className="mt-auto p-5 relative z-10 bg-gradient-to-t from-[#13151a] via-[#13151a] to-transparent pt-8 pointer-events-none">
+                  <div className="w-7 h-7 rounded-lg mb-2 flex items-center justify-center bg-white/5">
+                    <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h0m6 0h0m-3 4h0"/></svg>
+                  </div>
+                  <h3 className="text-base font-semibold text-white mb-1">Agent Playtest</h3>
+                  <p className="text-[11px] text-white/50 leading-tight">Apple Juice playtests your game and fixes issues automatically.</p>
+                </div>
               </div>
             </div>
 
@@ -430,47 +438,66 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             {/* RIGHT COLUMN */}
             <div className="flex flex-col gap-6">
               {/* Version Control */}
-              <div className="group rounded-3xl bg-[#13151a] border border-white/5 p-6 transition-all duration-500 hover:border-white/10 flex flex-col justify-end min-h-[200px]">
-                <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <div className="group rounded-3xl bg-[#13151a] border border-white/5 overflow-hidden relative flex flex-col h-[200px] transition-all duration-500 hover:border-white/10">
+                <div className="absolute inset-0 top-0 h-[100px] flex items-center justify-center mt-2">
+                  <div className="relative w-[160px] h-[50px] flex items-center justify-center">
+                    {/* Node 1 */}
+                    <div className="absolute left-0 w-6 h-6 rounded-full bg-[#1e2128] border border-white/10 flex items-center justify-center z-10 group-hover:bg-indigo-500/20 transition-colors duration-500">
+                      <span className="text-[9px] text-white/40">v1</span>
+                    </div>
+                    <div className="absolute left-5 w-10 h-0.5 bg-white/5 group-hover:bg-indigo-500/30 transition-colors duration-500" />
+                    {/* Node 2 */}
+                    <div className="absolute left-14 w-8 h-8 rounded-full bg-[#252830] border border-white/20 flex items-center justify-center z-10 group-hover:bg-indigo-500/20 transition-colors duration-500 delay-100">
+                      <span className="text-[10px] font-bold text-white/60">v2</span>
+                    </div>
+                    <div className="absolute left-20 w-12 h-0.5 bg-white/5 group-hover:bg-[#ccff00]/30 transition-colors duration-500 delay-100" />
+                    {/* Node 3 */}
+                    <div className="absolute right-0 w-10 h-10 rounded-full bg-[#2a2d36] border border-white/30 flex items-center justify-center z-10 group-hover:border-[#ccff00]/50 transition-all duration-500 delay-200">
+                      <span className="text-[11px] font-black text-white group-hover:text-[#ccff00]">v3</span>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">Version Control</h3>
-                <p className="text-sm text-white/50">Control your project and rollback to any past prompt iterations.</p>
+                <div className="mt-auto p-5 relative z-10 bg-gradient-to-t from-[#13151a] via-[#13151a] to-transparent pt-8 pointer-events-none">
+                  <div className="w-7 h-7 rounded-lg mb-2 flex items-center justify-center bg-white/5">
+                    <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  </div>
+                  <h3 className="text-base font-semibold text-white mb-1">Version Control</h3>
+                  <p className="text-[11px] text-white/50 leading-tight">Control your project and rollback to any past prompt iterations.</p>
+                </div>
               </div>
 
               {/* Fast and Accurate */}
               <div className="group rounded-3xl bg-[#13151a] border border-white/5 overflow-hidden relative flex flex-col h-[350px] transition-all duration-500 hover:border-white/10">
                 {/* Visual */}
                 <div className="absolute inset-0 top-0 h-[220px] flex items-center justify-center overflow-hidden">
-                  <div className="w-full px-12 flex flex-col gap-3 transform -rotate-12 translate-x-4 translate-y-4 group-hover:rotate-0 group-hover:translate-x-0 group-hover:translate-y-0 transition-all duration-700 ease-out">
+                  <div className="w-full px-10 flex flex-col gap-2 transform -rotate-[20deg] translate-x-4 translate-y-6 group-hover:rotate-0 group-hover:translate-x-0 group-hover:translate-y-0 transition-all duration-700 ease-out">
                     
-                    <div className="w-full bg-[#1e2128] border border-white/10 p-3 rounded-xl flex items-center gap-3 shadow-lg opacity-40 group-hover:opacity-100 transition-opacity duration-500 delay-100">
-                      <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center">
-                        <svg className="w-3 h-3 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                      <span className="text-sm font-medium text-white/70">1. Project analysis</span>
+                    <div className="w-full bg-[#1e2128]/80 border border-white/5 p-2.5 rounded-xl flex items-center gap-3 shadow-lg opacity-30 group-hover:opacity-100 transition-all duration-500 delay-75">
+                      <div className="w-4 h-4 rounded-full bg-blue-500/20 flex items-center justify-center"><div className="w-1.5 h-1.5 rounded-full bg-blue-400" /></div>
+                      <span className="text-xs font-medium text-white/60">1. Parsing prompt...</span>
                     </div>
 
-                    <div className="w-full bg-[#252830] border border-white/10 p-3 rounded-xl flex items-center gap-3 shadow-xl opacity-60 group-hover:opacity-100 transition-opacity duration-500 delay-200">
-                      <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center">
-                        <svg className="w-3 h-3 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                      <span className="text-sm font-medium text-white/80">2. Apple Juice context data</span>
+                    <div className="w-full bg-[#1e2128]/80 border border-white/10 p-2.5 rounded-xl flex items-center gap-3 shadow-lg opacity-50 group-hover:opacity-100 transition-all duration-500 delay-150">
+                      <div className="w-4 h-4 rounded-full bg-indigo-500/20 flex items-center justify-center"><div className="w-1.5 h-1.5 rounded-full bg-indigo-400" /></div>
+                      <span className="text-xs font-medium text-white/70">2. RAG Context gathered</span>
                     </div>
 
-                    <div className="w-full bg-[#2a2d36] border border-white/20 p-3 rounded-xl flex items-center gap-3 shadow-2xl opacity-80 group-hover:opacity-100 transition-opacity duration-500 delay-300">
-                      <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center">
-                        <svg className="w-3 h-3 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                      <span className="text-sm font-semibold text-white">3. Model generation</span>
+                    <div className="w-full bg-[#252830]/90 border border-white/10 p-2.5 rounded-xl flex items-center gap-3 shadow-xl opacity-70 group-hover:opacity-100 transition-all duration-500 delay-200">
+                      <div className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center"><div className="w-1.5 h-1.5 rounded-full bg-emerald-400" /></div>
+                      <span className="text-xs font-medium text-white/80">3. Type-checking Luau</span>
+                    </div>
+
+                    <div className="w-full bg-[#2a2d36] border border-white/20 p-2.5 rounded-xl flex items-center gap-3 shadow-2xl opacity-90 group-hover:opacity-100 transition-all duration-500 delay-300">
+                      <div className="w-4 h-4 rounded-full bg-[#ccff00]/20 flex items-center justify-center"><div className="w-1.5 h-1.5 rounded-full bg-[#ccff00]" /></div>
+                      <span className="text-xs font-semibold text-white">4. Output ready in 0.8s</span>
                     </div>
 
                   </div>
                 </div>
                 {/* Text content */}
-                <div className="mt-auto p-6 relative z-10 bg-gradient-to-t from-[#13151a] via-[#13151a] to-transparent pt-12">
-                  <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <div className="mt-auto p-6 relative z-10 bg-gradient-to-t from-[#13151a] via-[#13151a] to-transparent pt-12 pointer-events-none">
+                  <div className="w-8 h-8 rounded-lg mb-4 flex items-center justify-center bg-white/5">
+                    <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">Fast and Accurate</h3>
                   <p className="text-sm text-white/50">We improve generation by selectively passing our own context data in each prompt.</p>
