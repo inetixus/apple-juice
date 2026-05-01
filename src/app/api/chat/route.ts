@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { GoogleAuth } from "google-auth-library";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSession, upsertGeneratedCode, getUserUsage, trackUserUsage, getRedis } from "@/lib/store";
@@ -340,7 +341,14 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     try {
       const parsed = JSON.parse(rawResponse);
       if (isGoogle) {
-        return parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+        // Handle Google Gemini format
+        const text = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text.trim();
+        
+        // Handle Claude on Vertex AI format
+        if (parsed?.content && Array.isArray(parsed.content)) {
+          return parsed.content.find((p: any) => p.type === "text")?.text?.trim() || "";
+        }
       }
       return parsed?.choices?.[0]?.message?.content?.trim() ?? "";
     } catch {
@@ -475,6 +483,86 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     raw = result.raw;
     preambleReasoning = result.preamble;
     modelUsed = effectiveModel;
+
+  // ── Vertex AI Provider Path ────────────────────────────────────────────────
+  } else if (effectiveProvider === "google_vertex") {
+    try {
+      const json = JSON.parse(apiKey);
+      const auth = new GoogleAuth({
+        credentials: json,
+        scopes: ['https://www.googleapis.com/auth/cloud-platform']
+      });
+      const client = await auth.getClient();
+      const tokenResponse = await client.getAccessToken();
+      const token = tokenResponse.token;
+      const projectId = json.project_id;
+      
+      let publisher = "google";
+      if (effectiveModel.includes("claude")) publisher = "anthropic";
+      else if (effectiveModel.includes("llama")) publisher = "meta";
+      else if (effectiveModel.includes("mistral") || effectiveModel.includes("codestral")) publisher = "mistralai";
+      
+      const isClaude = publisher === "anthropic";
+      // Use global for gemini-3 or Claude if preferred, but us-central1 is safer for others
+      const region = (effectiveModel.includes("gemini-3") || isClaude) ? "global" : "us-central1";
+      
+      const endpoint = isClaude ? "streamRawPredict" : "generateContent";
+      const url = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/${publisher}/models/${effectiveModel}:${endpoint}`;
+
+      const vertexMessages = (body.messages && body.messages.length > 0) 
+        ? body.messages.map((m) => ({
+            role: m.role === "assistant" ? "model" : "user",
+            parts: [{ text: m.content }]
+          }))
+        : [{ role: "user", parts: [{ text: prompt }] }];
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(isClaude ? {
+          anthropic_version: "vertex-2023-10-16",
+          messages: vertexMessages.map(m => ({
+            role: m.role === "model" ? "assistant" : "user",
+            content: m.parts[0].text
+          })),
+          max_tokens: 4096,
+          stream: false
+        } : {
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: vertexMessages,
+          generationConfig: {
+            temperature: mode === "thinking" ? 0.4 : 0.2,
+            maxOutputTokens: mode === "thinking" ? 65536 : 32768,
+            responseMimeType: "application/json"
+          },
+        }),
+      });
+
+      const bodyText = await res.text();
+      if (!res.ok) {
+        return Response.json({ error: "Vertex AI request failed", detail: bodyText, model: effectiveModel }, { status: res.status });
+      }
+
+      const content = extractContent(bodyText, true);
+      if (content) {
+        const result = processResponse(content, bodyText);
+        code = result.code;
+        raw = result.raw;
+        preambleReasoning = result.preamble;
+        modelUsed = effectiveModel;
+        
+        try {
+          const parsed = JSON.parse(bodyText);
+          tokensUsed = parsed?.usageMetadata?.totalTokenCount || 0;
+        } catch { /* ignore */ }
+      }
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return Response.json({ error: "Vertex AI Auth/Connection failed", detail }, { status: 500 });
+    }
 
   // ── Google Provider Path ───────────────────────────────────────────────────
   } else if (effectiveProvider === "google") {

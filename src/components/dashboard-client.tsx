@@ -62,9 +62,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [sessionKey, setSessionKey] = useState("");
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [provider, setProvider] = useState<"openai" | "google" | "apple_juice_ai">("openai");
+  const [provider, setProvider] = useState<"openai" | "google" | "apple_juice_ai" | "google_vertex">("openai");
   const [openaiKey, setOpenaiKey] = useState("");
   const [googleKey, setGoogleKey] = useState("");
+  const [vertexKey, setVertexKey] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [availableModels, setAvailableModels] = useState<string[]>(FALLBACK_MODELS);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -353,12 +354,16 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const savedOpen =
       window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
     const savedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
+    const savedVertex = window.localStorage.getItem("apple-juice-vertex-key") ?? "";
 
-    setProvider(savedProvider);
+    setProvider(savedProvider as any);
     setOpenaiKey(savedOpen);
     setGoogleKey(savedGoogle);
+    setVertexKey(savedVertex);
 
-    const effectiveKey = savedProvider === "google" ? savedGoogle : savedOpen;
+    let effectiveKey = savedOpen;
+    if (savedProvider === "google") effectiveKey = savedGoogle;
+    if (savedProvider === "google_vertex") effectiveKey = savedVertex;
     setApiKey(effectiveKey);
 
     const savedModel = window.localStorage.getItem("apple-juice-model") ?? "gpt-4o-mini";
@@ -677,17 +682,24 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   }
 
   function saveApiKey() {
-    const inputValue = (provider === "google" ? googleKey : openaiKey).trim();
+    const inputValue = (provider === "google_vertex" ? vertexKey : (provider === "google" ? googleKey : openaiKey)).trim();
     const detectedGoogle = looksLikeGoogleKey(inputValue);
-    const finalProvider: "openai" | "google" | "apple_juice_ai" = detectedGoogle ? "google" : provider;
+    const isJson = inputValue.startsWith("{") && inputValue.includes("project_id");
+    
+    let finalProvider: "openai" | "google" | "apple_juice_ai" | "google_vertex" = provider;
+    if (isJson) finalProvider = "google_vertex";
+    else if (detectedGoogle) finalProvider = "google";
 
-    if (finalProvider === "google") {
+    if (finalProvider === "google_vertex") {
+      window.localStorage.setItem("apple-juice-vertex-key", inputValue);
+      setVertexKey(inputValue);
+      setProvider("google_vertex");
+    } else if (finalProvider === "google") {
       window.localStorage.setItem("apple-juice-google-key", inputValue);
       setGoogleKey(inputValue);
       setProvider("google");
     } else {
       window.localStorage.setItem("apple-juice-openai-key", inputValue);
-      // keep legacy key for compatibility
       window.localStorage.setItem("apple-juice-api-key", inputValue);
       setOpenaiKey(inputValue);
       setProvider("openai");
@@ -695,7 +707,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
     window.localStorage.setItem("apple-juice-provider", finalProvider);
     setApiKey(inputValue);
-    // Pass explicit provider to loadModels to avoid waiting for state update
     void loadModels(inputValue, undefined, finalProvider);
     setShowSettings(false);
   }
@@ -1986,30 +1997,44 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
               >
                 <option value="openai" className="bg-[#13151a]">OpenAI</option>
                 <option value="google" className="bg-[#13151a]">Google AI Studio</option>
+                <option value="google_vertex" className="bg-[#13151a]">Google Vertex AI (JSON)</option>
                 <option value="apple_juice_ai" className="bg-[#13151a]">⚡ Apple Juice AI</option>
               </select>
             </div>
             {provider !== "apple_juice_ai" && (
               <div>
                 <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
-                  API Key
+                  {provider === "google_vertex" ? "Service Account JSON" : "API Key"}
                 </label>
-                <div className="flex gap-2">
-                  <Input
-                    id="api-key-input"
-                    type="password"
-                    value={provider == "google" ? googleKey : openaiKey}
-                    onChange={(event) => {
-                      const v = event.target.value;
-                      if (provider == "google") setGoogleKey(v);
-                      else setOpenaiKey(v);
-                      setApiKey(v);
-                    }}
-                    placeholder={provider == "google" ? "Google API Key" : "sk-..."}
-                    className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
-                  />
-                  <button onClick={saveApiKey} className="px-2.5 py-1.5 bg-white/10 text-white text-[11px] rounded-lg hover:bg-white/20 transition-colors">
-                    Save
+                <div className="flex flex-col gap-2">
+                  {provider === "google_vertex" ? (
+                    <Textarea
+                      id="api-key-input"
+                      value={vertexKey}
+                      onChange={(e) => {
+                        setVertexKey(e.target.value);
+                        setApiKey(e.target.value);
+                      }}
+                      placeholder='{ "type": "service_account", ... }'
+                      className="bg-white/[0.04] border-white/[0.08] h-24 text-[10px] font-mono focus:border-[#ccff00]/40"
+                    />
+                  ) : (
+                    <Input
+                      id="api-key-input"
+                      type="password"
+                      value={provider == "google" ? googleKey : openaiKey}
+                      onChange={(event) => {
+                        const v = event.target.value;
+                        if (provider == "google") setGoogleKey(v);
+                        else setOpenaiKey(v);
+                        setApiKey(v);
+                      }}
+                      placeholder={provider == "google" ? "Google API Key" : "sk-..."}
+                      className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
+                    />
+                  )}
+                  <button onClick={saveApiKey} className="w-full py-1.5 bg-white/10 text-white text-[11px] rounded-lg hover:bg-white/20 transition-colors">
+                    Save Configuration
                   </button>
                 </div>
                 <button onClick={() => loadModels()} disabled={isLoadingModels} className="mt-2 text-[11px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40">

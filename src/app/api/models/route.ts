@@ -21,6 +21,38 @@ const ANTIGRAVITY_MODELS = [
   "Gemini 3 Flash (Preview)",
 ];
 
+const VERTEX_MODELS = [
+  "gemini-3.1-pro-001",
+  "gemini-3.1-flash-001",
+  "gemini-3.0-pro-002",
+  "gemini-3.0-flash-002",
+  "gemini-3-flash-preview",
+  "gemini-3-pro-preview",
+  "gemini-2.5-pro-001",
+  "gemini-2.5-flash-001",
+  "gemini-2.0-pro-002",
+  "gemini-2.0-flash-001",
+  "gemini-1.5-pro-002",
+  "gemini-1.5-flash-002",
+  "gemini-1.0-pro-001",
+  "claude-4-opus-20260307",
+  "claude-4-sonnet-20260307",
+  "claude-3-5-haiku@20241022",
+  "claude-3-5-sonnet@20241022",
+  "claude-3-opus@20240229",
+  "claude-3-sonnet@20240229",
+  "claude-3-haiku@20240307",
+  "llama-4-70b-instruct-v1:0",
+  "llama-4-405b-instruct-v1:0",
+  "llama-3.2-90b-vision-instruct-v1:0",
+  "llama-3.1-405b-instruct-v1:0",
+  "mistral-large-2411",
+  "mistral-nemo-2407",
+  "codestral-2405",
+  "med-gemini-1.5-pro",
+  "gemini-experimental-2026",
+];
+
 export async function POST(request: Request) {
   const body = (await request.json()) as ModelsBody;
   const apiKey = body.apiKey?.trim() || "";
@@ -34,6 +66,10 @@ export async function POST(request: Request) {
 
   if (provider === "apple_juice_ai") {
     return Response.json({ models: ANTIGRAVITY_MODELS });
+  }
+
+  if (provider === "google_vertex") {
+    return Response.json({ models: VERTEX_MODELS });
   }
 
   if (provider === "google") {
