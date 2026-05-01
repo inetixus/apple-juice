@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const systemOpenAIKey = process.env.OPENAI_API_KEY || "";
     const systemGoogleKey = process.env.GOOGLE_API_KEY || "";
     
-    const clientKey = (provider === "google" || provider === "google_vertex") ? apiKey : (openaiKey || apiKey);
+    const clientKey = (provider === "google" || provider === "google_vertex") ? (apiKey || "") : (openaiKey || apiKey || "");
 
     // CRITICAL: Prevent JSON leakage into OpenAI headers
     if (clientKey && clientKey.trim().startsWith("{") && provider !== "google_vertex") {

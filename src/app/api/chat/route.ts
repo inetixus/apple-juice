@@ -43,10 +43,10 @@ export async function POST(req: Request) {
   const systemOpenAIKey = process.env.OPENAI_API_KEY || "";
   const systemGoogleKey = process.env.GOOGLE_API_KEY || "";
 
-  const clientKey = (provider === "google" || provider === "google_vertex") ? apiKey : (openaiKey || apiKey);
+  const clientKey = (provider === "google" || provider === "google_vertex") ? (apiKey || "") : (openaiKey || apiKey || "");
   
   // CRITICAL: Prevent JSON leakage into OpenAI headers
-  if (clientKey.trim().startsWith("{") && provider !== "google_vertex") {
+  if (clientKey && clientKey.trim().startsWith("{") && provider !== "google_vertex") {
     return Response.json({ error: "Invalid API Key format for this provider. You might have a Google JSON key saved in your OpenAI settings." }, { status: 400 });
   }
 

@@ -62,10 +62,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "apiKey is required" }, { status: 400 });
   }
 
-  const effectiveApiKey = (provider === "google" || provider === "google_vertex") ? apiKey : (apiKey || "");
+  const effectiveApiKey = (provider === "google" || provider === "google_vertex") ? (apiKey || "") : (apiKey || "");
   
   // CRITICAL: Prevent JSON leakage into OpenAI headers
-  if (effectiveApiKey.trim().startsWith("{") && provider !== "google_vertex") {
+  if (effectiveApiKey && effectiveApiKey.trim().startsWith("{") && provider !== "google_vertex") {
     return Response.json({ error: "Invalid API Key format for this provider", models: FALLBACK_MODELS }, { status: 400 });
   }
 
