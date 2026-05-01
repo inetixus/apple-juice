@@ -12,14 +12,18 @@ export async function POST(req: Request) {
     const systemOpenAIKey = process.env.OPENAI_API_KEY || "";
     const systemGoogleKey = process.env.GOOGLE_API_KEY || "";
     
-    const clientKey = provider === "google" ? apiKey : (openaiKey || apiKey);
+    const clientKey = (provider === "google" || provider === "google_vertex") ? apiKey : (openaiKey || apiKey);
     const isUsingCustomKey = !!clientKey && clientKey !== systemOpenAIKey && clientKey !== systemGoogleKey;
     
     let effectiveProvider = provider;
-    if (!isUsingCustomKey) effectiveProvider = "google";
+    if (!isUsingCustomKey && provider !== "google_vertex") effectiveProvider = "google";
 
     const finalGoogleKey = (effectiveProvider === "google" && clientKey) ? clientKey : systemGoogleKey;
     const finalOpenAIKey = (effectiveProvider === "openai" && clientKey) ? clientKey : systemOpenAIKey;
+
+    if (effectiveProvider === "google_vertex") {
+      return Response.json({ enhancedPrompt: prompt });
+    }
 
     const SYSTEM_PROMPT = `You are an elite Roblox Software Architect and Prompt Engineer specializing in production-grade systems.
 The user has provided a short or vague request for a Roblox Studio system, script, or UI.
