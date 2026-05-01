@@ -99,12 +99,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [attachedFiles, setAttachedFiles] = useState<
     { name: string; content: string }[]
   >([]);
-  const [usage, setUsage] = useState({
+  const [usage, setUsage] = useState<any>({
     usedTokens: 0,
-    totalTokens: 50000,
+    totalTokens: 1000,
     usedCredits: 0,
-    totalCredits: 50,
+    totalCredits: 1,
+    plan: "lite",
   });
+  const [showPricing, setShowPricing] = useState(false);
+  const [isRobux, setIsRobux] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
@@ -475,23 +478,16 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     // Check Antigravity link status
     void checkAntigravityLink();
   }, []);
-
   async function fetchUsage() {
     try {
       const res = await fetch("/api/usage");
       if (res.ok) {
         const data = await res.json();
-        setUsage({
-          usedTokens: data.usedTokens || 0,
-          totalTokens: data.totalTokens || 50000,
-          usedCredits: data.usedCredits || 0,
-          totalCredits: data.totalCredits || 50,
-        });
+        setUsage(data);
       }
     } catch {
       // ignore
     }
-  }
 
   //     Multi-Project Management
 
@@ -1766,9 +1762,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         {/* Top Right Header */}
         <header className="absolute top-14 md:top-0 right-0 p-3 md:p-6 flex items-center gap-2 md:gap-4 z-40 pointer-events-none w-full justify-end">
           <div className="pointer-events-auto flex items-center gap-2 md:gap-4">
-            <div className="hidden md:block bg-[#10b981] text-white font-bold px-4 py-2 rounded-xl text-xs cursor-pointer hover:bg-[#0ea5e9] transition-all">
+            <button 
+              onClick={() => setShowPricing(true)}
+              className="hidden md:block bg-[#10b981] text-white font-bold px-4 py-2 rounded-xl text-xs cursor-pointer hover:bg-[#0ea5e9] transition-all"
+            >
               Store Purchases
-            </div>
+            </button>
             {/* Profile avatar with dropdown */}
             <div className="relative">
               <button
@@ -2470,7 +2469,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                   (usage.usedCredits || 0),
                               );
                               return (
-                                <div className="hidden sm:flex relative h-8 w-32 bg-black/40 rounded-lg overflow-hidden border border-white/[0.08] items-center justify-center group ml-2 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
+                                <div 
+                                  onClick={() => setShowPricing(true)}
+                                  className="hidden sm:flex relative h-8 w-32 bg-black/40 rounded-lg overflow-hidden border border-white/[0.08] items-center justify-center group ml-2 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] cursor-pointer hover:border-[#ccff00]/30 transition-all"
+                                >
                                   {/* Main Wave Layer */}
                                   <div
                                     className="absolute left-0 right-0 bottom-0 transition-all duration-1000 animate-wave opacity-100"
@@ -2829,6 +2831,108 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 >
                   {isRedeeming ? "..." : "Redeem"}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showPricing && (
+        <div 
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-200 p-4 overflow-y-auto"
+          onClick={(e) => e.target === e.currentTarget && setShowPricing(false)}
+        >
+          <div className="bg-[#13151a] border border-white/10 rounded-[2.5rem] w-full max-w-[1000px] shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden my-auto">
+            <button 
+              onClick={() => setShowPricing(false)}
+              className="absolute top-6 right-8 text-white/40 hover:text-white transition-colors z-20"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="p-8 md:p-12">
+              <div className="text-center mb-10">
+                <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white mb-6">
+                  Pick Your <span className="text-[#ccff00]">Squeeze</span>
+                </h2>
+                <div className="inline-flex bg-white/5 p-1.5 rounded-2xl border border-white/5 items-center">
+                  <button 
+                    onClick={() => setIsRobux(false)}
+                    className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${!isRobux ? "bg-white text-black shadow-lg" : "text-white/50 hover:text-white"}`}
+                  >
+                    Pay in USD
+                  </button>
+                  <button 
+                    onClick={() => setIsRobux(true)}
+                    className={`px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${isRobux ? "bg-[#00A2FF] text-white shadow-[0_0_15px_rgba(0,162,255,0.4)]" : "text-white/50 hover:text-white"}`}
+                  >
+                    Pay in Robux
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                {/* LITE PLAN */}
+                <div className={`bg-white/[0.02] border rounded-3xl p-6 flex flex-col transition-all duration-300 ${usage.plan === 'lite' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-white/5'}`}>
+                  <div className="text-[#ccff00] text-xs font-bold uppercase tracking-wider mb-2">Lite Plan {usage.plan === 'lite' && "(Current)"}</div>
+                  <div className="text-3xl font-black text-white mb-1">{isRobux ? "0 R$" : "$0"}</div>
+                  <p className="text-[12px] text-white/40 mb-6 border-b border-white/5 pb-6">Perfect for small scripts.</p>
+                  <ul className="flex flex-col gap-3 mb-6 text-[12px]">
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> 1 Credit per day</li>
+                    <li className="flex items-center gap-2 text-white/40"><X className="w-3.5 h-3.5" /> No Stacking</li>
+                  </ul>
+                </div>
+
+                {/* PRO PLAN */}
+                <div className={`bg-white/[0.03] border rounded-3xl p-6 flex flex-col relative transition-all duration-300 ${usage.plan === 'pro' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-[#ccff00]/20 shadow-[0_0_20px_rgba(204,255,0,0.05)]'}`}>
+                  <div className="text-white text-xs font-bold uppercase tracking-wider mb-2">Pro Plan {usage.plan === 'pro' && "(Current)"}</div>
+                  <div className="text-3xl font-black text-white mb-1">{isRobux ? "1,200 R$" : "$9.99"}</div>
+                  <p className="text-[12px] text-white/40 mb-6 border-b border-white/5 pb-6">Everything for a complete game.</p>
+                  <ul className="flex flex-col gap-3 mb-6 text-[12px]">
+                    <li className="flex items-center gap-2 text-white"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> <strong>4 Credits per day</strong></li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> Stack up to 10 Credits</li>
+                  </ul>
+                  <button className="mt-auto w-full bg-[#ccff00] text-black font-bold py-2.5 rounded-xl hover:bg-[#b3e600] transition-colors text-sm">Upgrade</button>
+                </div>
+
+                {/* ULTRA PLAN */}
+                <div className={`bg-white/[0.03] border rounded-3xl p-6 flex flex-col transition-all duration-300 ${usage.plan === 'ultra' ? 'border-[#7c3aed]/50 bg-[#7c3aed]/5' : 'border-[#7c3aed]/30 shadow-[0_0_20px_rgba(124,58,237,0.05)]'}`}>
+                  <div className="text-[#7c3aed] text-xs font-bold uppercase tracking-wider mb-2">Ultra Plan {usage.plan === 'ultra' && "(Current)"}</div>
+                  <div className="text-3xl font-black text-white mb-1">{isRobux ? "2,500 R$" : "$19.99"}</div>
+                  <p className="text-[12px] text-white/40 mb-6 border-b border-white/5 pb-6">For serious AI automation.</p>
+                  <ul className="flex flex-col gap-3 mb-6 text-[12px]">
+                    <li className="flex items-center gap-2 text-white"><Sparkles className="w-3.5 h-3.5 text-[#7c3aed]" /> <strong>12 Credits per day</strong></li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#7c3aed]" /> Stack up to 40 Credits</li>
+                  </ul>
+                  <button className="mt-auto w-full bg-[#7c3aed] text-white font-bold py-2.5 rounded-xl hover:bg-[#6d28d9] transition-colors text-sm">Get Ultra</button>
+                </div>
+              </div>
+
+              {/* REFILLS */}
+              <div className="bg-white/[0.03] border border-white/5 rounded-[2rem] p-6 md:p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-white tracking-tight">Need a quick refill?</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
+                    <div className="text-[11px] text-white/40 font-bold mb-1">Small Refill</div>
+                    <div className="text-lg font-black text-white">{isRobux ? "350 R$" : "$2.99"}</div>
+                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">15 Credits</div>
+                    <button className="w-full bg-white/10 text-white font-bold py-2 rounded-lg text-[12px] hover:bg-white/20 transition-colors">Buy</button>
+                  </div>
+                  <div className="bg-white/5 border border-[#ccff00]/20 rounded-2xl p-4 flex flex-col items-center text-center relative">
+                    <div className="absolute -top-2.5 bg-[#ccff00] text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-full">Best</div>
+                    <div className="text-[11px] text-white/40 font-bold mb-1">Big Refill</div>
+                    <div className="text-lg font-black text-white">{isRobux ? "950 R$" : "$7.99"}</div>
+                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">50 Credits</div>
+                    <button className="w-full bg-[#ccff00] text-black font-bold py-2 rounded-lg text-[12px] hover:bg-[#b3e600] transition-colors">Buy</button>
+                  </div>
+                  <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
+                    <div className="text-[11px] text-white/40 font-bold mb-1">Mega Refill</div>
+                    <div className="text-lg font-black text-white">{isRobux ? "3,000 R$" : "$24.99"}</div>
+                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">200 Credits</div>
+                    <button className="w-full bg-white/10 text-white font-bold py-2 rounded-lg text-[12px] hover:bg-white/20 transition-colors">Buy</button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
