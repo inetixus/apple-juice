@@ -552,7 +552,6 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 </div>
               </div>
             </div>
-            </div>
 
           </div>
         </div>
