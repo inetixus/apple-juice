@@ -750,7 +750,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const targetPrompt = typeof overridePrompt === "string" 
       ? overridePrompt 
       : (isRetryObj ? (overridePrompt?.text || lastPromptRef.current) : prompt);
-    
+    const trimmed = targetPrompt.trim();
     console.log("[AppleJuice] Submit started", { trimmed, sessionKey, provider });
 
     if (!trimmed || !sessionKey) {
