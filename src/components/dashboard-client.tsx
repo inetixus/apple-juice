@@ -532,10 +532,14 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
   async function switchProject(project: Project) {
     setActiveProjectId(project.id);
+    setIsPluginConnected(false);
+    setPluginStatus("Switched project. Waiting for plugin connection...");
+    
     if (project.sessionKey) {
       setSessionKey(project.sessionKey);
     } else {
       setSessionKey("");
+      void createPairOnServer();
     }
 
     // Load preferences if saved
