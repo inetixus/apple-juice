@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const clientKey = (provider === "google" || provider === "google_vertex") ? (apiKey || "") : (openaiKey || apiKey || "");
 
     // CRITICAL: Prevent JSON leakage into OpenAI headers
-    if (clientKey && clientKey.trim().startsWith("{") && provider !== "google_vertex") {
+    if (clientKey && clientKey.trim().startsWith("{") && (provider === "openai" || provider === "google")) {
       return Response.json({ enhancedPrompt: prompt }); 
     }
 

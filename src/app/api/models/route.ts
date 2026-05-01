@@ -64,8 +64,8 @@ export async function POST(request: Request) {
 
   const effectiveApiKey = (provider === "google" || provider === "google_vertex") ? (apiKey || "") : (apiKey || "");
   
-  // CRITICAL: Prevent JSON leakage into OpenAI headers
-  if (effectiveApiKey && effectiveApiKey.trim().startsWith("{") && provider !== "google_vertex") {
+  // CRITICAL: Prevent JSON leakage into OpenAI/Google headers
+  if (effectiveApiKey && effectiveApiKey.trim().startsWith("{") && (provider === "openai" || provider === "google")) {
     return Response.json({ error: "Invalid API Key format for this provider", models: FALLBACK_MODELS }, { status: 400 });
   }
 

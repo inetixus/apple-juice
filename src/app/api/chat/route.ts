@@ -45,9 +45,9 @@ export async function POST(req: Request) {
 
   const clientKey = (provider === "google" || provider === "google_vertex") ? (apiKey || "") : (openaiKey || apiKey || "");
   
-  // CRITICAL: Prevent JSON leakage into OpenAI headers
-  if (clientKey && clientKey.trim().startsWith("{") && provider !== "google_vertex") {
-    return Response.json({ error: "Invalid API Key format for this provider. You might have a Google JSON key saved in your OpenAI settings." }, { status: 400 });
+  // CRITICAL: Prevent JSON leakage into OpenAI/Google headers, but only if they are the selected provider
+  if (clientKey && clientKey.trim().startsWith("{") && (provider === "openai" || provider === "google")) {
+    return Response.json({ error: "Invalid API Key format for this provider. You might have a Google JSON key saved in your settings. Please clear your API key or switch to Google Vertex AI." }, { status: 400 });
   }
 
   const isUsingCustomKey = !!clientKey && clientKey !== systemOpenAIKey && clientKey !== systemGoogleKey;
