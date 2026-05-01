@@ -350,6 +350,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const savedProvider = (window.localStorage.getItem("apple-juice-provider") || "openai") as
       | "openai"
       | "google"
+      | "google_vertex"
       | "apple_juice_ai";
     const savedOpen =
       window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
@@ -1979,7 +1980,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 id="provider-select"
                 value={provider}
                 onChange={(e) => {
-                  const val = e.target.value as "openai" | "google" | "apple_juice_ai";
+                  const val = e.target.value as "openai" | "google" | "apple_juice_ai" | "google_vertex";
                   const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
                   const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
                   setProvider(val);
