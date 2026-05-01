@@ -90,7 +90,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPluginConnected, setIsPluginConnected] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [recentPrompts, setRecentPrompts] = useState<string[]>([]);
   const [pluginStatus, setPluginStatus] = useState(
     "Idle. Connect your plugin using the session key below.",
   );
@@ -415,7 +414,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               );
               if (newErrorLog && newErrorLog !== lastReportedErrorRef.current) {
                 lastReportedErrorRef.current = newErrorLog;
-                setLastError(newErrorLog);
+                // Only set lastError if it's a real playtest failure, not just a random log
               }
             }
           }
@@ -461,15 +460,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       window.localStorage.getItem("apple-juice-model") ?? "gpt-4o-mini";
     setSelectedModel(savedModel);
 
-    const saved = window.localStorage.getItem("apple-juice-recent-prompts");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as string[];
-        setRecentPrompts(parsed.slice(0, 6));
-      } catch {
-        setRecentPrompts([]);
-      }
-    }
 
     void loadProjects();
 
@@ -842,17 +832,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     }
   };
 
-  function addRecentPrompt(value: string) {
-    const next = [
-      value,
-      ...recentPrompts.filter((item) => item !== value),
-    ].slice(0, 6);
-    setRecentPrompts(next);
-    window.localStorage.setItem(
-      "apple-juice-recent-prompts",
-      JSON.stringify(next),
-    );
-  }
 
   async function submitPrompt(
     overridePrompt?: string | any,
@@ -930,7 +909,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       setMessages(contextMessages);
       setPrompt("");
       setLastError(null);
-      addRecentPrompt(trimmed);
       lastPromptRef.current = trimmed;
     } else {
       // Find the ID of the existing message we're retrying for
@@ -1318,6 +1296,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       playSound("error");
       setTimeout(() => setThinkingSteps([]), 1000);
       setIsGenerating(false);
+      setLastError(detail);
 
       // Remove the user message bubble if the request failed and we're not retrying
       if (messageId) {
@@ -1571,28 +1550,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           </button>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2 space-y-6">
-            {recentPrompts.length > 0 && (
-              <div>
-                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-3">
-                  Recent
-                </span>
-                <div className="space-y-1">
-                  {recentPrompts.map((p, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        setPrompt(p);
-                        submitPrompt(p);
-                      }}
-                      className="w-full text-left text-[11px] text-white/40 hover:text-white/80 hover:bg-white/[0.03] py-1.5 px-2 rounded-lg truncate transition-all"
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div>
               <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-3">
                 Projects
@@ -2342,7 +2299,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                               : "Ask the AI to build something... (use @ to mention a script)"
                         }
                         className="min-h-[70px] max-h-[250px] w-full resize-none bg-transparent border-transparent px-2 pt-2 text-[15px] text-white placeholder:text-white/30 focus-visible:ring-0 focus:outline-none rounded-none"
-                        disabled={!isPluginConnected || isGenerating}
+                        disabled={isGenerating}
                       />
 
                       {atMenu.visible && (
@@ -2580,6 +2537,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                               disabled={isGenerating}
                             >
                               Repair
+                            </button>
+                            <button
+                              className="p-2 rounded-xl text-white/30 hover:text-white/60 transition-all"
+                              onClick={() => setLastError(null)}
+                              title="Dismiss Error"
+                            >
+                              <X size={14} />
                             </button>
                           </>
                         )}
