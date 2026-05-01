@@ -751,8 +751,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       ? overridePrompt 
       : (isRetryObj ? (overridePrompt?.text || lastPromptRef.current) : prompt);
     
-    const trimmed = targetPrompt.trim();
+    console.log("[AppleJuice] Submit started", { trimmed, sessionKey, provider });
+
     if (!trimmed || !sessionKey) {
+      console.warn("[AppleJuice] Missing prompt or sessionKey", { trimmed, sessionKey });
       return;
     }
 
@@ -765,8 +767,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     let contextMessages = messages;
 
     if (!isRetry) {
+      const generateId = () => {
+        try { return crypto.randomUUID(); } catch { return Math.random().toString(36).substring(2) + Date.now().toString(36); }
+      };
       const userMessage: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         role: "user",
         content: trimmed,
         attachments: attachedFiles.length > 0 ? attachedFiles.map(f => ({ name: f.name })) : undefined,
