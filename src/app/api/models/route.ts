@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "apiKey is required" }, { status: 400 });
   }
 
-  const effectiveApiKey = (provider === "google" || provider === "google_vertex") ? apiKey : (openaiKey || apiKey || "");
+  const effectiveApiKey = (provider === "google" || provider === "google_vertex") ? apiKey : (apiKey || "");
 
   if (provider === "apple_juice_ai") {
     return Response.json({ models: ANTIGRAVITY_MODELS });
