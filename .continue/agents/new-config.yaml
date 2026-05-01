@@ -1,0 +1,20 @@
+
+name: Example Config
+version: 1.0.0
+schema: v1
+
+
+models:
+  - name: gemini 3
+    provider: google-platform
+    model: gemini-3.1-flash-lite-preview
+    apiKey: AIzaSyAyJYcMmHX0W3Ji6KcCmM3igRfxk_WlsYE
+  - uses: ollama/qwen2.5-coder-7b
+  - uses: anthropic/claude-4-sonnet
+    with:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+# MCP Servers that Continue can access
+# https://docs.continue.dev/customization/mcp-tools
+mcpServers:
+  - uses: anthropic/memory-mcp

@@ -62,10 +62,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [sessionKey, setSessionKey] = useState("");
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [provider, setProvider] = useState<"openai" | "google" | "apple_juice_ai" | "google_vertex">("openai");
+    const [provider, setProvider] = useState<"openai" | "google">("openai");
   const [openaiKey, setOpenaiKey] = useState("");
   const [googleKey, setGoogleKey] = useState("");
-  const [vertexKey, setVertexKey] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [availableModels, setAvailableModels] = useState<string[]>(FALLBACK_MODELS);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -347,24 +346,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     // create pairing session on the server (returns pairing code + token)
     void createPairOnServer();
 
-    const savedProvider = (window.localStorage.getItem("apple-juice-provider") || "openai") as
+        const savedProvider = (window.localStorage.getItem("apple-juice-provider") || "openai") as
       | "openai"
-      | "google"
-      | "google_vertex"
-      | "apple_juice_ai";
+      | "google";
     const savedOpen =
       window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
     const savedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
-    const savedVertex = window.localStorage.getItem("apple-juice-vertex-key") ?? "";
 
     setProvider(savedProvider as any);
     setOpenaiKey(savedOpen);
     setGoogleKey(savedGoogle);
-    setVertexKey(savedVertex);
 
     let effectiveKey = savedOpen;
     if (savedProvider === "google") effectiveKey = savedGoogle;
-    if (savedProvider === "google_vertex") effectiveKey = savedVertex;
     setApiKey(effectiveKey);
 
     const savedModel = window.localStorage.getItem("apple-juice-model") ?? "gpt-4o-mini";
@@ -456,13 +450,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       setSessionKey("");
     }
     
-    // Load preferences if saved
+        // Load preferences if saved
     if (project.provider) {
       setProvider(project.provider as any);
       window.localStorage.setItem("apple-juice-provider", project.provider);
-      if (project.provider === "apple_juice_ai") {
-        void fetchAntigravityBalance();
-      }
     }
     if (project.model) {
       setSelectedModel(project.model);
@@ -682,20 +673,14 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     return /^AIza/.test(s) || /^ya29\./.test(s);
   }
 
-  function saveApiKey() {
-    const inputValue = (provider === "google_vertex" ? vertexKey : (provider === "google" ? googleKey : openaiKey)).trim();
+    function saveApiKey() {
+    const inputValue = (provider === "google" ? googleKey : openaiKey).trim();
     const detectedGoogle = looksLikeGoogleKey(inputValue);
-    const isJson = inputValue.startsWith("{") && inputValue.includes("project_id");
     
-    let finalProvider: "openai" | "google" | "apple_juice_ai" | "google_vertex" = provider;
-    if (isJson) finalProvider = "google_vertex";
-    else if (detectedGoogle) finalProvider = "google";
+    let finalProvider: "openai" | "google" = provider;
+    if (detectedGoogle) finalProvider = "google";
 
-    if (finalProvider === "google_vertex") {
-      window.localStorage.setItem("apple-juice-vertex-key", inputValue);
-      setVertexKey(inputValue);
-      setProvider("google_vertex");
-    } else if (finalProvider === "google") {
+    if (finalProvider === "google") {
       window.localStorage.setItem("apple-juice-google-key", inputValue);
       setGoogleKey(inputValue);
       setProvider("google");
@@ -753,16 +738,30 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const trimmed = targetPrompt.trim();
     console.log("[AppleJuice] Submit started", { trimmed, sessionKey, provider });
 
-    if (!trimmed || !sessionKey) {
-      console.warn("[AppleJuice] Missing prompt or sessionKey", { trimmed, sessionKey });
+
+
+
+        if (!trimmed) {
+      console.warn("[AppleJuice] Missing prompt", { trimmed, sessionKey });
       return;
     }
 
-    if (!sessionKey) {
-      setLastError("Not connected to Roblox Studio. Please click 'Connect' in the plugin and ensure it's paired.");
-      playSound('error');
-      return;
+        if (!sessionKey) {
+      const fallbackKey = projects.find(p => p.id === activeProjectId)?.sessionKey;
+      if (fallbackKey) {
+        setSessionKey(fallbackKey);
+      } else {
+        setLastError("No pairing session found for this project. Please create a new project or connect your plugin.");
+        playSound('error');
+        return;
+      }
     }
+
+
+
+
+
+
 
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -1985,13 +1984,13 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
               <h2 className="text-[14px] font-bold text-white uppercase tracking-wider">Settings</h2>
               <button onClick={() => setShowSettings(false)} className="text-white/40 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
             </div>
-            <div>
+                        <div>
               <label className="text-[12px] font-medium text-white/50 mb-2 block">Provider</label>
               <select
                 id="provider-select"
                 value={provider}
                 onChange={(e) => {
-                  const val = e.target.value as "openai" | "google" | "apple_juice_ai" | "google_vertex";
+                  const val = e.target.value as "openai" | "google";
                   const storedOpen = window.localStorage.getItem("apple-juice-openai-key") ?? window.localStorage.getItem("apple-juice-api-key") ?? "";
                   const storedGoogle = window.localStorage.getItem("apple-juice-google-key") ?? "";
                   setProvider(val);
@@ -2000,253 +1999,278 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   const newKey = val == "google" ? storedGoogle : storedOpen;
                   setApiKey(newKey);
                   window.localStorage.setItem("apple-juice-provider", val);
-                  if (val === "apple_juice_ai") {
-                    void fetchAntigravityBalance();
-                  }
                   void loadModels(newKey, undefined, val);
                 }}
-                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
+                className="w-full bg-black/20 border border-white/[0.04] text-white/80 text-[13px] py-2 px-3 rounded-xl focus:outline-none focus:border-[#ccff00] focus:ring-1 focus:ring-[#ccff00] transition-all cursor-pointer"
               >
                 <option value="openai" className="bg-[#13151a]">OpenAI</option>
                 <option value="google" className="bg-[#13151a]">Google AI Studio</option>
-                <option value="google_vertex" className="bg-[#13151a]">Google Vertex AI (JSON)</option>
-                <option value="apple_juice_ai" className="bg-[#13151a]">⚡ Apple Juice AI</option>
               </select>
             </div>
-            {provider !== "apple_juice_ai" && (
-              <div>
-                <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
-                  {provider === "google_vertex" ? "Service Account JSON" : "API Key"}
-                </label>
-                <div className="flex flex-col gap-2">
-                  {provider === "google_vertex" ? (
-                    <Textarea
-                      id="api-key-input"
-                      value={vertexKey}
-                      onChange={(e) => {
-                        setVertexKey(e.target.value);
-                        setApiKey(e.target.value);
-                      }}
-                      placeholder='{ "type": "service_account", ... }'
-                      className="bg-white/[0.04] border-white/[0.08] h-24 text-[10px] font-mono focus:border-[#ccff00]/40"
-                    />
-                  ) : (
-                    <Input
-                      id="api-key-input"
-                      type="password"
-                      value={provider == "google" ? googleKey : openaiKey}
-                      onChange={(event) => {
-                        const v = event.target.value;
-                        if (provider == "google") setGoogleKey(v);
-                        else setOpenaiKey(v);
-                        setApiKey(v);
-                      }}
-                      placeholder={provider == "google" ? "Google API Key" : "sk-..."}
-                      className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
-                    />
-                  )}
-                  <button onClick={saveApiKey} className="w-full py-1.5 bg-white/10 text-white text-[11px] rounded-lg hover:bg-white/20 transition-colors">
-                    Save Configuration
-                  </button>
-                </div>
-                <button onClick={() => loadModels()} disabled={isLoadingModels} className="mt-2 text-[11px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40">
-                  {isLoadingModels ? "Loading models..." : "↻ Refresh models"}
-                </button>
-              </div>
-            )}
             <div>
-              <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="model-select">Model</label>
-              <select
-                id="model-select"
-                value={selectedModel}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setSelectedModel(value);
-                  window.localStorage.setItem("apple-juice-model", value);
-                }}
-                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#ccff00]/40 transition-colors"
-              >
-                {availableModels.length === 0 && (
-                  <option value="" disabled>No models available</option>
-                )}
-                {availableModels.map((model) => (
-                  <option key={model} value={model} className="bg-[#13151a]">{model}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="pt-4 border-t border-white/[0.04] space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-[12px] font-medium text-white/80">Auto-Retry on Traffic</span>
-                  <span className="text-[10px] text-white/30">Automatically retry if AI is busy</span>
-                </div>
-                <button
-                  onClick={() => {
-                    const next = !autoRetry;
-                    setAutoRetry(next);
-                    window.localStorage.setItem("apple-juice-auto-retry", String(next));
-                  }}
-                  className={`w-8 h-4 rounded-full relative transition-colors duration-200 ${autoRetry ? 'bg-[#ccff00]' : 'bg-white/10'}`}
-                >
-                  <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${autoRetry ? 'translate-x-4' : 'translate-x-0'}`} />
-                </button>
+              <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="api-key-input">
+                {provider === "google" ? "Google API Key" : "OpenAI API Key"}
+              </label>
+              <div className="relative group/key">
+                <Input
+                  id="api-key-input"
+                  type="password"
+                  value={provider === "google" ? googleKey : openaiKey}
+                  onChange={(e) => provider === "google" ? setGoogleKey(e.target.value) : setOpenaiKey(e.target.value)}
+                  placeholder={provider === "google" ? "AIza..." : "sk-..."}
+                  className="bg-black/20 border-white/[0.04] focus:border-[#ccff00] rounded-xl text-[13px] pr-10"
+                />
               </div>
-
-              <div>
-                <label className="text-[12px] font-medium text-white/50 mb-2 block" htmlFor="secret-code-input">
-                  Secret Code
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    id="secret-code-input"
-                    type="text"
-                    value={secretCode}
-                    onChange={(e) => setSecretCode(e.target.value)}
-                    placeholder="Enter code..."
-                    className="flex-1 bg-white/[0.04] border-white/[0.08] h-8 text-xs focus:border-[#ccff00]/40"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleRedeemCode();
-                    }}
-                  />
-                  <button 
-                    onClick={handleRedeemCode} 
-                    disabled={isRedeeming || !secretCode.trim()}
-                    className="px-3 py-1.5 bg-[#ccff00]/10 text-[#ccff00] text-[11px] font-medium rounded-lg hover:bg-[#ccff00]/20 transition-colors disabled:opacity-40"
-                  >
-                    {isRedeeming ? "..." : "Redeem"}
-                  </button>
-                </div>
-              </div>
+              <p className="text-[10px] text-white/20 mt-2 italic">Your keys are stored locally in your browser.</p>
             </div>
 
-            {/* ── Antigravity Account Status ── */}
-            {provider === "apple_juice_ai" && (
-              <div className="pt-4 border-t border-white/[0.04] space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-[12px] font-bold text-white/80 uppercase tracking-wider">⚡ Antigravity Status</span>
-                  {agLinked && (
-                    <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-[9px] font-bold rounded-full">CONNECTED</span>
-                  )}
-                </div>
 
-                <div className="space-y-4 pt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-white/50 tracking-widest uppercase">YOUR USAGE</span>
-                    <button
-                      onClick={fetchAntigravityBalance}
-                      className="px-3 py-1.5 bg-white/[0.08] text-white hover:bg-white/[0.12] rounded-md text-[11px] font-medium transition-colors"
-                    >
-                      Refresh
-                    </button>
-                  </div>
-                  
-                  {agBalance ? (
-                    <div className="space-y-3">
-                      {/* Usage Stats */}
-                      <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-black/20">
-                        {agBalance.quotas.slice(0, 3).map((quota, i) => (
-                          <div key={i} className="px-4 py-3 border-b border-white/[0.04] last:border-0">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[13px] font-medium text-white/70">{quota.model}</span>
-                              <span className="text-[13px] font-bold text-[#ccff00]">{quota.refreshesIn}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
 
-                      {/* Available Models */}
-                      <div className="border border-white/[0.08] rounded-xl overflow-hidden bg-black/20">
-                        <div className="px-4 py-2 bg-white/[0.03]">
-                          <span className="text-[10px] font-bold text-white/40 tracking-widest uppercase">AVAILABLE MODELS</span>
-                        </div>
-                        {agBalance.quotas.slice(3).map((quota, i) => (
-                          <div key={i} className="px-4 py-2.5 border-b border-white/[0.04] last:border-0 flex items-center justify-between">
-                            <span className="text-[12px] text-white/80">{quota.model}</span>
-                            <span className="px-2 py-0.5 bg-green-500/10 text-green-400 text-[10px] font-medium rounded-full">{quota.refreshesIn}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="border border-white/[0.08] rounded-xl px-4 py-8 text-center bg-black/20">
-                      <p className="text-[12px] text-white/40">Loading usage data...</p>
-                    </div>
-                  )}
-                  
-                  <p className="text-[11px] text-white/40 text-center">
-                    Powered by Google Gemini API. Each user uses their own Google quota.
-                  </p>
-                </div>
-              </div>
-            )}
 
-          </div>
-        </div>
-      )}
-      {showAssetSearch && (
-        <div className="fixed inset-0 z-[190] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) setShowAssetSearch(false); }}>
-          <div className="bg-[#1e2028] border border-white/[0.04] rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[14px] font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <Search className="h-4 w-4 text-[#ccff00]" />
-                Roblox Toolbox Search
-              </h2>
-              <button onClick={() => setShowAssetSearch(false)} className="text-white/40 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                value={assetQuery}
-                onChange={(e) => setAssetQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && searchAssets()}
-                placeholder="Search for models, meshes, images..."
-                className="flex-1 bg-white/[0.04] border-white/[0.08] h-9 text-sm focus:border-[#ccff00]/40"
-              />
-              <button
-                onClick={searchAssets}
-                disabled={isSearchingAssets}
-                className="px-4 py-2 bg-[#ccff00] text-black text-[12px] font-bold rounded-lg hover:bg-[#d4ff33] transition-colors disabled:opacity-40"
-              >
-                {isSearchingAssets ? "..." : "Search"}
-              </button>
-            </div>
-            <div className="max-h-[350px] overflow-y-auto">
-              {assetResults.length > 0 ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {assetResults.map((asset) => (
-                    <button
-                      key={asset.id}
-                      onClick={() => {
-                        setAttachedAsset({ id: asset.id, name: asset.name, thumbnail: asset.thumbnail });
-                        setShowAssetSearch(false);
-                      }}
-                      className="group relative bg-white/[0.04] border border-white/[0.08] rounded-xl p-2 hover:bg-white/[0.08] hover:border-[#ccff00]/30 transition-all text-left"
-                    >
-                      <div className="aspect-square bg-black/30 rounded-lg mb-2 flex items-center justify-center overflow-hidden">
-                        <img
-                          src={asset.thumbnail}
-                          alt={asset.name}
-                          className="w-full h-full object-cover rounded-lg opacity-80 group-hover:opacity-100 transition-opacity"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      </div>
-                      <p className="text-[11px] font-medium text-white/80 truncate">{asset.name}</p>
-                      <p className="text-[9px] text-white/30 truncate">{asset.creator}</p>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-white/20 text-sm">
-                  {isSearchingAssets ? "Searching..." : "Search for assets to insert into your game"}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      </div>
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <div className="fixed bottom-4 right-4 text-[10px] text-white/10 pointer-events-none">v1.0.8-vertex-final</div>
-    </main>
-  );
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
