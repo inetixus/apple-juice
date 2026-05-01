@@ -488,6 +488,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     } catch {
       // ignore
     }
+  }
 
   //     Multi-Project Management
 
