@@ -866,8 +866,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       if (fallbackKey) {
         setSessionKey(fallbackKey);
       } else {
-        setLastError(
-          "No pairing session found for this project. Please create a new project or connect your plugin.",
+        showToast(
+          "No pairing session found. Please create a new project or connect your plugin.",
+          "error"
         );
         playSound("error");
         return;
@@ -1740,30 +1741,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             </div>
             <span className="text-white/30">&rsaquo;</span>
           </button>
-          <div className="pt-2 px-1">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className="h-3 w-3 text-[#ccff00]" />
-              <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
-                Redeem Code
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={secretCode}
-                onChange={(e) => setSecretCode(e.target.value)}
-                placeholder="Enter code..."
-                className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-lg px-3 py-1.5 text-[11px] text-white focus:outline-none focus:border-[#ccff00]/50 transition-all"
-              />
-              <button
-                onClick={handleRedeemCode}
-                disabled={isRedeeming || !secretCode.trim()}
-                className="bg-[#ccff00] text-black px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-[#d4ff33] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {isRedeeming ? "..." : "Redeem"}
-              </button>
-            </div>
-          </div>
           <button className="w-full bg-white/[0.03] border border-white/[0.04] text-white/70 hover:text-white py-2.5 rounded-xl flex items-center justify-between px-4 transition-colors">
             <div className="flex flex-col items-start">
               <span className="text-[13px] font-semibold">Discord</span>
@@ -2531,13 +2508,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                             >
                               Retry
                             </button>
-                            <button
-                              className="px-3 py-2 rounded-xl text-[12px] font-medium text-red-400 hover:bg-red-500/10 border border-red-500/20 transition-all"
-                              onClick={handleAutoFix}
-                              disabled={isGenerating}
-                            >
-                              Repair
-                            </button>
+                            {!lastError.toLowerCase().includes("limit reached") && !lastError.toLowerCase().includes("failed to generate") && !lastError.toLowerCase().includes("experiencing high demand") && (
+                              <button
+                                className="px-3 py-2 rounded-xl text-[12px] font-medium text-red-400 hover:bg-red-500/10 border border-red-500/20 transition-all"
+                                onClick={handleAutoFix}
+                                disabled={isGenerating}
+                              >
+                                Repair
+                              </button>
+                            )}
                             <button
                               className="p-2 rounded-xl text-white/30 hover:text-white/60 transition-all"
                               onClick={() => setLastError(null)}
@@ -2826,6 +2805,28 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
             >
               Save Configuration
             </button>
+            
+            <div className="mt-4 pt-4 border-t border-white/[0.04]">
+              <label className="text-[12px] font-medium text-white/50 mb-2 block">
+                Redeem Code
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={secretCode}
+                  onChange={(e) => setSecretCode(e.target.value)}
+                  placeholder="Enter code..."
+                  className="flex-1 bg-black/20 border border-white/[0.04] rounded-xl px-3 py-2 text-[13px] text-white focus:outline-none focus:border-[#ccff00]/50 transition-all"
+                />
+                <button
+                  onClick={handleRedeemCode}
+                  disabled={isRedeeming || !secretCode.trim()}
+                  className="bg-white/10 text-white px-4 py-2 rounded-xl text-[13px] font-bold hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isRedeeming ? "..." : "Redeem"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
