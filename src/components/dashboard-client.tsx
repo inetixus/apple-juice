@@ -2424,7 +2424,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     />
 
                     <div className="flex items-center justify-between gap-2 md:gap-3 pt-2 flex-wrap sm:flex-nowrap">
-                      <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar w-full sm:w-auto flex-shrink-0">
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar flex-1 min-w-0">
                         {/* Mode toggle */}
                         <div className="relative flex items-center bg-black/20 rounded-xl border border-white/[0.04] p-0.5 w-[140px] flex-shrink-0">
                           {/* Sliding pill background */}
@@ -2578,13 +2578,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                 Repair
                               </button>
                             )}
-                            <button
-                              className="p-2 rounded-xl text-white/30 hover:text-white/60 transition-all"
-                              onClick={() => setLastError(null)}
-                              title="Dismiss Error"
-                            >
-                              <X size={14} />
-                            </button>
+                            {!lastError.toLowerCase().includes("out of juice") && (
+                              <button
+                                className="p-2 rounded-xl text-white/30 hover:text-white/60 transition-all"
+                                onClick={() => setLastError(null)}
+                                title="Dismiss Error"
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
                           </>
                         )}
                         {isGenerating ? (
