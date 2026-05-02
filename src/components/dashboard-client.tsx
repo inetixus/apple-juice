@@ -752,11 +752,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     const key = (rawApiKey ?? apiKey).trim();
     setIsLoadingModels(true);
     const usedProvider = providerArg ?? provider;
+    const actualProvider = !key ? "apple_juice_ai" : usedProvider;
     try {
       const response = await fetch("/api/models", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: key, provider: usedProvider }),
+        body: JSON.stringify({ apiKey: key, provider: actualProvider }),
       });
 
       if (!response.ok) {
