@@ -23,8 +23,8 @@ const USAGE_PREFIX = "apple-juice:usage:";
 const BONUS_ML_PREFIX = "apple-juice:bonus-ml:";
 
 // ─── mL of Juice Economy ─────────────────────────────────────────────────────
-// 1 Input Token  = 1 mL of Juice
-// 1 Output Token = 6 mL of Juice  (AI output costs 6x more)
+// 1000 Input Tokens  = 1 mL of Juice
+// 1000 Output Tokens = 6 mL of Juice  (AI output costs 6x more)
 // Daily allowances are NON-stackable (reset every day).
 // Bonus mL from Juice Box purchases ARE stackable.
 export const OUTPUT_ML_MULTIPLIER = 6;
@@ -48,18 +48,21 @@ export type UserPlan = keyof typeof PLAN_LIMITS;
 
 /**
  * Calculate mL of Juice consumed from raw token counts.
- * Formula: inputTokens * 1 + outputTokens * 6
+ * Formula: (inputTokens * 1 + outputTokens * 6) / 1000
+ * Scaling down so that 30k mL = 30m tokens (approx).
  */
 export function calculateMlUsed(inputTokens: number, outputTokens: number): number {
-  return inputTokens + (outputTokens * OUTPUT_ML_MULTIPLIER);
+  const raw = inputTokens + (outputTokens * OUTPUT_ML_MULTIPLIER);
+  // Ceiling to ensure at least 1 mL is used for tiny requests
+  return Math.max(1, Math.ceil(raw / 1000));
 }
 
 /**
  * Calculate the max output tokens we can allow given remaining mL.
- * Formula: remainingMl / 6  (since each output token costs 6 mL)
+ * Formula: (remainingMl * 1000) / 6
  */
 export function calculateMaxOutputTokens(remainingMl: number): number {
-  return Math.max(0, Math.floor(remainingMl / OUTPUT_ML_MULTIPLIER));
+  return Math.max(0, Math.floor((remainingMl * 1000) / OUTPUT_ML_MULTIPLIER));
 }
 
 let _redis: Redis | null = null;
