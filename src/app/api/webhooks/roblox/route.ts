@@ -1,4 +1,4 @@
-import { setUserPlan } from "@/lib/store";
+import { setUserPlan, getUserPlan } from "@/lib/store";
 
 export async function POST(req: Request) {
   try {
@@ -36,3 +36,26 @@ export async function POST(req: Request) {
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+
+    if (!userId) {
+      return Response.json({ error: "Missing userId" }, { status: 400 });
+    }
+
+    const plan = await getUserPlan(userId);
+    
+    return Response.json({ 
+      success: true, 
+      plan: plan 
+    });
+
+  } catch (error) {
+    console.error("Roblox GET webhook error:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
