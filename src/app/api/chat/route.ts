@@ -87,17 +87,25 @@ export async function POST(req: Request) {
 
     // ── Rank-Based Model Restrictions ──
     const plan = userUsage.plan || "free";
-    const requested = effectiveModel.toLowerCase();
+    const requested = effectiveModel;
     
-    // Pro Tier Models (Gemini Pro, etc)
-    const isProModel = requested.includes("pro") || requested.includes("sonnet");
-    // Ultra Tier Models (Claude Opus, Gemini Ultra)
-    const isUltraModel = requested.includes("opus") || requested.includes("ultra");
+    const freeModels = ["Gemini 2.5 Flash", "Gemini 3.1 Flash-Lite", "gemini-1.5-flash", "gpt-4o-mini"];
+    const proModels = [...freeModels, "Gemini 3.1 Flash", "DeepSeek V3", "Gemini 3 Pro", "Gemini 3 Flash", "gemini-1.5-pro", "gpt-4o"];
+    const ultraModels = [...proModels, "DeepSeek R1", "Gemini 2.5 Pro", "Gemini 3.1 Pro", "claude-3-opus", "claude-3-sonnet"];
 
-    if (plan === "free" && (isProModel || isUltraModel)) {
-      effectiveModel = "gemini-1.5-flash"; // Force fallback to free tier model
-    } else if (plan === "fresh_pro" && isUltraModel) {
-      effectiveModel = "gemini-1.5-pro"; // Force fallback to pro tier model
+    const isAvailable = (m: string, p: string) => {
+      if (p === 'pure_ultra') return true;
+      if (p === 'fresh_pro') return proModels.includes(m);
+      return freeModels.includes(m);
+    };
+
+    if (!isAvailable(requested, plan)) {
+      // Force fallback to the best available model for their tier
+      if (plan === 'free') {
+        effectiveModel = "Gemini 2.5 Flash";
+      } else if (plan === 'fresh_pro') {
+        effectiveModel = "DeepSeek V3";
+      }
     }
   }
 

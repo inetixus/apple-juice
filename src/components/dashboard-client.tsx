@@ -508,6 +508,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
   // Poll usage every 10 seconds to catch Roblox webhook updates
   useEffect(() => {
+    if (provider === "apple_juice_ai" || !apiKey) {
+      void loadModels();
+    }
+  }, [usage?.plan]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       void fetchUsage();
     }, 10000);
@@ -778,10 +784,25 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         models?: string[];
         error?: string;
       };
-      const nextModels =
+      let nextModels =
         payload.models && payload.models.length > 0
           ? payload.models
           : FALLBACK_MODELS;
+
+      // Filter Antigravity models by plan
+      if (actualProvider === "apple_juice_ai") {
+        const plan = usage?.plan || 'free';
+        const freeModels = ["Gemini 2.5 Flash", "Gemini 3.1 Flash-Lite"];
+        const proModels = [...freeModels, "Gemini 3.1 Flash", "DeepSeek V3", "Gemini 3 Pro", "Gemini 3 Flash"]; // Added Gemini 3 Flash as it's often a variant
+        
+        if (plan === 'free') {
+          nextModels = nextModels.filter(m => freeModels.includes(m));
+        } else if (plan === 'fresh_pro') {
+          nextModels = nextModels.filter(m => proModels.includes(m));
+        }
+        // Ultra gets everything
+      }
+
       setAvailableModels(nextModels);
 
       const targetModel = preferredModel || selectedModel;
