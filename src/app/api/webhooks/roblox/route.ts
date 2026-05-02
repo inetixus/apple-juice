@@ -1,4 +1,4 @@
-import { setUserPlan, getUserPlan } from "@/lib/store";
+import { setUserPlan, getUserPlan, grantBonusMl } from "@/lib/store";
 
 export async function POST(req: Request) {
   try {
@@ -15,21 +15,33 @@ export async function POST(req: Request) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Determine the plan based on the subscription ID
-    // Fresh Pro: EXP-6181762863565242936
-    if (subscriptionId === "EXP-6181762863565242936") {
-      // The user ID in our system is the Roblox UserId as a string
+    const id = subscriptionId.toString();
+
+    // ━━━ PLANS ━━━
+    if (id === "EXP-6181762863565242936") {
       await setUserPlan(userId.toString(), "fresh_pro");
       return Response.json({ success: true, message: "Granted Fresh Pro plan!" });
     }
-
-    // Pure Ultra: EXP-2786378855714259452
-    if (subscriptionId === "EXP-2786378855714259452") {
+    if (id === "EXP-2786378855714259452") {
       await setUserPlan(userId.toString(), "pure_ultra");
       return Response.json({ success: true, message: "Granted Pure Ultra plan!" });
     }
 
-    return Response.json({ success: false, message: "Unknown subscription ID" }, { status: 400 });
+    // ━━━ INSTANT REFILLS (DEV PRODUCTS) ━━━
+    if (id === "3585012060") {
+      await grantBonusMl(userId.toString(), 5000);
+      return Response.json({ success: true, message: "Granted Small Sip (+5,000 mL)" });
+    }
+    if (id === "3585218786") {
+      await grantBonusMl(userId.toString(), 20000);
+      return Response.json({ success: true, message: "Granted Juice Box (+20,000 mL)" });
+    }
+    if (id === "3585218944") {
+      await grantBonusMl(userId.toString(), 80000);
+      return Response.json({ success: true, message: "Granted Mega Jug (+80,000 mL)" });
+    }
+
+    return Response.json({ success: false, message: "Unknown ID" }, { status: 400 });
 
   } catch (error) {
     console.error("Roblox webhook error:", error);
