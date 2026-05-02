@@ -269,12 +269,15 @@ async function relayToVertexDeepSeek(
 
   try {
     const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
-    if (!keyPath) {
-       throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_PATH in environment.");
+    const keyJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+
+    if (!keyPath && !keyJson) {
+       throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_PATH or GOOGLE_SERVICE_ACCOUNT_JSON in environment.");
     }
 
     const auth = new GoogleAuth({
       keyFile: keyPath,
+      credentials: keyJson ? JSON.parse(keyJson) : undefined,
       scopes: ["https://www.googleapis.com/auth/cloud-platform"],
     });
 
