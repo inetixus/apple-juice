@@ -559,13 +559,13 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
         
         // Map user-friendly or AI Studio model names to Vertex AI specific IDs
         const MODEL_MAPPING: Record<string, string> = {
-          "Gemini 3.1 Pro": "gemini-1.5-pro-002",
-          "Gemini 3.1 Flash": "gemini-1.5-flash-002",
-          "Gemini 3.1 Flash-Lite": "gemini-1.5-flash-002",
-          "Gemini 3 Pro": "gemini-1.5-pro-002",
-          "Gemini 3 Flash": "gemini-1.5-flash-002",
-          "Gemini 2.5 Pro": "gemini-1.5-pro-002",
-          "Gemini 2.5 Flash": "gemini-1.5-flash-002",
+          "Gemini 3.1 Pro": "gemini-3.1-pro",
+          "Gemini 3.1 Flash": "gemini-3.1-flash",
+          "Gemini 3.1 Flash-Lite": "gemini-3.1-flash-lite",
+          "Gemini 3 Pro": "gemini-3-pro",
+          "Gemini 3 Flash": "gemini-3-flash",
+          "Gemini 2.5 Pro": "gemini-2.5-pro",
+          "Gemini 2.5 Flash": "gemini-2.5-flash",
           "Gemini 2.0 Flash": "gemini-2.0-flash-exp",
           "Gemini 1.5 Pro": "gemini-1.5-pro-002",
           "Gemini 1.5 Flash": "gemini-1.5-flash-002"
