@@ -1,4 +1,4 @@
-import { getSession, consumeLogs, getRedis, updateSession } from "@/lib/store";
+import { getSession, consumeLogs, getRedis, updateSession, extractIp, ipKeyFor } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,12 @@ export async function GET(req: Request) {
     });
 
     const redis = getRedis();
+    const clientIp = extractIp(req);
+    if (clientIp && clientIp !== "unknown") {
+      // Force IP to point to the active project session
+      await redis.set(ipKeyFor(clientIp), sessionKey, { ex: 3600 });
+    }
+
     const tree = await redis.get(`tree:${sessionKey}`);
 
     // If there's a file response, we should probably consume it too so it doesn't keep showing up

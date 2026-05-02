@@ -92,7 +92,7 @@ function keyFor(sessionKey: string) {
   return `${PREFIX}${sessionKey}`;
 }
 
-function ipKeyFor(ip: string) {
+export function ipKeyFor(ip: string) {
   return `${IP_PREFIX}${ip}`;
 }
 
