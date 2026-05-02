@@ -2480,78 +2480,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                           Enhance
                         </button>
 
-                        <div className="flex items-center gap-2 border-l border-white/10 pl-2 ml-1">
-                          <select
-                            value={selectedModel}
-                            onChange={(e) => setSelectedModel(e.target.value)}
-                            className="bg-black/20 text-[11px] text-white/60 hover:text-white hover:bg-white/[0.05] border border-white/[0.04] rounded-lg px-2 py-1.5 outline-none focus:border-white/20 transition-all custom-scrollbar max-w-[120px] truncate cursor-pointer appearance-none"
-                            title="Select Model"
-                          >
-                            {availableModels.map((m) => (
-                              <option key={m} value={m} className="bg-[#080c16] text-white">
-                                {m}
-                              </option>
-                            ))}
-                          </select>
 
-                          {sessionTokensUsed > 0 && (
-                            <div 
-                              className="text-[10px] flex items-center gap-1 text-white/40 bg-white/[0.02] border border-white/[0.04] px-2 py-1 rounded-lg truncate max-w-[100px]"
-                              title={`Session Usage: ${(sessionTokensUsed / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ml`}
-                            >
-                              <span className="w-2 h-2 rounded-full bg-violet-500/50 flex-shrink-0" />
-                              {(sessionTokensUsed / 1000).toFixed(1)} ml
-                            </div>
-                          )}
-                        </div>
-
-                        {(provider == "google"
-                          ? googleKey.trim()
-                          : openaiKey.trim()
-                        ).length == 0
-                            ? (() => {
-                              const mlAvailable = usage.remainingMl !== undefined 
-                                ? usage.remainingMl 
-                                : Math.max(0, (usage.totalMl || 2000) - (usage.usedMl || 0));
-                              const pct = Math.max(
-                                0,
-                                Math.min(
-                                  100,
-                                  (mlAvailable / Math.max(1, usage.totalMl || 2000)) * 100,
-                                ),
-                              );
-                              const hue = Math.round(pct * 1.2);
-                              const planLabel = usage.plan === 'pure_ultra' ? 'Ultra' : usage.plan === 'fresh_pro' ? 'Pro' : 'Free';
-                              return (
-                                <div 
-                                  onClick={() => setShowPricing(true)}
-                                  className="hidden sm:flex relative h-9 bg-black/50 rounded-xl overflow-hidden border border-white/[0.08] items-center gap-2 px-3 group ml-2 shadow-[inset_0_0_12px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#ccff00]/30 transition-all"
-                                >
-                                  <span className={`text-[10px] font-bold z-10 flex-shrink-0 uppercase tracking-wider ${
-                                    usage.plan === 'pure_ultra' ? 'text-[#7c3aed]' : 
-                                    usage.plan === 'fresh_pro' ? 'text-[#ccff00]' : 
-                                    'text-white/60'
-                                  }`}>{planLabel}</span>
-                                  <div className="flex flex-col items-end z-10 min-w-[60px]">
-                                    <span className="text-[11px] font-mono font-black tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-none">
-                                      {mlAvailable.toLocaleString()} mL
-                                    </span>
-                                    <span className="text-[8px] text-white/30 font-medium leading-none mt-0.5">
-                                      / {(usage.totalMl || 2000).toLocaleString()}
-                                    </span>
-                                  </div>
-                                  {/* Background fill bar */}
-                                  <div
-                                    className="absolute left-0 bottom-0 top-0 transition-all duration-1000 opacity-30"
-                                    style={{
-                                      width: `${pct}%`,
-                                      background: `linear-gradient(90deg, hsla(${hue}, 100%, 50%, 0.8), hsla(${hue}, 100%, 65%, 1))`,
-                                    }}
-                                  />
-                                </div>
-                              );
-                            })()
-                          : null}
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -2685,7 +2614,66 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-3"></div>
+                      <div className="flex items-center gap-3">
+                        <select
+                          value={selectedModel}
+                          onChange={(e) => setSelectedModel(e.target.value)}
+                          className="bg-black/20 text-[11px] text-white/60 hover:text-white hover:bg-white/[0.05] border border-white/[0.04] rounded-lg px-2 py-1.5 outline-none focus:border-white/20 transition-all custom-scrollbar max-w-[120px] truncate cursor-pointer appearance-none"
+                          title="Select Model"
+                        >
+                          {availableModels.map((m) => (
+                            <option key={m} value={m} className="bg-[#080c16] text-white">
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+
+                        {sessionTokensUsed > 0 && (
+                          <div 
+                            className="text-[10px] flex items-center gap-1 text-white/40 bg-white/[0.02] border border-white/[0.04] px-2 py-1 rounded-lg truncate max-w-[100px]"
+                            title={`Session Usage: ${(sessionTokensUsed / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ml`}
+                          >
+                            <span className="w-2 h-2 rounded-full bg-violet-500/50 flex-shrink-0" />
+                            {(sessionTokensUsed / 1000).toFixed(1)} ml
+                          </div>
+                        )}
+
+                        {(provider == "google" ? googleKey.trim() : openaiKey.trim()).length == 0 ? (() => {
+                          const mlAvailable = usage.remainingMl !== undefined 
+                            ? usage.remainingMl 
+                            : Math.max(0, (usage.totalMl || 2000) - (usage.usedMl || 0));
+                          const pct = Math.max(0, Math.min(100, (mlAvailable / Math.max(1, usage.totalMl || 2000)) * 100));
+                          const hue = Math.round(pct * 1.2);
+                          const planLabel = usage.plan === 'pure_ultra' ? 'Ultra' : usage.plan === 'fresh_pro' ? 'Pro' : 'Free';
+                          return (
+                            <div 
+                              onClick={() => setShowPricing(true)}
+                              className="hidden sm:flex relative h-7 bg-black/50 rounded-lg overflow-hidden border border-white/[0.08] items-center gap-2 px-2.5 group cursor-pointer hover:border-[#ccff00]/30 transition-all"
+                            >
+                              <span className={`text-[9px] font-bold z-10 flex-shrink-0 uppercase tracking-wider ${
+                                usage.plan === 'pure_ultra' ? 'text-[#7c3aed]' : 
+                                usage.plan === 'fresh_pro' ? 'text-[#ccff00]' : 
+                                'text-white/60'
+                              }`}>{planLabel}</span>
+                              <div className="flex items-baseline gap-1 z-10">
+                                <span className="text-[10px] font-mono font-black tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                                  {mlAvailable.toLocaleString()} mL
+                                </span>
+                                <span className="text-[8px] text-white/30 font-medium leading-none">
+                                  / {(usage.totalMl || 2000).toLocaleString()}
+                                </span>
+                              </div>
+                              <div
+                                className="absolute left-0 bottom-0 top-0 transition-all duration-1000 opacity-30"
+                                style={{
+                                  width: `${pct}%`,
+                                  background: `linear-gradient(90deg, hsla(${hue}, 100%, 50%, 0.8), hsla(${hue}, 100%, 65%, 1))`,
+                                }}
+                              />
+                            </div>
+                          );
+                        })() : null}
+                      </div>
                     </div>
                   </div>
                 </div>
