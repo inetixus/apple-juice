@@ -14,11 +14,10 @@ const GOOGLE_FALLBACK_MODELS = [
 ];
 
 const ANTIGRAVITY_MODELS = [
-  "Gemini 2.5 Pro",
-  "Gemini 2.5 Flash",
   "Gemini 2.0 Flash",
-  "Gemini 3.1 Pro (Preview)",
-  "Gemini 3 Flash (Preview)",
+  "Gemini 1.5 Pro",
+  "Gemini 1.5 Flash",
+  "Gemini 2.0 Flash Lite (Preview)",
 ];
 
 export async function POST(request: Request) {
