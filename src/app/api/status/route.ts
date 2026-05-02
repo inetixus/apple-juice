@@ -23,8 +23,11 @@ export async function GET(req: Request) {
       }
     }
 
-    // Ping dashboard presence
-    await updateSession(sessionKey, { dashboardLastPingTime: Date.now() });
+    // Ping dashboard presence and refresh expiry (another hour)
+    await updateSession(sessionKey, { 
+      dashboardLastPingTime: Date.now(),
+      expiresAt: Date.now() + 1000 * 60 * 60 
+    });
 
     const redis = getRedis();
     const tree = await redis.get(`tree:${sessionKey}`);

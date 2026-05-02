@@ -220,6 +220,8 @@ export async function updateSession(sessionKey: string, updates: Partial<Session
     if not raw then return nil end
     local sess = cjson.decode(raw)
     local updates = cjson.decode(ARGV[1])
+    local now = tonumber(ARGV[2])
+
     for k, v in pairs(updates) do
       if v == cjson.null then
         sess[k] = nil
@@ -227,11 +229,22 @@ export async function updateSession(sessionKey: string, updates: Partial<Session
         sess[k] = v
       end
     end
-    redis.call("SET", KEYS[1], cjson.encode(sess))
-    return cjson.encode(sess)
+
+    local encoded = cjson.encode(sess)
+    if sess.expiresAt then
+      local ttl = math.floor((tonumber(sess.expiresAt) - now) / 1000)
+      if ttl > 0 then
+        redis.call("SET", KEYS[1], encoded, "EX", ttl)
+      else
+        redis.call("SET", KEYS[1], encoded)
+      end
+    else
+      redis.call("SET", KEYS[1], encoded)
+    end
+    return encoded
   `;
   try {
-    const res = await getRedis().eval(lua, [key], [JSON.stringify(updates)]);
+    const res = await getRedis().eval(lua, [key], [JSON.stringify(updates), String(Date.now())]);
     if (!res) return null;
     return (typeof res === "string" ? JSON.parse(res) : res) as SessionEntry;
   } catch (err) {

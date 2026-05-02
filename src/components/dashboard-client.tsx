@@ -423,11 +423,16 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               }
             }
           }
+        } else if (res.status === 410) {
+          // Session expired on server — trigger a re-pair
+          console.warn("[AppleJuice] Session expired, re-pairing...");
+          setSessionKey("");
+          void createPairOnServer();
         }
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error("Status check failed", err);
       }
-    }, 800);
+    }, 1000);
     return () => clearInterval(interval);
   }, [sessionKey, showToast]);
 
