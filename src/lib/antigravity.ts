@@ -239,8 +239,8 @@ function resolveModelId(displayName: string): string {
   if (MODEL_ID_MAP[base]) return MODEL_ID_MAP[base];
   // DeepSeek models
   if (displayName.toLowerCase().includes("deepseek")) {
-    if (displayName.toLowerCase().includes("r1")) return "deepseek-r1";
-    return "deepseek-v3.2";
+    if (displayName.toLowerCase().includes("r1")) return "deepseek-ai/deepseek-r1";
+    return "deepseek-ai/deepseek-v3";
   }
   // Default
   return "gemini-2.5-flash";
@@ -265,7 +265,7 @@ async function relayToVertexDeepSeek(
   
   // Use us-central1 for stability (global can be flaky/slow)
   const region = "us-central1";
-  const modelId = isR1 ? "deepseek-r1@default" : "deepseek-v3@default";
+  const modelId = isR1 ? "deepseek-ai/deepseek-r1" : "deepseek-ai/deepseek-v3";
   const baseUrl = `${region}-aiplatform.googleapis.com`;
 
   try {
@@ -310,6 +310,11 @@ async function relayToVertexDeepSeek(
     });
 
     if (request.stream) {
+      if (!res.ok) {
+        const bodyText = await res.text();
+        console.error(`[DeepSeek] Stream Error ${res.status}:`, bodyText);
+        return { ok: false, error: bodyText, status: res.status, tokensUsed: 0 };
+      }
       return { ok: true, stream: res, status: 200, tokensUsed: 0 };
     }
 
