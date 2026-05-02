@@ -2958,6 +2958,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   onClick={async () => {
                     const data = { plan: 'free', totalMl: 2000, remainingMl: 2000 };
                     setUsage((prev: any) => ({...prev, ...data}));
+                    showToast("Plan set to FREE (2,000 mL)", "success");
                     await fetch("/api/usage", { method: "POST", body: JSON.stringify(data) });
                   }}
                   className="text-[9px] font-bold py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/60"
@@ -2968,6 +2969,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   onClick={async () => {
                     const data = { plan: 'fresh_pro', totalMl: 10000, remainingMl: 10000 };
                     setUsage((prev: any) => ({...prev, ...data}));
+                    showToast("Plan set to PRO (10,000 mL)", "success");
                     await fetch("/api/usage", { method: "POST", body: JSON.stringify(data) });
                   }}
                   className="text-[9px] font-bold py-2 rounded-lg bg-[#ccff00]/10 hover:bg-[#ccff00]/20 border border-[#ccff00]/20 transition-all text-[#ccff00]"
@@ -2978,6 +2980,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   onClick={async () => {
                     const data = { plan: 'pure_ultra', totalMl: 30000, remainingMl: 30000 };
                     setUsage((prev: any) => ({...prev, ...data}));
+                    showToast("Plan set to ULTRA (30,000 mL)", "success");
                     await fetch("/api/usage", { method: "POST", body: JSON.stringify(data) });
                   }}
                   className="text-[9px] font-bold py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 transition-all text-violet-400"
@@ -2989,6 +2992,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 onClick={async () => {
                   const data = { plan: usage.plan, remainingMl: 999999, totalMl: 999999 };
                   setUsage((prev: any) => ({...prev, ...data}));
+                  showToast("Juice tank filled to 999k mL!", "success");
                   await fetch("/api/usage", { method: "POST", body: JSON.stringify(data) });
                 }}
                 className="w-full text-[9px] font-black py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all text-red-400 uppercase tracking-widest"
@@ -3170,7 +3174,10 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                     <div className="px-2 py-0.5 rounded-md bg-[#ccff00]/10 text-[#ccff00] text-[9px] font-bold">REFILLS TANK TO 100%</div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between group/item hover:border-white/20 transition-all cursor-pointer" onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}>
+                    <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between group/item hover:border-white/20 transition-all cursor-pointer" onClick={() => {
+                      showToast("Redirecting to Shop...", "success");
+                      window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank");
+                    }}>
                       <div>
                         <div className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Small Sip</div>
                         <div className="text-xl font-black text-white italic">350 R$</div>
@@ -3180,7 +3187,10 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                         <Plus size={16} />
                       </div>
                     </div>
-                    <div className="bg-[#ccff00]/5 border border-[#ccff00]/30 rounded-2xl p-4 flex items-center justify-between relative group/item hover:bg-[#ccff00]/10 transition-all cursor-pointer" onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}>
+                    <div className="bg-[#ccff00]/5 border border-[#ccff00]/30 rounded-2xl p-4 flex items-center justify-between relative group/item hover:bg-[#ccff00]/10 transition-all cursor-pointer" onClick={() => {
+                      showToast("Opening Juice Box Shop...", "success");
+                      window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank");
+                    }}>
                       <div className="absolute top-0 left-0 bg-[#ccff00] text-black text-[8px] font-black px-2 py-0.5 rounded-br-lg uppercase">Best Value</div>
                       <div>
                         <div className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1 mt-2">Juice Box</div>
@@ -3191,7 +3201,10 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                         <Plus size={16} />
                       </div>
                     </div>
-                    <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between group/item hover:border-white/20 transition-all cursor-pointer" onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}>
+                    <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between group/item hover:border-white/20 transition-all cursor-pointer" onClick={() => {
+                      showToast("Opening Roblox Shop...", "success");
+                      window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank");
+                    }}>
                       <div>
                         <div className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Mega Jug</div>
                         <div className="text-xl font-black text-white italic">3,000 R$</div>
