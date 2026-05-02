@@ -54,6 +54,8 @@ export const MODEL_MULTIPLIERS: Record<string, number> = {
   "gpt-4o-mini": 1.5,
   "deepseek-v3.2": 5,
   "deepseek-r1": 10,
+  "DeepSeek V3": 5,
+  "DeepSeek R1": 10,
 };
 
 

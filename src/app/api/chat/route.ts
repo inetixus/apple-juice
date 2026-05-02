@@ -56,9 +56,13 @@ export async function POST(req: Request) {
   const isAntigravityExplicit = provider === "apple_juice_ai";
 
   if (!isUsingCustomKey && !isAntigravityExplicit) {
-    effectiveProvider = "google";
-    if (effectiveModel.toLowerCase().startsWith("gpt-")) {
-      effectiveModel = "gemini-3-flash";
+    if (effectiveModel.toLowerCase().includes("deepseek")) {
+      effectiveProvider = "apple_juice_ai";
+    } else {
+      effectiveProvider = "google";
+      if (effectiveModel.toLowerCase().startsWith("gpt-")) {
+        effectiveModel = "gemini-3-flash";
+      }
     }
   }
 
