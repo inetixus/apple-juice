@@ -1390,7 +1390,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }, 30);
       
       setIsGenerating(false);
-      playSound("done");
+      playSound("success");
       
       setThinkingSteps([]);
       // Reset auto-fix retries for this new generation
