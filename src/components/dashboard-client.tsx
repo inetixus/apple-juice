@@ -13,6 +13,9 @@ import {
   Trash2,
   LayoutDashboard,
   Menu,
+  ShieldAlert,
+  Cpu,
+  Plus,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
