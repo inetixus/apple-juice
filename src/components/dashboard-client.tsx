@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   Cpu,
   Plus,
+  Undo2,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,7 @@ type ChatMessage = {
   pendingSync?: boolean;
   isHidden?: boolean;
   tokensUsed?: number;
+  isReverted?: boolean;
 };
 
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
@@ -1676,6 +1678,73 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     };
   }, [usage?.plan]);
 
+  const handleRevert = useCallback(
+    async (message: ChatMessage) => {
+      const plan = usage.plan || "free";
+      const assistantMsgs = messages.filter((m) => m.role === "assistant");
+      const idx = assistantMsgs.findIndex((m) => m.id === message.id);
+      if (idx === -1) return;
+
+      const msgsFromEnd = assistantMsgs.length - 1 - idx;
+      const limit =
+        plan === "pure_ultra" ? 10 : plan === "fresh_pro" ? 3 : 1;
+
+      if (msgsFromEnd >= limit) {
+        showToast(
+          `Revert limit reached for your plan (${limit} message${limit > 1 ? "s" : ""}).`,
+          "error",
+        );
+        return;
+      }
+
+      showToast("Reverting changes in Studio...", "info");
+
+      const scriptsToRevert = message.scripts || (message.script ? [message.script] : []);
+      if (scriptsToRevert.length === 0) {
+        showToast("No scripts to revert in this message.", "error");
+        return;
+      }
+
+      // Build inverse payload
+      const revertPayload = scriptsToRevert.map((s) => {
+        // If it was a create, we delete it
+        if (s.action === "create" || !s.action) {
+          return { ...s, action: "delete" };
+        }
+        // If it was an edit or delete, we restore originalCode
+        return {
+          ...s,
+          action: "create", // Re-create with original code
+          code: s.originalCode || "",
+        };
+      });
+
+      try {
+        const res = await fetch("/api/revert-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionKey, scripts: revertPayload }),
+        });
+
+        if (res.ok) {
+          showToast("Game state reverted successfully!", "success");
+          setMessages((msgs) =>
+            msgs.map((m) =>
+              m.id === message.id
+                ? { ...m, pendingSync: false, isReverted: true }
+                : m,
+            ),
+          );
+        } else {
+          showToast("Failed to revert code in Studio.", "error");
+        }
+      } catch (err) {
+        showToast("Connection error during revert.", "error");
+      }
+    },
+    [messages, sessionKey, usage.plan, showToast],
+  );
+
   return (
     <main className="h-screen bg-[#060a12] text-white flex overflow-hidden font-sans relative">
       {/*     PREMIUM FIXED GRADIENT BACKGROUND     */}
@@ -2308,46 +2377,62 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                   </div>
                                 )}
 
-                              {message.pendingSync && (
-                                <div className="mt-4 pt-3 border-t border-[#ccff00]/20 flex justify-end">
-                                  <button
-                                    className="bg-[#ccff00] text-black font-bold px-5 py-2 rounded-xl text-[13px] hover:bg-[#d4ff33] transition-all"
-                                    onClick={async () => {
-                                      showToast("Accepting changes...", "info");
-                                      const res = await fetch(
-                                        "/api/accept-code",
-                                        {
-                                          method: "POST",
-                                          headers: {
-                                            "Content-Type": "application/json",
+                                {message.pendingSync && (
+                                  <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-3">
+                                    <button
+                                      onClick={() => handleRevert(message)}
+                                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-[12px] text-red-400 font-bold hover:bg-red-500/20 transition-all"
+                                      title="Restore game state to before this prompt"
+                                    >
+                                      <Undo2 className="h-3.5 w-3.5" />
+                                      Revert
+                                    </button>
+
+                                    <button
+                                      className="flex-1 bg-[#ccff00] text-black font-bold px-5 py-2 rounded-xl text-[13px] hover:bg-[#d4ff33] transition-all flex items-center justify-center gap-2"
+                                      onClick={async () => {
+                                        showToast("Accepting changes...", "info");
+                                        const res = await fetch(
+                                          "/api/accept-code",
+                                          {
+                                            method: "POST",
+                                            headers: {
+                                              "Content-Type": "application/json",
+                                            },
+                                            body: JSON.stringify({ sessionKey }),
                                           },
-                                          body: JSON.stringify({ sessionKey }),
-                                        },
-                                      );
-                                      if (res.ok) {
-                                        showToast(
-                                          "Changes sent to Roblox Studio!",
-                                          "success",
                                         );
-                                        setMessages((msgs) =>
-                                          msgs.map((m) =>
-                                            m.id === message.id
-                                              ? { ...m, pendingSync: false }
-                                              : m,
-                                          ),
-                                        );
-                                      } else {
-                                        showToast(
-                                          "Failed to sync code.",
-                                          "error",
-                                        );
-                                      }
-                                    }}
-                                  >
-                                    Accept & Sync to Studio
-                                  </button>
-                                </div>
-                              )}
+                                        if (res.ok) {
+                                          showToast(
+                                            "Changes sent to Roblox Studio!",
+                                            "success",
+                                          );
+                                          setMessages((msgs) =>
+                                            msgs.map((m) =>
+                                              m.id === message.id
+                                                ? { ...m, pendingSync: false }
+                                                : m,
+                                            ),
+                                          );
+                                        } else {
+                                          showToast(
+                                            "Failed to sync code.",
+                                            "error",
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      Accept & Sync to Studio
+                                    </button>
+                                  </div>
+                                )}
+
+                                {message.isReverted && (
+                                  <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-2 text-[11px] text-red-400/60 font-bold italic">
+                                    <Undo2 className="h-3 w-3" />
+                                    Changes Reverted
+                                  </div>
+                                )}
                             </div>
                           </div>
                         </div>
