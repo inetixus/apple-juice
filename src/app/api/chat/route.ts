@@ -91,7 +91,6 @@ export async function POST(req: Request) {
     
     const freeModels = ["Gemini 2.5 Flash", "Gemini 3.1 Flash-Lite", "gemini-1.5-flash", "gpt-4o-mini"];
     const proModels = [...freeModels, "Gemini 3.1 Flash", "DeepSeek V3", "Gemini 3 Pro", "Gemini 3 Flash", "gemini-1.5-pro", "gpt-4o"];
-    const ultraModels = [...proModels, "DeepSeek R1", "Gemini 2.5 Pro", "Gemini 3.1 Pro", "claude-3-opus", "claude-3-sonnet"];
 
     const isAvailable = (m: string, p: string) => {
       if (p === 'pure_ultra') return true;
