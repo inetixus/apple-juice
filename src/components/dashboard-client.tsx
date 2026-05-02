@@ -1357,13 +1357,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   
                   if (reasoning) {
                     setThinkingSteps((prev) => {
-                      const last = prev[prev.length - 1];
-                      if (last && last.icon === "reasoning") {
-                         return [...prev.slice(0, -1), { ...last, label: reasoning.length > 100 ? reasoning.substring(reasoning.length - 100) : reasoning }];
+                      const index = prev.findIndex(s => s.icon === "reasoning");
+                      if (index !== -1) {
+                         const newSteps = [...prev];
+                         const snippet = reasoning.length > 50 ? "..." + reasoning.substring(reasoning.length - 50) : reasoning;
+                         newSteps[index] = { ...newSteps[index], label: `Reasoning: ${snippet.replace(/\n/g, " ")}` };
+                         return newSteps;
                       }
                       return prev;
                     });
-                    // Also accumulate reasoning if we want to show it in the message later
                   }
 
                   if (delta) {

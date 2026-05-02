@@ -508,8 +508,16 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     }, accessToken, userEmail);
 
     if (isDeepSeek && agResult.ok && agResult.stream) {
+      // Use a TransformStream to track when the stream ends and decrement the counter
+      const originalStream = agResult.stream.body!;
+      const transformStream = new TransformStream({
+        flush() {
+          void decrementActiveGenerations();
+        }
+      });
+
       // Stream the response back to the client
-      return new Response(agResult.stream.body, {
+      return new Response(originalStream.pipeThrough(transformStream), {
         headers: {
           "Content-Type": "text/event-stream",
           "Cache-Control": "no-cache",
