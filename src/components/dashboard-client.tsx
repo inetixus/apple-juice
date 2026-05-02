@@ -1492,10 +1492,56 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   );
   const sessionTokensUsed = messages.reduce((acc, m) => acc + (m.tokensUsed || 0), 0);
 
+  const rankTheme = useMemo(() => {
+    const plan = usage?.plan || 'free';
+    if (plan === 'pure_ultra') return {
+      bg: 'bg-[radial-gradient(circle_at_70%_20%,rgba(124,58,237,0.3),transparent_60%),radial-gradient(circle_at_15%_85%,rgba(91,33,182,0.2),transparent_50%),radial-gradient(circle_at_center,rgba(76,29,149,0.12),transparent_70%)]',
+      accent: '#a78bfa',
+      accentBg: 'bg-violet-500',
+      accentHover: 'hover:bg-violet-400',
+      accentText: 'text-violet-400',
+      accentGlow: 'shadow-[0_0_15px_rgba(124,58,237,0.3)]',
+      borderAccent: 'border-violet-500/20',
+      badgeBg: 'bg-violet-500',
+      badgeText: 'ULTRA',
+      badgeColor: 'text-violet-400',
+      btnBg: 'bg-violet-500 hover:bg-violet-400 text-white',
+      fixBtnBg: 'bg-violet-500 hover:bg-violet-400 text-white',
+    };
+    if (plan === 'fresh_pro') return {
+      bg: 'bg-[radial-gradient(circle_at_70%_20%,rgba(204,255,0,0.15),transparent_60%),radial-gradient(circle_at_15%_85%,rgba(163,230,53,0.1),transparent_50%),radial-gradient(circle_at_center,rgba(132,204,22,0.08),transparent_70%)]',
+      accent: '#ccff00',
+      accentBg: 'bg-[#ccff00]',
+      accentHover: 'hover:bg-[#d4ff33]',
+      accentText: 'text-[#ccff00]',
+      accentGlow: 'shadow-[0_0_15px_rgba(204,255,0,0.2)]',
+      borderAccent: 'border-[#ccff00]/20',
+      badgeBg: 'bg-[#ccff00]',
+      badgeText: 'PRO',
+      badgeColor: 'text-[#ccff00]',
+      btnBg: 'bg-[#ccff00] hover:bg-[#d4ff33] text-black',
+      fixBtnBg: 'bg-[#ccff00] hover:bg-[#d4ff33] text-black',
+    };
+    return {
+      bg: 'bg-[radial-gradient(circle_at_70%_20%,rgba(29,78,216,0.25),transparent_60%),radial-gradient(circle_at_15%_85%,rgba(37,99,235,0.15),transparent_50%),radial-gradient(circle_at_center,rgba(30,58,138,0.1),transparent_70%)]',
+      accent: '#3b82f6',
+      accentBg: 'bg-blue-500',
+      accentHover: 'hover:bg-blue-400',
+      accentText: 'text-blue-400',
+      accentGlow: '',
+      borderAccent: 'border-blue-500/20',
+      badgeBg: 'bg-white/10',
+      badgeText: 'FREE',
+      badgeColor: 'text-white/50',
+      btnBg: 'bg-white hover:bg-zinc-200 text-black',
+      fixBtnBg: 'bg-white hover:bg-zinc-200 text-black',
+    };
+  }, [usage?.plan]);
+
   return (
     <main className="h-screen bg-[#060a12] text-white flex overflow-hidden font-sans relative">
       {/*     PREMIUM FIXED GRADIENT BACKGROUND     */}
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(29,78,216,0.25),transparent_60%),radial-gradient(circle_at_15%_85%,rgba(37,99,235,0.15),transparent_50%),radial-gradient(circle_at_center,rgba(30,58,138,0.1),transparent_70%)] pointer-events-none z-0" />
+      <div className={`fixed inset-0 ${rankTheme.bg} pointer-events-none z-0 transition-all duration-1000`} />
       <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none z-0" />
       <div className="fixed inset-0 bg-gradient-to-b from-transparent via-[#080c16]/30 to-[#0a0e1a]/90 pointer-events-none z-0" />
 
@@ -1554,7 +1600,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       >
         <div className="p-5 space-y-6 overflow-y-auto flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <div className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg bg-[#ccff00]">
+            <div className={`flex-shrink-0 flex h-6 w-6 items-center justify-center rounded-lg ${rankTheme.accentBg} transition-colors duration-500`}>
               <svg
                 viewBox="0 0 24 24"
                 className="h-4 w-4 text-black"
@@ -1580,8 +1626,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 <span className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 tracking-tight text-lg leading-none">
                   Apple Juice
                 </span>
-                <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/50 uppercase tracking-widest font-bold leading-none mt-0.5">
-                  pre-beta
+                <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase tracking-widest font-bold leading-none mt-0.5 ${rankTheme.badgeBg} ${rankTheme.badgeColor} transition-colors duration-500`}>
+                  {rankTheme.badgeText}
                 </span>
               </div>
               <span className="text-[9px] text-white/20 mt-1 italic">
@@ -1597,7 +1643,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 void createNewProject(name);
               }
             }}
-            className="w-full bg-white text-black font-semibold py-2 rounded-xl hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2 text-[13px]"
+            className={`w-full font-semibold py-2 rounded-xl transition-all flex items-center justify-center gap-2 text-[13px] ${rankTheme.btnBg} ${rankTheme.accentGlow}`}
           >
             + New Project
           </button>
@@ -1771,7 +1817,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     setTimeout(() => submitPrompt(promptText), 500);
                     setSelectedTreePaths([]);
                   }}
-                  className="w-full bg-[#ccff00] text-black font-bold py-2 rounded-xl hover:bg-[#d4ff33] transition-colors flex items-center justify-center gap-2 text-[13px]"
+                  className={`w-full font-bold py-2 rounded-xl transition-all flex items-center justify-center gap-2 text-[13px] ${rankTheme.fixBtnBg} ${rankTheme.accentGlow}`}
                 >
                   <Sparkles className="w-4 h-4" />
                   Fix Bugs ({selectedTreePaths.length})
