@@ -469,7 +469,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
   if (effectiveProvider === "apple_juice_ai") {
     // 1. Look up identity mapping
     const agMapping = userEmail ? await getAntigravityMapping(userEmail) : null;
-    if (!agMapping) {
+    if (!agMapping && !effectiveModel.toLowerCase().includes("deepseek")) {
       return Response.json({
         error: "account_not_linked",
         message: "Your account is not linked to Antigravity. Go to Settings → Antigravity to connect your account.",

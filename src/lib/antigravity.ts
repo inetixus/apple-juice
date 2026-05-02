@@ -349,7 +349,7 @@ async function relayToVertexDeepSeek(
  * Google API quota, not the platform's.
  */
 export async function relayToAntigravity(
-  mapping: AntigravityMapping,
+  mapping: AntigravityMapping | null,
   request: AntigravityChatRequest,
   _accessToken?: string,
   userEmail?: string
@@ -364,6 +364,15 @@ export async function relayToAntigravity(
   const modelName = request.model || "Gemini 2.5 Flash";
   if (modelName.toLowerCase().includes("deepseek")) {
     return relayToVertexDeepSeek(request, userEmail);
+  }
+
+  if (!mapping) {
+    return {
+      ok: false,
+      error: "Antigravity account not linked.",
+      status: 403,
+      tokensUsed: 0,
+    };
   }
 
   const modelId = resolveModelId(modelName);
