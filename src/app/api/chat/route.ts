@@ -763,6 +763,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
       suggestions: finalSuggestions,
       scripts: scriptResults,
       thinking: thinking || undefined,
+      tokensUsed,
     });
   }
 
@@ -805,6 +806,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     message: finalMessage,
     suggestions: finalSuggestions,
     thinking: thinking || undefined,
+    tokensUsed,
   });
   } finally {
     if (!isUsingCustomKey) {

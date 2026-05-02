@@ -62,6 +62,7 @@ type ChatMessage = {
   attachedAsset?: { id: number; name: string; thumbnail: string };
   pendingSync?: boolean;
   isHidden?: boolean;
+  tokensUsed?: number;
 };
 
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
@@ -1166,6 +1167,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           requires?: string[];
         }[];
         thinking?: string;
+        tokensUsed?: number;
       };
 
       const payloadFiles = [...attachedFiles];
@@ -1215,6 +1217,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           suggestions: p.suggestions,
           thinking: p.thinking,
           pendingSync,
+          tokensUsed: p.tokensUsed,
         };
       }
 
@@ -1462,6 +1465,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     },
     [sessionKey, showToast],
   );
+  const sessionTokensUsed = messages.reduce((acc, m) => acc + (m.tokensUsed || 0), 0);
 
   return (
     <main className="h-screen bg-[#060a12] text-white flex overflow-hidden font-sans relative">
@@ -2476,6 +2480,31 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                           <Sparkles className="h-3 w-3" />
                           Enhance
                         </button>
+
+                        <div className="flex items-center gap-2 border-l border-white/10 pl-2 ml-1">
+                          <select
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            className="bg-black/20 text-[11px] text-white/60 hover:text-white hover:bg-white/[0.05] border border-white/[0.04] rounded-lg px-2 py-1.5 outline-none focus:border-white/20 transition-all custom-scrollbar max-w-[120px] truncate cursor-pointer appearance-none"
+                            title="Select Model"
+                          >
+                            {availableModels.map((m) => (
+                              <option key={m} value={m} className="bg-[#080c16] text-white">
+                                {m}
+                              </option>
+                            ))}
+                          </select>
+
+                          {sessionTokensUsed > 0 && (
+                            <div 
+                              className="text-[10px] flex items-center gap-1 text-white/40 bg-white/[0.02] border border-white/[0.04] px-2 py-1 rounded-lg truncate max-w-[100px]"
+                              title={`Session Tokens Used: ${sessionTokensUsed.toLocaleString()}`}
+                            >
+                              <span className="w-2 h-2 rounded-full bg-violet-500/50 flex-shrink-0" />
+                              {sessionTokensUsed >= 1000 ? `${(sessionTokensUsed / 1000).toFixed(1)}k` : sessionTokensUsed}
+                            </div>
+                          )}
+                        </div>
 
                         {(provider == "google"
                           ? googleKey.trim()
