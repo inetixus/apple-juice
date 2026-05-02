@@ -1,4 +1,4 @@
-import { grantBonusCredits, getSession } from "@/lib/store";
+import { grantBonusMl, getSession } from "@/lib/store";
 
 export async function POST(req: Request) {
   try {
@@ -18,9 +18,9 @@ export async function POST(req: Request) {
     const expectedCode = (process.env.REDEEM1 || "refresh").toLowerCase();
 
     if (trimmedCode === expectedCode) {
-      // Grant 50 credits
-      await grantBonusCredits(userId, 50);
-      return Response.json({ success: true, message: "Redeemed code for 50 credits!" });
+      // Grant 20,000 mL bonus (equivalent to a Juice Box)
+      await grantBonusMl(userId, 20_000);
+      return Response.json({ success: true, message: "Redeemed code for 20,000 mL of Juice! 🧃" });
     }
 
     // Invalid code

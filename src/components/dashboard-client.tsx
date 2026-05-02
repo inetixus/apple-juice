@@ -100,11 +100,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     { name: string; content: string }[]
   >([]);
   const [usage, setUsage] = useState<any>({
-    usedTokens: 0,
-    totalTokens: 1000,
-    usedCredits: 0,
-    totalCredits: 1,
-    plan: "lite",
+    usedMl: 0,
+    dailyMl: 2000,
+    totalMl: 2000,
+    remainingMl: 2000,
+    bonusMl: 0,
+    plan: "free",
   });
   const [showPricing, setShowPricing] = useState(false);
   const [isRobux, setIsRobux] = useState(false);
@@ -2458,16 +2459,16 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                 0,
                                 Math.min(
                                   100,
-                                  ((usage.totalTokens - usage.usedTokens) /
-                                    usage.totalTokens) *
+                                  ((usage.totalMl - usage.usedMl) /
+                                    Math.max(1, usage.totalMl)) *
                                     100,
                                 ),
                               );
                               const hue = Math.round(pct * 1.2); // green at 100%, red at 0%
-                              const creditsAvailable = Math.max(
+                              const mlAvailable = Math.max(
                                 0,
-                                (usage.totalCredits || 50) -
-                                  (usage.usedCredits || 0),
+                                (usage.totalMl || 2000) -
+                                  (usage.usedMl || 0),
                               );
                               return (
                                 <div 
@@ -2494,7 +2495,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                     }}
                                   />
                                   <span className="relative z-10 text-[11px] font-mono font-black tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                                    {creditsAvailable.toLocaleString()} Credits
+                                    {mlAvailable.toLocaleString()} mL
                                   </span>
                                 </div>
                               );
@@ -2873,36 +2874,36 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
                 {/* LITE PLAN */}
-                <div className={`bg-white/[0.02] border rounded-3xl p-6 flex flex-col transition-all duration-300 ${usage.plan === 'lite' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-white/5'}`}>
-                  <div className="text-[#ccff00] text-xs font-bold uppercase tracking-wider mb-2">Lite Plan {usage.plan === 'lite' && "(Current)"}</div>
+                <div className={`bg-white/[0.02] border rounded-3xl p-6 flex flex-col transition-all duration-300 ${usage.plan === 'free' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-white/5'}`}>
+                  <div className="text-[#ccff00] text-xs font-bold uppercase tracking-wider mb-2">Free Plan {usage.plan === 'free' && "(Current)"}</div>
                   <div className="text-3xl font-black text-white mb-1">{isRobux ? "0 R$" : "$0"}</div>
                   <p className="text-[12px] text-white/40 mb-6 border-b border-white/5 pb-6">Perfect for small scripts.</p>
                   <ul className="flex flex-col gap-3 mb-6 text-[12px]">
-                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> 1 Credit per day</li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> 2,000 mL per day</li>
                     <li className="flex items-center gap-2 text-white/40"><X className="w-3.5 h-3.5" /> No Stacking</li>
                   </ul>
                 </div>
 
                 {/* PRO PLAN */}
-                <div className={`bg-white/[0.03] border rounded-3xl p-6 flex flex-col relative transition-all duration-300 ${usage.plan === 'pro' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-[#ccff00]/20 shadow-[0_0_20px_rgba(204,255,0,0.05)]'}`}>
-                  <div className="text-white text-xs font-bold uppercase tracking-wider mb-2">Pro Plan {usage.plan === 'pro' && "(Current)"}</div>
+                <div className={`bg-white/[0.03] border rounded-3xl p-6 flex flex-col relative transition-all duration-300 ${usage.plan === 'fresh_pro' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-[#ccff00]/20 shadow-[0_0_20px_rgba(204,255,0,0.05)]'}`}>
+                  <div className="text-white text-xs font-bold uppercase tracking-wider mb-2">Fresh Pro {usage.plan === 'fresh_pro' && "(Current)"}</div>
                   <div className="text-3xl font-black text-white mb-1">{isRobux ? "1,200 R$" : "$9.99"}</div>
                   <p className="text-[12px] text-white/40 mb-6 border-b border-white/5 pb-6">Everything for a complete game.</p>
                   <ul className="flex flex-col gap-3 mb-6 text-[12px]">
-                    <li className="flex items-center gap-2 text-white"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> <strong>4 Credits per day</strong></li>
-                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> Stack up to 10 Credits</li>
+                    <li className="flex items-center gap-2 text-white"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> <strong>10,000 mL per day</strong></li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> More projects</li>
                   </ul>
                   <button className="mt-auto w-full bg-[#ccff00] text-black font-bold py-2.5 rounded-xl hover:bg-[#b3e600] transition-colors text-sm">Upgrade</button>
                 </div>
 
                 {/* ULTRA PLAN */}
-                <div className={`bg-white/[0.03] border rounded-3xl p-6 flex flex-col transition-all duration-300 ${usage.plan === 'ultra' ? 'border-[#7c3aed]/50 bg-[#7c3aed]/5' : 'border-[#7c3aed]/30 shadow-[0_0_20px_rgba(124,58,237,0.05)]'}`}>
-                  <div className="text-[#7c3aed] text-xs font-bold uppercase tracking-wider mb-2">Ultra Plan {usage.plan === 'ultra' && "(Current)"}</div>
+                <div className={`bg-white/[0.03] border rounded-3xl p-6 flex flex-col transition-all duration-300 ${usage.plan === 'pure_ultra' ? 'border-[#7c3aed]/50 bg-[#7c3aed]/5' : 'border-[#7c3aed]/30 shadow-[0_0_20px_rgba(124,58,237,0.05)]'}`}>
+                  <div className="text-[#7c3aed] text-xs font-bold uppercase tracking-wider mb-2">Pure Ultra {usage.plan === 'pure_ultra' && "(Current)"}</div>
                   <div className="text-3xl font-black text-white mb-1">{isRobux ? "2,500 R$" : "$19.99"}</div>
                   <p className="text-[12px] text-white/40 mb-6 border-b border-white/5 pb-6">For serious AI automation.</p>
                   <ul className="flex flex-col gap-3 mb-6 text-[12px]">
-                    <li className="flex items-center gap-2 text-white"><Sparkles className="w-3.5 h-3.5 text-[#7c3aed]" /> <strong>12 Credits per day</strong></li>
-                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#7c3aed]" /> Stack up to 40 Credits</li>
+                    <li className="flex items-center gap-2 text-white"><Sparkles className="w-3.5 h-3.5 text-[#7c3aed]" /> <strong>30,000 mL per day</strong></li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#7c3aed]" /> Infinite projects</li>
                   </ul>
                   <button className="mt-auto w-full bg-[#7c3aed] text-white font-bold py-2.5 rounded-xl hover:bg-[#6d28d9] transition-colors text-sm">Get Ultra</button>
                 </div>
@@ -2911,26 +2912,26 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
               {/* REFILLS */}
               <div className="bg-white/[0.03] border border-white/5 rounded-[2rem] p-6 md:p-8">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-white tracking-tight">Need a quick refill?</h3>
+                  <h3 className="text-xl font-bold text-white tracking-tight">Need an Instant Refill?</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
-                    <div className="text-[11px] text-white/40 font-bold mb-1">Small Refill</div>
+                    <div className="text-[11px] text-white/40 font-bold mb-1">Small Sip</div>
                     <div className="text-lg font-black text-white">{isRobux ? "350 R$" : "$2.99"}</div>
-                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">15 Credits</div>
+                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">5,000 mL Bonus</div>
                     <button className="w-full bg-white/10 text-white font-bold py-2 rounded-lg text-[12px] hover:bg-white/20 transition-colors">Buy</button>
                   </div>
                   <div className="bg-white/5 border border-[#ccff00]/20 rounded-2xl p-4 flex flex-col items-center text-center relative">
                     <div className="absolute -top-2.5 bg-[#ccff00] text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-full">Best</div>
-                    <div className="text-[11px] text-white/40 font-bold mb-1">Big Refill</div>
+                    <div className="text-[11px] text-white/40 font-bold mb-1">Juice Box</div>
                     <div className="text-lg font-black text-white">{isRobux ? "950 R$" : "$7.99"}</div>
-                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">50 Credits</div>
+                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">20,000 mL Bonus</div>
                     <button className="w-full bg-[#ccff00] text-black font-bold py-2 rounded-lg text-[12px] hover:bg-[#b3e600] transition-colors">Buy</button>
                   </div>
                   <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
-                    <div className="text-[11px] text-white/40 font-bold mb-1">Mega Refill</div>
+                    <div className="text-[11px] text-white/40 font-bold mb-1">Mega Jug</div>
                     <div className="text-lg font-black text-white">{isRobux ? "3,000 R$" : "$24.99"}</div>
-                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">200 Credits</div>
+                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">80,000 mL Bonus</div>
                     <button className="w-full bg-white/10 text-white font-bold py-2 rounded-lg text-[12px] hover:bg-white/20 transition-colors">Buy</button>
                   </div>
                 </div>

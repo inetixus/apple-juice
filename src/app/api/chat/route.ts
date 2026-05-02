@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getSession, upsertGeneratedCode, getUserUsage, trackUserUsage, getRedis } from "@/lib/store";
+import { getSession, upsertGeneratedCode, getUserUsage, trackMlUsage, calculateMlUsed, getRedis } from "@/lib/store";
 import {
   getAntigravityMapping,
   relayToAntigravity,
@@ -68,17 +68,23 @@ export async function POST(req: Request) {
   const finalGoogleKey = (effectiveProvider === "google" && clientKey) ? clientKey : systemGoogleKey;
   const finalOpenAIKey = (effectiveProvider === "openai" && clientKey) ? clientKey : systemOpenAIKey;
 
-  // Check credits only if NOT using a custom key
+  // Check mL of Juice balance only if NOT using a custom key
+  let userUsage: Awaited<ReturnType<typeof getUserUsage>> | null = null;
   if (!isUsingCustomKey) {
-    const usage = await getUserUsage(ownerUserId);
-    if (usage.usedTokens >= usage.totalTokens) {
+    userUsage = await getUserUsage(ownerUserId);
+    if (userUsage.remainingMl <= 0) {
       return Response.json({
-        error: "Daily limit reached",
-        message: "You have used all 50 credits for this week. Credits reset every Monday. To continue without limits, use your own API key in Settings.",
-        usage
+        error: "Out of Juice",
+        message: "You are out of Juice for today! Come back tomorrow or buy an Instant Refill (Juice Box) to keep building.",
+        usage: userUsage
       }, { status: 429 });
     }
   }
+
+  // Dynamic max_output_tokens based on remaining mL balance
+  const dynamicMaxOutputTokens = !isUsingCustomKey && userUsage
+    ? Math.min(userUsage.maxOutputTokens, mode === "thinking" ? 65536 : 32768)
+    : (mode === "thinking" ? 65536 : 32768);
 
   if (!prompt || !sessionKey) {
     return Response.json({ error: "prompt and sessionKey are required" }, { status: 400 });
@@ -323,7 +329,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
         model: modelName,
         temperature: mode === "thinking" ? 0.4 : 0.2,
         messages: apiMessages,
-        max_tokens: 32768,
+        max_tokens: dynamicMaxOutputTokens,
       }),
     });
 
@@ -432,7 +438,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
       model: effectiveModel,
       messages: agMessages,
       temperature: mode === "thinking" ? 0.4 : 0.2,
-      max_tokens: mode === "thinking" ? 65536 : 32768,
+      max_tokens: dynamicMaxOutputTokens,
     }, accessToken, userEmail);
 
     if (!agResult.ok) {
@@ -528,7 +534,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
             })(),
             generationConfig: {
               temperature: mode === "thinking" ? 0.4 : 0.2,
-              maxOutputTokens: mode === "thinking" ? 65536 : 32768,
+              maxOutputTokens: dynamicMaxOutputTokens,
               responseMimeType: "application/json"
             },
           }),
@@ -610,15 +616,31 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
 
   const messageId = crypto.randomUUID();
 
-  // Track usage only if NOT using a custom key
+  // Track mL usage only if NOT using a custom key
   if (!isUsingCustomKey) {
+    let mlUsed = 0;
     if (tokensUsed > 0) {
-      await trackUserUsage(ownerUserId, tokensUsed);
+      // Try to get separate input/output token counts for precise mL calculation
+      try {
+        const parsed = JSON.parse(raw);
+        const inputTk = parsed?.usage?.prompt_tokens || parsed?.usageMetadata?.promptTokenCount || 0;
+        const outputTk = parsed?.usage?.completion_tokens || parsed?.usageMetadata?.candidatesTokenCount || 0;
+        if (inputTk > 0 || outputTk > 0) {
+          mlUsed = calculateMlUsed(inputTk, outputTk);
+        } else {
+          // Fallback: assume 20% input, 80% output split
+          mlUsed = calculateMlUsed(Math.floor(tokensUsed * 0.2), Math.floor(tokensUsed * 0.8));
+        }
+      } catch {
+        mlUsed = calculateMlUsed(Math.floor(tokensUsed * 0.2), Math.floor(tokensUsed * 0.8));
+      }
     } else {
       // Fallback estimation if tokens not returned (approx 1 token per 4 chars)
-      const estimatedTokens = Math.ceil((raw.length + (prompt?.length || 0)) / 4);
-      await trackUserUsage(ownerUserId, estimatedTokens);
+      const estimatedInput = Math.ceil((prompt?.length || 0) / 4);
+      const estimatedOutput = Math.ceil(raw.length / 4);
+      mlUsed = calculateMlUsed(estimatedInput, estimatedOutput);
     }
+    await trackMlUsage(ownerUserId, mlUsed);
   }
 
   if (isMultiScript) {

@@ -20,28 +20,47 @@ export type SessionEntry = {
 const PREFIX = "apple-juice:session:";
 const IP_PREFIX = "apple-juice:ip:";
 const USAGE_PREFIX = "apple-juice:usage:";
+const BONUS_ML_PREFIX = "apple-juice:bonus-ml:";
 
-export const TOKENS_PER_CREDIT = 1000;
+// ─── mL of Juice Economy ─────────────────────────────────────────────────────
+// 1 Input Token  = 1 mL of Juice
+// 1 Output Token = 6 mL of Juice  (AI output costs 6x more)
+// Daily allowances are NON-stackable (reset every day).
+// Bonus mL from Juice Box purchases ARE stackable.
+export const OUTPUT_ML_MULTIPLIER = 6;
 
 export const PLAN_LIMITS = {
-  lite: {
-    dailyCredits: 1,
+  free: {
+    dailyMl: 2_000,       // Free tier: 2,000 mL/day (DeepSeek only)
     maxProjects: 1,
-    stackLimit: 1,
   },
-  pro: {
-    dailyCredits: 4,
+  fresh_pro: {
+    dailyMl: 10_000,      // Fresh Pro: 10,000 mL/day
     maxProjects: 15,
-    stackLimit: 10,
   },
-  ultra: {
-    dailyCredits: 12,
+  pure_ultra: {
+    dailyMl: 30_000,      // Pure Ultra: 30,000 mL/day
     maxProjects: 9999,
-    stackLimit: 40,
-  }
+  },
 } as const;
 
 export type UserPlan = keyof typeof PLAN_LIMITS;
+
+/**
+ * Calculate mL of Juice consumed from raw token counts.
+ * Formula: inputTokens * 1 + outputTokens * 6
+ */
+export function calculateMlUsed(inputTokens: number, outputTokens: number): number {
+  return inputTokens + (outputTokens * OUTPUT_ML_MULTIPLIER);
+}
+
+/**
+ * Calculate the max output tokens we can allow given remaining mL.
+ * Formula: remainingMl / 6  (since each output token costs 6 mL)
+ */
+export function calculateMaxOutputTokens(remainingMl: number): number {
+  return Math.max(0, Math.floor(remainingMl / OUTPUT_ML_MULTIPLIER));
+}
 
 let _redis: Redis | null = null;
 export function getRedis(): Redis {
@@ -331,10 +350,14 @@ function usageKeyFor(userId: string) {
   return `${USAGE_PREFIX}${userId}:${date}`;
 }
 
+function bonusMlKeyFor(userId: string) {
+  return `${BONUS_ML_PREFIX}${userId}`;
+}
+
 export async function getUserPlan(userId: string): Promise<UserPlan> {
   const redis = getRedis();
   const plan = await redis.get<UserPlan>(`apple-juice:user-plan:${userId}`);
-  return plan || "lite";
+  return plan || "free";
 }
 
 export async function setUserPlan(userId: string, plan: UserPlan) {
@@ -342,48 +365,97 @@ export async function setUserPlan(userId: string, plan: UserPlan) {
   await redis.set(`apple-juice:user-plan:${userId}`, plan);
 }
 
+/**
+ * Get the user's current mL of Juice usage for today.
+ * Returns daily allowance, used mL, remaining mL, and bonus mL.
+ */
 export async function getUserUsage(userId: string) {
   const plan = await getUserPlan(userId);
   const limits = PLAN_LIMITS[plan];
   const key = usageKeyFor(userId);
-  const used = await getRedis().get<number>(key);
+  const redis = getRedis();
   
-  const dailyTokens = limits.dailyCredits * TOKENS_PER_CREDIT;
+  const usedMl = (await redis.get<number>(key)) || 0;
+  const bonusMl = (await redis.get<number>(bonusMlKeyFor(userId))) || 0;
+
+  // Total available = daily allowance + stackable bonus mL
+  const totalMl = limits.dailyMl + bonusMl;
+  const remainingMl = Math.max(0, totalMl - usedMl);
 
   return {
-    usedTokens: used || 0,
-    totalTokens: dailyTokens,
-    usedCredits: Math.floor((used || 0) / TOKENS_PER_CREDIT),
-    totalCredits: limits.dailyCredits,
+    usedMl,
+    dailyMl: limits.dailyMl,
+    bonusMl,
+    totalMl,
+    remainingMl,
+    maxOutputTokens: calculateMaxOutputTokens(remainingMl),
     plan,
-    limits
+    limits,
+    // Legacy compat fields for frontend transition
+    usedTokens: usedMl,
+    totalTokens: totalMl,
+    usedCredits: Math.floor(usedMl / 1000),
+    totalCredits: Math.floor(totalMl / 1000),
   };
 }
 
-export async function trackUserUsage(userId: string, tokens: number) {
-  if (tokens <= 0) return;
+/**
+ * Track mL consumption after an AI response.
+ * Deducts from daily allowance first, then bonus mL.
+ */
+export async function trackMlUsage(userId: string, mlUsed: number) {
+  if (mlUsed <= 0) return;
   const key = usageKeyFor(userId);
   const redis = getRedis();
   try {
-    await redis.incrby(key, tokens);
-    // Set expiry to 48 hours to clean up old keys
-    await redis.expire(key, 60 * 60 * 48); 
+    await redis.incrby(key, mlUsed);
+    // Set expiry to 48 hours to clean up old daily keys
+    await redis.expire(key, 60 * 60 * 48);
   } catch (err) {
-    console.error("trackUserUsage error", err);
+    console.error("trackMlUsage error", err);
   }
 }
 
-export async function grantBonusCredits(userId: string, credits: number) {
-  if (credits <= 0) return;
-  const key = usageKeyFor(userId);
+/** @deprecated Use trackMlUsage instead */
+export async function trackUserUsage(userId: string, tokens: number) {
+  return trackMlUsage(userId, tokens);
+}
+
+/**
+ * Grant bonus mL (stackable) — used for Juice Box purchases.
+ * These persist until consumed (no daily reset).
+ */
+export async function grantBonusMl(userId: string, ml: number) {
+  if (ml <= 0) return;
+  const key = bonusMlKeyFor(userId);
   const redis = getRedis();
   try {
-    // 1 credit = TOKENS_PER_CREDIT
-    // Decrementing usage effectively grants credits
-    const tokensToGrant = credits * TOKENS_PER_CREDIT;
-    await redis.decrby(key, tokensToGrant);
+    await redis.incrby(key, ml);
   } catch (err) {
-    console.error("grantBonusCredits error", err);
+    console.error("grantBonusMl error", err);
+  }
+}
+
+/** @deprecated Use grantBonusMl instead */
+export async function grantBonusCredits(userId: string, credits: number) {
+  // Legacy: 1 credit ≈ 1000 mL
+  return grantBonusMl(userId, credits * 1000);
+}
+
+/**
+ * Consume bonus mL after daily allowance is exhausted.
+ * Called internally when daily mL runs out but bonus exists.
+ */
+export async function consumeBonusMl(userId: string, ml: number) {
+  if (ml <= 0) return;
+  const key = bonusMlKeyFor(userId);
+  const redis = getRedis();
+  try {
+    const current = (await redis.get<number>(key)) || 0;
+    const newVal = Math.max(0, current - ml);
+    await redis.set(key, newVal);
+  } catch (err) {
+    console.error("consumeBonusMl error", err);
   }
 }
 
