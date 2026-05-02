@@ -1805,13 +1805,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               </button>
               {showProfileMenu && (
                 <div className="absolute right-0 top-11 w-48 bg-[#0b101b]/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-[100]">
-                  <div className="px-4 py-3 border-b border-white/5">
+                <div className="px-4 py-3 border-b border-white/5">
                     <p className="text-sm font-semibold text-white truncate">
                       {username}
                     </p>
-                    <p className="text-[10px] text-white/30">
-                      Roblox Developer
-                    </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full ${
+                        usage.plan === 'pure_ultra' ? 'bg-[#7c3aed]/20 text-[#7c3aed]' :
+                        usage.plan === 'fresh_pro' ? 'bg-[#ccff00]/10 text-[#ccff00]' :
+                        'bg-white/5 text-white/40'
+                      }`}>
+                        {usage.plan === 'pure_ultra' ? '🥇 Ultra' : usage.plan === 'fresh_pro' ? '🥈 Pro' : '🥉 Free'}
+                      </span>
+                    </div>
                   </div>
                   <button
                     onClick={() => {
@@ -2480,39 +2486,35 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                     100,
                                 ),
                               );
-                              const hue = Math.round(pct * 1.2); // green at 100%, red at 0%
+                              const hue = Math.round(pct * 1.2);
                               const mlAvailable = Math.max(
                                 0,
                                 (usage.totalMl || 2000) -
                                   (usage.usedMl || 0),
                               );
+                              const planLabel = usage.plan === 'pure_ultra' ? '🥇' : usage.plan === 'fresh_pro' ? '🥈' : '🥉';
                               return (
                                 <div 
                                   onClick={() => setShowPricing(true)}
-                                  className="hidden sm:flex relative h-8 w-32 bg-black/40 rounded-lg overflow-hidden border border-white/[0.08] items-center justify-center group ml-2 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] cursor-pointer hover:border-[#ccff00]/30 transition-all"
+                                  className="hidden sm:flex relative h-9 bg-black/50 rounded-xl overflow-hidden border border-white/[0.08] items-center gap-2 px-2.5 group ml-2 shadow-[inset_0_0_12px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#ccff00]/30 transition-all"
                                 >
-                                  {/* Main Wave Layer */}
+                                  <span className="text-sm z-10 flex-shrink-0">{planLabel}</span>
+                                  <div className="flex flex-col items-end z-10 min-w-[60px]">
+                                    <span className="text-[11px] font-mono font-black tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-none">
+                                      {mlAvailable.toLocaleString()} mL
+                                    </span>
+                                    <span className="text-[8px] text-white/30 font-medium leading-none mt-0.5">
+                                      / {(usage.totalMl || 2000).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  {/* Background fill bar */}
                                   <div
-                                    className="absolute left-0 right-0 bottom-0 transition-all duration-1000 animate-wave opacity-100"
+                                    className="absolute left-0 bottom-0 top-0 transition-all duration-1000 opacity-30"
                                     style={{
-                                      height: `${pct}%`,
-                                      background: `linear-gradient(90deg, hsla(${hue}, 100%, 50%, 0.7) 0%, hsla(${hue}, 100%, 65%, 0.95) 50%, hsla(${hue}, 100%, 50%, 0.7) 100%)`,
-                                      backgroundSize: "200% 100%",
-                                      boxShadow: `0 0 20px hsla(${hue}, 100%, 50%, 0.5)`,
+                                      width: `${pct}%`,
+                                      background: `linear-gradient(90deg, hsla(${hue}, 100%, 50%, 0.8), hsla(${hue}, 100%, 65%, 1))`,
                                     }}
                                   />
-                                  {/* Secondary Wave Layer for Depth */}
-                                  <div
-                                    className="absolute left-0 right-0 bottom-0 transition-all duration-1000 animate-wave-fast opacity-40 blur-[2px]"
-                                    style={{
-                                      height: `${Math.min(100, pct + 5)}%`,
-                                      background: `linear-gradient(90deg, transparent 0%, hsla(${hue}, 100%, 70%, 0.8) 50%, transparent 100%)`,
-                                      backgroundSize: "200% 100%",
-                                    }}
-                                  />
-                                  <span className="relative z-10 text-[11px] font-mono font-black tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                                    {mlAvailable.toLocaleString()} mL
-                                  </span>
                                 </div>
                               );
                             })()
@@ -2859,90 +2861,132 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
           className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-200 p-4 overflow-y-auto"
           onClick={(e) => e.target === e.currentTarget && setShowPricing(false)}
         >
-          <div className="bg-[#13151a] border border-white/10 rounded-[2.5rem] w-full max-w-[1000px] shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden my-auto">
+          <div className="bg-[#13151a] border border-white/10 rounded-[2rem] w-full max-w-[960px] shadow-2xl animate-in zoom-in-95 duration-200 relative overflow-hidden my-auto">
             <button 
               onClick={() => setShowPricing(false)}
-              className="absolute top-6 right-8 text-white/40 hover:text-white transition-colors z-20"
+              className="absolute top-5 right-6 text-white/40 hover:text-white transition-colors z-20"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
 
-            <div className="p-8 md:p-12">
-              <div className="text-center mb-10">
-                <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white mb-6">
+            <div className="p-6 md:p-8">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tight text-white mb-1">
                   Pick Your <span className="text-[#ccff00]">Squeeze</span>
                 </h2>
+                <p className="text-white/30 text-xs">All plans billed monthly via Roblox Subscriptions</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                {/* LITE PLAN */}
-                <div className={`bg-white/[0.02] border rounded-3xl p-6 flex flex-col transition-all duration-300 ${usage.plan === 'free' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-white/5'}`}>
-                  <div className="text-[#ccff00] text-xs font-bold uppercase tracking-wider mb-2">Free Plan {usage.plan === 'free' && "(Current)"}</div>
-                  <div className="text-3xl font-black text-white mb-1">0 R$</div>
-                  <p className="text-[12px] text-white/40 mb-6 border-b border-white/5 pb-6">Perfect for small scripts.</p>
-                  <ul className="flex flex-col gap-3 mb-6 text-[12px]">
-                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> 2,000 mL per day</li>
-                    <li className="flex items-center gap-2 text-white/40"><X className="w-3.5 h-3.5" /> No Stacking</li>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                {/* FREE TIER */}
+                <div className={`bg-white/[0.02] border rounded-2xl p-5 flex flex-col transition-all duration-300 ${usage.plan === 'free' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-white/5'}`}>
+                  {usage.plan === 'free' && <div className="text-[9px] font-black uppercase tracking-wider text-[#ccff00] bg-[#ccff00]/10 self-start px-2 py-0.5 rounded-full mb-2">Current Plan</div>}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">🥉</span>
+                    <div className="text-white text-sm font-bold uppercase tracking-wider">Free</div>
+                  </div>
+                  <div className="text-2xl font-black text-white mb-1">0 R$</div>
+                  <p className="text-[11px] text-white/40 mb-4 border-b border-white/5 pb-4">Hobbyists testing the waters.</p>
+                  <ul className="flex flex-col gap-2 mb-4 text-[11px]">
+                    <li className="flex items-center gap-2 text-white/70"><Sparkles className="w-3 h-3 text-[#ccff00] flex-shrink-0" /> 2,000 mL / day</li>
+                    <li className="flex items-center gap-2 text-white/70"><Zap className="w-3 h-3 text-[#ccff00] flex-shrink-0" /> Gemini Flash</li>
+                    <li className="flex items-center gap-2 text-white/70"><Brain className="w-3 h-3 text-[#ccff00] flex-shrink-0" /> Basic code snippets</li>
+                    <li className="flex items-center gap-2 text-white/40"><X className="w-3 h-3 flex-shrink-0" /> 1 project limit</li>
+                    <li className="flex items-center gap-2 text-white/40"><X className="w-3 h-3 flex-shrink-0" /> No stacking</li>
+                    <li className="flex items-center gap-2 text-white/40"><X className="w-3 h-3 flex-shrink-0" /> Standard rate limits</li>
                   </ul>
                 </div>
 
-                {/* PRO PLAN */}
-                <div className={`bg-white/[0.03] border rounded-3xl p-6 flex flex-col relative transition-all duration-300 ${usage.plan === 'fresh_pro' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-[#ccff00]/20 shadow-[0_0_20px_rgba(204,255,0,0.05)]'}`}>
-                  <div className="text-white text-xs font-bold uppercase tracking-wider mb-2">Fresh Pro {usage.plan === 'fresh_pro' && "(Current)"}</div>
-                  <div className="text-3xl font-black text-white mb-1">600 R$ <span className="text-sm text-white/50 font-normal">/mo</span></div>
-                  <p className="text-[12px] text-white/40 mb-6 border-b border-white/5 pb-6">Everything for a complete game.</p>
-                  <ul className="flex flex-col gap-3 mb-6 text-[12px]">
-                    <li className="flex items-center gap-2 text-white"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> <strong>10,000 mL per day</strong></li>
-                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#ccff00]" /> More projects</li>
+                {/* PRO TIER */}
+                <div className={`bg-white/[0.03] border rounded-2xl p-5 flex flex-col relative transition-all duration-300 ${usage.plan === 'fresh_pro' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-[#ccff00]/20 shadow-[0_0_20px_rgba(204,255,0,0.05)]'}`}>
+                  {usage.plan !== 'fresh_pro' && <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-[#ccff00] text-black text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full whitespace-nowrap">Most Popular</div>}
+                  {usage.plan === 'fresh_pro' && <div className="text-[9px] font-black uppercase tracking-wider text-[#ccff00] bg-[#ccff00]/10 self-start px-2 py-0.5 rounded-full mb-2">Current Plan</div>}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">🥈</span>
+                    <div className="text-white text-sm font-bold uppercase tracking-wider">Fresh Pro</div>
+                  </div>
+                  <div className="text-2xl font-black text-white mb-1">600 R$ <span className="text-xs text-white/40 font-normal">/mo</span></div>
+                  <p className="text-[11px] text-white/40 mb-4 border-b border-white/5 pb-4">The sweet spot for serious devs.</p>
+                  <ul className="flex flex-col gap-2 mb-4 text-[11px]">
+                    <li className="flex items-center gap-2 text-white"><Sparkles className="w-3 h-3 text-[#ccff00] flex-shrink-0" /> <strong>10,000 mL / day</strong></li>
+                    <li className="flex items-center gap-2 text-white/80"><Zap className="w-3 h-3 text-[#ccff00] flex-shrink-0" /> Gemini 1.5 Pro</li>
+                    <li className="flex items-center gap-2 text-white/80"><Brain className="w-3 h-3 text-[#ccff00] flex-shrink-0" /> 2M+ token context window</li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3 h-3 text-[#ccff00] flex-shrink-0" /> Reads your entire codebase</li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3 h-3 text-[#ccff00] flex-shrink-0" /> Up to 10 projects</li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3 h-3 text-[#ccff00] flex-shrink-0" /> Complex multi-script logic</li>
                   </ul>
                   {usage.plan === 'fresh_pro' ? (
-                    <button disabled className="mt-auto w-full bg-white/5 border border-white/10 text-white/40 font-bold py-2.5 rounded-xl cursor-not-allowed transition-colors text-sm">Active</button>
+                    <button disabled className="mt-auto w-full bg-white/5 border border-white/10 text-white/40 font-bold py-2 rounded-xl cursor-not-allowed text-xs">Active</button>
                   ) : (
-                    <button className="mt-auto w-full bg-[#ccff00] text-black font-bold py-2.5 rounded-xl hover:bg-[#b3e600] transition-colors text-sm">Upgrade</button>
+                    <button className="mt-auto w-full bg-[#ccff00] text-black font-bold py-2 rounded-xl hover:bg-[#b3e600] transition-colors text-xs">Upgrade</button>
                   )}
                 </div>
 
-                {/* ULTRA PLAN */}
-                <div className={`bg-white/[0.03] border rounded-3xl p-6 flex flex-col transition-all duration-300 ${usage.plan === 'pure_ultra' ? 'border-[#7c3aed]/50 bg-[#7c3aed]/5' : 'border-[#7c3aed]/30 shadow-[0_0_20px_rgba(124,58,237,0.05)]'}`}>
-                  <div className="text-[#7c3aed] text-xs font-bold uppercase tracking-wider mb-2">Pure Ultra {usage.plan === 'pure_ultra' && "(Current)"}</div>
-                  <div className="text-3xl font-black text-white mb-1">1,500 R$ <span className="text-sm text-white/50 font-normal">/mo</span></div>
-                  <p className="text-[12px] text-white/40 mb-6 border-b border-white/5 pb-6">For serious AI automation.</p>
-                  <ul className="flex flex-col gap-3 mb-6 text-[12px]">
-                    <li className="flex items-center gap-2 text-white"><Sparkles className="w-3.5 h-3.5 text-[#7c3aed]" /> <strong>30,000 mL per day</strong></li>
-                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3.5 h-3.5 text-[#7c3aed]" /> Infinite projects</li>
+                {/* ULTRA TIER */}
+                <div className={`bg-white/[0.03] border rounded-2xl p-5 flex flex-col transition-all duration-300 ${usage.plan === 'pure_ultra' ? 'border-[#7c3aed]/50 bg-[#7c3aed]/5' : 'border-[#7c3aed]/30 shadow-[0_0_20px_rgba(124,58,237,0.05)]'}`}>
+                  {usage.plan === 'pure_ultra' && <div className="text-[9px] font-black uppercase tracking-wider text-[#7c3aed] bg-[#7c3aed]/10 self-start px-2 py-0.5 rounded-full mb-2">Current Plan</div>}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">🥇</span>
+                    <div className="text-[#7c3aed] text-sm font-bold uppercase tracking-wider">Pure Ultra</div>
+                  </div>
+                  <div className="text-2xl font-black text-white mb-1">1,500 R$ <span className="text-xs text-white/40 font-normal">/mo</span></div>
+                  <p className="text-[11px] text-white/40 mb-4 border-b border-white/5 pb-4">Full power. Zero compromises.</p>
+                  <ul className="flex flex-col gap-2 mb-4 text-[11px]">
+                    <li className="flex items-center gap-2 text-white"><Sparkles className="w-3 h-3 text-[#7c3aed] flex-shrink-0" /> <strong>30,000 mL / day</strong></li>
+                    <li className="flex items-center gap-2 text-white/80"><Zap className="w-3 h-3 text-[#7c3aed] flex-shrink-0" /> Claude Opus + Gemini Pro</li>
+                    <li className="flex items-center gap-2 text-white/80"><Brain className="w-3 h-3 text-[#7c3aed] flex-shrink-0" /> Expert-level Luau logic</li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3 h-3 text-[#7c3aed] flex-shrink-0" /> Priority queue (zero latency)</li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3 h-3 text-[#7c3aed] flex-shrink-0" /> Unlimited projects</li>
+                    <li className="flex items-center gap-2 text-white/80"><Sparkles className="w-3 h-3 text-[#7c3aed] flex-shrink-0" /> Deep Research Mode</li>
                   </ul>
                   {usage.plan === 'pure_ultra' ? (
-                    <button disabled className="mt-auto w-full bg-white/5 border border-white/10 text-white/40 font-bold py-2.5 rounded-xl cursor-not-allowed transition-colors text-sm">Active</button>
+                    <button disabled className="mt-auto w-full bg-white/5 border border-white/10 text-white/40 font-bold py-2 rounded-xl cursor-not-allowed text-xs">Active</button>
                   ) : (
-                    <button className="mt-auto w-full bg-[#7c3aed] text-white font-bold py-2.5 rounded-xl hover:bg-[#6d28d9] transition-colors text-sm">Get Ultra</button>
+                    <button className="mt-auto w-full bg-[#7c3aed] text-white font-bold py-2 rounded-xl hover:bg-[#6d28d9] transition-colors text-xs">Get Ultra</button>
                   )}
                 </div>
+              </div>
+
+              {/* MODEL COMPARISON TABLE */}
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 mb-6 overflow-x-auto">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-white/50 mb-3">Compare the Brains</h4>
+                <table className="w-full text-[11px]">
+                  <thead><tr className="border-b border-white/5">
+                    <th className="text-left py-2 text-white/40 font-medium">Rank</th>
+                    <th className="text-left py-2 text-white/40 font-medium">Primary Model</th>
+                    <th className="text-left py-2 text-white/40 font-medium">Logic</th>
+                    <th className="text-left py-2 text-white/40 font-medium">Context</th>
+                  </tr></thead>
+                  <tbody>
+                    <tr className="border-b border-white/[0.03]"><td className="py-2 text-white/60">🥉 Free</td><td className="py-2 text-white/80">Gemini Flash</td><td className="py-2">⚡ High Speed</td><td className="py-2 text-white/50">Small</td></tr>
+                    <tr className="border-b border-white/[0.03]"><td className="py-2 text-white/60">🥈 Pro</td><td className="py-2 text-white/80">Gemini Pro</td><td className="py-2">🧠 High Logic</td><td className="py-2 text-white/50">Massive</td></tr>
+                    <tr><td className="py-2 text-white/60">🥇 Ultra</td><td className="py-2 text-white/80">Claude Opus</td><td className="py-2">💎 Expert</td><td className="py-2 text-white/50">Large</td></tr>
+                  </tbody>
+                </table>
               </div>
 
               {/* REFILLS */}
-              <div className="bg-white/[0.03] border border-white/5 rounded-[2rem] p-6 md:p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-white tracking-tight">Need an Instant Refill?</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
-                    <div className="text-[11px] text-white/40 font-bold mb-1">Small Sip</div>
-                    <div className="text-lg font-black text-white">350 R$</div>
-                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">5,000 mL Bonus</div>
-                    <button className="w-full bg-white/10 text-white font-bold py-2 rounded-lg text-[12px] hover:bg-white/20 transition-colors">Buy</button>
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4">
+                <h3 className="text-sm font-bold text-white tracking-tight mb-4">Need an Instant Refill?</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col items-center text-center">
+                    <div className="text-[10px] text-white/40 font-bold mb-0.5">Small Sip</div>
+                    <div className="text-sm font-black text-white">350 R$</div>
+                    <div className="text-[10px] text-[#ccff00] font-bold mb-2">5,000 mL</div>
+                    <button className="w-full bg-white/10 text-white font-bold py-1.5 rounded-lg text-[11px] hover:bg-white/20 transition-colors">Buy</button>
                   </div>
-                  <div className="bg-white/5 border border-[#ccff00]/20 rounded-2xl p-4 flex flex-col items-center text-center relative">
-                    <div className="absolute -top-2.5 bg-[#ccff00] text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-full">Best</div>
-                    <div className="text-[11px] text-white/40 font-bold mb-1">Juice Box</div>
-                    <div className="text-lg font-black text-white">950 R$</div>
-                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">20,000 mL Bonus</div>
-                    <button className="w-full bg-[#ccff00] text-black font-bold py-2 rounded-lg text-[12px] hover:bg-[#b3e600] transition-colors">Buy</button>
+                  <div className="bg-white/5 border border-[#ccff00]/20 rounded-xl p-3 flex flex-col items-center text-center relative">
+                    <div className="absolute -top-2 bg-[#ccff00] text-black text-[8px] font-black uppercase px-2 py-0.5 rounded-full">Best</div>
+                    <div className="text-[10px] text-white/40 font-bold mb-0.5">Juice Box</div>
+                    <div className="text-sm font-black text-white">950 R$</div>
+                    <div className="text-[10px] text-[#ccff00] font-bold mb-2">20,000 mL</div>
+                    <button className="w-full bg-[#ccff00] text-black font-bold py-1.5 rounded-lg text-[11px] hover:bg-[#b3e600] transition-colors">Buy</button>
                   </div>
-                  <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col items-center text-center">
-                    <div className="text-[11px] text-white/40 font-bold mb-1">Mega Jug</div>
-                    <div className="text-lg font-black text-white">3,000 R$</div>
-                    <div className="text-[11px] text-[#ccff00] font-bold mb-4">80,000 mL Bonus</div>
-                    <button className="w-full bg-white/10 text-white font-bold py-2 rounded-lg text-[12px] hover:bg-white/20 transition-colors">Buy</button>
+                  <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col items-center text-center">
+                    <div className="text-[10px] text-white/40 font-bold mb-0.5">Mega Jug</div>
+                    <div className="text-sm font-black text-white">3,000 R$</div>
+                    <div className="text-[10px] text-[#ccff00] font-bold mb-2">80,000 mL</div>
+                    <button className="w-full bg-white/10 text-white font-bold py-1.5 rounded-lg text-[11px] hover:bg-white/20 transition-colors">Buy</button>
                   </div>
                 </div>
               </div>
@@ -2950,6 +2994,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
           </div>
         </div>
       )}
+
       {showAssetSearch && (
         <div
           className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
