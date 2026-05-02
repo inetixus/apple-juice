@@ -472,7 +472,6 @@ export async function trackUserUsage(userId: string, tokens: number) {
  */
 export async function grantBonusMl(userId: string, ml: number) {
   if (ml <= 0) return;
-  const plan = await getUserPlan(userId);
   const key = usageKeyFor(userId);
   const redis = getRedis();
   try {
