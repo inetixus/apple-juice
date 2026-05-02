@@ -497,12 +497,26 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
 
     // 4. Relay through Google Gemini API using user's OAuth token
     const accessToken = (session as { accessToken?: string })?.accessToken;
+    const isDeepSeek = effectiveModel.toLowerCase().includes("deepseek");
+
     const agResult = await relayToAntigravity(agMapping, {
       model: effectiveModel,
       messages: agMessages,
       temperature: mode === "thinking" ? 0.4 : 0.2,
       max_tokens: dynamicMaxOutputTokens,
+      stream: isDeepSeek,
     }, accessToken, userEmail);
+
+    if (isDeepSeek && agResult.ok && agResult.stream) {
+      // Stream the response back to the client
+      return new Response(agResult.stream.body, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      });
+    }
 
     if (!agResult.ok) {
       return Response.json({

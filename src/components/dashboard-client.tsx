@@ -889,6 +889,65 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     overridePrompt?: string | any,
     isHidden: boolean = false,
   ) {
+    function parseChatResponse(text: string): any {
+      const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (match) {
+        try {
+          return JSON.parse(match[1].trim());
+        } catch (e) {}
+      }
+      try {
+        return JSON.parse(text.trim());
+      } catch (e) {}
+      return { message: text };
+    }
+
+    function buildAssistantMessage(
+      p: any,
+      files: { name: string; content: string }[],
+      pendingSync: boolean,
+      isHidden: boolean = false,
+    ): ChatMessage {
+      return {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: p.message || "Here is the code you requested.",
+        isHidden,
+        script:
+          !p.scripts && p.scriptName
+            ? {
+                name: p.scriptName,
+                parent: p.scriptParent || "ServerScriptService",
+                type: p.scriptType || "Script",
+                action: p.action || "create",
+                lineCount:
+                  p.lineCount || (p.code ? p.code.split("\n").length : 0),
+                code: p.code || "",
+                originalCode: files.find(
+                  (f) =>
+                    f.name === p.scriptName ||
+                    f.name === p.scriptName + ".lua",
+                )?.content,
+              }
+            : undefined,
+        scripts: p.scripts?.map((s: any) => ({
+          name: s.name,
+          parent: s.parent,
+          type: s.type || "Script",
+          action: (s.action as "create" | "delete") || "create",
+          lineCount: s.lineCount || 0,
+          code: s.code || "",
+          originalCode: files.find(
+            (f: any) => f.name === s.name || f.name === s.name + ".lua",
+          )?.content,
+          requires: s.requires,
+        })),
+        suggestions: p.suggestions,
+        thinking: p.thinking,
+        pendingSync,
+        tokensUsed: p.tokensUsed,
+      };
+    }
     const isRetryObj = typeof overridePrompt === "object";
     const retryCount = isRetryObj ? overridePrompt?.retryCount || 1 : 0;
     const isRetry = retryCount > 0;
@@ -1257,9 +1316,87 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         signal: abortControllerRef.current.signal,
       });
 
-      stepTimeoutsRef.current.forEach(clearTimeout);
-      stepTimeoutsRef.current = [];
       setThinkingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
+
+      if (response.headers.get("Content-Type")?.includes("text/event-stream")) {
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("Failed to read stream body");
+        const decoder = new TextDecoder();
+        let accumulated = "";
+
+        const assistantMsgId = crypto.randomUUID();
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: assistantMsgId,
+            role: "assistant",
+            content: "",
+            pendingSync: false,
+          },
+        ]);
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n");
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const dataStr = line.substring(6).trim();
+                if (dataStr === "[DONE]") continue;
+                try {
+                  const data = JSON.parse(dataStr);
+                  const delta = data.choices?.[0]?.delta?.content || "";
+                  accumulated += delta;
+                  setMessages((prev) => {
+                    const last = prev[prev.length - 1];
+                    if (last?.id === assistantMsgId) {
+                      return [
+                        ...prev.slice(0, -1),
+                        { ...last, content: accumulated },
+                      ];
+                    }
+                    return prev;
+                  });
+                } catch (e) {}
+              }
+            }
+          }
+
+          // Process the finalized content for scripts
+          const result = parseChatResponse(accumulated);
+          const payloadFiles = [...attachedFiles];
+          setAttachedFiles([]);
+          setAttachedAsset(null);
+
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last?.id === assistantMsgId) {
+              const structured = buildAssistantMessage(
+                result,
+                payloadFiles,
+                true,
+              );
+              return [
+                ...prev.slice(0, -1),
+                {
+                  ...last,
+                  ...structured,
+                  content: structured.content || accumulated,
+                },
+              ];
+            }
+            return prev;
+          });
+        } finally {
+          setIsGenerating(false);
+          playSound("success");
+          setThinkingSteps([]);
+          void fetchUsage();
+        }
+        return;
+      }
 
       if (!response.ok) {
         let errText = response.statusText;
@@ -1311,52 +1448,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         ]);
       }
 
-      function buildAssistantMessage(
-        p: typeof payload,
-        files: { name: string; content: string }[],
-        pendingSync: boolean,
-        isHidden: boolean = false,
-      ): ChatMessage {
-        return {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: p.message || "Here is the code you requested.",
-          isHidden,
-          script:
-            !p.scripts && p.scriptName
-              ? {
-                  name: p.scriptName,
-                  parent: p.scriptParent || "ServerScriptService",
-                  type: p.scriptType || "Script",
-                  action: p.action || "create",
-                  lineCount:
-                    p.lineCount || (p.code ? p.code.split("\n").length : 0),
-                  code: p.code || "",
-                  originalCode: files.find(
-                    (f) =>
-                      f.name === p.scriptName ||
-                      f.name === p.scriptName + ".lua",
-                  )?.content,
-                }
-              : undefined,
-          scripts: p.scripts?.map((s) => ({
-            name: s.name,
-            parent: s.parent,
-            type: s.type || "Script",
-            action: (s.action as "create" | "delete") || "create",
-            lineCount: s.lineCount || 0,
-            code: s.code || "",
-            originalCode: files.find(
-              (f) => f.name === s.name || f.name === s.name + ".lua",
-            )?.content,
-            requires: s.requires,
-          })),
-          suggestions: p.suggestions,
-          thinking: p.thinking,
-          pendingSync,
-          tokensUsed: p.tokensUsed,
-        };
-      }
 
       setPluginStatus(`Script synced to Studio. Running playtest...`);
       showToast("Script generated and synced!", "success");
@@ -2392,16 +2483,23 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                       className="flex-1 bg-[#ccff00] text-black font-bold px-5 py-2 rounded-xl text-[13px] hover:bg-[#d4ff33] transition-all flex items-center justify-center gap-2"
                                       onClick={async () => {
                                         showToast("Accepting changes...", "info");
-                                        const res = await fetch(
-                                          "/api/accept-code",
-                                          {
-                                            method: "POST",
-                                            headers: {
-                                              "Content-Type": "application/json",
-                                            },
-                                            body: JSON.stringify({ sessionKey }),
+                                        
+                                        // If this was a streamed message, we need to push the payload first
+                                        // because it was never stored as 'pendingCode' on the server.
+                                        const scripts = message.scripts || (message.script ? [message.script] : []);
+                                        
+                                        // Use /api/revert-code (forced sync) if we have explicit scripts
+                                        const endpoint = scripts.length > 0 ? "/api/revert-code" : "/api/accept-code";
+                                        const body = scripts.length > 0 ? { sessionKey, scripts } : { sessionKey };
+
+                                        const res = await fetch(endpoint, {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
                                           },
-                                        );
+                                          body: JSON.stringify(body),
+                                        });
+
                                         if (res.ok) {
                                           showToast(
                                             "Changes sent to Roblox Studio!",
