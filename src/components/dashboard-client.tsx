@@ -109,7 +109,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     plan: "free",
   });
   const [showPricing, setShowPricing] = useState(false);
-  const [isRobux, setIsRobux] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
