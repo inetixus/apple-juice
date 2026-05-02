@@ -1335,15 +1335,20 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           },
         ]);
 
+        let buffer = "";
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split("\n");
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            // The last element might be an incomplete line, so keep it for the next chunk
+            buffer = lines.pop() || "";
+
             for (const line of lines) {
-              if (line.startsWith("data: ")) {
-                const dataStr = line.substring(6).trim();
+              if (line.trim().startsWith("data: ")) {
+                const dataStr = line.replace(/^data:\s*/, "").trim();
                 if (dataStr === "[DONE]") continue;
                 try {
                   const data = JSON.parse(dataStr);
