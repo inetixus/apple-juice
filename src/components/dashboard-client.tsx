@@ -484,12 +484,26 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       const res = await fetch("/api/usage");
       if (res.ok) {
         const data = await res.json();
-        setUsage(data);
+        setUsage((prev: any) => {
+          // Detect plan upgrade
+          if (prev && prev.plan && data.plan && prev.plan !== data.plan && prev.plan === "free") {
+             showToast("Thank you for upgrading! Your Fresh Pro plan is now active. 🧃", "success");
+          }
+          return data;
+        });
       }
     } catch {
       // ignore
     }
   }
+
+  // Poll usage every 10 seconds to catch Roblox webhook updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void fetchUsage();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   //     Multi-Project Management
 
