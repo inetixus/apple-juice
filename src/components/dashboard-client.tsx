@@ -103,6 +103,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [attachedFiles, setAttachedFiles] = useState<
     { name: string; content: string }[]
   >([]);
+  const isDebuggingRanks = useRef(false);
   const [usage, setUsage] = useState<any>({
     isLoaded: false,
     usedMl: 0,
@@ -488,6 +489,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     void checkAntigravityLink();
   }, []);
   async function fetchUsage() {
+    if (isDebuggingRanks.current) return;
     try {
       const res = await fetch("/api/usage");
       if (res.ok) {
@@ -2910,29 +2912,50 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
               </label>
               <div className="grid grid-cols-3 gap-2">
                 <button 
-                  onClick={() => setUsage((prev: any) => ({...prev, plan: 'free', totalMl: 2000, remainingMl: 2000}))}
+                  onClick={() => {
+                    isDebuggingRanks.current = true;
+                    setUsage((prev: any) => ({...prev, plan: 'free', totalMl: 2000, remainingMl: 2000}));
+                  }}
                   className="text-[9px] font-bold py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/60"
                 >
                   FREE
                 </button>
                 <button 
-                  onClick={() => setUsage((prev: any) => ({...prev, plan: 'fresh_pro', totalMl: 10000, remainingMl: 10000}))}
+                  onClick={() => {
+                    isDebuggingRanks.current = true;
+                    setUsage((prev: any) => ({...prev, plan: 'fresh_pro', totalMl: 10000, remainingMl: 10000}));
+                  }}
                   className="text-[9px] font-bold py-2 rounded-lg bg-[#ccff00]/10 hover:bg-[#ccff00]/20 border border-[#ccff00]/20 transition-all text-[#ccff00]"
                 >
                   PRO
                 </button>
                 <button 
-                  onClick={() => setUsage((prev: any) => ({...prev, plan: 'pure_ultra', totalMl: 30000, remainingMl: 30000}))}
+                  onClick={() => {
+                    isDebuggingRanks.current = true;
+                    setUsage((prev: any) => ({...prev, plan: 'pure_ultra', totalMl: 30000, remainingMl: 30000}));
+                  }}
                   className="text-[9px] font-bold py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 transition-all text-violet-400"
                 >
                   ULTRA
                 </button>
               </div>
               <button 
-                onClick={() => setUsage((prev: any) => ({...prev, remainingMl: 999999, totalMl: 999999}))}
+                onClick={() => {
+                  isDebuggingRanks.current = true;
+                  setUsage((prev: any) => ({...prev, remainingMl: 999999, totalMl: 999999}));
+                }}
                 className="w-full text-[9px] font-black py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all text-red-400 uppercase tracking-widest"
               >
                 Infinite Juice
+              </button>
+              <button 
+                onClick={() => {
+                  isDebuggingRanks.current = false;
+                  void fetchUsage();
+                }}
+                className="w-full text-[8px] font-medium py-1 rounded-lg text-white/20 hover:text-white/40 transition-all"
+              >
+                Reset Debug & Sync Real Data
               </button>
             </div>
           </div>
