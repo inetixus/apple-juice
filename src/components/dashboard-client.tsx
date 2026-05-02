@@ -1815,7 +1815,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         usage.plan === 'fresh_pro' ? 'bg-[#ccff00]/10 text-[#ccff00]' :
                         'bg-white/5 text-white/40'
                       }`}>
-                        {usage.plan === 'pure_ultra' ? '🥇 Ultra' : usage.plan === 'fresh_pro' ? '🥈 Pro' : '🥉 Free'}
+                        {usage.plan === 'pure_ultra' ? 'Ultra' : usage.plan === 'fresh_pro' ? 'Pro' : 'Free'}
                       </span>
                     </div>
                   </div>
@@ -2492,13 +2492,17 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                 (usage.totalMl || 2000) -
                                   (usage.usedMl || 0),
                               );
-                              const planLabel = usage.plan === 'pure_ultra' ? '🥇' : usage.plan === 'fresh_pro' ? '🥈' : '🥉';
+                              const planLabel = usage.plan === 'pure_ultra' ? 'Ultra' : usage.plan === 'fresh_pro' ? 'Pro' : 'Free';
                               return (
                                 <div 
                                   onClick={() => setShowPricing(true)}
-                                  className="hidden sm:flex relative h-9 bg-black/50 rounded-xl overflow-hidden border border-white/[0.08] items-center gap-2 px-2.5 group ml-2 shadow-[inset_0_0_12px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#ccff00]/30 transition-all"
+                                  className="hidden sm:flex relative h-9 bg-black/50 rounded-xl overflow-hidden border border-white/[0.08] items-center gap-2 px-3 group ml-2 shadow-[inset_0_0_12px_rgba(0,0,0,0.6)] cursor-pointer hover:border-[#ccff00]/30 transition-all"
                                 >
-                                  <span className="text-sm z-10 flex-shrink-0">{planLabel}</span>
+                                  <span className={`text-[10px] font-bold z-10 flex-shrink-0 uppercase tracking-wider ${
+                                    usage.plan === 'pure_ultra' ? 'text-[#7c3aed]' : 
+                                    usage.plan === 'fresh_pro' ? 'text-[#ccff00]' : 
+                                    'text-white/60'
+                                  }`}>{planLabel}</span>
                                   <div className="flex flex-col items-end z-10 min-w-[60px]">
                                     <span className="text-[11px] font-mono font-black tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-none">
                                       {mlAvailable.toLocaleString()} mL
@@ -2882,7 +2886,6 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 <div className={`bg-white/[0.02] border rounded-2xl p-5 flex flex-col transition-all duration-300 ${usage.plan === 'free' ? 'border-[#ccff00]/50 bg-[#ccff00]/5' : 'border-white/5'}`}>
                   {usage.plan === 'free' && <div className="text-[9px] font-black uppercase tracking-wider text-[#ccff00] bg-[#ccff00]/10 self-start px-2 py-0.5 rounded-full mb-2">Current Plan</div>}
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">🥉</span>
                     <div className="text-white text-sm font-bold uppercase tracking-wider">Free</div>
                   </div>
                   <div className="text-2xl font-black text-white mb-1">0 R$</div>
@@ -2902,7 +2905,6 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   {usage.plan !== 'fresh_pro' && <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-[#ccff00] text-black text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full whitespace-nowrap">Most Popular</div>}
                   {usage.plan === 'fresh_pro' && <div className="text-[9px] font-black uppercase tracking-wider text-[#ccff00] bg-[#ccff00]/10 self-start px-2 py-0.5 rounded-full mb-2">Current Plan</div>}
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">🥈</span>
                     <div className="text-white text-sm font-bold uppercase tracking-wider">Fresh Pro</div>
                   </div>
                   <div className="text-2xl font-black text-white mb-1">600 R$ <span className="text-xs text-white/40 font-normal">/mo</span></div>
@@ -2917,6 +2919,8 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   </ul>
                   {usage.plan === 'fresh_pro' ? (
                     <button disabled className="mt-auto w-full bg-white/5 border border-white/10 text-white/40 font-bold py-2 rounded-xl cursor-not-allowed text-xs">Active</button>
+                  ) : usage.plan === 'pure_ultra' ? (
+                    <button className="mt-auto w-full bg-white/5 text-white/60 font-bold py-2 rounded-xl hover:bg-white/10 transition-colors text-xs border border-white/10">Downgrade</button>
                   ) : (
                     <button className="mt-auto w-full bg-[#ccff00] text-black font-bold py-2 rounded-xl hover:bg-[#b3e600] transition-colors text-xs">Upgrade</button>
                   )}
@@ -2926,7 +2930,6 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 <div className={`bg-white/[0.03] border rounded-2xl p-5 flex flex-col transition-all duration-300 ${usage.plan === 'pure_ultra' ? 'border-[#7c3aed]/50 bg-[#7c3aed]/5' : 'border-[#7c3aed]/30 shadow-[0_0_20px_rgba(124,58,237,0.05)]'}`}>
                   {usage.plan === 'pure_ultra' && <div className="text-[9px] font-black uppercase tracking-wider text-[#7c3aed] bg-[#7c3aed]/10 self-start px-2 py-0.5 rounded-full mb-2">Current Plan</div>}
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">🥇</span>
                     <div className="text-[#7c3aed] text-sm font-bold uppercase tracking-wider">Pure Ultra</div>
                   </div>
                   <div className="text-2xl font-black text-white mb-1">1,500 R$ <span className="text-xs text-white/40 font-normal">/mo</span></div>
@@ -2954,13 +2957,14 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   <thead><tr className="border-b border-white/5">
                     <th className="text-left py-2 text-white/40 font-medium">Rank</th>
                     <th className="text-left py-2 text-white/40 font-medium">Primary Model</th>
-                    <th className="text-left py-2 text-white/40 font-medium">Logic</th>
-                    <th className="text-left py-2 text-white/40 font-medium">Context</th>
+                    <th className="text-left py-2 text-white/40 font-medium">Logic Capabilties</th>
+                    <th className="text-left py-2 text-white/40 font-medium">Context Window</th>
+                    <th className="text-left py-2 text-white/40 font-medium">Response Speed</th>
                   </tr></thead>
                   <tbody>
-                    <tr className="border-b border-white/[0.03]"><td className="py-2 text-white/60">🥉 Free</td><td className="py-2 text-white/80">Gemini Flash</td><td className="py-2">⚡ High Speed</td><td className="py-2 text-white/50">Small</td></tr>
-                    <tr className="border-b border-white/[0.03]"><td className="py-2 text-white/60">🥈 Pro</td><td className="py-2 text-white/80">Gemini Pro</td><td className="py-2">🧠 High Logic</td><td className="py-2 text-white/50">Massive</td></tr>
-                    <tr><td className="py-2 text-white/60">🥇 Ultra</td><td className="py-2 text-white/80">Claude Opus</td><td className="py-2">💎 Expert</td><td className="py-2 text-white/50">Large</td></tr>
+                    <tr className="border-b border-white/[0.03]"><td className="py-2 text-white/60">Free</td><td className="py-2 text-white/80">Gemini Flash</td><td className="py-2">Basic bug fixes</td><td className="py-2 text-white/50">Small (Single Script)</td><td className="py-2 text-green-400">Lightning</td></tr>
+                    <tr className="border-b border-white/[0.03]"><td className="py-2 text-white/60">Pro</td><td className="py-2 text-white/80">Gemini 1.5 Pro</td><td className="py-2">Complex Multi-Script</td><td className="py-2 text-[#ccff00]">Massive (2M+ Tokens)</td><td className="py-2 text-white/80">Standard</td></tr>
+                    <tr><td className="py-2 text-white/60">Ultra</td><td className="py-2 text-white/80">Claude Opus + Gemini</td><td className="py-2">Expert / System Design</td><td className="py-2 text-white/50">Large (Full Workspace)</td><td className="py-2 text-[#7c3aed]">Priority Queue</td></tr>
                   </tbody>
                 </table>
               </div>

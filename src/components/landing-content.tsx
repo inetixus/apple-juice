@@ -573,7 +573,6 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             {/* FREE TIER */}
             <div className="bg-[#13151a] border border-white/5 rounded-[2rem] p-8 flex flex-col hover:border-white/10 transition-all duration-300">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xl">🥉</span>
                 <div className="text-[#ccff00] text-sm font-bold uppercase tracking-wider">Free</div>
               </div>
               <div className="text-4xl font-black text-white mb-2">0 R$<span className="text-lg text-white/40 font-normal"> / forever</span></div>
@@ -591,7 +590,6 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             <div className="bg-gradient-to-b from-[#1a1d24] to-[#13151a] border border-[#ccff00]/30 rounded-[2rem] p-8 flex flex-col relative transform md:-translate-y-4 shadow-[0_0_30px_rgba(204,255,0,0.1)]">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#ccff00] text-black text-xs font-black uppercase tracking-wider py-1.5 px-4 rounded-full">Most Popular</div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xl">🥈</span>
                 <div className="text-white text-sm font-bold uppercase tracking-wider">Fresh Pro</div>
               </div>
               <div className="text-4xl font-black text-white mb-2">600 R$<span className="text-lg text-white/40 font-normal"> / month</span></div>
@@ -609,20 +607,38 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
             {/* ULTRA TIER */}
             <div className="bg-[#13151a] border border-[#7c3aed]/30 rounded-[2rem] p-8 flex flex-col hover:border-[#7c3aed]/50 transition-all duration-300 relative shadow-[0_0_30px_rgba(124,58,237,0.05)]">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xl">🥇</span>
                 <div className="text-[#7c3aed] text-sm font-bold uppercase tracking-wider">Pure Ultra</div>
               </div>
               <div className="text-4xl font-black text-white mb-2">1,500 R$<span className="text-lg text-white/40 font-normal"> / month</span></div>
               <p className="text-sm text-white/50 mb-8 border-b border-white/5 pb-8">Full power. Zero compromises.</p>
               <ul className="flex flex-col gap-4 mb-8 text-sm">
                 <li className="flex items-center gap-3 text-white"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> <strong>30,000 mL per day</strong></li>
-                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Claude Opus + Gemini Pro (💎 expert)</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Claude 3.5 Sonnet + Opus (💎 expert)</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Priority queue (zero latency)</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Deep Research Mode</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Unlimited Projects</li>
               </ul>
               <button className="mt-auto w-full bg-[#1e2128] text-white font-bold py-3 rounded-xl hover:bg-[#252830] transition-colors border border-[#7c3aed]/50">Get Ultra</button>
             </div>
+          </div>
+
+          {/* MODEL COMPARISON TABLE */}
+          <div className="bg-white/[0.02] border border-white/5 rounded-3xl p-6 md:p-8 mb-16 overflow-x-auto">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-white/50 mb-6 text-center">Compare the Brains</h4>
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-white/5">
+                <th className="text-left py-4 text-white/40 font-medium px-4">Rank</th>
+                <th className="text-left py-4 text-white/40 font-medium px-4">Primary Model</th>
+                <th className="text-left py-4 text-white/40 font-medium px-4">Logic Capabilities</th>
+                <th className="text-left py-4 text-white/40 font-medium px-4">Context Window</th>
+                <th className="text-left py-4 text-white/40 font-medium px-4">Response Speed</th>
+              </tr></thead>
+              <tbody>
+                <tr className="border-b border-white/[0.03]"><td className="py-4 px-4 text-white/60 font-medium">Free</td><td className="py-4 px-4 text-white/80">Gemini Flash</td><td className="py-4 px-4">Basic bug fixes</td><td className="py-4 px-4 text-white/50">Small (Single Script)</td><td className="py-4 px-4 text-green-400">Lightning</td></tr>
+                <tr className="border-b border-white/[0.03]"><td className="py-4 px-4 text-white/60 font-medium">Pro</td><td className="py-4 px-4 text-white/80">Gemini 1.5 Pro</td><td className="py-4 px-4">Complex Multi-Script</td><td className="py-4 px-4 text-[#ccff00]">Massive (2M+ Tokens)</td><td className="py-4 px-4 text-white/80">Standard</td></tr>
+                <tr><td className="py-4 px-4 text-white/60 font-medium">Ultra</td><td className="py-4 px-4 text-white/80">Claude Opus + Gemini</td><td className="py-4 px-4">Expert / System Design</td><td className="py-4 px-4 text-white/50">Large (Full Workspace)</td><td className="py-4 px-4 text-[#7c3aed]">Priority Queue</td></tr>
+              </tbody>
+            </table>
           </div>
 
           {/* JUICE PACKS */}
