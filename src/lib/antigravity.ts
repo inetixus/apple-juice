@@ -255,6 +255,7 @@ async function relayToVertexDeepSeek(
 ): Promise<{
   ok: boolean;
   data?: AntigravityChatResponse;
+  stream?: Response;
   error?: string;
   status: number;
   tokensUsed: number;
@@ -309,7 +310,7 @@ async function relayToVertexDeepSeek(
     });
 
     if (request.stream) {
-      return { ok: true, stream: res, status: 200 };
+      return { ok: true, stream: res, status: 200, tokensUsed: 0 };
     }
 
     const bodyText = await res.text();
