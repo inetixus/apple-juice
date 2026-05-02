@@ -263,10 +263,10 @@ async function relayToVertexDeepSeek(
   const modelName = request.model || "DeepSeek V3";
   const isR1 = modelName.toLowerCase().includes("r1");
   
-  // Use V3.2 global for V3, or R1 in us-central1
-  const region = isR1 ? "us-central1" : "global";
-  const modelId = isR1 ? "deepseek-ai/deepseek-r1-0528-maas" : "deepseek-ai/deepseek-v3.2-maas";
-  const baseUrl = region === "global" ? "aiplatform.googleapis.com" : `${region}-aiplatform.googleapis.com`;
+  // Use us-central1 for stability (global can be flaky/slow)
+  const region = "us-central1";
+  const modelId = isR1 ? "deepseek-r1@default" : "deepseek-v3@default";
+  const baseUrl = `${region}-aiplatform.googleapis.com`;
 
   try {
     const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;

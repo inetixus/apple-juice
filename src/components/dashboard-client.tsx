@@ -1353,17 +1353,32 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 try {
                   const data = JSON.parse(dataStr);
                   const delta = data.choices?.[0]?.delta?.content || "";
-                  accumulated += delta;
-                  setMessages((prev) => {
-                    const last = prev[prev.length - 1];
-                    if (last?.id === assistantMsgId) {
-                      return [
-                        ...prev.slice(0, -1),
-                        { ...last, content: accumulated },
-                      ];
-                    }
-                    return prev;
-                  });
+                  const reasoning = data.choices?.[0]?.delta?.reasoning_content || "";
+                  
+                  if (reasoning) {
+                    setThinkingSteps((prev) => {
+                      const last = prev[prev.length - 1];
+                      if (last && last.icon === "reasoning") {
+                         return [...prev.slice(0, -1), { ...last, label: reasoning.length > 100 ? reasoning.substring(reasoning.length - 100) : reasoning }];
+                      }
+                      return prev;
+                    });
+                    // Also accumulate reasoning if we want to show it in the message later
+                  }
+
+                  if (delta) {
+                    accumulated += delta;
+                    setMessages((prev) => {
+                      const last = prev[prev.length - 1];
+                      if (last?.id === assistantMsgId) {
+                        return [
+                          ...prev.slice(0, -1),
+                          { ...last, content: accumulated },
+                        ];
+                      }
+                      return prev;
+                    });
+                  }
                 } catch (e) {}
               }
             }
