@@ -100,6 +100,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     { name: string; content: string }[]
   >([]);
   const [usage, setUsage] = useState<any>({
+    isLoaded: false,
     usedMl: 0,
     dailyMl: 2000,
     totalMl: 2000,
@@ -485,11 +486,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       if (res.ok) {
         const data = await res.json();
         setUsage((prev: any) => {
-          // Detect plan upgrade
-          if (prev && prev.plan && data.plan && prev.plan !== data.plan && data.plan === "fresh_pro") {
+          // Detect plan upgrade (only if we already loaded the initial data)
+          if (prev && prev.isLoaded && prev.plan !== data.plan && data.plan === "fresh_pro") {
              showToast("Thank you for upgrading! Your Fresh Pro plan is now active. 🧃", "success");
           }
-          return data;
+          return { ...data, isLoaded: true };
         });
       }
     } catch {
