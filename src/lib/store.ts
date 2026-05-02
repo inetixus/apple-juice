@@ -424,8 +424,8 @@ export async function getUserUsage(userId: string) {
   const usedMl = (await redis.get<number>(key)) || 0;
   const bonusMl = (await redis.get<number>(bonusMlKeyFor(userId))) || 0;
 
-  // Total available is strictly the rank's daily limit (per user request)
-  const totalMl = limits.dailyMl;
+  // Total available is the rank's daily limit plus any purchased bonus mL
+  const totalMl = limits.dailyMl + bonusMl;
   const remainingMl = Math.max(0, totalMl - usedMl);
 
   return {
@@ -469,22 +469,14 @@ export async function trackUserUsage(userId: string, tokens: number) {
 
 /**
  * Grant bonus mL (Refill) — used for Juice Box purchases.
- * This reduces the daily used count, effectively refilling the tank.
+ * Bonus mL stacks infinitely and does not expire daily.
  */
 export async function grantBonusMl(userId: string, ml: number) {
   if (ml <= 0) return;
-  const key = usageKeyFor(userId);
+  const key = bonusMlKeyFor(userId);
   const redis = getRedis();
   try {
-    const current = (await redis.get<number>(key)) || 0;
-    // We deduct from the "Used" count to refill. 
-    // We can allow it to go negative if we want "overflow" today, 
-    // but the user said "you cant have more then your daily capacity".
-    // So we'll cap it so used never goes below 0.
-    const toDeduct = Math.min(current, ml);
-    if (toDeduct > 0) {
-      await redis.decrby(key, toDeduct);
-    }
+    await redis.incrby(key, ml);
   } catch (err) {
     console.error("grantBonusMl error", err);
   }
