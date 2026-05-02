@@ -1,7 +1,8 @@
 import crypto from "crypto";
+import { GoogleAuth } from "google-auth-library";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getSession, upsertGeneratedCode, getUserUsage, trackMlUsage, calculateMlUsed, getRedis } from "@/lib/store";
+import { getSession, upsertGeneratedCode, getUserUsage, trackMlUsage, calculateMlUsed, getRedis, getActiveGenerations, incrementActiveGenerations, decrementActiveGenerations } from "@/lib/store";
 import {
   getAntigravityMapping,
   relayToAntigravity,
@@ -78,6 +79,21 @@ export async function POST(req: Request) {
         message: "You are out of Juice for today! Come back tomorrow or buy an Instant Refill (Juice Box) to keep building.",
         usage: userUsage
       }, { status: 429 });
+    }
+
+    // ── Rank-Based Model Restrictions ──
+    const plan = userUsage.plan || "free";
+    const requested = effectiveModel.toLowerCase();
+    
+    // Pro Tier Models (Gemini Pro, etc)
+    const isProModel = requested.includes("pro") || requested.includes("sonnet");
+    // Ultra Tier Models (Claude Opus, Gemini Ultra)
+    const isUltraModel = requested.includes("opus") || requested.includes("ultra");
+
+    if (plan === "free" && (isProModel || isUltraModel)) {
+      effectiveModel = "gemini-1.5-flash"; // Force fallback to free tier model
+    } else if (plan === "fresh_pro" && isUltraModel) {
+      effectiveModel = "gemini-1.5-pro"; // Force fallback to pro tier model
     }
   }
 
@@ -409,6 +425,42 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
   let tokensUsed = 0;
   let preambleReasoning: string | undefined = undefined;
 
+  // ── REAL Priority Queue (Load-Based Concurrency) ──────────────────────────
+  if (!isUsingCustomKey && userUsage) {
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const activeLoad = await getActiveGenerations();
+    
+    // Check load dynamically
+    if (userUsage.plan === 'pure_ultra') {
+      // Priority Queue: Zero wait, bypasses limits
+    } else if (userUsage.plan === 'fresh_pro') {
+      // Standard Queue: Wait up to 3 seconds if system is heavily loaded
+      if (activeLoad > 8) await delay(3000);
+      else if (activeLoad > 4) await delay(1000);
+    } else {
+      // Free Queue: Wait up to 8 seconds if loaded. If heavily loaded, return rate limit.
+      if (activeLoad > 15) {
+        return Response.json({ 
+          error: "Queue Full", 
+          message: "The free tier queue is currently at maximum capacity due to high traffic. Please try again shortly or upgrade your plan." 
+        }, { status: 429 });
+      } else if (activeLoad > 8) {
+        await delay(8000);
+      } else if (activeLoad > 4) {
+        await delay(4000);
+      } else {
+        await delay(1500); // Always some small wait for free tier
+      }
+    }
+  }
+
+  // Add ourselves to the active queue load
+  if (!isUsingCustomKey) {
+    await incrementActiveGenerations();
+  }
+
+  try {
+
   // ── Apple Juice AI Provider Path ──────────────────────────────────────────
   if (effectiveProvider === "apple_juice_ai") {
     // 1. Look up identity mapping
@@ -484,113 +536,128 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
 
   // ── Google Provider Path ───────────────────────────────────────────────────
   } else if (effectiveProvider === "google") {
-    const requestedModel = (effectiveModel || "gemini-3-flash").trim();
-    const GOOGLE_FALLBACK_MODELS = [
-      "models/gemini-3.1-pro",
-      "models/gemini-3-flash",
-      "models/gemini-3.1-flash-lite",
-      "models/gemini-2.5-pro",
-      "models/gemini-2.5-flash"
-    ];
+    const requestedModel = (effectiveModel || "gemini-1.5-flash").trim();
+    let url = "";
+    let headers: Record<string, string> = { "Content-Type": "application/json" };
+    let isClaude = false;
 
-    let availableModels: string[] = [];
     try {
-      const listUrl = `https://generativelanguage.googleapis.com/v1beta2/models?key=${encodeURIComponent(finalGoogleKey)}`;
-      const listRes = await fetch(listUrl, { method: "GET", headers: { "Content-Type": "application/json" } });
-      const listRaw = await listRes.text();
-      if (listRes.ok) {
-        const listParsed = JSON.parse(listRaw);
-        const rawModels = listParsed?.models || [];
-        availableModels = rawModels.map((m: any) => m?.name || m?.model || "").filter((id: string) => !!id);
-      }
-    } catch (err) {
-      console.warn("Google models list error", err instanceof Error ? err.message : String(err));
-    }
-
-    const requestedNormalized = requestedModel.startsWith("models/") ? requestedModel : `models/${requestedModel}`;
-    const candidatePool = Array.from(new Set([requestedNormalized, ...GOOGLE_FALLBACK_MODELS, ...availableModels]));
-
-    const attemptedModels: string[] = [];
-    let lastResponseBody = "";
-    for (const candidate of candidatePool) {
-      attemptedModels.push(candidate);
-      const url = `https://generativelanguage.googleapis.com/v1beta/${candidate}:generateContent?key=${encodeURIComponent(finalGoogleKey)}`;
-      try {
-        const llmRes = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            systemInstruction: {
-              parts: [{ text: SYSTEM_PROMPT }]
-            },
-            contents: (() => {
-              if (body.messages && body.messages.length > 0) {
-                return body.messages.map((m) => ({
-                  role: m.role === "assistant" ? "model" : "user",
-                  parts: [{ text: m.content }]
-                }));
-              }
-              return [{ role: "user", parts: [{ text: prompt }] }];
-            })(),
-            generationConfig: {
-              temperature: mode === "thinking" ? 0.4 : 0.2,
-              maxOutputTokens: dynamicMaxOutputTokens,
-              responseMimeType: "application/json"
-            },
-          }),
+      if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+        // Use Google Cloud Vertex AI if Service Account JSON is provided
+        const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+        const auth = new GoogleAuth({
+          credentials,
+          scopes: ['https://www.googleapis.com/auth/cloud-platform']
         });
-
-        const bodyText = await llmRes.text();
-        lastResponseBody = bodyText;
-        if (!llmRes.ok) {
-          console.warn("Google generateContent failed", { model: candidate, status: llmRes.status });
-          continue;
+        const client = await auth.getClient();
+        const token = await client.getAccessToken();
+        const projectId = credentials.project_id;
+        const region = process.env.GOOGLE_CLOUD_REGION || "us-central1";
+        
+        isClaude = requestedModel.includes("claude");
+        const publisher = isClaude ? "anthropic" : "google";
+        
+        // Strip 'models/' prefix for Vertex AI
+        const rawModelName = requestedModel.replace("models/", "");
+        url = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/${publisher}/models/${rawModelName}:generateContent`;
+        if (token.token) {
+          headers["Authorization"] = `Bearer ${token.token}`;
         }
-
-        const content = extractContent(bodyText, true);
-        if (content) {
-          const result = processResponse(content, bodyText);
-
-          // If processResponse returned empty (thinking text detected), skip this result
-          if (!result.code && !result.raw) {
-            console.warn("Model returned thinking text instead of JSON, trying next model...");
-            continue;
-          }
-
-          code = result.code;
-          raw = result.raw;
-          preambleReasoning = result.preamble;
-          modelUsed = candidate;
-
-          try {
-            const parsed = JSON.parse(bodyText);
-            tokensUsed = parsed?.usageMetadata?.totalTokenCount || 0;
-          } catch { /* ignore */ }
-
-          break;
-        }
-      } catch (err) {
-        lastResponseBody = String(err);
-        console.warn("Google request error", err instanceof Error ? err.message : String(err));
-        continue;
+      } else {
+        // Fallback to simple Google AI Studio API Key
+        const candidate = requestedModel.startsWith("models/") ? requestedModel : `models/${requestedModel}`;
+        url = `https://generativelanguage.googleapis.com/v1beta/${candidate}:generateContent?key=${encodeURIComponent(finalGoogleKey)}`;
       }
-    }
+      
+      let payload: any = {};
+      if (isClaude) {
+         // Anthropic Vertex AI Payload Format
+         payload = {
+            anthropic_version: "vertex-2023-10-16",
+            messages: (() => {
+              if (body.messages && body.messages.length > 0) {
+                 return body.messages.map(m => ({ role: m.role, content: m.content }));
+              }
+              return [{ role: "user", content: prompt }];
+            })(),
+            system: SYSTEM_PROMPT,
+            max_tokens: dynamicMaxOutputTokens,
+            temperature: mode === "thinking" ? 0.4 : 0.2
+         };
+      } else {
+         // Gemini Payload Format
+         payload = {
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: (() => {
+            if (body.messages && body.messages.length > 0) {
+              return body.messages.map((m) => ({
+                role: m.role === "assistant" ? "model" : "user",
+                parts: [{ text: m.content }]
+              }));
+            }
+            return [{ role: "user", parts: [{ text: prompt }] }];
+          })(),
+          generationConfig: {
+            temperature: mode === "thinking" ? 0.4 : 0.2,
+            maxOutputTokens: dynamicMaxOutputTokens,
+            responseMimeType: "application/json"
+          }
+         };
+      }
 
-    if (!code && !raw && finalOpenAIKey) {
-      const { ok, text, tokens } = await callOpenAI(finalOpenAIKey, "gpt-4o-mini");
-      raw = text;
-      if (ok) {
-        const content = extractContent(raw);
-        const result = processResponse(content, raw);
+      const llmRes = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const bodyText = await llmRes.text();
+      if (!llmRes.ok) {
+        console.warn("Google/Vertex API failed", { model: requestedModel, status: llmRes.status, body: bodyText });
+        return Response.json({ error: "LLM request failed", detail: bodyText, provider: effectiveProvider, requestedModel }, { status: 502 });
+      }
+
+      let rawResponseText = "";
+      if (isClaude) {
+         const parsed = JSON.parse(bodyText);
+         rawResponseText = parsed?.content?.[0]?.text || "";
+         tokensUsed = parsed?.usage?.output_tokens || 0;
+      } else {
+         try {
+            const parsed = JSON.parse(bodyText);
+            rawResponseText = parsed?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+            tokensUsed = parsed?.usageMetadata?.totalTokenCount || 0;
+         } catch {}
+      }
+
+      const content = rawResponseText;
+      if (content) {
+        const result = processResponse(content, rawResponseText);
         code = result.code;
         raw = result.raw;
-        modelUsed = "gpt-4o-mini";
-        tokensUsed = tokens;
+        preambleReasoning = result.preamble;
+        modelUsed = requestedModel;
       }
-    }
 
-    if (!code && !raw) {
-      return Response.json({ error: "LLM request failed", detail: lastResponseBody, attemptedModels, provider: effectiveProvider, requestedModel }, { status: 502 });
+      if (!code && !raw && finalOpenAIKey) {
+        const { ok, text, tokens } = await callOpenAI(finalOpenAIKey, "gpt-4o-mini");
+        raw = text;
+        if (ok) {
+          const fallbackContent = extractContent(raw);
+          const fallbackResult = processResponse(fallbackContent, raw);
+          code = fallbackResult.code;
+          raw = fallbackResult.raw;
+          modelUsed = "gpt-4o-mini";
+          tokensUsed = tokens;
+        }
+      }
+
+      if (!code && !raw) {
+        return Response.json({ error: "LLM request failed", detail: bodyText, provider: effectiveProvider, requestedModel }, { status: 502 });
+      }
+    } catch (err) {
+      console.error("Google/Vertex Error", err);
+      return Response.json({ error: "LLM request failed", detail: String(err), provider: effectiveProvider, requestedModel }, { status: 502 });
     }
 
   // ── Default Fallback Path ──────────────────────────────────────────────────
@@ -727,4 +794,11 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     suggestions: finalSuggestions,
     thinking: thinking || undefined,
   });
+  } finally {
+    if (!isUsingCustomKey) {
+      await decrementActiveGenerations();
+    }
+  }
 }
+
+

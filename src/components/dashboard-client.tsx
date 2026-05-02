@@ -2920,9 +2920,19 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   {usage.plan === 'fresh_pro' ? (
                     <button disabled className="mt-auto w-full bg-white/5 border border-white/10 text-white/40 font-bold py-2 rounded-xl cursor-not-allowed text-xs">Active</button>
                   ) : usage.plan === 'pure_ultra' ? (
-                    <button className="mt-auto w-full bg-white/5 text-white/60 font-bold py-2 rounded-xl hover:bg-white/10 transition-colors text-xs border border-white/10">Downgrade</button>
+                    <button 
+                      onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                      className="mt-auto w-full bg-white/5 text-white/60 font-bold py-2 rounded-xl hover:bg-white/10 transition-colors text-xs border border-white/10"
+                    >
+                      Downgrade
+                    </button>
                   ) : (
-                    <button className="mt-auto w-full bg-[#ccff00] text-black font-bold py-2 rounded-xl hover:bg-[#b3e600] transition-colors text-xs">Upgrade</button>
+                    <button 
+                      onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                      className="mt-auto w-full bg-[#ccff00] text-black font-bold py-2 rounded-xl hover:bg-[#b3e600] transition-colors text-xs"
+                    >
+                      Upgrade
+                    </button>
                   )}
                 </div>
 
@@ -2945,7 +2955,12 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                   {usage.plan === 'pure_ultra' ? (
                     <button disabled className="mt-auto w-full bg-white/5 border border-white/10 text-white/40 font-bold py-2 rounded-xl cursor-not-allowed text-xs">Active</button>
                   ) : (
-                    <button className="mt-auto w-full bg-[#7c3aed] text-white font-bold py-2 rounded-xl hover:bg-[#6d28d9] transition-colors text-xs">Get Ultra</button>
+                    <button 
+                      onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                      className="mt-auto w-full bg-[#7c3aed] text-white font-bold py-2 rounded-xl hover:bg-[#6d28d9] transition-colors text-xs"
+                    >
+                      Get Ultra
+                    </button>
                   )}
                 </div>
               </div>
@@ -2977,20 +2992,35 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                     <div className="text-[10px] text-white/40 font-bold mb-0.5">Small Sip</div>
                     <div className="text-sm font-black text-white">350 R$</div>
                     <div className="text-[10px] text-[#ccff00] font-bold mb-2">5,000 mL</div>
-                    <button className="w-full bg-white/10 text-white font-bold py-1.5 rounded-lg text-[11px] hover:bg-white/20 transition-colors">Buy</button>
+                    <button 
+                      onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                      className="w-full bg-white/10 text-white font-bold py-1.5 rounded-lg text-[11px] hover:bg-white/20 transition-colors"
+                    >
+                      Buy
+                    </button>
                   </div>
                   <div className="bg-white/5 border border-[#ccff00]/20 rounded-xl p-3 flex flex-col items-center text-center relative">
                     <div className="absolute -top-2 bg-[#ccff00] text-black text-[8px] font-black uppercase px-2 py-0.5 rounded-full">Best</div>
                     <div className="text-[10px] text-white/40 font-bold mb-0.5">Juice Box</div>
                     <div className="text-sm font-black text-white">950 R$</div>
                     <div className="text-[10px] text-[#ccff00] font-bold mb-2">20,000 mL</div>
-                    <button className="w-full bg-[#ccff00] text-black font-bold py-1.5 rounded-lg text-[11px] hover:bg-[#b3e600] transition-colors">Buy</button>
+                    <button 
+                      onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                      className="w-full bg-[#ccff00] text-black font-bold py-1.5 rounded-lg text-[11px] hover:bg-[#b3e600] transition-colors"
+                    >
+                      Buy
+                    </button>
                   </div>
                   <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col items-center text-center">
                     <div className="text-[10px] text-white/40 font-bold mb-0.5">Mega Jug</div>
                     <div className="text-sm font-black text-white">3,000 R$</div>
                     <div className="text-[10px] text-[#ccff00] font-bold mb-2">80,000 mL</div>
-                    <button className="w-full bg-white/10 text-white font-bold py-1.5 rounded-lg text-[11px] hover:bg-white/20 transition-colors">Buy</button>
+                    <button 
+                      onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                      className="w-full bg-white/10 text-white font-bold py-1.5 rounded-lg text-[11px] hover:bg-white/20 transition-colors"
+                    >
+                      Buy
+                    </button>
                   </div>
                 </div>
               </div>

@@ -148,10 +148,43 @@ export async function getSession(sessionKey: string): Promise<SessionEntry | und
   const raw = await getRedis().get(key);
   if (!raw) return undefined;
   try {
-    return (typeof raw === "string" ? JSON.parse(raw) : raw) as SessionEntry;
-  } catch (err) {
-    console.warn("Failed to parse session JSON", err instanceof Error ? err.message : String(err));
+    return typeof raw === "string" ? JSON.parse(raw) : raw as SessionEntry;
+  } catch {
     return undefined;
+  }
+}
+
+// ─── Real-Time Priority Queue Tracking ────────────────────────────────────────
+
+const ACTIVE_GEN_KEY = "apple-juice:active-generations";
+
+export async function incrementActiveGenerations(): Promise<number> {
+  try {
+    return await getRedis().incr(ACTIVE_GEN_KEY);
+  } catch {
+    return 0; // fallback if redis fails
+  }
+}
+
+export async function decrementActiveGenerations(): Promise<number> {
+  try {
+    const val = await getRedis().decr(ACTIVE_GEN_KEY);
+    if (val < 0) {
+      await getRedis().set(ACTIVE_GEN_KEY, 0);
+      return 0;
+    }
+    return val;
+  } catch {
+    return 0;
+  }
+}
+
+export async function getActiveGenerations(): Promise<number> {
+  try {
+    const val = await getRedis().get<number>(ACTIVE_GEN_KEY);
+    return val || 0;
+  } catch {
+    return 0;
   }
 }
 

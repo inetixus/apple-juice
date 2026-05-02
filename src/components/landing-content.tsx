@@ -601,7 +601,12 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Reads your entire codebase</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Up to 10 Projects</li>
               </ul>
-              <button className="mt-auto w-full bg-[#ccff00] text-black font-bold py-3 rounded-xl hover:bg-[#b3e600] transition-colors">Upgrade to Pro</button>
+              <button 
+                onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                className="mt-auto w-full bg-[#ccff00] text-black font-bold py-3 rounded-xl hover:bg-[#b3e600] transition-colors"
+              >
+                Upgrade to Pro
+              </button>
             </div>
 
             {/* ULTRA TIER */}
@@ -618,7 +623,12 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Deep Research Mode</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Unlimited Projects</li>
               </ul>
-              <button className="mt-auto w-full bg-[#1e2128] text-white font-bold py-3 rounded-xl hover:bg-[#252830] transition-colors border border-[#7c3aed]/50">Get Ultra</button>
+              <button 
+                onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                className="mt-auto w-full bg-[#1e2128] text-white font-bold py-3 rounded-xl hover:bg-[#252830] transition-colors border border-[#7c3aed]/50"
+              >
+                Get Ultra
+              </button>
             </div>
           </div>
 
@@ -652,20 +662,35 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 <div className="text-white/60 text-sm font-semibold mb-2">Small Sip</div>
                 <div className="text-2xl font-black text-white mb-1">350 R$</div>
                 <div className="text-sm text-[#ccff00] font-bold mb-6">5,000 mL</div>
-                <button className="w-full bg-white text-black font-bold py-2.5 rounded-lg text-sm hover:bg-gray-200 transition-colors">Purchase</button>
+                <button 
+                  onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                  className="w-full bg-white text-black font-bold py-2.5 rounded-lg text-sm hover:bg-gray-200 transition-colors"
+                >
+                  Purchase
+                </button>
               </div>
               <div className="bg-[#1a1d24] border border-[#ccff00]/30 rounded-2xl p-6 flex flex-col text-center relative shadow-[0_0_20px_rgba(204,255,0,0.05)]">
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#ccff00] text-black text-[10px] font-black uppercase tracking-wider py-1 px-3 rounded-full">Value</div>
                 <div className="text-white/60 text-sm font-semibold mb-2">Juice Box</div>
                 <div className="text-2xl font-black text-white mb-1">950 R$</div>
                 <div className="text-sm text-[#ccff00] font-bold mb-6">20,000 mL</div>
-                <button className="w-full bg-[#ccff00] text-black font-bold py-2.5 rounded-lg text-sm hover:bg-[#b3e600] transition-colors">Purchase</button>
+                <button 
+                  onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                  className="w-full bg-[#ccff00] text-black font-bold py-2.5 rounded-lg text-sm hover:bg-[#b3e600] transition-colors"
+                >
+                  Purchase
+                </button>
               </div>
               <div className="bg-[#13151a] border border-white/10 rounded-2xl p-6 flex flex-col text-center hover:border-white/20 transition-colors">
                 <div className="text-white/60 text-sm font-semibold mb-2">Mega Jug</div>
                 <div className="text-2xl font-black text-white mb-1">3,000 R$</div>
                 <div className="text-sm text-[#ccff00] font-bold mb-6">80,000 mL</div>
-                <button className="w-full bg-white text-black font-bold py-2.5 rounded-lg text-sm hover:bg-gray-200 transition-colors">Purchase</button>
+                <button 
+                  onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
+                  className="w-full bg-white text-black font-bold py-2.5 rounded-lg text-sm hover:bg-gray-200 transition-colors"
+                >
+                  Purchase
+                </button>
               </div>
             </div>
           </div>
