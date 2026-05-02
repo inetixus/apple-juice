@@ -1667,26 +1667,37 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           {/* Settings removed from sidebar per user request */}
 
           {/* Plugin Status Summary */}
-          <div className="bg-white/[0.03] border border-white/[0.04] rounded-xl p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`relative flex h-2 w-2`}>
-                <span
-                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${isPluginConnected ? "bg-emerald-400" : "bg-amber-400"}`}
-                />
-                <span
-                  className={`relative inline-flex rounded-full h-2 w-2 ${isPluginConnected ? "bg-emerald-400" : "bg-amber-400"}`}
-                />
-              </span>
-              <span className="text-[11px] font-medium text-white/80">
-                {isPluginConnected ? "Connected" : "Waiting"}
-              </span>
+          <div className="bg-white/[0.03] border border-white/[0.04] rounded-xl p-3 flex flex-col gap-2">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`relative flex h-2 w-2`}>
+                  <span
+                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${isPluginConnected ? "bg-emerald-400" : "bg-amber-400"}`}
+                  />
+                  <span
+                    className={`relative inline-flex rounded-full h-2 w-2 ${isPluginConnected ? "bg-emerald-400" : "bg-amber-400"}`}
+                  />
+                </span>
+                <span className="text-[11px] font-medium text-white/80">
+                  {isPluginConnected ? "Plugin Connected" : "Plugin Waiting"}
+                </span>
+              </div>
+              <p
+                className="text-[10px] text-white/40 leading-snug truncate"
+                title={pluginStatus}
+              >
+                {pluginStatus}
+              </p>
             </div>
-            <p
-              className="text-[10px] text-white/40 leading-snug truncate"
-              title={pluginStatus}
-            >
-              {pluginStatus}
-            </p>
+            
+            {sessionKey && !isPluginConnected && (
+              <div className="mt-1 flex items-center justify-between bg-black/40 rounded-lg p-2 border border-white/[0.05]">
+                <span className="text-[10px] text-white/50 uppercase font-bold tracking-wider">Pairing Code</span>
+                <span className="text-xs font-mono font-black tracking-widest text-[#ccff00] select-all">
+                  {sessionKey}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Share Session */}
