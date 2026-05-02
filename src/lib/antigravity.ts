@@ -295,9 +295,10 @@ async function relayToVertexDeepSeek(
       messages: request.messages,
       temperature: request.temperature ?? 0.4,
       max_tokens: request.max_tokens ?? 32768,
+      stream: !!request.stream,
     };
 
-    console.log(`[DeepSeek] Calling ${modelId} at ${url}...`);
+    console.log(`[DeepSeek] Calling ${modelId} at ${url}${request.stream ? ' (STREAMING)' : ''}...`);
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -306,6 +307,10 @@ async function relayToVertexDeepSeek(
       },
       body: JSON.stringify(payload),
     });
+
+    if (request.stream) {
+      return { ok: true, stream: res, status: 200 };
+    }
 
     const bodyText = await res.text();
     if (!res.ok) {
@@ -359,6 +364,7 @@ export async function relayToAntigravity(
 ): Promise<{
   ok: boolean;
   data?: AntigravityChatResponse;
+  stream?: Response;
   error?: string;
   status: number;
   tokensUsed: number;
@@ -366,7 +372,7 @@ export async function relayToAntigravity(
   // ── Route to DeepSeek if applicable ──
   const modelName = request.model || "Gemini 2.5 Flash";
   if (modelName.toLowerCase().includes("deepseek")) {
-    return relayToVertexDeepSeek(request, userEmail);
+    return relayToVertexDeepSeek(request, userEmail) as any;
   }
 
   if (!mapping) {

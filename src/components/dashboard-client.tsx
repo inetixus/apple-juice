@@ -142,6 +142,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   >([]);
   const [showAssetSearch, setShowAssetSearch] = useState(false);
   const [isSearchingAssets, setIsSearchingAssets] = useState(false);
+  const [isDeepIntelligence, setIsDeepIntelligence] = useState(false);
   const [attachedAsset, setAttachedAsset] = useState<{
     id: number;
     name: string;
@@ -152,8 +153,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [agBalance, setAgBalance] = useState<{
     quotas: { model: string; refreshesIn: string }[];
   } | null>(null);
-  // Feature: Live Share
-  // Feature: Live Share
+  // Feature: Juice History
+  const [juiceHistory, setJuiceHistory] = useState<
+    { model: string; prompt: string; mlUsed: number; time: number }[]
+  >([]);
 
   const examplePrompts = useMemo(
     () => [
@@ -1005,6 +1008,78 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }
 
       if (mode === "thinking") {
+        const isDeepSeekModel = selectedModel.toLowerCase().includes("deepseek");
+        const isR1 = selectedModel.toLowerCase().includes("r1");
+
+        if (isDeepSeekModel) {
+          // DeepSeek-specific thinking chain
+          setThinkingSteps([
+            {
+              icon: "reasoning",
+              label: isR1 ? `R1 deep reasoning: "${promptSnippet}"...` : `DeepSeek analyzing: "${promptSnippet}"...`,
+              done: false,
+            },
+          ]);
+
+          const fileNames = attachedFiles.map((f) => f.name).join(", ");
+          const t1 = setTimeout(() => {
+            setThinkingSteps((prev) => {
+              if (prev.length === 1 && !prev[0].done) {
+                return [
+                  { ...prev[0], done: true },
+                  {
+                    icon: "looking",
+                    label: fileNames
+                      ? `Scanning ${fileNames} for patterns...`
+                      : "Mapping project architecture...",
+                    done: false,
+                  },
+                ];
+              }
+              return prev;
+            });
+
+            const t2 = setTimeout(() => {
+              setThinkingSteps((prev) => {
+                if (prev.length === 2 && !prev[1].done) {
+                  return [
+                    prev[0],
+                    { ...prev[1], done: true },
+                    {
+                      icon: "optimizing",
+                      label: isR1 ? "Chain-of-thought synthesis..." : "Optimizing Luau output...",
+                      done: false,
+                    },
+                  ];
+                }
+                return prev;
+              });
+
+              if (isR1) {
+                const t3 = setTimeout(() => {
+                  setThinkingSteps((prev) => {
+                    if (prev.length === 3 && !prev[2].done) {
+                      return [
+                        ...prev.slice(0, 2),
+                        { ...prev[2], done: true },
+                        {
+                          icon: "generating",
+                          label: "Generating verified solution...",
+                          done: false,
+                        },
+                      ];
+                    }
+                    return prev;
+                  });
+                }, 3000 + Math.random() * 4000);
+                stepTimeoutsRef.current.push(t3);
+              }
+            }, 2000 + Math.random() * 2500);
+            stepTimeoutsRef.current.push(t2);
+          }, 1500 + Math.random() * 2000);
+          stepTimeoutsRef.current.push(t1);
+        } else {
+        // Original Gemini thinking flow
         setThinkingSteps([
           {
             icon: "thinking",
@@ -1059,6 +1134,34 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           2000 + Math.random() * 2500,
         );
 
+        stepTimeoutsRef.current.push(t1);
+        }
+      } else if (selectedModel.toLowerCase().includes("deepseek")) {
+        // DeepSeek fast mode
+        setThinkingSteps([
+          {
+            icon: "reasoning",
+            label: `DeepSeek processing: "${promptSnippet}"...`,
+            done: false,
+          },
+        ]);
+
+        const fileNames = attachedFiles.map((f) => f.name).join(", ");
+        const t1 = setTimeout(() => {
+          setThinkingSteps((prev) => {
+            if (prev.length === 1 && !prev[0].done) {
+              return [
+                { ...prev[0], done: true },
+                {
+                  icon: "generating",
+                  label: fileNames ? `Writing code with context from ${fileNames}...` : "Generating optimized Luau...",
+                  done: false,
+                },
+              ];
+            }
+            return prev;
+          });
+        }, 1500 + Math.random() * 2000);
         stepTimeoutsRef.current.push(t1);
       } else {
         setThinkingSteps([
@@ -1131,9 +1234,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: attachedAsset
+          prompt: (attachedAsset
             ? `[System Note: The user has attached the Roblox asset "${attachedAsset.name}" (ID: ${attachedAsset.id}) to this message. Please fulfill their request, using this asset if appropriate. If they don't specify what to do with it, insert it into Workspace.]\n\n${finalPromptText}`
-            : finalPromptText,
+            : finalPromptText) + (isDeepIntelligence ? "\n\n[System Note: Deep Intelligence Mode ACTIVE. Please analyze the entire provided project structure and relationships carefully to ensure cross-script compatibility and optimal architectural patterns.]" : ""),
           messages: contextMessages.map((m) => ({
             role: m.role,
             content: m.attachedAsset
@@ -1197,6 +1300,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       setAttachedFiles([]);
       setAttachedAsset(null);
 
+      // Track juice history
+      if (payload.tokensUsed) {
+        const mlUsed = payload.tokensUsed; // already in mL from server
+        setJuiceHistory((prev) => [
+          { model: selectedModel, prompt: trimmed.substring(0, 60), mlUsed, time: Date.now() },
+          ...prev.slice(0, 19), // keep last 20
+        ]);
+      }
+
       function buildAssistantMessage(
         p: typeof payload,
         files: { name: string; content: string }[],
@@ -1247,11 +1359,39 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       setPluginStatus(`Script synced to Studio. Running playtest...`);
       showToast("Script generated and synced!", "success");
       playSound("success");
+      
+      const assistantMsg = buildAssistantMessage(payload, payloadFiles, true, isHidden);
+      
+      // Feature: Simulated Streaming / Typing Effect
+      const fullText = assistantMsg.content;
+      assistantMsg.content = ""; // Start empty
+      setMessages((prev) => [...prev, assistantMsg]);
+      
+      let currentIdx = 0;
+      const words = fullText.split(" ");
+      const typingInterval = setInterval(() => {
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (!last || last.role !== "assistant") return prev;
+          
+          if (currentIdx >= words.length) {
+            clearInterval(typingInterval);
+            return prev;
+          }
+          
+          const newText = last.content + (currentIdx === 0 ? "" : " ") + words[currentIdx];
+          currentIdx++;
+          
+          return [
+            ...prev.slice(0, -1),
+            { ...last, content: newText }
+          ];
+        });
+      }, 30);
+      
       setIsGenerating(false);
-      setMessages((current) => [
-        ...current,
-        buildAssistantMessage(payload, payloadFiles, false, isHidden),
-      ]);
+      playSound("done");
+      
       setThinkingSteps([]);
       // Reset auto-fix retries for this new generation
       autoFixRetriesRef.current = 0;
@@ -1498,13 +1638,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       accentBg: 'bg-violet-500',
       accentHover: 'hover:bg-violet-400',
       accentText: 'text-violet-400',
-      accentGlow: 'shadow-[0_0_15px_rgba(124,58,237,0.3)]',
+      accentGlow: 'shadow-[0_0_25px_rgba(124,58,237,0.5)] border-violet-400/50 animate-pulse-slow',
       borderAccent: 'border-violet-500/20',
       badgeBg: 'bg-violet-500',
       badgeText: 'ULTRA',
       badgeColor: 'text-violet-400',
-      btnBg: 'bg-violet-500 hover:bg-violet-400 text-white',
-      fixBtnBg: 'bg-violet-500 hover:bg-violet-400 text-white',
+      btnBg: 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white',
+      fixBtnBg: 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white',
     };
     if (plan === 'fresh_pro') return {
       bg: 'bg-[radial-gradient(circle_at_70%_20%,rgba(204,255,0,0.15),transparent_60%),radial-gradient(circle_at_15%_85%,rgba(163,230,53,0.1),transparent_50%),radial-gradient(circle_at_center,rgba(132,204,22,0.08),transparent_70%)]',
@@ -2213,7 +2353,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         </div>
                       ))}
                   </div>
-                  {isGenerating && <ThinkingFeed steps={thinkingSteps} />}
+                  {isGenerating && <ThinkingFeed steps={thinkingSteps} isDeepSeek={selectedModel.toLowerCase().includes("deepseek")} />}
                   <div ref={chatEndRef} className="h-px w-full mt-4" />
                 </div>
               )}
@@ -2534,6 +2674,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         </div>
 
                         <button
+                          onClick={() => setIsDeepIntelligence(!isDeepIntelligence)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all border ${
+                            isDeepIntelligence 
+                              ? "bg-blue-500/10 border-blue-500/30 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.2)]" 
+                              : "bg-white/[0.02] border-white/[0.04] text-white/30 hover:text-white/60"
+                          }`}
+                          title="Deep Intelligence: AI scans your entire project structure for better results"
+                        >
+                          <Brain className={`h-3 w-3 ${isDeepIntelligence ? "animate-pulse" : ""}`} />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">Deep Intelligence</span>
+                        </button>
+
+                        <button
                           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] text-white/40 hover:text-white hover:bg-white/[0.05] transition-all"
                           onClick={() => fileInputRef.current?.click()}
                         >
@@ -2617,7 +2770,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                           <button
                             onClick={() => submitPrompt()}
                             disabled={isGenerating || prompt.trim() == ""}
-                            className="p-2 rounded-xl bg-white text-black hover:bg-zinc-200 disabled:opacity-40 transition-all disabled:shadow-none"
+                            className={`p-2 rounded-xl disabled:opacity-40 transition-all disabled:shadow-none ${usage?.plan === 'pure_ultra' ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-400 hover:to-purple-500 shadow-[0_0_20px_rgba(124,58,237,0.4)]' : 'bg-white text-black hover:bg-zinc-200'}`}
                           >
                             <svg
                               width="18"
@@ -2640,7 +2793,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       <div className="flex items-center gap-4">
                         <button
                           onClick={() => {
-                            if (
+                            if(
                               confirm(
                                 "Are you sure you want to clear your chat history?",
                               )
@@ -2999,6 +3152,31 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
               >
                 Infinite Juice
               </button>
+            </div>
+
+            {/* JUICE HISTORY INSIGHTS */}
+            <div className="mt-6 pt-6 border-t border-white/[0.04] space-y-3">
+              <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] block mb-2">
+                Usage Insights (Last 20)
+              </label>
+              <div className="space-y-1.5 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+                {juiceHistory.length === 0 ? (
+                  <p className="text-[10px] text-white/20 italic text-center py-4">No recent generation history</p>
+                ) : (
+                  juiceHistory.map((item, i) => (
+                    <div key={i} className="bg-white/[0.02] border border-white/[0.03] rounded-lg p-2 flex items-center justify-between group">
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-[10px] font-bold text-white/80 truncate pr-2">{item.prompt}</span>
+                        <span className="text-[8px] text-white/30 uppercase tracking-tighter">{item.model}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-mono font-bold text-[#ccff00]">{(item.mlUsed / 1000).toFixed(1)}</span>
+                        <span className="text-[8px] text-white/20 ml-0.5">ml</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>
