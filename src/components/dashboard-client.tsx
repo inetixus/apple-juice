@@ -103,7 +103,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [attachedFiles, setAttachedFiles] = useState<
     { name: string; content: string }[]
   >([]);
-  const isDebuggingRanks = useRef(false);
   const [usage, setUsage] = useState<any>({
     isLoaded: false,
     usedMl: 0,
@@ -489,7 +488,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     void checkAntigravityLink();
   }, []);
   async function fetchUsage() {
-    if (isDebuggingRanks.current) return;
     try {
       const res = await fetch("/api/usage");
       if (res.ok) {
@@ -2951,34 +2949,36 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
               </div>
             </div>
 
-            {/* ADMIN DEBUG TOOLS */}
             <div className="mt-6 pt-6 border-t border-dashed border-white/10 space-y-3">
               <label className="text-[10px] font-black text-[#ccff00] uppercase tracking-[0.2em] block mb-2 opacity-50">
-                Admin Debug Tools
+                Admin Debug Tools (Persisted)
               </label>
               <div className="grid grid-cols-3 gap-2">
                 <button 
-                  onClick={() => {
-                    isDebuggingRanks.current = true;
-                    setUsage((prev: any) => ({...prev, plan: 'free', totalMl: 2000, remainingMl: 2000}));
+                  onClick={async () => {
+                    const data = { plan: 'free', totalMl: 2000, remainingMl: 2000 };
+                    setUsage((prev: any) => ({...prev, ...data}));
+                    await fetch("/api/usage", { method: "POST", body: JSON.stringify(data) });
                   }}
                   className="text-[9px] font-bold py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/60"
                 >
                   FREE
                 </button>
                 <button 
-                  onClick={() => {
-                    isDebuggingRanks.current = true;
-                    setUsage((prev: any) => ({...prev, plan: 'fresh_pro', totalMl: 10000, remainingMl: 10000}));
+                  onClick={async () => {
+                    const data = { plan: 'fresh_pro', totalMl: 10000, remainingMl: 10000 };
+                    setUsage((prev: any) => ({...prev, ...data}));
+                    await fetch("/api/usage", { method: "POST", body: JSON.stringify(data) });
                   }}
                   className="text-[9px] font-bold py-2 rounded-lg bg-[#ccff00]/10 hover:bg-[#ccff00]/20 border border-[#ccff00]/20 transition-all text-[#ccff00]"
                 >
                   PRO
                 </button>
                 <button 
-                  onClick={() => {
-                    isDebuggingRanks.current = true;
-                    setUsage((prev: any) => ({...prev, plan: 'pure_ultra', totalMl: 30000, remainingMl: 30000}));
+                  onClick={async () => {
+                    const data = { plan: 'pure_ultra', totalMl: 30000, remainingMl: 30000 };
+                    setUsage((prev: any) => ({...prev, ...data}));
+                    await fetch("/api/usage", { method: "POST", body: JSON.stringify(data) });
                   }}
                   className="text-[9px] font-bold py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 transition-all text-violet-400"
                 >
@@ -2986,22 +2986,14 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 </button>
               </div>
               <button 
-                onClick={() => {
-                  isDebuggingRanks.current = true;
-                  setUsage((prev: any) => ({...prev, remainingMl: 999999, totalMl: 999999}));
+                onClick={async () => {
+                  const data = { plan: usage.plan, remainingMl: 999999, totalMl: 999999 };
+                  setUsage((prev: any) => ({...prev, ...data}));
+                  await fetch("/api/usage", { method: "POST", body: JSON.stringify(data) });
                 }}
                 className="w-full text-[9px] font-black py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all text-red-400 uppercase tracking-widest"
               >
                 Infinite Juice
-              </button>
-              <button 
-                onClick={() => {
-                  isDebuggingRanks.current = false;
-                  void fetchUsage();
-                }}
-                className="w-full text-[8px] font-medium py-1 rounded-lg text-white/20 hover:text-white/40 transition-all"
-              >
-                Reset Debug & Sync Real Data
               </button>
             </div>
           </div>
