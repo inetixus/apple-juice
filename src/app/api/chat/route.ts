@@ -543,38 +543,43 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
 
     try {
       if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-        // Use Google Cloud Vertex AI if Service Account JSON is provided
+        // Use Google Cloud Service Account with Gemini API endpoint
         const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
         const auth = new GoogleAuth({
           credentials,
-          scopes: ['https://www.googleapis.com/auth/cloud-platform']
+          scopes: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/generative-language']
         });
         const client = await auth.getClient();
         const token = await client.getAccessToken();
-        const projectId = credentials.project_id;
-        const region = "us-central1"; // Enforced us-central1 for widest model availability
         
         isClaude = requestedModel.includes("claude");
-        const publisher = isClaude ? "anthropic" : "google";
         
-        // Map user-friendly or AI Studio model names to Vertex AI specific IDs
-        const MODEL_MAPPING: Record<string, string> = {
-          "Gemini 3.1 Pro": "gemini-1.5-pro-002",
-          "Gemini 3.1 Flash": "gemini-1.5-flash-002",
-          "Gemini 3.1 Flash-Lite": "gemini-1.5-flash-002",
-          "Gemini 3 Pro": "gemini-1.5-pro-002",
-          "Gemini 3 Flash": "gemini-1.5-flash-002",
-          "Gemini 2.5 Pro": "gemini-1.5-pro-002",
-          "Gemini 2.5 Flash": "gemini-1.5-flash-002",
-          "Gemini 2.0 Flash": "gemini-2.0-flash-exp",
-          "Gemini 1.5 Pro": "gemini-1.5-pro-002",
-          "Gemini 1.5 Flash": "gemini-1.5-flash-002"
-        };
+        if (isClaude) {
+          // Claude models still go through Vertex AI
+          const projectId = credentials.project_id;
+          const region = "us-central1";
+          const publisher = "anthropic";
+          const rawModelName = requestedModel.replace("models/", "");
+          url = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/${publisher}/models/${rawModelName}:generateContent`;
+        } else {
+          // Google models go through the Gemini API (generativelanguage.googleapis.com)
+          const MODEL_MAPPING: Record<string, string> = {
+            "Gemini 3.1 Pro": "gemini-3.1-pro",
+            "Gemini 3.1 Flash": "gemini-3.1-flash",
+            "Gemini 3.1 Flash-Lite": "gemini-3.1-flash-lite",
+            "Gemini 3 Pro": "gemini-3-pro",
+            "Gemini 3 Flash": "gemini-3-flash",
+            "Gemini 2.5 Pro": "gemini-2.5-pro",
+            "Gemini 2.5 Flash": "gemini-2.5-flash",
+            "Gemini 2.0 Flash": "gemini-2.0-flash",
+            "Gemini 1.5 Pro": "gemini-1.5-pro",
+            "Gemini 1.5 Flash": "gemini-1.5-flash"
+          };
+          const rawModelName = requestedModel.replace("models/", "");
+          const finalModelName = MODEL_MAPPING[rawModelName] || MODEL_MAPPING[requestedModel] || rawModelName;
+          url = `https://generativelanguage.googleapis.com/v1beta/models/${finalModelName}:generateContent`;
+        }
 
-        const rawModelName = requestedModel.replace("models/", "");
-        const finalModelName = MODEL_MAPPING[rawModelName] || MODEL_MAPPING[requestedModel] || rawModelName;
-
-        url = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/${publisher}/models/${finalModelName}:generateContent`;
         if (token.token) {
           headers["Authorization"] = `Bearer ${token.token}`;
         }
