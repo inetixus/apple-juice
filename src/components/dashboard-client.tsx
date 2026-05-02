@@ -2557,17 +2557,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       <div className="flex items-center gap-2">
                         {lastError && (
                           <>
-                            <button
-                              className="px-3 py-2 rounded-xl text-[12px] font-medium text-[#ccff00] hover:bg-[#ccff00]/10 border border-[#ccff00]/20 transition-all"
-                              onClick={() => {
-                                setPrompt(lastPromptRef.current);
-                                submitPrompt(lastPromptRef.current);
-                              }}
-                              disabled={isGenerating}
-                            >
-                              Retry
-                            </button>
-                            {!lastError.toLowerCase().includes("limit reached") && !lastError.toLowerCase().includes("failed to generate") && !lastError.toLowerCase().includes("experiencing high demand") && (
+                            {!lastError.toLowerCase().includes("out of juice") && (
+                              <button
+                                className="px-3 py-2 rounded-xl text-[12px] font-medium text-[#ccff00] hover:bg-[#ccff00]/10 border border-[#ccff00]/20 transition-all"
+                                onClick={() => {
+                                  setPrompt(lastPromptRef.current);
+                                  submitPrompt(lastPromptRef.current);
+                                }}
+                                disabled={isGenerating}
+                              >
+                                Retry
+                              </button>
+                            )}
+                            {!lastError.toLowerCase().includes("out of juice") && !lastError.toLowerCase().includes("limit reached") && !lastError.toLowerCase().includes("failed to generate") && !lastError.toLowerCase().includes("experiencing high demand") && (
                               <button
                                 className="px-3 py-2 rounded-xl text-[12px] font-medium text-red-400 hover:bg-red-500/10 border border-red-500/20 transition-all"
                                 onClick={handleAutoFix}
