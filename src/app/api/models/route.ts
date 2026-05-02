@@ -21,6 +21,8 @@ const ANTIGRAVITY_MODELS = [
   "Gemini 3 Flash",
   "Gemini 2.5 Pro",
   "Gemini 2.5 Flash",
+  "DeepSeek V3",
+  "DeepSeek R1",
 ];
 
 export async function POST(request: Request) {

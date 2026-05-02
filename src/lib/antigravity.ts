@@ -12,6 +12,7 @@
  * All tokens remain server-side. The frontend never sees them.
  */
 
+import { GoogleAuth } from "google-auth-library";
 import { getRedis } from "./store";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -68,6 +69,8 @@ const MODEL_ID_MAP: Record<string, string> = {
   "Gemini 2.0 Flash":         "gemini-2.0-flash",
   "Gemini 3.1 Pro (Preview)": "gemini-3.1-pro-preview",
   "Gemini 3 Flash (Preview)": "gemini-3-flash-preview",
+  "DeepSeek V3":              "deepseek-v3.2",
+  "DeepSeek R1":              "deepseek-r1",
 };
 
 function getPlatformApiKey(): string {
@@ -212,6 +215,8 @@ export async function checkAntigravityBalance(
       { model: "Gemini 2.0 Flash", refreshesIn: "Available" },
       { model: "Gemini 3.1 Pro (Preview)", refreshesIn: "Available" },
       { model: "Gemini 3 Flash (Preview)", refreshesIn: "Available" },
+      { model: "DeepSeek V3", refreshesIn: "Available" },
+      { model: "DeepSeek R1", refreshesIn: "Available" },
     ],
     checkedAt: Date.now(),
   };
@@ -232,8 +237,110 @@ function resolveModelId(displayName: string): string {
   // Fuzzy match: strip parenthetical qualifiers
   const base = displayName.replace(/\s*\(.*?\)\s*/g, "").trim();
   if (MODEL_ID_MAP[base]) return MODEL_ID_MAP[base];
+  // DeepSeek models
+  if (displayName.toLowerCase().includes("deepseek")) {
+    if (displayName.toLowerCase().includes("r1")) return "deepseek-r1";
+    return "deepseek-v3.2";
+  }
   // Default
   return "gemini-2.5-flash";
+}
+
+/**
+ * Forward a chat request to DeepSeek on Vertex AI.
+ */
+async function relayToVertexDeepSeek(
+  request: AntigravityChatRequest,
+  userEmail?: string
+): Promise<{
+  ok: boolean;
+  data?: AntigravityChatResponse;
+  error?: string;
+  status: number;
+  tokensUsed: number;
+}> {
+  const modelName = request.model || "DeepSeek V3";
+  const isR1 = modelName.toLowerCase().includes("r1");
+  
+  // Use V3.2 global for V3, or R1 in us-central1
+  const region = isR1 ? "us-central1" : "global";
+  const modelId = isR1 ? "deepseek-ai/deepseek-r1-0528-maas" : "deepseek-ai/deepseek-v3.2-maas";
+  const baseUrl = region === "global" ? "aiplatform.googleapis.com" : `${region}-aiplatform.googleapis.com`;
+
+  try {
+    const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
+    if (!keyPath) {
+       throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_PATH in environment.");
+    }
+
+    const auth = new GoogleAuth({
+      keyFile: keyPath,
+      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+    });
+
+    const client = await auth.getClient();
+    const tokenResponse = await client.getAccessToken();
+    const token = tokenResponse.token;
+
+    if (!token) throw new Error("Failed to generate Vertex AI access token.");
+
+    const projectId = (await auth.getProjectId()) || process.env.GOOGLE_CLOUD_PROJECT;
+    const url = `https://${baseUrl}/v1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
+
+    const payload = {
+      model: modelId,
+      messages: request.messages,
+      temperature: request.temperature ?? 0.4,
+      max_tokens: request.max_tokens ?? 32768,
+    };
+
+    console.log(`[DeepSeek] Calling ${modelId} at ${url}...`);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const bodyText = await res.text();
+    if (!res.ok) {
+      console.error(`[DeepSeek] API error ${res.status}:`, bodyText.substring(0, 500));
+      return { ok: false, error: bodyText, status: res.status, tokensUsed: 0 };
+    }
+
+    const data = JSON.parse(bodyText);
+    const content = data.choices?.[0]?.message?.content || "";
+    const promptTokens = data.usage?.prompt_tokens || 0;
+    const completionTokens = data.usage?.completion_tokens || 0;
+    const totalTokens = data.usage?.total_tokens || (promptTokens + completionTokens);
+
+    if (userEmail) {
+      await recordUsage(userEmail, totalTokens);
+    }
+
+    const normalized: AntigravityChatResponse = {
+      id: `deepseek-${Date.now()}`,
+      choices: [{
+        index: 0,
+        message: { role: "assistant", content: stripBranding(content) },
+        finish_reason: data.choices?.[0]?.finish_reason || "stop",
+      }],
+      usage: {
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens,
+      },
+      model: modelName,
+    };
+
+    return { ok: true, data: normalized, status: 200, tokensUsed: totalTokens };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[DeepSeek] Relay error:", msg);
+    return { ok: false, error: msg, status: 502, tokensUsed: 0 };
+  }
 }
 
 /**
@@ -253,7 +360,13 @@ export async function relayToAntigravity(
   status: number;
   tokensUsed: number;
 }> {
-  const modelId = resolveModelId(request.model || "Gemini 2.5 Flash");
+  // ── Route to DeepSeek if applicable ──
+  const modelName = request.model || "Gemini 2.5 Flash";
+  if (modelName.toLowerCase().includes("deepseek")) {
+    return relayToVertexDeepSeek(request, userEmail);
+  }
+
+  const modelId = resolveModelId(modelName);
   const apiUrl = `${GEMINI_API_BASE}/models/${modelId}:generateContent`;
 
   try {

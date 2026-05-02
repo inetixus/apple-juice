@@ -3010,7 +3010,7 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                     </li>
                     <li className="flex items-start gap-2.5 text-[12px] text-white/90">
                       <Zap className="w-4 h-4 text-violet-400 mt-0.5 flex-shrink-0" />
-                      <span>Claude Opus 4.6 + Gemini 3.1 Pro (Priority Queue)</span>
+                      <span>DeepSeek V3.2 + Gemini 3.1 Pro (Priority Queue)</span>
                     </li>
                   </ul>
                   <button 
