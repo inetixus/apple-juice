@@ -424,9 +424,12 @@ export async function getUserUsage(userId: string) {
   const usedMl = (await redis.get<number>(key)) || 0;
   const bonusMl = (await redis.get<number>(bonusMlKeyFor(userId))) || 0;
 
-  // Total available is strictly the rank's daily limit (per user request)
+  // Total available is strictly the rank's daily limit for UI consistency (per user request)
   const totalMl = limits.dailyMl;
-  const remainingMl = Math.max(0, totalMl - usedMl);
+  
+  // remainingMl is what's left of the daily limit + any remaining bonus ML
+  const dailyRemaining = Math.max(0, totalMl - usedMl);
+  const remainingMl = dailyRemaining + bonusMl;
 
   return {
     usedMl,
@@ -452,11 +455,26 @@ export async function getUserUsage(userId: string) {
 export async function trackMlUsage(userId: string, mlUsed: number) {
   if (mlUsed <= 0) return;
   const key = usageKeyFor(userId);
+  const bonusKey = bonusMlKeyFor(userId);
   const redis = getRedis();
   try {
+    const plan = await getUserPlan(userId);
+    const limit = PLAN_LIMITS[plan].dailyMl;
+    const currentUsed = (await redis.get<number>(key)) || 0;
+
+    // Increment daily usage
     await redis.incrby(key, mlUsed);
-    // Set expiry to 48 hours to clean up old daily keys
     await redis.expire(key, 60 * 60 * 48);
+
+    // If we were already over the limit or just crossed it, deduct from bonusMl
+    if (currentUsed + mlUsed > limit) {
+      const overage = Math.min(mlUsed, (currentUsed + mlUsed) - limit);
+      const bonus = (await redis.get<number>(bonusKey)) || 0;
+      if (bonus > 0) {
+        const toConsume = Math.min(bonus, overage);
+        await redis.decrby(bonusKey, toConsume);
+      }
+    }
   } catch (err) {
     console.error("trackMlUsage error", err);
   }

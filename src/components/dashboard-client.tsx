@@ -2520,11 +2520,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                 ),
                               );
                               const hue = Math.round(pct * 1.2);
-                              const mlAvailable = Math.max(
-                                0,
-                                (usage.totalMl || 2000) -
-                                  (usage.usedMl || 0),
-                              );
+                              const mlAvailable = usage.remainingMl !== undefined 
+                                ? usage.remainingMl 
+                                : Math.max(0, (usage.totalMl || 2000) - (usage.usedMl || 0));
                               const planLabel = usage.plan === 'pure_ultra' ? 'Ultra' : usage.plan === 'fresh_pro' ? 'Pro' : 'Free';
                               return (
                                 <div 
