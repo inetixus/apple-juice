@@ -265,7 +265,7 @@ async function relayToVertexDeepSeek(
   
   // Use us-central1 for stability (global can be flaky/slow)
   const region = "us-central1";
-  const modelId = isR1 ? "deepseek-ai/deepseek-r1" : "deepseek-ai/deepseek-v3";
+  const modelId = isR1 ? "deepseek-r1" : "deepseek-v3";
   const baseUrl = `${region}-aiplatform.googleapis.com`;
 
   try {
@@ -289,7 +289,8 @@ async function relayToVertexDeepSeek(
     if (!token) throw new Error("Failed to generate Vertex AI access token.");
 
     const projectId = (await auth.getProjectId()) || process.env.GOOGLE_CLOUD_PROJECT;
-    const url = `https://${baseUrl}/v1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
+    // Correct URL for Vertex AI MaaS (DeepSeek)
+    const url = `https://${baseUrl}/v1/projects/${projectId}/locations/${region}/publishers/deepseek-ai/models/${modelId}/endpoints/openapi/chat/completions`;
 
     const payload = {
       model: modelId,
