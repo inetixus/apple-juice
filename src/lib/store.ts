@@ -31,30 +31,41 @@ export const OUTPUT_ML_MULTIPLIER = 6;
 
 export const PLAN_LIMITS = {
   free: {
-    dailyMl: 2_000,       // Free tier: 2,000 mL/day (DeepSeek only)
+    monthlyMl: 1_000,       // Free tier: 1,000 mL/month
     maxProjects: 1,
   },
   fresh_pro: {
-    dailyMl: 10_000,      // Fresh Pro: 10,000 mL/day
+    monthlyMl: 5_000,      // Fresh Pro: 5,000 mL/month
     maxProjects: 15,
   },
   pure_ultra: {
-    dailyMl: 30_000,      // Pure Ultra: 30,000 mL/day
+    monthlyMl: 15_000,     // Pure Ultra: 15,000 mL/month
     maxProjects: 9999,
   },
 } as const;
+
+export const MODEL_MULTIPLIERS: Record<string, number> = {
+  "gemini-1.5-flash": 1,
+  "gemini-1.5-flash-8b": 1,
+  "gemini-1.5-pro": 5,      // Premium Tax
+  "claude-3-5-sonnet": 8,   // Premium Tax
+  "claude-3-opus": 12,      // Premium Tax
+  "gpt-4o": 6,
+  "gpt-4o-mini": 1.5,
+};
+
 
 export type UserPlan = keyof typeof PLAN_LIMITS;
 
 /**
  * Calculate mL of Juice consumed from raw token counts.
- * Formula: (inputTokens * 1 + outputTokens * 6) / 1000
- * Scaling down so that 30k mL = 30m tokens (approx).
+ * Formula: ((inputTokens * 1 + outputTokens * 6) / 1000) * modelMultiplier
  */
-export function calculateMlUsed(inputTokens: number, outputTokens: number): number {
+export function calculateMlUsed(inputTokens: number, outputTokens: number, model?: string): number {
+  const multiplier = model ? (MODEL_MULTIPLIERS[model] || 1) : 1;
   const raw = inputTokens + (outputTokens * OUTPUT_ML_MULTIPLIER);
   // Ceiling to ensure at least 1 mL is used for tiny requests
-  return Math.max(1, Math.ceil(raw / 1000));
+  return Math.max(1, Math.ceil((raw / 1000) * multiplier));
 }
 
 /**
@@ -395,8 +406,9 @@ export async function consumeLogs(sessionKey: string) {
 }
 
 function usageKeyFor(userId: string) {
-  const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  return `${USAGE_PREFIX}${userId}:${date}`;
+  const date = new Date();
+  const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`; // YYYY-MM
+  return `${USAGE_PREFIX}${userId}:${monthKey}`;
 }
 
 function bonusMlKeyFor(userId: string) {
@@ -427,16 +439,17 @@ export async function getUserUsage(userId: string) {
   const usedMl = (await redis.get<number>(key)) || 0;
   const bonusMl = (await redis.get<number>(bonusMlKeyFor(userId))) || 0;
 
-  // Cap is always the plan's daily limit — Juice Boxes refill towards this cap
-  const totalMl = limits.dailyMl;
+  // Cap is always the plan's monthly limit — Juice Boxes refill towards this cap
+  const totalMl = limits.monthlyMl;
   const remainingMl = Math.max(0, totalMl - usedMl);
 
   return {
     usedMl,
-    dailyMl: limits.dailyMl,
+    monthlyMl: limits.monthlyMl,
     bonusMl,
     totalMl,
     remainingMl,
+
     maxOutputTokens: calculateMaxOutputTokens(remainingMl),
     plan,
     limits,
@@ -458,7 +471,8 @@ export async function trackMlUsage(userId: string, mlUsed: number) {
   const redis = getRedis();
   try {
     await redis.incrby(key, mlUsed);
-    await redis.expire(key, 60 * 60 * 48);
+    // Set expiry to 40 days to keep the monthly key alive
+    await redis.expire(key, 60 * 60 * 24 * 40);
   } catch (err) {
     console.error("trackMlUsage error", err);
   }

@@ -76,7 +76,7 @@ export async function POST(req: Request) {
     if (userUsage.remainingMl <= 0) {
       return Response.json({
         error: "Out of Juice",
-        message: "You are out of Juice for today! Come back tomorrow or buy an Instant Refill (Juice Box) to keep building.",
+        message: "You have reached your monthly limit! Your juice will refill next month, or you can buy an Instant Refill (Juice Box) to keep building right now.",
         usage: userUsage
       }, { status: 429 });
     }
@@ -713,19 +713,19 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
         const inputTk = parsed?.usage?.prompt_tokens || parsed?.usageMetadata?.promptTokenCount || 0;
         const outputTk = parsed?.usage?.completion_tokens || parsed?.usageMetadata?.candidatesTokenCount || 0;
         if (inputTk > 0 || outputTk > 0) {
-          mlUsed = calculateMlUsed(inputTk, outputTk);
+          mlUsed = calculateMlUsed(inputTk, outputTk, effectiveModel);
         } else {
           // Fallback: assume 20% input, 80% output split
-          mlUsed = calculateMlUsed(Math.floor(tokensUsed * 0.2), Math.floor(tokensUsed * 0.8));
+          mlUsed = calculateMlUsed(Math.floor(tokensUsed * 0.2), Math.floor(tokensUsed * 0.8), effectiveModel);
         }
       } catch {
-        mlUsed = calculateMlUsed(Math.floor(tokensUsed * 0.2), Math.floor(tokensUsed * 0.8));
+        mlUsed = calculateMlUsed(Math.floor(tokensUsed * 0.2), Math.floor(tokensUsed * 0.8), effectiveModel);
       }
     } else {
       // Fallback estimation if tokens not returned (approx 1 token per 4 chars)
       const estimatedInput = Math.ceil((prompt?.length || 0) / 4);
       const estimatedOutput = Math.ceil(raw.length / 4);
-      mlUsed = calculateMlUsed(estimatedInput, estimatedOutput);
+      mlUsed = calculateMlUsed(estimatedInput, estimatedOutput, effectiveModel);
     }
     await trackMlUsage(ownerUserId, mlUsed);
   }
