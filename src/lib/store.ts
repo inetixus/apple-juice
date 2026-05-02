@@ -424,8 +424,8 @@ export async function getUserUsage(userId: string) {
   const usedMl = (await redis.get<number>(key)) || 0;
   const bonusMl = (await redis.get<number>(bonusMlKeyFor(userId))) || 0;
 
-  // Total available = daily allowance + stackable bonus mL
-  const totalMl = limits.dailyMl + bonusMl;
+  // Total available is strictly the rank's daily limit (per user request)
+  const totalMl = limits.dailyMl;
   const remainingMl = Math.max(0, totalMl - usedMl);
 
   return {
