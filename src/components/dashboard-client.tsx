@@ -471,12 +471,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       window.localStorage.getItem("apple-juice-model") ?? "gpt-4o-mini";
     setSelectedModel(savedModel);
 
-
     void loadProjects();
 
-    if (effectiveKey) {
-      void loadModels(effectiveKey, savedModel);
-    }
+    void loadModels(effectiveKey, savedModel);
+
     const savedAutoRetry =
       window.localStorage.getItem("apple-juice-auto-retry") === "true";
     setAutoRetry(savedAutoRetry);
@@ -2499,10 +2497,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                           {sessionTokensUsed > 0 && (
                             <div 
                               className="text-[10px] flex items-center gap-1 text-white/40 bg-white/[0.02] border border-white/[0.04] px-2 py-1 rounded-lg truncate max-w-[100px]"
-                              title={`Session Tokens Used: ${sessionTokensUsed.toLocaleString()}`}
+                              title={`Session Usage: ${(sessionTokensUsed / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ml`}
                             >
                               <span className="w-2 h-2 rounded-full bg-violet-500/50 flex-shrink-0" />
-                              {sessionTokensUsed >= 1000 ? `${(sessionTokensUsed / 1000).toFixed(1)}k` : sessionTokensUsed}
+                              {(sessionTokensUsed / 1000).toFixed(1)} ml
                             </div>
                           )}
                         </div>
