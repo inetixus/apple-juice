@@ -578,13 +578,13 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <div className="text-4xl font-black text-white mb-2">0 R$<span className="text-lg text-white/40 font-normal"> / forever</span></div>
               <p className="text-sm text-white/50 mb-8 border-b border-white/5 pb-8">Hobbyists testing the waters.</p>
               <ul className="flex flex-col gap-4 mb-8 text-sm">
-                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> 2,000 mL per day</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> 1,000 mL monthly allowance</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Gemini Flash (⚡ fast)</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Basic code snippets</li>
                 <li className="flex items-center gap-3 text-white/40"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg> 1 Project Limit</li>
-                <li className="flex items-center gap-3 text-white/40"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg> Standard rate limits</li>
               </ul>
             </div>
+
 
             {/* PRO TIER */}
             <div className="bg-gradient-to-b from-[#1a1d24] to-[#13151a] border border-[#ccff00]/30 rounded-[2rem] p-8 flex flex-col relative transform md:-translate-y-4 shadow-[0_0_30px_rgba(204,255,0,0.1)]">
@@ -595,12 +595,13 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <div className="text-4xl font-black text-white mb-2">600 R$<span className="text-lg text-white/40 font-normal"> / month</span></div>
               <p className="text-sm text-white/50 mb-8 border-b border-white/5 pb-8">The sweet spot for serious developers.</p>
               <ul className="flex flex-col gap-4 mb-8 text-sm">
-                <li className="flex items-center gap-3 text-white"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> <strong>10,000 mL per day</strong></li>
-                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Gemini 1.5 Pro (🧠 high logic)</li>
+                <li className="flex items-center gap-3 text-white"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> <strong>5,000 mL monthly allowance</strong></li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Gemini 1.5 Flash (Standard cost)</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> 2M+ token context window</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Reads your entire codebase</li>
-                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Up to 10 Projects</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Up to 15 Projects</li>
               </ul>
+
               <button 
                 onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
                 className="mt-auto w-full bg-[#ccff00] text-black font-bold py-3 rounded-xl hover:bg-[#b3e600] transition-colors"
@@ -617,12 +618,13 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <div className="text-4xl font-black text-white mb-2">1,500 R$<span className="text-lg text-white/40 font-normal"> / month</span></div>
               <p className="text-sm text-white/50 mb-8 border-b border-white/5 pb-8">Full power. Zero compromises.</p>
               <ul className="flex flex-col gap-4 mb-8 text-sm">
-                <li className="flex items-center gap-3 text-white"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> <strong>30,000 mL per day</strong></li>
-                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Claude 3.5 Sonnet + Opus (💎 expert)</li>
+                <li className="flex items-center gap-3 text-white"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> <strong>15,000 mL monthly allowance</strong></li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Claude 3.5 / GPT-4 (Premium Tax)</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Priority queue (zero latency)</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Deep Research Mode</li>
-                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Unlimited Projects</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> 9,999 Projects (Unlimited)</li>
               </ul>
+
               <button 
                 onClick={() => window.open("https://www.roblox.com/games/137859423074162/Apple-Juice-Shop", "_blank")}
                 className="mt-auto w-full bg-[#1e2128] text-white font-bold py-3 rounded-xl hover:bg-[#252830] transition-colors border border-[#7c3aed]/50"
