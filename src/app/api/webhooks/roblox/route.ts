@@ -23,10 +23,11 @@ export async function POST(req: Request) {
       return Response.json({ success: true, message: "Granted Fresh Pro plan!" });
     }
 
-    // Add other subscriptions here if needed (e.g., Pure Ultra)
-    // if (subscriptionId === "EXP-XXXXXXX") {
-    //   await setUserPlan(userId.toString(), "pure_ultra");
-    // }
+    // Pure Ultra: EXP-2786378855714259452
+    if (subscriptionId === "EXP-2786378855714259452") {
+      await setUserPlan(userId.toString(), "pure_ultra");
+      return Response.json({ success: true, message: "Granted Pure Ultra plan!" });
+    }
 
     return Response.json({ success: false, message: "Unknown subscription ID" }, { status: 400 });
 
