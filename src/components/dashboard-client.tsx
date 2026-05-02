@@ -508,7 +508,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
   // Poll usage every 10 seconds to catch Roblox webhook updates
   useEffect(() => {
-    if (provider === "apple_juice_ai" || !apiKey) {
+    if ((provider as string) === "apple_juice_ai" || !apiKey) {
       void loadModels();
     }
   }, [usage?.plan]);
