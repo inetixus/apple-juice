@@ -2881,6 +2881,39 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
                 </button>
               </div>
             </div>
+
+            {/* ADMIN DEBUG TOOLS */}
+            <div className="mt-6 pt-6 border-t border-dashed border-white/10 space-y-3">
+              <label className="text-[10px] font-black text-[#ccff00] uppercase tracking-[0.2em] block mb-2 opacity-50">
+                Admin Debug Tools
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button 
+                  onClick={() => setUsage((prev: any) => ({...prev, plan: 'free', totalMl: 2000, remainingMl: 2000}))}
+                  className="text-[9px] font-bold py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/60"
+                >
+                  FREE
+                </button>
+                <button 
+                  onClick={() => setUsage((prev: any) => ({...prev, plan: 'fresh_pro', totalMl: 10000, remainingMl: 10000}))}
+                  className="text-[9px] font-bold py-2 rounded-lg bg-[#ccff00]/10 hover:bg-[#ccff00]/20 border border-[#ccff00]/20 transition-all text-[#ccff00]"
+                >
+                  PRO
+                </button>
+                <button 
+                  onClick={() => setUsage((prev: any) => ({...prev, plan: 'pure_ultra', totalMl: 30000, remainingMl: 30000}))}
+                  className="text-[9px] font-bold py-2 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 transition-all text-violet-400"
+                >
+                  ULTRA
+                </button>
+              </div>
+              <button 
+                onClick={() => setUsage((prev: any) => ({...prev, remainingMl: 999999, totalMl: 999999}))}
+                className="w-full text-[9px] font-black py-2.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all text-red-400 uppercase tracking-widest"
+              >
+                Infinite Juice
+              </button>
+            </div>
           </div>
         </div>
       )}

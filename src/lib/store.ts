@@ -52,10 +52,10 @@ export const MODEL_MULTIPLIERS: Record<string, number> = {
   "claude-3-opus": 12,      // Premium Tax
   "gpt-4o": 6,
   "gpt-4o-mini": 1.5,
-  "deepseek-v3.2": 5,
-  "deepseek-r1": 10,
-  "DeepSeek V3": 5,
-  "DeepSeek R1": 10,
+  "deepseek-v3.2": 1,
+  "deepseek-r1": 2,
+  "DeepSeek V3": 1,
+  "DeepSeek R1": 2,
 };
 
 
