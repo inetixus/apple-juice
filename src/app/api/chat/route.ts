@@ -552,17 +552,23 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
         const client = await auth.getClient();
         const token = await client.getAccessToken();
         const projectId = credentials.project_id;
-        const region = process.env.GOOGLE_CLOUD_REGION || "us-central1";
+        const region = "us-central1"; // Enforced us-central1 for widest model availability
         
         isClaude = requestedModel.includes("claude");
         const publisher = isClaude ? "anthropic" : "google";
         
         // Map user-friendly or AI Studio model names to Vertex AI specific IDs
         const MODEL_MAPPING: Record<string, string> = {
+          "Gemini 3.1 Pro": "gemini-3.1-pro-preview",
+          "Gemini 3.1 Flash": "gemini-3.1-flash",
+          "Gemini 3.1 Flash-Lite": "gemini-3.1-flash-lite",
+          "Gemini 3 Pro": "gemini-3-pro",
+          "Gemini 3 Flash": "gemini-3-flash",
+          "Gemini 2.5 Pro": "gemini-2.5-pro",
+          "Gemini 2.5 Flash": "gemini-2.5-flash",
+          "Gemini 2.0 Flash": "gemini-2.0-flash-exp",
           "Gemini 1.5 Pro": "gemini-1.5-pro",
-          "Gemini 1.5 Flash": "gemini-1.5-flash",
-          "gemini-1.5-pro": "gemini-1.5-pro",
-          "gemini-1.5-flash": "gemini-1.5-flash"
+          "Gemini 1.5 Flash": "gemini-1.5-flash"
         };
 
         const rawModelName = requestedModel.replace("models/", "");
