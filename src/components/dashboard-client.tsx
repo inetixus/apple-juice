@@ -486,7 +486,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         const data = await res.json();
         setUsage((prev: any) => {
           // Detect plan upgrade
-          if (prev && prev.plan && data.plan && prev.plan !== data.plan && prev.plan === "free") {
+          if (prev && prev.plan && data.plan && prev.plan !== data.plan && data.plan === "fresh_pro") {
              showToast("Thank you for upgrading! Your Fresh Pro plan is now active. 🧃", "success");
           }
           return data;
