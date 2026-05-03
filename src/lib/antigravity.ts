@@ -69,7 +69,7 @@ const MODEL_ID_MAP: Record<string, string> = {
   "Gemini 2.0 Flash":         "gemini-2.0-flash",
   "Gemini 3.1 Pro (Preview)": "gemini-3.1-pro-preview",
   "Gemini 3 Flash (Preview)": "gemini-3-flash-preview",
-  "DeepSeek V3":              "deepseek-v3.2",
+  "DeepSeek V3":              "deepseek-v3",
   "DeepSeek R1":              "deepseek-r1",
 };
 
@@ -263,10 +263,10 @@ async function relayToVertexDeepSeek(
   const modelName = request.model || "DeepSeek V3";
   const isR1 = modelName.toLowerCase().includes("r1");
   
-  // R1 is best in us-central1, V3 is best in global for reliability
-  const region = isR1 ? "us-central1" : "global";
+  // DeepSeek is available in us-central1 and europe-west4. us-central1 is the most stable.
+  const region = "us-central1";
   const modelId = isR1 ? "deepseek-r1" : "deepseek-v3";
-  const baseUrl = region === "global" ? "aiplatform.googleapis.com" : `${region}-aiplatform.googleapis.com`;
+  const baseUrl = `${region}-aiplatform.googleapis.com`;
 
   try {
     const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
@@ -289,11 +289,11 @@ async function relayToVertexDeepSeek(
     if (!token) throw new Error("Failed to generate Vertex AI access token.");
 
     const projectId = (await auth.getProjectId()) || process.env.GOOGLE_CLOUD_PROJECT;
-    // Correct URL for Vertex AI MaaS (DeepSeek)
-    const url = `https://${baseUrl}/v1/projects/${projectId}/locations/${region}/publishers/deepseek-ai/models/${modelId}/endpoints/openapi/chat/completions`;
+    // Use the shared OpenAI-compatible endpoint for the region
+    const url = `https://${baseUrl}/v1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
 
     const payload = {
-      model: modelId,
+      model: `publishers/deepseek-ai/models/${modelId}`,
       messages: request.messages,
       temperature: request.temperature ?? 0.4,
       max_tokens: request.max_tokens ?? 32768,
