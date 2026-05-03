@@ -915,32 +915,43 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       } catch (e) {
         // Truncated JSON recovery logic
         console.warn("[AppleJuice] Truncated JSON detected, attempting recovery...");
-        
         let recovered = cleaned;
         
-        // If it looks like it was cut off inside a string (odd number of quotes)
-        const quoteCount = (recovered.match(/"/g) || []).length;
-        const escapedQuoteCount = (recovered.match(/\\"/g) || []).length;
-        if ((quoteCount - escapedQuoteCount) % 2 !== 0) {
+        // Robust stack-based JSON recovery
+        let inString = false;
+        let isEscaped = false;
+        const stack: string[] = [];
+        
+        for (let i = 0; i < recovered.length; i++) {
+            const char = recovered[i];
+            if (isEscaped) {
+                isEscaped = false;
+                continue;
+            }
+            if (char === '\\') {
+                isEscaped = true;
+                continue;
+            }
+            if (char === '"') {
+                inString = !inString;
+                continue;
+            }
+            if (!inString) {
+                if (char === '{') stack.push('}');
+                else if (char === '[') stack.push(']');
+                else if (char === '}' || char === ']') stack.pop();
+            }
+        }
+        
+        if (isEscaped) {
+            recovered = recovered.slice(0, -1); // Remove trailing backslash if cut off exactly at escape
+        }
+        if (inString) {
             recovered += '"';
         }
         
-        // Count braces and brackets
-        let openBraces = (recovered.match(/\{/g) || []).length;
-        let closeBraces = (recovered.match(/\}/g) || []).length;
-        let openBrackets = (recovered.match(/\[/g) || []).length;
-        let closeBrackets = (recovered.match(/\]/g) || []).length;
-        
-        // Close brackets first
-        while (openBrackets > closeBrackets) {
-            recovered += ']';
-            closeBrackets++;
-        }
-        
-        // Close braces
-        while (openBraces > closeBraces) {
-            recovered += '}';
-            closeBraces++;
+        while (stack.length > 0) {
+            recovered += stack.pop();
         }
         
         try {
