@@ -261,8 +261,6 @@ export async function POST(req: Request) {
     // ignore redis error
   }
 
-  const thinkingInstructions = mode === "thinking"
-    ? `\nYou MUST include a "thinking" field (a string) in your JSON output that contains your HIGHLY ADVANCED, step-by-step reasoning about:
   const IS_DEEPSEEK = effectiveModel.toLowerCase().includes("deepseek");
   const thinkingInstructions = mode === "thinking" 
     ? `\n\n## THINKING MODE ACTIVE
