@@ -997,7 +997,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       const scriptCount = p.scripts?.length || (p.scriptName ? 1 : 0);
       const defaultMsg = scriptCount > 0 
         ? `I've generated ${scriptCount} script${scriptCount > 1 ? 's' : ''} for your system. You can review them below.`
-        : "Here is the code you requested.";
+        : "The AI was interrupted before it could finish generating the scripts. This is usually due to a 10-second platform timeout. Please click 'Continue generating' below to resume.";
 
       return {
         id: crypto.randomUUID(),
@@ -2649,11 +2649,16 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                     <button
                                       className="flex-1 bg-[#ccff00] text-black font-bold px-5 py-2 rounded-xl text-[13px] hover:bg-[#d4ff33] transition-all flex items-center justify-center gap-2"
                                       onClick={async () => {
+                                        const scripts = message.scripts || (message.script ? [message.script] : []);
+                                        if (scripts.length === 0) {
+                                          showToast("No code found to sync. Please try 'Continue generating'.", "error");
+                                          return;
+                                        }
+
                                         showToast("Accepting changes...", "info");
                                         
                                         // If this was a streamed message, we need to push the payload first
                                         // because it was never stored as 'pendingCode' on the server.
-                                        const scripts = message.scripts || (message.script ? [message.script] : []);
                                         
                                         // Use /api/revert-code (forced sync) if we have explicit scripts
                                         const endpoint = scripts.length > 0 ? "/api/revert-code" : "/api/accept-code";

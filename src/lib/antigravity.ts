@@ -15,6 +15,8 @@
 import { GoogleAuth } from "google-auth-library";
 import { getRedis } from "./store";
 
+let cachedVertexToken: { token: string; expires: number } | null = null;
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type AntigravityMapping = {
@@ -276,15 +278,27 @@ async function relayToVertexDeepSeek(
        throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_PATH or GOOGLE_SERVICE_ACCOUNT_JSON in environment.");
     }
 
-    const auth = new GoogleAuth({
-      keyFile: keyPath,
-      credentials: keyJson ? JSON.parse(keyJson) : undefined,
-      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-    });
+    let token = "";
+    const now = Date.now();
 
-    const client = await auth.getClient();
-    const tokenResponse = await client.getAccessToken();
-    const token = tokenResponse.token;
+    if (cachedVertexToken && cachedVertexToken.expires > now + 300000) {
+        token = cachedVertexToken.token;
+    } else {
+        const auth = new GoogleAuth({
+          keyFile: keyPath,
+          credentials: keyJson ? JSON.parse(keyJson) : undefined,
+          scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+        });
+
+        const client = await auth.getClient();
+        const tokenResponse = await client.getAccessToken();
+        token = tokenResponse.token || "";
+        
+        if (token) {
+            // Assume tokens are valid for 1 hour
+            cachedVertexToken = { token, expires: now + 3600000 };
+        }
+    }
 
     if (!token) throw new Error("Failed to generate Vertex AI access token.");
 
