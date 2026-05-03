@@ -1510,11 +1510,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                       .replace(/\\"/g, '"')
                                       .replace(/\\\\/g, "\\");
                               } else {
-                                  const scriptCount = (cleanAccumulated.match(/"name"\s*:/g) || []).length;
+                                  const matches = [...cleanAccumulated.matchAll(/"name"\s*:\s*"([^"]+)"/g)];
+                                  const scriptCount = matches.length;
                                   if (scriptCount > 0) {
-                                      displayContent = `🏗️ Building system (${scriptCount} script${scriptCount > 1 ? 's' : ''} generated so far)...`;
+                                      const latestScript = matches[matches.length - 1][1];
+                                      displayContent = `🏗️ Building system (${scriptCount} script${scriptCount > 1 ? 's' : ''})...\n\nCurrently generating: **${latestScript}**`;
                                   } else {
-                                      displayContent = "🧠 Thinking...";
+                                      displayContent = "🧠 Processing architecture and preparing scripts...";
                                   }
                               }
                           } catch (e) {}
@@ -1587,6 +1589,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           if (isTruncated && continuationCount < 3) {
               setContinuationCount(prev => prev + 1);
               console.log(`[AppleJuice] Auto-continuing (Attempt ${continuationCount + 1}/4)...`);
+              
+              showToast(`Continuing generation of large system (Part ${continuationCount + 2}/4)...`, "info");
+              setPluginStatus(`Continuing generation (Part ${continuationCount + 2}/4)...`);
+              
               setTimeout(() => {
                   void submitPrompt("Continue generating", true);
               }, 1000);
