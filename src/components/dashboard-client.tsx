@@ -892,10 +892,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     function parseChatResponse(text: string): any {
       let cleaned = text.trim();
       
-      // Remove markdown fences
-      const match = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (match) {
-        cleaned = match[1].trim();
+      // Remove any preamble before the first { or first ```
+      const firstFence = cleaned.indexOf('```');
+      const firstBrace = cleaned.indexOf('{');
+      
+      if (firstFence !== -1 && (firstBrace === -1 || firstFence < firstBrace)) {
+          // It has fences. Extract content between first and last fence
+          const match = cleaned.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/);
+          if (match) {
+              cleaned = match[1].trim();
+          }
+      } else if (firstBrace !== -1) {
+          // No fences but has a brace. Extract from first brace to end
+          cleaned = cleaned.substring(firstBrace).trim();
       }
 
       try {

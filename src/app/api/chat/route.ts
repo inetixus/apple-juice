@@ -513,6 +513,9 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
       // Use a TransformStream to track when the stream ends and decrement the counter
       const originalStream = agResult.stream.body!;
       const transformStream = new TransformStream({
+        transform(chunk, controller) {
+          controller.enqueue(chunk);
+        },
         flush() {
           void decrementActiveGenerations();
         }
