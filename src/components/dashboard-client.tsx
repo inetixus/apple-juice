@@ -1067,9 +1067,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 )?.content,
               }
             : undefined,
-        scripts: p.scripts?.map((s: any) => ({
-          name: s.name,
-          parent: s.parent,
+        scripts: p.scripts?.map((s: any, index: number) => ({
+          name: s.name || `UnnamedScript_${index + 1}`,
+          parent: s.parent || "ServerScriptService",
           type: s.type || "Script",
           action: (s.action as "create" | "delete") || "create",
           lineCount: s.lineCount || 0,
@@ -1615,8 +1615,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               if (continuationRef.current > 0) {
                   // Merge scripts
                   const existingScripts = last.scripts || (last.script ? [last.script] : []);
-                  const existingNames = new Set(existingScripts.map(s => s.name));
-                  const newScripts = (structured.scripts || []).filter(s => !existingNames.has(s.name));
+                  const existingNames = new Set(existingScripts.map(s => s.name || ""));
+                  const newScripts = (structured.scripts || []).filter(s => !existingNames.has(s.name || ""));
                   mergedScripts = [...existingScripts, ...newScripts];
                   
                   // Merge content/message

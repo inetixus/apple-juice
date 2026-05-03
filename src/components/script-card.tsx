@@ -104,7 +104,7 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
 
   return (
     <motion.div 
-      id={`script-${script.name.replace(/\s+/g, '-')}`}
+      id={`script-${(script.name || "Unknown").replace(/\s+/g, '-')}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -2 }}
@@ -119,9 +119,9 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
           {isDelete ? <Trash2 className="h-4 w-4 text-red-400" /> : isAsset ? <Box className="h-4 w-4 text-purple-400" /> : <IconComponent className="h-4 w-4 text-[#ccff00]" />}
         </div>
         <div className="flex-1 text-left min-w-0">
-          <p className={`text-[13px] font-semibold truncate ${isDelete ? 'text-red-400' : isAsset ? 'text-purple-400' : 'text-white'}`}>{script.name}</p>
+          <p className={`text-[13px] font-semibold truncate ${isDelete ? 'text-red-400' : isAsset ? 'text-purple-400' : 'text-white'}`}>{script.name || "Unknown Script"}</p>
           <p className="text-[10px] text-[#8a8f98] mt-0.5">
-            {isDelete ? 'To be deleted' : isAsset ? `Roblox Asset` : (script.lineCount > 0 ? `${script.lineCount} lines · ` : '') + (script.type || 'Script')} · {script.parent}
+            {isDelete ? 'To be deleted' : isAsset ? `Roblox Asset` : ((script.lineCount || 0) > 0 ? `${script.lineCount} lines · ` : '') + (script.type || 'Script')} · {script.parent || "Workspace"}
           </p>
         </div>
         {!isDelete && !isAsset && (
