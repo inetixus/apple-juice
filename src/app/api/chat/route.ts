@@ -473,10 +473,29 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     const agMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: SYSTEM_PROMPT },
     ];
+    
     if (body.messages && body.messages.length > 0) {
-      agMessages.push(...(body.messages as { role: "user" | "assistant"; content: string }[]));
+      // Sanitize messages to avoid context pollution from placeholders
+      const sanitizedMessages = (body.messages as any[]).map(msg => {
+          if (msg.role === "assistant") {
+              // Remove generic placeholders that confuse the AI
+              let content = msg.content || "";
+              if (content.includes("Ready to generate Roblox scripts") || content.includes("Teleport system with GUI selection")) {
+                  return { ...msg, content: "The user is asking for a new feature." };
+              }
+              return msg;
+          }
+          return msg;
+      });
+      agMessages.push(...sanitizedMessages);
     } else {
       agMessages.push({ role: "user", content: prompt });
+    }
+
+    // Always ensure the LATEST user prompt is crystal clear to the AI
+    const lastMsg = agMessages[agMessages.length - 1];
+    if (lastMsg && lastMsg.role === "user") {
+        lastMsg.content = `[IMPORTANT: FOCUS ON THIS REQUEST ONLY] ${lastMsg.content}`;
     }
 
     // 4. Relay through Google Gemini API using user's OAuth token
