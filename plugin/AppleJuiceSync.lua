@@ -485,6 +485,16 @@ local function injectSingleScript(scriptData)
 		end
 	end
 
+	if action == "run_playtest" then
+		task.spawn(function()
+			task.wait(0.2)
+			if currentSessionKey then
+				runPlaytest(currentSessionKey)
+			end
+		end)
+		return true, "Remote playtest triggered by AI.", nil
+	end
+
 	if action == "stop_playtest" then
 		return true, "Stop playtest action received.", nil
 	end

@@ -94,6 +94,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const isGeneratingRef = useRef(false);
+  const isAutoFixingRef = useRef(false);
   const [isPluginConnected, setIsPluginConnected] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pluginStatus, setPluginStatus] = useState(
@@ -348,12 +350,14 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
                   if (
                     autoFixRetriesRef.current < MAX_AUTO_FIX_RETRIES &&
-                    !isGenerating
+                    !isGeneratingRef.current &&
+                    !isAutoFixingRef.current
                   ) {
                     autoFixRetriesRef.current += 1;
+                    isAutoFixingRef.current = true;
                     const attempt = autoFixRetriesRef.current;
                     setPluginStatus(
-                      `Auto-fixing ${errorCount} error(s) (attempt ${attempt}/${MAX_AUTO_FIX_RETRIES})...`,
+                      `🔧 Auto-fixing ${errorCount} error(s) (attempt ${attempt}/${MAX_AUTO_FIX_RETRIES})...`,
                     );
                     showToast(
                       `Auto-fix attempt ${attempt}/${MAX_AUTO_FIX_RETRIES}...`,
@@ -363,13 +367,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     if (autoFixTimerRef.current)
                       clearTimeout(autoFixTimerRef.current);
                     autoFixTimerRef.current = setTimeout(() => {
+                      // Guard: if a generation started since we queued, skip
+                      if (isGeneratingRef.current) {
+                        isAutoFixingRef.current = false;
+                        return;
+                      }
+
                       // Build comprehensive fix prompt with full code context
-                      let fixPrompt = `The following scripts were generated and synced to Roblox Studio, but the playtest FAILED with errors.\n\n`;
+                      let fixPrompt = `[AUTO-FIX] The following scripts were generated and synced to Roblox Studio, but the playtest FAILED with errors.\n\n`;
 
                       // Include full source code of all generated scripts
                       const scripts = lastGeneratedScriptsRef.current;
                       if (scripts.length > 0) {
-                        fixPrompt += `=== GENERATED SCRIPTS ===\n`;
+                        fixPrompt += `=== GENERATED SCRIPTS (${scripts.length} total) ===\n`;
                         for (const s of scripts) {
                           fixPrompt += `--- ${s.type}: ${s.name} (in ${s.parent}) ---\n${s.code}\n--- END ${s.name} ---\n\n`;
                         }
@@ -392,6 +402,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
                       fixPrompt += `\n=== INSTRUCTIONS ===\n`;
                       fixPrompt += `Fix ALL errors above. This is auto-fix attempt ${attempt} of ${MAX_AUTO_FIX_RETRIES}.\n`;
+                      fixPrompt += `You MUST output ALL scripts (even unchanged ones) with the SAME names and parents so they overwrite correctly.\n`;
                       fixPrompt += `Requirements:\n`;
                       fixPrompt += `1. Output the COMPLETE corrected script(s), not just the changed lines\n`;
                       fixPrompt += `2. Ensure all variables are defined before use\n`;
@@ -400,7 +411,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       fixPrompt += `5. Keep the same script name(s) and parent location(s) so they overwrite the broken version\n`;
 
                       submitPrompt(fixPrompt, true);
-                    }, 2000);
+                    }, 2500);
                   } else if (
                     autoFixRetriesRef.current >= MAX_AUTO_FIX_RETRIES
                   ) {
@@ -1159,6 +1170,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     }
 
     setIsGenerating(true);
+    isGeneratingRef.current = true;
     playSound("whoosh");
     setPluginStatus("Generating Luau and syncing it to the pairing session...");
 
@@ -1654,9 +1666,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           } else {
               continuationRef.current = 0;
               
-              // Auto Playtest Logic
-              if (autoPlaytest && lastGeneratedScriptsRef.current.length > 0) {
-                  showToast("Auto-syncing and starting playtest...", "info");
+              // Auto-sync logic: sync if Autonomous Mode is on, OR if this is an auto-fix response
+              const shouldAutoSync = autoPlaytest || isAutoFixingRef.current;
+              if (shouldAutoSync && lastGeneratedScriptsRef.current.length > 0) {
+                  const statusMsg = isAutoFixingRef.current ? "Syncing auto-fix to Studio..." : "Auto-syncing and starting playtest...";
+                  showToast(statusMsg, "info");
+                  setPluginStatus(statusMsg);
                   const endpoint = "/api/revert-code";
                   const body = { sessionKey, scripts: lastGeneratedScriptsRef.current };
                   fetch(endpoint, {
@@ -1667,11 +1682,17 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       if (res.ok) {
                           setMessages((msgs) => msgs.map((m) => m.id === assistantMsgId ? { ...m, pendingSync: false } : m));
                       }
+                  }).finally(() => {
+                      // Clear auto-fix flag after sync completes
+                      isAutoFixingRef.current = false;
                   });
+              } else {
+                  isAutoFixingRef.current = false;
               }
           }
         } finally {
           setIsGenerating(false);
+          isGeneratingRef.current = false;
           playSound("success");
           setThinkingSteps([]);
           void fetchUsage();
@@ -1764,6 +1785,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       }, 30);
       
       setIsGenerating(false);
+      isGeneratingRef.current = false;
+      isAutoFixingRef.current = false;
       playSound("success");
       
       setThinkingSteps([]);
@@ -1797,6 +1820,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         showToast("Generation stopped.", "success");
         setTimeout(() => setThinkingSteps([]), 1000);
         setIsGenerating(false);
+        isGeneratingRef.current = false;
+        isAutoFixingRef.current = false;
 
         // Remove the user message bubble if the request was cancelled
         if (messageId) {
@@ -1860,6 +1885,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       playSound("error");
       setTimeout(() => setThinkingSteps([]), 1000);
       setIsGenerating(false);
+      isGeneratingRef.current = false;
+      isAutoFixingRef.current = false;
       setLastError(detail);
 
       // Remove the user message bubble if the request failed and we're not retrying

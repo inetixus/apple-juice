@@ -295,6 +295,7 @@ Output ONLY a single JSON object. No markdown. No text outside JSON.
 - Use game:GetService(), task.wait(), task.spawn(), pcall().
 - ALWAYS validate RemoteEvent input on the server.
 - JSON structure: {"scripts": [{action, type, parent, name, code, properties}], "message": "friendly summary", "suggestions": [3 ideas], "thinking": "brief reasoning"}
+- REMOTE PLAYTESTING: You can remotely trigger a playtest in the user's Studio by emitting a script block with "action": "run_playtest" (no code needed). Use this to verify bug fixes.
 
 ${fileContextBlock}${treeContextBlock}
 ${thinkingInstructions}`
@@ -327,6 +328,7 @@ CRITICAL: PREMIUM UI DESIGN:
 CRITICAL RULES:
 - Use game:GetService(), task.wait(), task.spawn().
 - Validate RemoteEvent input on the server.
+- REMOTE PLAYTESTING: You can remotely trigger a playtest in the user's Studio by emitting a script block with "action": "run_playtest" (no code needed). Use this to verify your work.
 
 ${fileContextBlock}${treeContextBlock}
 CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON object. NO markdown. NO backticks. NO explanations outside the JSON.`;
