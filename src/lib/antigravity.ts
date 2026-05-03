@@ -263,8 +263,9 @@ async function relayToVertexDeepSeek(
   const modelName = request.model || "DeepSeek V3";
   const isR1 = modelName.toLowerCase().includes("r1");
   
-  // R1 and V3 MaaS models are most reliable in us-central1 for streaming.
-  const region = "us-central1";
+  // R1 and V3 MaaS models are available in us-central1 and europe-west4. 
+  // v3.2-maas is confirmed in europe-west4.
+  const region = "europe-west4";
   const modelId = isR1 ? "deepseek-r1" : "deepseek-v3.2-maas";
   const baseUrl = `${region}-aiplatform.googleapis.com`;
 
