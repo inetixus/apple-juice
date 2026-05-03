@@ -293,7 +293,7 @@ async function relayToVertexDeepSeek(
     const url = `https://${baseUrl}/v1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
 
     const payload = {
-      model: `publishers/deepseek-ai/models/${modelId}`,
+      model: `deepseek-ai/${modelId}`,
       messages: request.messages,
       temperature: request.temperature ?? 0.4,
       max_tokens: request.max_tokens ?? 32768,
