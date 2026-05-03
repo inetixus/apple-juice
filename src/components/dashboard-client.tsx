@@ -1316,8 +1316,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         signal: abortControllerRef.current.signal,
       });
 
-      setThinkingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
-
       if (response.headers.get("Content-Type")?.includes("text/event-stream")) {
         const reader = response.body?.getReader();
         if (!reader) throw new Error("Failed to read stream body");
@@ -1353,7 +1351,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 try {
                   const data = JSON.parse(dataStr);
                   const delta = data.choices?.[0]?.delta?.content || "";
-                  const reasoning = data.choices?.[0]?.delta?.reasoning_content || "";
+                  const reasoning = data.choices?.[0]?.delta?.reasoning_content || data.choices?.[0]?.delta?.reasoning || data.choices?.[0]?.delta?.thinking || "";
                   
                   if (reasoning) {
                     setThinkingSteps((prev) => {
@@ -1361,7 +1359,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                       if (index !== -1) {
                          const newSteps = [...prev];
                          const snippet = reasoning.length > 50 ? "..." + reasoning.substring(reasoning.length - 50) : reasoning;
-                         newSteps[index] = { ...newSteps[index], label: `Reasoning: ${snippet.replace(/\n/g, " ")}` };
+                         newSteps[index] = { ...newSteps[index], label: `Reasoning: ${snippet.replace(/\n/g, " ")}`, done: false };
                          return newSteps;
                       }
                       return prev;
@@ -1385,6 +1383,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               }
             }
           }
+          
+          // Mark steps as done only after stream completes
+          setThinkingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
 
           // Process the finalized content for scripts
           const result = parseChatResponse(accumulated);
