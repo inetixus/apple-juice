@@ -296,7 +296,7 @@ async function relayToVertexDeepSeek(
       model: modelId,
       messages: request.messages,
       temperature: request.temperature ?? 0.4,
-      max_tokens: Math.min(request.max_tokens ?? 32768, 16384),
+      max_tokens: Math.min(request.max_tokens ?? 32768, 32768),
       stream: !!request.stream,
     };
 
