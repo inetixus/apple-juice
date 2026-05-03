@@ -949,7 +949,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             
             const scripts: any[] = [];
             // Look for script blocks: { "action":..., "type":..., "parent":..., "name":..., "code":... }
-            const scriptBlocks = cleaned.match(/\{\s*"action"[\s\S]*?(?:\}\s*(?=[,\]]|$)|\s*$)/g);
+            const scriptBlocks = cleaned.match(/\{\s*"name"\s*:\s*"[^"]+"[\s\S]*?(?:\}\s*(?=[,\]]|$)|\s*$)/g);
             if (scriptBlocks) {
                 for (const block of scriptBlocks) {
                     try {
@@ -994,10 +994,15 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       pendingSync: boolean,
       isHidden: boolean = false,
     ): ChatMessage {
+      const scriptCount = p.scripts?.length || (p.scriptName ? 1 : 0);
+      const defaultMsg = scriptCount > 0 
+        ? `I've generated ${scriptCount} script${scriptCount > 1 ? 's' : ''} for your system. You can review them below.`
+        : "Here is the code you requested.";
+
       return {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: p.message || "Here is the code you requested.",
+        content: p.message || defaultMsg,
         isHidden,
         script:
           !p.scripts && p.scriptName
@@ -1459,10 +1464,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     let extractedThinking = "";
                     
                     // If the response looks like a JSON object (common for structured DeepSeek output)
-                    if (accumulated.trim().startsWith("{")) {
+                    if (accumulated.trim().startsWith("{") || accumulated.trim().startsWith("```json")) {
                         try {
+                            const cleanAccumulated = accumulated.trim().replace(/^```json\s*/, "");
+                            
                             // Extract "thinking": "..." field
-                            const thinkingMatch = accumulated.match(/"thinking"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+                            const thinkingMatch = cleanAccumulated.match(/"thinking"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
                             if (thinkingMatch) {
                                 extractedThinking = thinkingMatch[1]
                                     .replace(/\\n/g, "\n")
@@ -1471,7 +1478,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                             }
                             
                             // Extract "message": "..." field
-                            const messageMatch = accumulated.match(/"message"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+                            const messageMatch = cleanAccumulated.match(/"message"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
                             if (messageMatch) {
                                 displayContent = messageMatch[1]
                                     .replace(/\\n/g, "\n")
@@ -1479,8 +1486,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                     .replace(/\\\\/g, "\\");
                             } else {
                                 // If we're still in the middle of "thinking" and haven't hit "message" yet, 
-                                // show a "Generating..." placeholder for the message
-                                displayContent = extractedThinking ? "..." : "";
+                                // show a progress indicator
+                                const scriptCount = (cleanAccumulated.match(/"name"\s*:/g) || []).length;
+                                if (scriptCount > 0) {
+                                    displayContent = `🏗️ Building system (${scriptCount} script${scriptCount > 1 ? 's' : ''} generated so far)...`;
+                                } else {
+                                    displayContent = "🧠 Thinking...";
+                                }
                             }
                         } catch (e) {
                             // Fallback to raw if regex fails
