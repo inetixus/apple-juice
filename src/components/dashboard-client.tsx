@@ -968,11 +968,13 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 }
             }
             
-            return {
+            const recoveredObj = {
                 message: (messageMatch?.[1] || "The response was truncated, but I've recovered the scripts generated so far.").replace(/\\n/g, '\n').replace(/\\"/g, '"'),
                 thinking: (thinkingMatch?.[1] || "").replace(/\\n/g, '\n').replace(/\\"/g, '"'),
-                scripts: scripts.length > 0 ? scripts : undefined
+                scripts: scripts.length > 0 ? scripts : undefined,
+                suggestions: ["Continue generating"]
             };
+            return recoveredObj;
         }
       }
     }
