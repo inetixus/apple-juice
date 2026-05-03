@@ -69,7 +69,7 @@ const MODEL_ID_MAP: Record<string, string> = {
   "Gemini 2.0 Flash":         "gemini-2.0-flash",
   "Gemini 3.1 Pro (Preview)": "gemini-3.1-pro-preview",
   "Gemini 3 Flash (Preview)": "gemini-3-flash-preview",
-  "DeepSeek V3":              "deepseek-v3",
+  "DeepSeek V3":              "deepseek-v3.2-maas",
   "DeepSeek R1":              "deepseek-r1",
 };
 
@@ -263,10 +263,10 @@ async function relayToVertexDeepSeek(
   const modelName = request.model || "DeepSeek V3";
   const isR1 = modelName.toLowerCase().includes("r1");
   
-  // DeepSeek is available in us-central1 and europe-west4. us-central1 is the most stable.
-  const region = "us-central1";
-  const modelId = isR1 ? "deepseek-r1" : "deepseek-v3";
-  const baseUrl = `${region}-aiplatform.googleapis.com`;
+  // R1 is best in us-central1, V3 is best in global for reliability (MaaS)
+  const region = isR1 ? "us-central1" : "global";
+  const modelId = isR1 ? "deepseek-r1" : "deepseek-v3.2-maas";
+  const baseUrl = region === "global" ? "aiplatform.googleapis.com" : `${region}-aiplatform.googleapis.com`;
 
   try {
     const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_PATH;
