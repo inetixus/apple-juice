@@ -949,8 +949,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             const messageMatch = cleaned.match(/"message"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
             
             const scripts: any[] = [];
-            // Look for script blocks: { "action":..., "type":..., "parent":..., "name":..., "code":... }
-            const scriptBlocks = cleaned.match(/\{\s*"name"\s*:\s*"[^"]+"[\s\S]*?(?:\}\s*(?=[,\]]|$)|\s*$)/g);
+            // Flexible script block detection: matches any object that contains a "name" field
+            const scriptBlocks = cleaned.match(/\{\s*"[^"]+"\s*:\s*"[^"]+"[\s\S]*?(?:"name"\s*:\s*"[^"]+")[\s\S]*?(?:\}\s*(?=[,\]]|$)|\s*$)/g);
             if (scriptBlocks) {
                 for (const block of scriptBlocks) {
                     try {
@@ -961,17 +961,35 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         const s = JSON.parse(b);
                         if (s.name && (s.code || s.action === "delete")) scripts.push(s);
                     } catch {
-                        // Regex fallback for the block itself
+                        // Regex fallback for the block itself - very aggressive
                         const name = block.match(/"name"\s*:\s*"([^"]+)"/)?.[1];
                         const parent = block.match(/"parent"\s*:\s*"([^"]+)"/)?.[1];
                         const type = block.match(/"type"\s*:\s*"([^"]+)"/)?.[1];
-                        const codeMatch = block.match(/"code"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
-                        if (name && (codeMatch || block.includes('"action":"delete"'))) {
+                        const action = block.match(/"action"\s*:\s*"([^"]+)"/)?.[1];
+                        
+                        // Extract code more aggressively: everything after "code": " until the end of the block
+                        let code = "";
+                        const codeStart = block.indexOf('"code"');
+                        if (codeStart !== -1) {
+                            const firstQuoteAfterCode = block.indexOf('"', codeStart + 8);
+                            if (firstQuoteAfterCode !== -1) {
+                                // Find the end: either the next unescaped quote, or the end of the block
+                                let content = block.substring(firstQuoteAfterCode + 1);
+                                const nextQuote = content.match(/[^\\]"/);
+                                if (nextQuote) {
+                                    content = content.substring(0, nextQuote.index! + 1);
+                                }
+                                code = content.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+                            }
+                        }
+
+                        if (name && (code || action === "delete")) {
                             scripts.push({
                                 name,
                                 parent: parent || "ServerScriptService",
                                 type: type || "Script",
-                                code: codeMatch ? codeMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\') : ""
+                                action: action || "create",
+                                code: code
                             });
                         }
                     }
