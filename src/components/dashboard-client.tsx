@@ -1548,6 +1548,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               }
             }
           }
+        }
           
           // Mark steps as done only after stream completes
           setThinkingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
