@@ -1368,12 +1368,58 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
 
                   if (delta) {
                     accumulated += delta;
+                    
+                    let displayContent = accumulated;
+                    let extractedThinking = "";
+                    
+                    // If the response looks like a JSON object (common for structured DeepSeek output)
+                    if (accumulated.trim().startsWith("{")) {
+                        try {
+                            // Extract "thinking": "..." field
+                            const thinkingMatch = accumulated.match(/"thinking"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+                            if (thinkingMatch) {
+                                extractedThinking = thinkingMatch[1]
+                                    .replace(/\\n/g, "\n")
+                                    .replace(/\\"/g, '"')
+                                    .replace(/\\\\/g, "\\");
+                            }
+                            
+                            // Extract "message": "..." field
+                            const messageMatch = accumulated.match(/"message"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+                            if (messageMatch) {
+                                displayContent = messageMatch[1]
+                                    .replace(/\\n/g, "\n")
+                                    .replace(/\\"/g, '"')
+                                    .replace(/\\\\/g, "\\");
+                            } else {
+                                // If we're still in the middle of "thinking" and haven't hit "message" yet, 
+                                // show a "Generating..." placeholder for the message
+                                displayContent = extractedThinking ? "..." : "";
+                            }
+                        } catch (e) {
+                            // Fallback to raw if regex fails
+                        }
+                    }
+
+                    if (extractedThinking) {
+                        setThinkingSteps((prev) => {
+                          const index = prev.findIndex(s => s.icon === "reasoning");
+                          if (index !== -1) {
+                             const newSteps = [...prev];
+                             const snippet = extractedThinking.length > 50 ? "..." + extractedThinking.substring(extractedThinking.length - 50) : extractedThinking;
+                             newSteps[index] = { ...newSteps[index], label: `Reasoning: ${snippet.replace(/\n/g, " ")}`, done: false };
+                             return newSteps;
+                          }
+                          return prev;
+                        });
+                    }
+
                     setMessages((prev) => {
                       const last = prev[prev.length - 1];
                       if (last?.id === assistantMsgId) {
                         return [
                           ...prev.slice(0, -1),
-                          { ...last, content: accumulated },
+                          { ...last, content: displayContent, thinking: extractedThinking || last.thinking },
                         ];
                       }
                       return prev;
