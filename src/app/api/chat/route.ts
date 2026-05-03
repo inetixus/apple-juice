@@ -8,6 +8,8 @@ import {
   relayToAntigravity,
 } from "@/lib/antigravity";
 
+export const maxDuration = 60;
+
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 type ChatBody = {

@@ -890,16 +890,91 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     isHidden: boolean = false,
   ) {
     function parseChatResponse(text: string): any {
-      const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      let cleaned = text.trim();
+      
+      // Remove markdown fences
+      const match = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
       if (match) {
-        try {
-          return JSON.parse(match[1].trim());
-        } catch (e) {}
+        cleaned = match[1].trim();
       }
+
       try {
-        return JSON.parse(text.trim());
-      } catch (e) {}
-      return { message: text };
+        return JSON.parse(cleaned);
+      } catch (e) {
+        // Truncated JSON recovery logic
+        console.warn("[AppleJuice] Truncated JSON detected, attempting recovery...");
+        
+        let recovered = cleaned;
+        
+        // If it looks like it was cut off inside a string (odd number of quotes)
+        const quoteCount = (recovered.match(/"/g) || []).length;
+        const escapedQuoteCount = (recovered.match(/\\"/g) || []).length;
+        if ((quoteCount - escapedQuoteCount) % 2 !== 0) {
+            recovered += '"';
+        }
+        
+        // Count braces and brackets
+        let openBraces = (recovered.match(/\{/g) || []).length;
+        let closeBraces = (recovered.match(/\}/g) || []).length;
+        let openBrackets = (recovered.match(/\[/g) || []).length;
+        let closeBrackets = (recovered.match(/\]/g) || []).length;
+        
+        // Close brackets first
+        while (openBrackets > closeBrackets) {
+            recovered += ']';
+            closeBrackets++;
+        }
+        
+        // Close braces
+        while (openBraces > closeBraces) {
+            recovered += '}';
+            closeBraces++;
+        }
+        
+        try {
+            return JSON.parse(recovered);
+        } catch (e2) {
+            // Aggressive regex-based extraction for badly mangled/truncated JSON
+            const thinkingMatch = cleaned.match(/"thinking"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+            const messageMatch = cleaned.match(/"message"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+            
+            const scripts: any[] = [];
+            // Look for script blocks: { "action":..., "type":..., "parent":..., "name":..., "code":... }
+            const scriptBlocks = cleaned.match(/\{\s*"action"[\s\S]*?\}\s*(?=[,\]]|$)/g);
+            if (scriptBlocks) {
+                for (const block of scriptBlocks) {
+                    try {
+                        let b = block.trim();
+                        // Fix truncated block
+                        if (b.split('"').length % 2 === 0) b += '"';
+                        if ((b.match(/\{/g) || []).length > (b.match(/\}/g) || []).length) b += '}';
+                        const s = JSON.parse(b);
+                        if (s.name && (s.code || s.action === "delete")) scripts.push(s);
+                    } catch {
+                        // Regex fallback for the block itself
+                        const name = block.match(/"name"\s*:\s*"([^"]+)"/)?.[1];
+                        const parent = block.match(/"parent"\s*:\s*"([^"]+)"/)?.[1];
+                        const type = block.match(/"type"\s*:\s*"([^"]+)"/)?.[1];
+                        const codeMatch = block.match(/"code"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+                        if (name && (codeMatch || block.includes('"action":"delete"'))) {
+                            scripts.push({
+                                name,
+                                parent: parent || "ServerScriptService",
+                                type: type || "Script",
+                                code: codeMatch ? codeMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\') : ""
+                            });
+                        }
+                    }
+                }
+            }
+            
+            return {
+                message: (messageMatch?.[1] || "The response was truncated, but I've recovered the scripts generated so far.").replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+                thinking: (thinkingMatch?.[1] || "").replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+                scripts: scripts.length > 0 ? scripts : undefined
+            };
+        }
+      }
     }
 
     function buildAssistantMessage(
