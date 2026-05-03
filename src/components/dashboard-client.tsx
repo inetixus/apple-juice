@@ -159,6 +159,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [juiceHistory, setJuiceHistory] = useState<
     { model: string; prompt: string; mlUsed: number; time: number }[]
   >([]);
+  const [continuationCount, setContinuationCount] = useState(0);
 
   const examplePrompts = useMemo(
     () => [
@@ -996,8 +997,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     ): ChatMessage {
       const scriptCount = p.scripts?.length || (p.scriptName ? 1 : 0);
       const defaultMsg = scriptCount > 0 
-        ? `I've generated ${scriptCount} script${scriptCount > 1 ? 's' : ''} for your system. You can review them below.`
-        : "The AI was interrupted before it could finish generating the scripts. This is usually due to a 10-second platform timeout. Please click 'Continue generating' below to resume.";
+        ? `I've generated ${scriptCount} script${scriptCount > 1 ? 's' : ''} for your system. You can review them below. (The AI hit a limit, so some parts might be missing)`
+        : "The AI was interrupted before it could finish the scripts. You can click 'Continue generating' below to have it pick up right where it left off.";
 
       return {
         id: crypto.randomUUID(),
@@ -1537,6 +1538,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           setAttachedFiles([]);
           setAttachedAsset(null);
 
+          const isTruncated = accumulated.trim().endsWith('...') || 
+                             (accumulated.match(/\{/g) || []).length > (accumulated.match(/\}/g) || []).length ||
+                             (accumulated.match(/\[/g) || []).length > (accumulated.match(/\]/g) || []).length;
+
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last?.id === assistantMsgId) {
@@ -1556,6 +1561,17 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             }
             return prev;
           });
+
+          // Automatic Continuation Logic
+          if (isTruncated && continuationCount < 3) {
+              setContinuationCount(prev => prev + 1);
+              console.log(`[AppleJuice] Auto-continuing (Attempt ${continuationCount + 1}/4)...`);
+              setTimeout(() => {
+                  void submitPrompt("Continue generating", true);
+              }, 1000);
+          } else {
+              setContinuationCount(0);
+          }
         } finally {
           setIsGenerating(false);
           playSound("success");
