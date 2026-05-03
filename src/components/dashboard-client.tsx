@@ -949,7 +949,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             
             const scripts: any[] = [];
             // Look for script blocks: { "action":..., "type":..., "parent":..., "name":..., "code":... }
-            const scriptBlocks = cleaned.match(/\{\s*"action"[\s\S]*?\}\s*(?=[,\]]|$)/g);
+            const scriptBlocks = cleaned.match(/\{\s*"action"[\s\S]*?(?:\}\s*(?=[,\]]|$)|\s*$)/g);
             if (scriptBlocks) {
                 for (const block of scriptBlocks) {
                     try {

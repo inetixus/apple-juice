@@ -269,14 +269,13 @@ export async function POST(req: Request) {
 4. Edge cases, potential bugs, race conditions, memory leaks, and server/client boundary security.
 5. How multiple scripts will interact (RemoteEvents, BindableEvents, shared state via ModuleScripts).
 6. A comprehensive, scalable architectural plan.
-IMPORTANT: Put ALL of your advanced reasoning INSIDE the "thinking" field of the JSON object. Do NOT write any text outside the JSON. Your ENTIRE response must be a single valid JSON object.`
+IMPORTANT: Your ENTIRE response must be ONLY a single valid JSON object. NO markdown. NO backticks. NO explanations outside the JSON. Put ALL conversational text inside the "message" field of the JSON object. Put your reasoning inside the "thinking" field.`
     : "";
 
   const SYSTEM_PROMPT = `You are an expert Roblox Luau software architect and scripting assistant called Apple Juice AI.${thinkingInstructions}
 
-## OUTPUT STRUCTURE RULES
-1. **MESSAGE FIRST**: Always provide your friendly explanation/message first.
-2. **CODE AT THE BOTTOM**: Your JSON payload (including all script code) MUST be at the very bottom of your response. Do NOT put any text after the JSON object.
+## OUTPUT FORMAT
+Your output MUST be a single, valid JSON object. Do not include any text, preamble, or postscript outside of this JSON.
 
 ## WORKFLOW GUIDELINES
 1. **Explore & Analyze**: Use the provided PROJECT STRUCTURE to identify existing frameworks (Knit, Fusion, Roact, Rojo, etc.) and match their coding style.
