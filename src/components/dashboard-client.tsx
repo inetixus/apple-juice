@@ -1437,16 +1437,20 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         const decoder = new TextDecoder();
         let accumulated = "";
 
-        const assistantMsgId = crypto.randomUUID();
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: assistantMsgId,
-            role: "assistant",
-            content: "",
-            pendingSync: false,
-          },
-        ]);
+        const lastAssistantMsg = [...messages].reverse().find(m => m.role === "assistant");
+        const assistantMsgId = (continuationRef.current > 0 && lastAssistantMsg) ? lastAssistantMsg.id : crypto.randomUUID();
+        
+        if (continuationRef.current === 0 || !lastAssistantMsg) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: assistantMsgId,
+              role: "assistant",
+              content: "",
+              pendingSync: false,
+            },
+          ]);
+        }
 
         let buffer = "";
         try {
@@ -1570,21 +1574,41 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                              (accumulated.match(/\[/g) || []).length > (accumulated.match(/\]/g) || []).length;
 
           setMessages((prev) => {
-            const last = prev[prev.length - 1];
-            if (last?.id === assistantMsgId) {
+            const index = prev.findIndex(m => m.id === assistantMsgId);
+            if (index !== -1) {
+              const last = prev[index];
               const structured = buildAssistantMessage(
                 result,
                 payloadFiles,
                 true,
               );
-              return [
-                ...prev.slice(0, -1),
-                {
-                  ...last,
-                  ...structured,
-                  content: structured.content || accumulated,
-                },
-              ];
+              
+              let mergedScripts = structured.scripts || [];
+              let mergedContent = structured.content || (structured.script ? "" : accumulated);
+              
+              if (continuationRef.current > 0) {
+                  // Merge scripts
+                  const existingScripts = last.scripts || (last.script ? [last.script] : []);
+                  const existingNames = new Set(existingScripts.map(s => s.name));
+                  const newScripts = (structured.scripts || []).filter(s => !existingNames.has(s.name));
+                  mergedScripts = [...existingScripts, ...newScripts];
+                  
+                  // Merge content/message
+                  if (structured.content && !last.content.includes(structured.content)) {
+                      mergedContent = last.content + "\n\n" + structured.content;
+                  } else {
+                      mergedContent = last.content;
+                  }
+              }
+
+              const newMsgs = [...prev];
+              newMsgs[index] = {
+                ...last,
+                ...structured,
+                scripts: mergedScripts,
+                content: mergedContent,
+              };
+              return newMsgs;
             }
             return prev;
           });

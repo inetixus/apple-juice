@@ -343,6 +343,16 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
       apiMessages.push({ role: "user", content: prompt });
     }
 
+  // Handle continuation hints for large systems
+  const isContinuation = apiMessages.length > 0 && apiMessages[apiMessages.length - 1].content.toLowerCase().includes("continue generating");
+  if (isContinuation) {
+    // Inject a system hint to the last message or as a new system message
+    apiMessages.push({
+      role: "system",
+      content: "CRITICAL: The previous response was truncated. Please provide ONLY the remaining scripts or fields that were not finished. Do NOT repeat scripts you already provided. Start directly with the next script in the JSON 'scripts' array."
+    });
+  }
+
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
