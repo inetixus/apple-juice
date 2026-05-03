@@ -122,6 +122,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const lastPollRef = useRef<number>(0);
+  const lastUpdateRef = useRef<number>(0);
   const codeConsumedRef = useRef<boolean>(false);
   const lastReportedErrorRef = useRef<string | null>(null);
 
@@ -1479,68 +1480,69 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   if (delta) {
                     accumulated += delta;
                     
-                    let displayContent = accumulated;
-                    let extractedThinking = "";
-                    
-                    // If the response looks like a JSON object (common for structured DeepSeek output)
-                    if (accumulated.trim().startsWith("{") || accumulated.trim().startsWith("```json")) {
-                        try {
-                            const cleanAccumulated = accumulated.trim().replace(/^```json\s*/, "");
-                            
-                            // Extract "thinking": "..." field
-                            const thinkingMatch = cleanAccumulated.match(/"thinking"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
-                            if (thinkingMatch) {
-                                extractedThinking = thinkingMatch[1]
-                                    .replace(/\\n/g, "\n")
-                                    .replace(/\\"/g, '"')
-                                    .replace(/\\\\/g, "\\");
-                            }
-                            
-                            // Extract "message": "..." field
-                            const messageMatch = cleanAccumulated.match(/"message"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
-                            if (messageMatch) {
-                                displayContent = messageMatch[1]
-                                    .replace(/\\n/g, "\n")
-                                    .replace(/\\"/g, '"')
-                                    .replace(/\\\\/g, "\\");
-                            } else {
-                                // If we're still in the middle of "thinking" and haven't hit "message" yet, 
-                                // show a progress indicator
-                                const scriptCount = (cleanAccumulated.match(/"name"\s*:/g) || []).length;
-                                if (scriptCount > 0) {
-                                    displayContent = `🏗️ Building system (${scriptCount} script${scriptCount > 1 ? 's' : ''} generated so far)...`;
-                                } else {
-                                    displayContent = "🧠 Thinking...";
-                                }
-                            }
-                        } catch (e) {
-                            // Fallback to raw if regex fails
-                        }
-                    }
+                    // THROTTLE UI UPDATES (Every 100ms) to prevent lag
+                    const now = Date.now();
+                    if (now - lastUpdateRef.current > 100) {
+                      lastUpdateRef.current = now;
 
-                    if (extractedThinking) {
-                        setThinkingSteps((prev) => {
-                          const index = prev.findIndex(s => s.icon === "reasoning");
-                          if (index !== -1) {
-                             const newSteps = [...prev];
-                             const snippet = extractedThinking.length > 50 ? "..." + extractedThinking.substring(extractedThinking.length - 50) : extractedThinking;
-                             newSteps[index] = { ...newSteps[index], label: `Reasoning: ${snippet.replace(/\n/g, " ")}`, done: false };
-                             return newSteps;
-                          }
-                          return prev;
-                        });
-                    }
-
-                    setMessages((prev) => {
-                      const last = prev[prev.length - 1];
-                      if (last?.id === assistantMsgId) {
-                        return [
-                          ...prev.slice(0, -1),
-                          { ...last, content: displayContent, thinking: extractedThinking || last.thinking },
-                        ];
+                      let displayContent = accumulated;
+                      let extractedThinking = "";
+                      
+                      // If the response looks like a JSON object
+                      if (accumulated.trim().startsWith("{") || accumulated.trim().startsWith("```json")) {
+                          try {
+                              const cleanAccumulated = accumulated.trim().replace(/^```json\s*/, "");
+                              
+                              // Extract "thinking": "..." field
+                              const thinkingMatch = cleanAccumulated.match(/"thinking"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+                              if (thinkingMatch) {
+                                  extractedThinking = thinkingMatch[1]
+                                      .replace(/\\n/g, "\n")
+                                      .replace(/\\"/g, '"')
+                                      .replace(/\\\\/g, "\\");
+                              }
+                              
+                              // Extract "message": "..." field
+                              const messageMatch = cleanAccumulated.match(/"message"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+                              if (messageMatch) {
+                                  displayContent = messageMatch[1]
+                                      .replace(/\\n/g, "\n")
+                                      .replace(/\\"/g, '"')
+                                      .replace(/\\\\/g, "\\");
+                              } else {
+                                  const scriptCount = (cleanAccumulated.match(/"name"\s*:/g) || []).length;
+                                  if (scriptCount > 0) {
+                                      displayContent = `🏗️ Building system (${scriptCount} script${scriptCount > 1 ? 's' : ''} generated so far)...`;
+                                  } else {
+                                      displayContent = "🧠 Thinking...";
+                                  }
+                              }
+                          } catch (e) {}
                       }
-                      return prev;
-                    });
+
+                      if (extractedThinking) {
+                          setThinkingSteps((prev) => {
+                            const index = prev.findIndex(s => s.icon === "reasoning");
+                            if (index !== -1) {
+                               const newSteps = [...prev];
+                               const snippet = extractedThinking.length > 50 ? "..." + extractedThinking.substring(extractedThinking.length - 50) : extractedThinking;
+                               newSteps[index] = { ...newSteps[index], label: `Reasoning: ${snippet.replace(/\n/g, " ")}`, done: false };
+                               return newSteps;
+                            }
+                            return prev;
+                          });
+                      }
+
+                      setMessages((prev) => {
+                        const last = prev[prev.length - 1];
+                        if (last?.id === assistantMsgId) {
+                          return [
+                            ...prev.slice(0, -1),
+                            { ...last, content: displayContent, thinking: extractedThinking || last.thinking },
+                          ];
+                        }
+                        return prev;
+                      });
                   }
                 } catch (e) {}
               }
