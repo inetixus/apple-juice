@@ -1543,12 +1543,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         }
                         return prev;
                       });
+                    }
                   }
                 } catch (e) {}
               }
             }
           }
-        }
           
           // Mark steps as done only after stream completes
           setThinkingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
