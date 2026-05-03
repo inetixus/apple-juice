@@ -98,6 +98,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const isAutoFixingRef = useRef(false);
   const [isPluginConnected, setIsPluginConnected] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  
+  // Keep ref in sync for closures (e.g. submitPrompt called from intervals)
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const [pluginStatus, setPluginStatus] = useState(
     "Idle. Connect your plugin using the session key below.",
   );
@@ -1132,7 +1138,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     abortControllerRef.current = new AbortController();
 
     let messageId = "";
-    let contextMessages = messages;
+    let contextMessages = messagesRef.current;
 
     if (!isRetry) {
       const generateId = () => {
@@ -1157,16 +1163,16 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       };
 
       messageId = userMessage.id;
-      contextMessages = [...messages, userMessage];
+      contextMessages = [...messagesRef.current, userMessage];
       setMessages(contextMessages);
       setPrompt("");
       setLastError(null);
       lastPromptRef.current = trimmed;
     } else {
       // Find the ID of the existing message we're retrying for
-      const lastUser = [...messages].reverse().find((m) => m.role === "user");
+      const lastUser = [...messagesRef.current].reverse().find((m) => m.role === "user");
       messageId = lastUser?.id || "";
-      contextMessages = messages;
+      contextMessages = messagesRef.current;
     }
 
     setIsGenerating(true);
@@ -1463,7 +1469,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         const decoder = new TextDecoder();
         let accumulated = "";
 
-        const lastAssistantMsg = [...messages].reverse().find(m => m.role === "assistant");
+        const lastAssistantMsg = [...messagesRef.current].reverse().find(m => m.role === "assistant");
         const assistantMsgId = (continuationRef.current > 0 && lastAssistantMsg) ? lastAssistantMsg.id : crypto.randomUUID();
         
         if (continuationRef.current === 0 || !lastAssistantMsg) {
