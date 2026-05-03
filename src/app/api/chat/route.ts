@@ -486,12 +486,22 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     if (isDeepSeek && agResult.ok && agResult.stream) {
       // Use a TransformStream to track when the stream ends and decrement the counter
       const originalStream = agResult.stream.body!;
+      let totalBytes = 0;
       const transformStream = new TransformStream({
         transform(chunk, controller) {
+          totalBytes += chunk.length;
           controller.enqueue(chunk);
         },
-        flush() {
+        async flush() {
           void decrementActiveGenerations();
+          
+          // Track usage even if truncated or aborted
+          if (!isUsingCustomKey && ownerUserId) {
+            const inputTk = Math.ceil((prompt?.length || 0) / 4);
+            const outputTk = Math.ceil(totalBytes / 4);
+            const mlUsed = calculateMlUsed(inputTk, outputTk, effectiveModel);
+            await trackMlUsage(ownerUserId, mlUsed);
+          }
         }
       });
 
