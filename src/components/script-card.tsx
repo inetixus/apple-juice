@@ -93,6 +93,15 @@ const typeIconMap: Record<string, any> = {
 
 export function ScriptCard({ script }: { script: ScriptMeta }) {
   const [expanded, setExpanded] = useState(false);
+  
+  if (!script || typeof script !== "object") {
+    return (
+      <div className="mt-3 p-3 rounded border border-red-500/20 bg-red-500/5 text-xs text-red-400">
+        [Malformed script payload received from AI]
+      </div>
+    );
+  }
+
   const isDelete = script.action === "delete";
   const isAsset = script.action === "insert_asset";
 
