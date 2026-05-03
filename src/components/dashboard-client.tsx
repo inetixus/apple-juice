@@ -138,6 +138,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const lastPromptRef = useRef<string>("");
   const [autoEnhance, setAutoEnhance] = useState(false);
   const [autoRetry, setAutoRetry] = useState(false);
+  const [autoPlaytest, setAutoPlaytest] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   // Feature: Asset search
   const [assetQuery, setAssetQuery] = useState("");
@@ -487,8 +488,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
     void loadModels(effectiveKey, savedModel);
 
     const savedAutoRetry =
-      window.localStorage.getItem("apple-juice-auto-retry") === "true";
+      localStorage.getItem("aj_auto_retry") === "true";
     setAutoRetry(savedAutoRetry);
+    const savedAutoPlaytest = localStorage.getItem("aj_auto_playtest") === "true";
+    setAutoPlaytest(savedAutoPlaytest);
 
     void fetchUsage();
 
@@ -1612,6 +1615,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   }
               }
 
+              let finalScriptsToSync: any[] = [];
               const newMsgs = [...prev];
               newMsgs[index] = {
                 ...last,
@@ -1619,6 +1623,18 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 scripts: mergedScripts,
                 content: mergedContent,
               };
+              finalScriptsToSync = mergedScripts;
+              
+              // Update ref for auto-fix context
+              if (finalScriptsToSync.length > 0) {
+                  lastGeneratedScriptsRef.current = finalScriptsToSync.map((s: any) => ({
+                      name: s.name,
+                      type: s.type,
+                      parent: s.parent,
+                      code: s.code || "",
+                  }));
+              }
+              
               return newMsgs;
             }
             return prev;
@@ -1637,6 +1653,22 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               }, 1000);
           } else {
               continuationRef.current = 0;
+              
+              // Auto Playtest Logic
+              if (autoPlaytest && lastGeneratedScriptsRef.current.length > 0) {
+                  showToast("Auto-syncing and starting playtest...", "info");
+                  const endpoint = "/api/revert-code";
+                  const body = { sessionKey, scripts: lastGeneratedScriptsRef.current };
+                  fetch(endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                  }).then(res => {
+                      if (res.ok) {
+                          setMessages((msgs) => msgs.map((m) => m.id === assistantMsgId ? { ...m, pendingSync: false } : m));
+                      }
+                  });
+              }
           }
         } finally {
           setIsGenerating(false);
@@ -2282,8 +2314,6 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               ))}
             </div>
           )}
-
-          {/* Settings removed from sidebar per user request */}
 
           {/* Plugin Status Summary */}
           <div className="bg-white/[0.03] border border-white/[0.04] rounded-xl p-3">
@@ -3543,6 +3573,41 @@ Provide a structured report with scores (0-100) and specific improvement tasks.`
               <label className="text-[10px] font-black text-[#ccff00] uppercase tracking-[0.2em] block mb-2 opacity-50">
                 Admin Debug Tools (Persisted)
               </label>
+              
+              <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-white">Auto-Retry on API Failure</span>
+                  <span className="text-xs text-white/50">Automatically retry prompt if Claude/DeepSeek crashes</span>
+                </div>
+                <div 
+                  className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${autoRetry ? 'bg-[#ccff00]' : 'bg-white/20'}`}
+                  onClick={() => {
+                    const next = !autoRetry;
+                    setAutoRetry(next);
+                    localStorage.setItem("aj_auto_retry", String(next));
+                  }}
+                >
+                  <div className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${autoRetry ? 'translate-x-4.5' : 'translate-x-0'}`} />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-[#ccff00]">Autonomous Mode</span>
+                  <span className="text-xs text-white/50">Auto-sync code, auto-playtest, and auto-fix any bugs</span>
+                </div>
+                <div 
+                  className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${autoPlaytest ? 'bg-[#ccff00]' : 'bg-white/20'}`}
+                  onClick={() => {
+                    const next = !autoPlaytest;
+                    setAutoPlaytest(next);
+                    localStorage.setItem("aj_auto_playtest", String(next));
+                  }}
+                >
+                  <div className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${autoPlaytest ? 'translate-x-4.5' : 'translate-x-0'}`} />
+                </div>
+              </div>
+
               <div className="grid grid-cols-3 gap-2">
                 <button 
                   onClick={async () => {
