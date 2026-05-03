@@ -125,6 +125,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const lastUpdateRef = useRef<number>(0);
   const codeConsumedRef = useRef<boolean>(false);
   const lastReportedErrorRef = useRef<string | null>(null);
+  const continuationRef = useRef<number>(0);
 
   const stepTimeoutsRef = useRef<any[]>([]);
   const autoFixRetriesRef = useRef<number>(0);
@@ -160,7 +161,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
   const [juiceHistory, setJuiceHistory] = useState<
     { model: string; prompt: string; mlUsed: number; time: number }[]
   >([]);
-  const [continuationCount, setContinuationCount] = useState(0);
+
 
   const examplePrompts = useMemo(
     () => [
@@ -1070,6 +1071,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           ? overridePrompt?.text || lastPromptRef.current
           : prompt;
     const trimmed = targetPrompt.trim();
+    if (!isHidden) {
+      continuationRef.current = 0;
+    }
     console.log("[AppleJuice] Submit started", {
       trimmed,
       sessionKey,
@@ -1586,18 +1590,18 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           });
 
           // Automatic Continuation Logic
-          if (isTruncated && continuationCount < 3) {
-              setContinuationCount(prev => prev + 1);
-              console.log(`[AppleJuice] Auto-continuing (Attempt ${continuationCount + 1}/4)...`);
+          if (isTruncated && continuationRef.current < 3) {
+              continuationRef.current += 1;
+              console.log(`[AppleJuice] Auto-continuing (Attempt ${continuationRef.current}/4)...`);
               
-              showToast(`Continuing generation of large system (Part ${continuationCount + 2}/4)...`, "info");
-              setPluginStatus(`Continuing generation (Part ${continuationCount + 2}/4)...`);
+              showToast(`Continuing generation of large system (Part ${continuationRef.current + 1}/4)...`, "info");
+              setPluginStatus(`Continuing generation (Part ${continuationRef.current + 1}/4)...`);
               
               setTimeout(() => {
                   void submitPrompt("Continue generating", true);
               }, 1000);
           } else {
-              setContinuationCount(0);
+              continuationRef.current = 0;
           }
         } finally {
           setIsGenerating(false);
