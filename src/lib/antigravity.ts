@@ -263,7 +263,7 @@ async function relayToVertexDeepSeek(
   const modelName = request.model || "DeepSeek V3";
   const isR1 = modelName.toLowerCase().includes("r1");
   
-  // R1 and V3 MaaS models are most reliable in us-central1.
+  // R1 and V3 MaaS models are most reliable in us-central1 for streaming.
   const region = "us-central1";
   const modelId = isR1 ? "deepseek-r1" : "deepseek-v3";
   const baseUrl = `${region}-aiplatform.googleapis.com`;
@@ -288,12 +288,13 @@ async function relayToVertexDeepSeek(
 
     if (!token) throw new Error("Failed to generate Vertex AI access token.");
 
-    const projectId = (await auth.getProjectId()) || process.env.GOOGLE_CLOUD_PROJECT;
-    // Model-specific OpenAI-compatible endpoint
-    const url = `https://${baseUrl}/v1/projects/${projectId}/locations/${region}/publishers/deepseek-ai/models/${modelId}/chat/completions`;
+    // Using the numerical project ID is more reliable for certain Vertex AI endpoints
+    const projectId = "949365355104";
+    // Use the shared OpenAI-compatible endpoint for the region
+    const url = `https://${baseUrl}/v1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
 
     const payload = {
-      model: modelId,
+      model: `deepseek-ai/${modelId}`,
       messages: request.messages,
       temperature: request.temperature ?? 0.4,
       max_tokens: request.max_tokens ?? 32768,
