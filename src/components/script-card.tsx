@@ -168,8 +168,8 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
             'text-white'
           }`}>
             {isPlaytest ? "Run Playtest" : 
-             isRename ? `Rename ${script.oldPath?.split('.').pop()} → ${script.newName}` :
-             isMove ? `Move ${script.oldPath?.split('.').pop()} → ${script.newParentPath}` :
+             isRename ? `Rename ${script.oldPath?.split('.').pop() || "Object"} → ${script.newName}` :
+             isMove ? `Move ${script.oldPath?.split('.').pop() || "Object"} → ${script.newParentPath}` :
              isCreateInst ? `Create ${script.className}` :
              (script.name || "Unknown Script")}
           </p>
@@ -197,7 +197,7 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
           {script.originalCode ? (
             <div className="max-h-[500px] overflow-auto font-mono text-[13px] bg-[#050505] p-0 leading-relaxed">
               <div className="flex flex-col">
-                {Diff.diffLines(script.originalCode, script.code).map((part, index) => {
+                {Diff.diffLines(script.originalCode || "", script.code || "").map((part, index) => {
                   const colorClass = part.added ? "text-green-400" : part.removed ? "text-red-400" : "text-white/70";
                   const bgClass = part.added ? "bg-green-500/10" : part.removed ? "bg-red-500/10" : "";
                   const prefix = part.added ? "+ " : part.removed ? "- " : "  ";
@@ -235,7 +235,7 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
             <div className="max-h-[400px] overflow-auto font-mono text-[12px] bg-[#050505] p-3 leading-relaxed">
               <Highlight
                 theme={luauTheme}
-                code={script.code.trim()}
+                code={(script.code || "").trim()}
                 language="lua"
               >
                 {({ tokens, getLineProps, getTokenProps }) => (

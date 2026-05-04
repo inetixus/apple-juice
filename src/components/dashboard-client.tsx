@@ -1774,9 +1774,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       const typingInterval = setInterval(() => {
         setMessages((prev) => {
           const last = prev[prev.length - 1];
-          if (!last || last.role !== "assistant") return prev;
-          
-          if (currentIdx >= words.length) {
+          if (!last || last.role !== "assistant" || currentIdx >= words.length) {
             clearInterval(typingInterval);
             return prev;
           }

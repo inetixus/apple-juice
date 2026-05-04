@@ -76,6 +76,15 @@ export const MODEL_MULTIPLIERS: Record<string, number> = {
   "deepseek-r1": 2,
   "DeepSeek V3": 1,
   "DeepSeek R1": 2,
+  "Gemini 3.1 Pro": 5,
+  "Gemini 3.1 Flash": 1,
+  "Gemini 3.1 Flash-Lite": 0.5,
+  "Gemini 3 Pro": 4,
+  "Gemini 3 Flash": 1,
+  "Gemini 2.5 Pro": 4,
+  "Gemini 2.5 Flash": 1,
+  "Gemini 1.5 Pro": 4,
+  "Gemini 1.5 Flash": 1,
 };
 
 
