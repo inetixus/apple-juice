@@ -170,14 +170,14 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
             {isPlaytest ? "Run Playtest" : 
              isRename ? `Rename ${script.oldPath?.split('.').pop() || "Object"} → ${script.newName}` :
              isMove ? `Move ${script.oldPath?.split('.').pop() || "Object"} → ${script.newParentPath}` :
-             isCreateInst ? `Create ${script.className}` :
+             isCreateInst ? `Create ${script.className || script.type || "Instance"}` :
              (script.name || "Unknown Script")}
           </p>
           <p className="text-[10px] text-[#8a8f98] mt-0.5">
             {isDelete ? 'To be deleted' : 
              isAsset ? `Roblox Asset` : 
              isPlaytest ? 'Remote Studio Command' :
-             isCreateInst ? `Instance Name: ${script.instanceName}` :
+             isCreateInst ? `Instance Name: ${script.instanceName || script.name}` :
              isRename ? `From: ${script.oldPath}` :
              isMove ? `To: ${script.newParentPath}` :
              ((script.lineCount || 0) > 0 ? `${script.lineCount} lines · ` : '') + (script.type || 'Script') + ` · ${script.parent || "Workspace"}`}
