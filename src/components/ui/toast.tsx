@@ -43,7 +43,10 @@ function ToastItem({ toast, onDismiss }: { toast: ToastData; onDismiss: (id: str
 export function useToasts() {
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const show = useCallback((message: string, type: ToastData["type"] = "info") => {
-    setToasts((p) => [...p, { id: crypto.randomUUID(), message, type }]);
+    const id = (typeof crypto !== "undefined" && crypto.randomUUID) 
+      ? crypto.randomUUID() 
+      : Math.random().toString(36).substring(2) + Date.now().toString(36);
+    setToasts((p) => [...p, { id, message, type }]);
   }, []);
   const dismiss = useCallback((id: string) => {
     setToasts((p) => p.filter((t) => t.id !== id));

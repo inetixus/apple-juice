@@ -1052,7 +1052,9 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         : "The AI was interrupted before it could finish the scripts. You can click 'Continue generating' below to have it pick up right where it left off.";
 
       return {
-        id: crypto.randomUUID(),
+        id: (typeof crypto !== "undefined" && crypto.randomUUID) 
+            ? crypto.randomUUID() 
+            : Math.random().toString(36).substring(2) + Date.now().toString(36),
         role: "assistant",
         content: p.message || defaultMsg,
         isHidden,
@@ -1083,7 +1085,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
           originalCode: files.find(
             (f: any) => f.name === s.name || f.name === s.name + ".lua",
           )?.content,
-          requires: s.requires,
+          requires: s.requires || [],
         })),
         suggestions: p.suggestions,
         thinking: p.thinking,
@@ -1470,7 +1472,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         let accumulated = "";
 
         const lastAssistantMsg = [...messagesRef.current].reverse().find(m => m.role === "assistant");
-        const assistantMsgId = (continuationRef.current > 0 && lastAssistantMsg) ? lastAssistantMsg.id : crypto.randomUUID();
+        const generateId = () => (typeof crypto !== "undefined" && crypto.randomUUID) 
+          ? crypto.randomUUID() 
+          : Math.random().toString(36).substring(2) + Date.now().toString(36);
+        const assistantMsgId = (continuationRef.current > 0 && lastAssistantMsg) ? lastAssistantMsg.id : generateId();
         
         if (continuationRef.current === 0 || !lastAssistantMsg) {
           setMessages((prev) => [

@@ -51,11 +51,11 @@ export function SystemArchitecture({ scripts }: { scripts: ScriptMeta[] }) {
       scripts.forEach(script => {
         if (!script.requires || script.requires.length === 0) return;
         
-        const sourceEl = document.getElementById(`node-${script.name}`);
+        const sourceEl = document.getElementById(`node-${script.name.replace(/\s+/g, '-')}`);
         if (!sourceEl) return;
         
-        script.requires.forEach(req => {
-          const targetEl = document.getElementById(`node-${req}`) || document.getElementById(`node-${req}.lua`);
+        (script.requires || []).forEach(req => {
+          const targetEl = document.getElementById(`node-${req.replace(/\s+/g, '-')}`) || document.getElementById(`node-${req.replace(/\s+/g, '-')}.lua`);
           if (targetEl) {
             const sRect = sourceEl.getBoundingClientRect();
             const tRect = targetEl.getBoundingClientRect();
@@ -135,7 +135,7 @@ export function SystemArchitecture({ scripts }: { scripts: ScriptMeta[] }) {
               {roots.map(script => (
                 <div 
                   key={script.name}
-                  id={`node-${script.name}`}
+                  id={`node-${script.name.replace(/\s+/g, '-')}`}
                   onClick={() => {
                     const el = document.getElementById(`script-${script.name.replace(/\s+/g, '-')}`);
                     if (el) {
@@ -164,7 +164,7 @@ export function SystemArchitecture({ scripts }: { scripts: ScriptMeta[] }) {
                 {dependents.map(script => (
                   <div 
                     key={script.name}
-                    id={`node-${script.name}`}
+                    id={`node-${script.name.replace(/\s+/g, '-')}`}
                     onClick={() => {
                       const el = document.getElementById(`script-${script.name.replace(/\s+/g, '-')}`);
                       if (el) {
