@@ -1010,7 +1010,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         if (b.split('"').length % 2 === 0) b += '"';
                         if ((b.match(/\{/g) || []).length > (b.match(/\}/g) || []).length) b += '}';
                         const s = JSON.parse(b);
-                        if (s.name && (s.code || s.action === "delete")) scripts.push(s);
+                        if (s.name && (s.code || s.action === "delete" || s.action === "create_instance" || s.action === "rename_instance" || s.action === "move_instance")) scripts.push(s);
                     } catch {
                         // Regex fallback for the block itself - very aggressive
                         const name = block.match(/"name"\s*:\s*"([^"]+)"/)?.[1];
@@ -1040,7 +1040,12 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                                 parent: parent || "ServerScriptService",
                                 type: type || "Script",
                                 action: action || "create",
-                                code: code
+                                code: code,
+                                className: block.match(/"className"\s*:\s*"([^"]+)"/)?.[1],
+                                instanceName: block.match(/"instanceName"\s*:\s*"([^"]+)"/)?.[1],
+                                oldPath: block.match(/"oldPath"\s*:\s*"([^"]+)"/)?.[1],
+                                newName: block.match(/"newName"\s*:\s*"([^"]+)"/)?.[1],
+                                newParentPath: block.match(/"newParentPath"\s*:\s*"([^"]+)"/)?.[1],
                             });
                         }
                     }
@@ -1094,6 +1099,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                     f.name === p.scriptName ||
                     f.name === p.scriptName + ".lua",
                 )?.content,
+                className: p.className,
+                instanceName: p.instanceName,
+                oldPath: p.oldPath,
+                newName: p.newName,
+                newParentPath: p.newParentPath,
               }
             : undefined,
         scripts: p.scripts?.map((s: any, index: number) => ({
@@ -1107,6 +1117,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             (f: any) => f.name === s.name || f.name === s.name + ".lua",
           )?.content,
           requires: s.requires || [],
+          className: s.className,
+          instanceName: s.instanceName,
+          oldPath: s.oldPath,
+          newName: s.newName,
+          newParentPath: s.newParentPath,
         })),
         suggestions: p.suggestions,
         thinking: p.thinking,

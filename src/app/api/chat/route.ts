@@ -286,10 +286,11 @@ Scale the architecture: A professional system should have 5-10 specialized scrip
 You can manipulate the user's Studio environment using these actions in your "scripts" array:
 - "create": Create/update a script (default).
 - "delete": Remove an instance. Requires "name" and "parent".
-- "create_instance": Create a non-script object. Use {"action": "create_instance", "className": "Part", "instanceName": "MyPart", "parent": "Workspace", "properties": {"Color": "Color3.fromRGB(255,0,0)"}}.
+- "create_instance": Create a non-script object (UI, Folders, etc). For UI, use {"action": "create_instance", "className": "ScreenGui", "instanceName": "MainMenu", "parent": "StarterGui"}. For sub-elements, use {"action": "create_instance", "className": "Frame", "instanceName": "Container", "parent": "StarterGui.MainMenu"}. 
+- NOTE: Only create physical objects (Parts, Models) in Workspace if they are explicitly part of the feature (e.g., a 3D Background). For UI, stick to UI classes.
 - "rename_instance": Rename an object. Use {"action": "rename_instance", "oldPath": "Workspace.OldName", "newName": "NewName"}.
 - "move_instance": Move an object. Use {"action": "move_instance", "oldPath": "Workspace.MyPart", "newParentPath": "ServerStorage"}.
-- "run_playtest": Trigger a 6-second playtest to verify your work. Use this when you've finished a complex feature or are fixing a bug.
+- "run_playtest": Trigger a 6-second playtest. Use this when you've finished a complex feature.
 
 ## OUTPUT FORMAT
 Output ONLY a single JSON object. No markdown. No text outside JSON. NO CODE PLACEHOLDERS (e.g., "-- rest of code here"). You must ALWAYS output the full, functional script content.`
