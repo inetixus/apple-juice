@@ -128,11 +128,19 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -2 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className={`mt-3 rounded-2xl border ${isDelete ? 'border-red-500/20 bg-red-500/5' : isAsset ? 'border-purple-500/20 bg-purple-500/5' : 'border-white/10 bg-[#0a0c10] shadow-xl'} overflow-hidden transition-colors`}
+      className={`mt-3 rounded-2xl border ${
+        isDelete ? 'border-red-500/20 bg-red-500/5' : 
+        isAsset ? 'border-purple-500/20 bg-purple-500/5' : 
+        isPlaytest ? 'border-green-500/10 bg-green-500/5' :
+        isCreateInst ? 'border-blue-500/10 bg-blue-500/5' :
+        isRename ? 'border-amber-500/10 bg-amber-500/5' :
+        isMove ? 'border-indigo-500/10 bg-indigo-500/5' :
+        'border-white/10 bg-[#0a0c10] shadow-xl'
+      } overflow-hidden transition-colors`}
     >
       <button
-        onClick={() => !isDelete && !isAsset && setExpanded((e) => !e)}
-        className={`w-full flex items-center gap-2.5 px-3 py-2.5 ${(!isDelete && !isAsset) ? 'hover:bg-white/[0.03] cursor-pointer' : 'cursor-default'} transition-colors`}
+        onClick={() => !isSpecialAction && setExpanded((e) => !e)}
+        className={`w-full flex items-center gap-2.5 px-3 py-2.5 ${(!isSpecialAction) ? 'hover:bg-white/[0.03] cursor-pointer' : 'cursor-default'} transition-colors`}
       >
         <div className={`flex h-8 w-8 items-center justify-center rounded-md border flex-shrink-0 ${
           isDelete ? 'bg-red-500/10 border-red-500/20' : 
@@ -175,7 +183,7 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
              ((script.lineCount || 0) > 0 ? `${script.lineCount} lines · ` : '') + (script.type || 'Script') + ` · ${script.parent || "Workspace"}`}
           </p>
         </div>
-        {!isDelete && !isAsset && (
+        {!isSpecialAction && (
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" className="text-xs h-8" onClick={(e) => { e.stopPropagation(); copyCode(); }}>
               <Copy className="h-3.5 w-3.5 mr-1" /> Copy

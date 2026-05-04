@@ -70,6 +70,7 @@ const FAQ_ITEMS = [
     answer:
       "You install a lightweight plugin from the Roblox Creator Store. It opens a persistent WebSocket connection to your dashboard using a short-lived pairing token. When the AI generates code, scripts are pushed through this connection and created in Studio automatically. The plugin operates only within the Studio sandbox and has no access to your account or game data outside the open place.",
   },
+  {
     question: "Which AI models are supported?",
     answer:
       "We support the world's most advanced reasoning models including DeepSeek R1, OpenAI o1, GPT-4o, Claude 3.5 Sonnet, and Google Gemini 2.0/1.5. You can switch between them at any time in your dashboard settings.",
