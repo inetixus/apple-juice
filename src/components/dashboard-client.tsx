@@ -48,10 +48,16 @@ type ScriptMeta = {
   name: string;
   parent: string;
   type?: string;
-  action?: "create" | "delete";
+  action?: "create" | "delete" | "create_instance" | "rename_instance" | "move_instance";
   lineCount: number;
   code: string;
   originalCode?: string;
+  className?: string;
+  instanceName?: string;
+  oldPath?: string;
+  newName?: string;
+  newParentPath?: string;
+  requires?: string[];
 };
 
 type ChatMessage = {
