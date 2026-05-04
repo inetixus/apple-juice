@@ -1056,6 +1056,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                 suggestions: ["Continue generating"]
             };
             return recoveredObj;
+          }
         }
       }
     }
