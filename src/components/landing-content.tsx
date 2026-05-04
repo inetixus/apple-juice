@@ -70,10 +70,9 @@ const FAQ_ITEMS = [
     answer:
       "You install a lightweight plugin from the Roblox Creator Store. It opens a persistent WebSocket connection to your dashboard using a short-lived pairing token. When the AI generates code, scripts are pushed through this connection and created in Studio automatically. The plugin operates only within the Studio sandbox and has no access to your account or game data outside the open place.",
   },
-  {
     question: "Which AI models are supported?",
     answer:
-      "OpenAI (GPT-4o, GPT-4.1) and Google Gemini (Gemini 2.5 Pro, Gemini 2.0 Flash). You can switch between them at any time in your dashboard settings.",
+      "We support the world's most advanced reasoning models including DeepSeek R1, OpenAI o1, GPT-4o, Claude 3.5 Sonnet, and Google Gemini 2.0/1.5. You can switch between them at any time in your dashboard settings.",
   },
   {
     question: "Does Apple Juice impose any rate limits on my API key?",
@@ -579,7 +578,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <p className="text-sm text-white/50 mb-8 border-b border-white/5 pb-8">Hobbyists testing the waters.</p>
               <ul className="flex flex-col gap-4 mb-8 text-sm">
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> 1,000 mL monthly allowance</li>
-                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Gemini Flash (⚡ fast)</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> DeepSeek V3 & Gemini Flash</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Basic code snippets</li>
                 <li className="flex items-center gap-3 text-white/40"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg> 1 Project Limit</li>
               </ul>
@@ -596,7 +595,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <p className="text-sm text-white/50 mb-8 border-b border-white/5 pb-8">The sweet spot for serious developers.</p>
               <ul className="flex flex-col gap-4 mb-8 text-sm">
                 <li className="flex items-center gap-3 text-white"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> <strong>5,000 mL monthly allowance</strong></li>
-                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Gemini 1.5 Flash (Standard cost)</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Gemini 1.5 Pro & Claude Haiku</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> 2M+ token context window</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Reads your entire codebase</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#ccff00]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Up to 15 Projects</li>
@@ -619,7 +618,7 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
               <p className="text-sm text-white/50 mb-8 border-b border-white/5 pb-8">Full power. Zero compromises.</p>
               <ul className="flex flex-col gap-4 mb-8 text-sm">
                 <li className="flex items-center gap-3 text-white"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> <strong>15,000 mL monthly allowance</strong></li>
-                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Claude 3.5 / GPT-4 (Premium Tax)</li>
+                <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> DeepSeek R1, O1 & Claude 3.5</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Priority queue (zero latency)</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> Deep Research Mode</li>
                 <li className="flex items-center gap-3 text-white/80"><svg className="w-5 h-5 text-[#7c3aed]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"/></svg> 9,999 Projects (Unlimited)</li>
@@ -646,9 +645,9 @@ export function LandingContent({ session, avatarUrl: _avatarUrl }: { session: an
                 <th className="text-left py-4 text-white/40 font-medium px-4">Response Speed</th>
               </tr></thead>
               <tbody>
-                <tr className="border-b border-white/[0.03]"><td className="py-4 px-4 text-white/60 font-medium">Free</td><td className="py-4 px-4 text-white/80">Gemini Flash</td><td className="py-4 px-4">Basic bug fixes</td><td className="py-4 px-4 text-white/50">Small (Single Script)</td><td className="py-4 px-4 text-green-400">Lightning</td></tr>
-                <tr className="border-b border-white/[0.03]"><td className="py-4 px-4 text-white/60 font-medium">Pro</td><td className="py-4 px-4 text-white/80">Gemini 1.5 Pro</td><td className="py-4 px-4">Complex Multi-Script</td><td className="py-4 px-4 text-[#ccff00]">Massive (2M+ Tokens)</td><td className="py-4 px-4 text-white/80">Standard</td></tr>
-                <tr><td className="py-4 px-4 text-white/60 font-medium">Ultra</td><td className="py-4 px-4 text-white/80">Claude Opus + Gemini</td><td className="py-4 px-4">Expert / System Design</td><td className="py-4 px-4 text-white/50">Large (Full Workspace)</td><td className="py-4 px-4 text-[#7c3aed]">Priority Queue</td></tr>
+                <tr className="border-b border-white/[0.03]"><td className="py-4 px-4 text-white/60 font-medium">Free</td><td className="py-4 px-4 text-white/80">DeepSeek V3 / Gemini Flash</td><td className="py-4 px-4">Basic bug fixes</td><td className="py-4 px-4 text-white/50">Standard (128k+)</td><td className="py-4 px-4 text-green-400">Lightning</td></tr>
+                <tr className="border-b border-white/[0.03]"><td className="py-4 px-4 text-white/60 font-medium">Pro</td><td className="py-4 px-4 text-white/80">Gemini 1.5 Pro / Claude Haiku</td><td className="py-4 px-4">Complex Multi-Script</td><td className="py-4 px-4 text-[#ccff00]">Massive (2M+ Tokens)</td><td className="py-4 px-4 text-white/80">Standard</td></tr>
+                <tr><td className="py-4 px-4 text-white/60 font-medium">Ultra</td><td className="py-4 px-4 text-white/80">DeepSeek R1 / O1 / Claude 3.5</td><td className="py-4 px-4">Expert / System Design</td><td className="py-4 px-4 text-white/50">Variable (High Logic)</td><td className="py-4 px-4 text-[#7c3aed]">Priority Queue</td></tr>
               </tbody>
             </table>
           </div>

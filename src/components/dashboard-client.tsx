@@ -1480,6 +1480,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               role: "assistant",
               content: "",
               pendingSync: false,
+              isHidden,
             },
           ]);
         }
@@ -1829,10 +1830,10 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
         isGeneratingRef.current = false;
         isAutoFixingRef.current = false;
 
-        // Remove the user message bubble if the request was cancelled
-        if (messageId) {
+        // Remove the user message bubble if the request was cancelled (only for visible messages)
+        if (messageId && !isHidden) {
           setMessages((current) => current.filter((m) => m.id !== messageId));
-          if (!isHidden) setPrompt(trimmed);
+          setPrompt(trimmed);
         }
         return;
       }
@@ -1896,9 +1897,11 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       setLastError(detail);
 
       // Remove the user message bubble if the request failed and we're not retrying
-      if (messageId) {
+      // IMPORTANT: Only remove visible messages. Hidden auto-fix messages should stay
+      // to preserve conversation context and prevent the chat from appearing to clear.
+      if (messageId && !isHidden) {
         setMessages((current) => current.filter((m) => m.id !== messageId));
-        if (!isHidden) setPrompt(trimmed);
+        setPrompt(trimmed);
       }
 
       void fetchUsage();

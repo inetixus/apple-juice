@@ -282,24 +282,17 @@ You must design highly modular, loosely coupled architectures. Do not cram every
 - PREMIUM UI: Full ScreenGui hierarchy with glassmorphism (if applicable).
 Scale the number of scripts dynamically: a complex Shop might need 6-12 scripts, while a simple Killpart might only need 2. Do not force 10 scripts if it's overkill, but NEVER write a monolithic 1000-line script.
 
+## ADVANCED ACTIONS (MANDATORY)
+You can manipulate the user's Studio environment using these actions in your "scripts" array:
+- "create": Create/update a script (default).
+- "delete": Remove an instance. Requires "name" and "parent".
+- "create_instance": Create a non-script object. Use {"action": "create_instance", "className": "Part", "instanceName": "MyPart", "parent": "Workspace", "properties": {"Color": "Color3.fromRGB(255,0,0)"}}.
+- "rename_instance": Rename an object. Use {"action": "rename_instance", "oldPath": "Workspace.OldName", "newName": "NewName"}.
+- "move_instance": Move an object. Use {"action": "move_instance", "oldPath": "Workspace.MyPart", "newParentPath": "ServerStorage"}.
+- "run_playtest": Trigger a 6-second playtest to verify your work. Use this when you've finished a complex feature or are fixing a bug.
+
 ## OUTPUT FORMAT
-Output ONLY a single JSON object. No markdown. No text outside JSON.
-
-## UI SPECIFICATIONS (MANDATORY)
-- THEME: Dark glassmorphism. BG: Color3.fromRGB(10,12,16). Trans: 0.15. UIStroke: 0.7 trans.
-- CENTERING: AnchorPoint 0.5, Position UDim2.fromScale(0.5, 0.5).
-- SIZING: Root Frame (0.4, 0.55). Header (1, 0, 0, 50). Rounded corners (12px).
-- FONTS: GothamBold (Titles), Gotham (Body). RichText = true.
-- ANIMATION: Use TweenService for all frames. Hover tweens (1.03x scale) for all buttons.
-
-## CODING RULES
-- Use game:GetService(), task.wait(), task.spawn(), pcall().
-- ALWAYS validate RemoteEvent input on the server.
-- JSON structure: {"scripts": [{action, type, parent, name, code, properties}], "message": "friendly summary", "suggestions": [3 ideas], "thinking": "brief reasoning"}
-- REMOTE PLAYTESTING: You can remotely trigger a playtest in the user's Studio by emitting a script block with "action": "run_playtest" (no code needed). Use this to verify bug fixes.
-
-${fileContextBlock}${treeContextBlock}
-${thinkingInstructions}`
+Output ONLY a single JSON object. No markdown. No text outside JSON. NO CODE PLACEHOLDERS (e.g., "-- rest of code here"). You must ALWAYS output the full, functional script content.`
     : `You are Apple Juice AI, an expert Roblox Luau developer. You MUST go "overboard" and build the most comprehensive, professional system possible. Never ask for details — assume best practices and build a complete solution.${thinkingInstructions}
 
 ## OUTPUT FORMAT
@@ -322,15 +315,11 @@ When MULTIPLE scripts are needed, output:
 - "suggestions": 3 follow-up ideas
 ${mode === "thinking" ? '- "thinking": step-by-step reasoning' : ""}
 
-CRITICAL: PREMIUM UI DESIGN:
-- Dark mode (10,12,16), neon accents (204,255,0), glassmorphism (0.15 trans).
-- Center frames: AnchorPoint 0.5, Position 0.5. Gotham fonts.
-- Use TweenService for transitions.
-
 CRITICAL RULES:
+- NEVER use placeholders like "-- code here". ALWAYS output the full script.
 - Use game:GetService(), task.wait(), task.spawn().
 - Validate RemoteEvent input on the server.
-- REMOTE PLAYTESTING: You can remotely trigger a playtest in the user's Studio by emitting a script block with "action": "run_playtest" (no code needed). Use this to verify your work.
+- REMOTE PLAYTESTING: Trigger a playtest by emitting a script block with "action": "run_playtest".
 
 ${fileContextBlock}${treeContextBlock}
 CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON object. NO markdown. NO backticks. NO explanations outside the JSON.`;
@@ -342,7 +331,13 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     ];
 
     if (body.messages && body.messages.length > 0) {
-      apiMessages.push(...(body.messages as any[]));
+      const msgs = body.messages.map((m, idx) => {
+          if (idx === body.messages!.length - 1 && m.role === "user" && prompt) {
+              return { ...m, content: prompt };
+          }
+          return m;
+      });
+      apiMessages.push(...msgs);
     } else {
       apiMessages.push({ role: "user", content: prompt });
     }
@@ -500,7 +495,7 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
     
     if (body.messages && body.messages.length > 0) {
       // Sanitize messages to avoid context pollution from placeholders
-      const sanitizedMessages = (body.messages as any[]).map(msg => {
+      const sanitizedMessages = (body.messages as any[]).map((msg, index) => {
           if (msg.role === "assistant") {
               // Remove generic placeholders that confuse the AI
               let content = msg.content || "";
@@ -508,6 +503,9 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
                   return { ...msg, content: "The user is asking for a new feature." };
               }
               return msg;
+          }
+          if (index === body.messages!.length - 1 && msg.role === "user" && prompt) {
+              return { ...msg, content: prompt };
           }
           return msg;
       });
@@ -668,10 +666,13 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
          payload = {
             anthropic_version: "vertex-2023-10-16",
             messages: (() => {
-              if (body.messages && body.messages.length > 0) {
-                 return body.messages.map(m => ({ role: m.role, content: m.content }));
-              }
-              return [{ role: "user", content: prompt }];
+               if (body.messages && body.messages.length > 0) {
+                  return body.messages.map((m, idx) => {
+                     const isLastUser = idx === body.messages!.length - 1 && m.role === "user";
+                     return { role: m.role, content: isLastUser && prompt ? prompt : m.content };
+                  });
+               }
+               return [{ role: "user", content: prompt }];
             })(),
             system: SYSTEM_PROMPT,
             max_tokens: dynamicMaxOutputTokens,
@@ -683,10 +684,13 @@ CRITICAL OUTPUT RULE: Your ENTIRE response must be ONLY a single valid JSON obje
           systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
           contents: (() => {
             if (body.messages && body.messages.length > 0) {
-              return body.messages.map((m) => ({
-                role: m.role === "assistant" ? "model" : "user",
-                parts: [{ text: m.content }]
-              }));
+              return body.messages.map((m, idx) => {
+                const isLastUser = idx === body.messages!.length - 1 && m.role === "user";
+                return {
+                  role: m.role === "assistant" ? "model" : "user",
+                  parts: [{ text: isLastUser && prompt ? prompt : m.content }]
+                };
+              });
             }
             return [{ role: "user", parts: [{ text: prompt }] }];
           })(),

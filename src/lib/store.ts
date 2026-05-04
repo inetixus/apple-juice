@@ -45,14 +45,34 @@ export const PLAN_LIMITS = {
 } as const;
 
 export const MODEL_MULTIPLIERS: Record<string, number> = {
+  // Gemini Models (Standard)
+  "gemini-2.5-flash": 1,
+  "gemini-2.5-flash-8b": 0.5,
+  "gemini-2.0-flash": 1,
   "gemini-1.5-flash": 1,
-  "gemini-1.5-flash-8b": 1,
-  "gemini-1.5-pro": 5,      // Premium Tax
-  "claude-3-5-sonnet": 8,   // Premium Tax
-  "claude-3-opus": 12,      // Premium Tax
-  "gpt-4o": 6,
-  "gpt-4o-mini": 1.5,
+  "gemini-1.5-flash-8b": 0.5,
+  
+  // Gemini Pro (Premium)
+  "gemini-2.5-pro": 4,
+  "gemini-1.5-pro": 4,
+  "gemini-3.1-pro-preview": 4,
+  
+  // Claude Models
+  "claude-3-5-sonnet": 6,
+  "claude-3-5-sonnet-20241022": 6,
+  "claude-3-5-haiku": 1.5,
+  "claude-3-opus": 12,
+  
+  // OpenAI Models
+  "gpt-4o": 5,
+  "gpt-4o-2024-08-06": 5,
+  "gpt-4o-mini": 1,
+  "o1-preview": 15,
+  "o1-mini": 4,
+
+  // DeepSeek Models (Efficient)
   "deepseek-v3.2": 1,
+  "deepseek-v3": 1,
   "deepseek-r1": 2,
   "DeepSeek V3": 1,
   "DeepSeek R1": 2,

@@ -1,5 +1,5 @@
 "use client";
-import { FileCode2, Copy, ChevronDown, ChevronUp, Trash2, Box, Folder, Layout, MousePointer2, Image, Type, Database, Palette, Ghost, Zap, Cpu } from "lucide-react";
+import { FileCode2, Copy, ChevronDown, ChevronUp, Trash2, Box, Folder, Layout, MousePointer2, Image, Type, Database, Palette, Ghost, Zap, Cpu, Play, Plus, Move, Edit3 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -64,10 +64,15 @@ type ScriptMeta = {
   name: string;
   parent: string;
   type?: string;
-  action?: "create" | "delete" | "insert_asset" | "stop_playtest";
+  action?: "create" | "delete" | "insert_asset" | "stop_playtest" | "run_playtest" | "create_instance" | "rename_instance" | "move_instance";
   lineCount: number;
   code: string;
   originalCode?: string;
+  className?: string;
+  instanceName?: string;
+  oldPath?: string;
+  newName?: string;
+  newParentPath?: string;
 };
 
 const typeIconMap: Record<string, any> = {
@@ -104,6 +109,11 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
 
   const isDelete = script.action === "delete";
   const isAsset = script.action === "insert_asset";
+  const isPlaytest = script.action === "run_playtest";
+  const isCreateInst = script.action === "create_instance";
+  const isRename = script.action === "rename_instance";
+  const isMove = script.action === "move_instance";
+  const isSpecialAction = isDelete || isAsset || isPlaytest || isCreateInst || isRename || isMove;
 
   async function copyCode() {
     try { await navigator.clipboard.writeText(script.code); } catch { /* ignore */ }
@@ -124,13 +134,45 @@ export function ScriptCard({ script }: { script: ScriptMeta }) {
         onClick={() => !isDelete && !isAsset && setExpanded((e) => !e)}
         className={`w-full flex items-center gap-2.5 px-3 py-2.5 ${(!isDelete && !isAsset) ? 'hover:bg-white/[0.03] cursor-pointer' : 'cursor-default'} transition-colors`}
       >
-        <div className={`flex h-8 w-8 items-center justify-center rounded-md border flex-shrink-0 ${isDelete ? 'bg-red-500/10 border-red-500/20' : isAsset ? 'bg-purple-500/10 border-purple-500/20' : 'bg-[#ccff00]/10 border-[#ccff00]/20'}`}>
-          {isDelete ? <Trash2 className="h-4 w-4 text-red-400" /> : isAsset ? <Box className="h-4 w-4 text-purple-400" /> : <IconComponent className="h-4 w-4 text-[#ccff00]" />}
+        <div className={`flex h-8 w-8 items-center justify-center rounded-md border flex-shrink-0 ${
+          isDelete ? 'bg-red-500/10 border-red-500/20' : 
+          isAsset ? 'bg-purple-500/10 border-purple-500/20' : 
+          isPlaytest ? 'bg-green-500/10 border-green-500/20' :
+          isCreateInst ? 'bg-blue-500/10 border-blue-500/20' :
+          'bg-[#ccff00]/10 border-[#ccff00]/20'
+        }`}>
+          {isDelete ? <Trash2 className="h-4 w-4 text-red-400" /> : 
+           isAsset ? <Box className="h-4 w-4 text-purple-400" /> : 
+           isPlaytest ? <Play className="h-4 w-4 text-green-400" /> :
+           isCreateInst ? <Plus className="h-4 w-4 text-blue-400" /> :
+           isRename ? <Edit3 className="h-4 w-4 text-amber-400" /> :
+           isMove ? <Move className="h-4 w-4 text-indigo-400" /> :
+           <IconComponent className="h-4 w-4 text-[#ccff00]" />}
         </div>
         <div className="flex-1 text-left min-w-0">
-          <p className={`text-[13px] font-semibold truncate ${isDelete ? 'text-red-400' : isAsset ? 'text-purple-400' : 'text-white'}`}>{script.name || "Unknown Script"}</p>
+          <p className={`text-[13px] font-semibold truncate ${
+            isDelete ? 'text-red-400' : 
+            isAsset ? 'text-purple-400' : 
+            isPlaytest ? 'text-green-400' :
+            isCreateInst ? 'text-blue-400' :
+            isRename ? 'text-amber-400' :
+            isMove ? 'text-indigo-400' :
+            'text-white'
+          }`}>
+            {isPlaytest ? "Run Playtest" : 
+             isRename ? `Rename ${script.oldPath?.split('.').pop()} → ${script.newName}` :
+             isMove ? `Move ${script.oldPath?.split('.').pop()} → ${script.newParentPath}` :
+             isCreateInst ? `Create ${script.className}` :
+             (script.name || "Unknown Script")}
+          </p>
           <p className="text-[10px] text-[#8a8f98] mt-0.5">
-            {isDelete ? 'To be deleted' : isAsset ? `Roblox Asset` : ((script.lineCount || 0) > 0 ? `${script.lineCount} lines · ` : '') + (script.type || 'Script')} · {script.parent || "Workspace"}
+            {isDelete ? 'To be deleted' : 
+             isAsset ? `Roblox Asset` : 
+             isPlaytest ? 'Remote Studio Command' :
+             isCreateInst ? `Instance Name: ${script.instanceName}` :
+             isRename ? `From: ${script.oldPath}` :
+             isMove ? `To: ${script.newParentPath}` :
+             ((script.lineCount || 0) > 0 ? `${script.lineCount} lines · ` : '') + (script.type || 'Script') + ` · ${script.parent || "Workspace"}`}
           </p>
         </div>
         {!isDelete && !isAsset && (
