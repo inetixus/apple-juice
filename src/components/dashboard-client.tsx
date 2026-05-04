@@ -978,12 +978,30 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
             return JSON.parse(recovered);
         } catch (e2) {
             // Aggressive regex-based extraction for badly mangled/truncated JSON
-            const thinkingMatch = cleaned.match(/"thinking"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
-            const messageMatch = cleaned.match(/"message"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+            const thinkingMatch = cleaned.match(/"thinking"\s*:\s*"((?:[^"\\]|\\.)*)/);
+            const messageMatch = cleaned.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)/);
             
             const scripts: any[] = [];
-            // Flexible script block detection: matches any object that contains a "name" field
-            const scriptBlocks = cleaned.match(/\{\s*"[^"]+"\s*:\s*"[^"]+"[\s\S]*?(?:"name"\s*:\s*"[^"]+")[\s\S]*?(?:\}\s*(?=[,\]]|$)|\s*$)/g);
+            // Safe script block extraction without catastrophic regex
+            let searchIndex = 0;
+            while (true) {
+                const nameMatch = cleaned.substring(searchIndex).match(/"name"\s*:\s*"([^"]+)"/);
+                if (!nameMatch || nameMatch.index === undefined) break;
+                
+                const absoluteIndex = searchIndex + nameMatch.index;
+                // Find the nearest opening brace before this name
+                const blockStart = cleaned.lastIndexOf('{', absoluteIndex);
+                if (blockStart === -1 || blockStart < searchIndex) {
+                    searchIndex = absoluteIndex + nameMatch[0].length;
+                    continue;
+                }
+                
+                // Find the closing brace (heuristic: next } followed by , or ] or end of string, or just the next })
+                let blockEnd = cleaned.indexOf('}', absoluteIndex);
+                if (blockEnd === -1) blockEnd = cleaned.length;
+                
+                const block = cleaned.substring(blockStart, blockEnd + 1);
+                const scriptBlocks = [block];
             if (scriptBlocks) {
                 for (const block of scriptBlocks) {
                     try {
@@ -1027,6 +1045,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                         }
                     }
                 }
+                
+                searchIndex = blockEnd + 1;
             }
             
             const recoveredObj = {
@@ -1540,7 +1560,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                               const cleanAccumulated = accumulated.trim().replace(/^```json\s*/, "");
                               
                               // Extract "thinking": "..." field
-                              const thinkingMatch = cleanAccumulated.match(/"thinking"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+                              const thinkingMatch = cleanAccumulated.match(/"thinking"\s*:\s*"((?:[^"\\]|\\.)*)/);
                               if (thinkingMatch) {
                                   extractedThinking = thinkingMatch[1]
                                       .replace(/\\n/g, "\n")
@@ -1549,7 +1569,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                               }
                               
                               // Extract "message": "..." field
-                              const messageMatch = cleanAccumulated.match(/"message"\s*:\s*"([\s\S]*?)(?:"(?:\s*[,}])|$)/);
+                              const messageMatch = cleanAccumulated.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)/);
                               if (messageMatch) {
                                   displayContent = messageMatch[1]
                                       .replace(/\\n/g, "\n")
