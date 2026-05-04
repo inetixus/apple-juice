@@ -1666,7 +1666,7 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               let mergedScripts = structured.scripts || [];
               let mergedContent = structured.content || (structured.script ? "" : accumulated);
               
-              if (continuationRef.current > 0) {
+              if (continuationRef.current > 0 && last.content) {
                   // Merge scripts
                   const existingScripts = last.scripts || (last.script ? [last.script] : []);
                   const existingNames = new Set(existingScripts.map(s => s.name || ""));
@@ -1679,6 +1679,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
                   } else {
                       mergedContent = last.content;
                   }
+              } else {
+                  mergedContent = structured.content || (structured.scripts?.length ? "" : (structured.script ? "" : accumulated));
               }
 
               let finalScriptsToSync: any[] = [];
@@ -1694,10 +1696,8 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
               // Update ref for auto-fix context
               if (finalScriptsToSync.length > 0) {
                   lastGeneratedScriptsRef.current = finalScriptsToSync.map((s: any) => ({
-                      name: s.name,
-                      type: s.type,
-                      parent: s.parent,
-                      code: s.code || "",
+                      ...s,
+                      code: s.code || ""
                   }));
               }
               
@@ -1847,17 +1847,19 @@ export function DashboardClient({ username, avatarUrl }: DashboardClientProps) {
       // Store the generated scripts for auto-fix context
       if (payload.scripts && Array.isArray(payload.scripts)) {
         lastGeneratedScriptsRef.current = payload.scripts.map((s: any) => ({
+          ...s,
           name: s.name || "Unknown",
           parent: s.parent || "ServerScriptService",
           type: s.type || "Script",
           code: s.code || "",
         }));
-      } else if (payload.code) {
+      } else if (payload.code || payload.action === "create_instance") {
         lastGeneratedScriptsRef.current = [
           {
-            name: payload.scriptName || "AIScript",
-            parent: payload.scriptParent || "ServerScriptService",
-            type: payload.scriptType || "Script",
+            ...payload,
+            name: payload.scriptName || payload.name || "AIScript",
+            parent: payload.scriptParent || payload.parent || "ServerScriptService",
+            type: payload.scriptType || payload.type || "Script",
             code: payload.code || "",
           },
         ];
