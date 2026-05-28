@@ -19,6 +19,33 @@ import { gradientText, SUNSET_START, SUNSET_END } from './utils/ansi.ts';
 let globalConfig: CLIConfig | null = null;
 let globalRl: readline.Interface | null = null;
 
+let localOpenRouterModels: string[] = [];
+try {
+  const candidates = [
+    path.join(__dirname, 'modellist.txt'),
+    path.join(__dirname, '../cli/modellist.txt'),
+    path.join(process.cwd(), 'cli/modellist.txt'),
+    path.join(path.dirname(process.execPath), 'cli/modellist.txt'),
+    path.join(path.dirname(process.execPath), 'modellist.txt'),
+  ];
+  let foundPath = '';
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      foundPath = c;
+      break;
+    }
+  }
+  if (foundPath) {
+    const raw = fs.readFileSync(foundPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.data) {
+      localOpenRouterModels = parsed.data.map((m: any) => m.id);
+    }
+  }
+} catch (e) {
+  // ignore
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface CLIConfig {
   sessionKey: string;
@@ -131,7 +158,7 @@ function getContextBar(history: ChatMessage[]): string {
 
 
 // ─── Spinner ─────────────────────────────────────────────────────────────────
-const SPIN_FRAMES = ['·', '✻', '✽', '✶', '✳', '✢'];
+const SPIN_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 let _spinInterval: NodeJS.Timeout | null = null;
 
@@ -287,67 +314,32 @@ function getReasoningPhase(elapsed: number): string {
 }
 
 function formatArtifactsBox(scripts: any[]): string {
-  const w = Math.min(termWidth() - 10, 68);
-  const lines: string[] = [];
-  
-  lines.push(`  ${BRAND}╭─ Generated Roblox Artifacts ${'─'.repeat(Math.max(0, w - 28))}╮${R}`);
-  lines.push(`  ${BRAND}│${R}`);
-  
+  const lines: string[] = ['']; // Empty line for padding
+
   for (const s of scripts) {
     const action = String(s.action || 'create').toLowerCase();
-    let actionBadge = `[${BRIGHT_GREEN}NEW${R}]`;
-    let typeIcon = `📄`;
     let typeLabel = s.type || s.scriptType || s.className || 'Instance';
     let nameLabel = s.name || s.instanceName || 'Unnamed';
     let pathLabel = s.parent || s.newParentPath || '';
-    
+
     if (action === 'delete') {
-      actionBadge = `[${BRIGHT_RED}DEL${R}]`;
-      typeIcon = `🗑️`;
+      lines.push(`  ${DIM}🛠️  Deleted ${nameLabel} from ${pathLabel}${R}`);
     } else if (action === 'run_playtest') {
-      actionBadge = `[${BRIGHT_YELLOW}TEST${R}]`;
-      typeIcon = `⚡`;
-      typeLabel = 'Playtest';
-      nameLabel = 'Roblox Studio Playtest';
-      pathLabel = '';
-    } else if (action === 'create_instance') {
-      actionBadge = `[${BRIGHT_CYAN}INST${R}]`;
-      typeIcon = `🔌`;
+      lines.push(`  ${DIM}▶  Running Roblox Studio Playtest...${R}`);
     } else if (action === 'rename_instance' || action === 'move_instance') {
-      actionBadge = `[${BRIGHT_CYAN}MOVE${R}]`;
-      typeIcon = `📦`;
-      pathLabel = `${s.oldPath || ''} ➔ ${s.newParentPath || s.newName || ''}`;
+      lines.push(`  ${DIM}📦 Moved ${s.oldPath || ''} ➔ ${s.newParentPath || s.newName || ''}${R}`);
     } else {
-      actionBadge = `[${BRIGHT_GREEN}NEW${R}]`;
+      // Create / Edit
+      let sizeStr = '';
+      if (s.code) {
+        const sizeBytes = s.code.length;
+        sizeStr = sizeBytes > 1024 ? `${(sizeBytes/1024).toFixed(1)} KB` : `${sizeBytes} B`;
+        sizeStr = ` ${DIM}(${s.code.split('\n').length} lines, ${sizeStr})${R}`;
+      }
+      lines.push(`  ${BRIGHT_GREEN}✓${R} ${DIM}Created${R} ${WHITE}${typeLabel}:${nameLabel}${R} ${DIM}in ${pathLabel}${R}${sizeStr}`);
     }
-    
-    let detailLine = `  ${actionBadge} ${typeIcon} ${BOLD}${WHITE}${typeLabel}:${R} ${nameLabel}`;
-    lines.push(`  ${BRAND}│${R}${detailLine}`);
-    
-    if (pathLabel) {
-      let pathLine = `       ${DIM}Path: ${pathLabel}${R}`;
-      lines.push(`  ${BRAND}│${R}${pathLine}`);
-    }
-    
-    if (s.code) {
-      const codeLines = s.code.split('\n').length;
-      const sizeBytes = s.code.length;
-      let sizeStr = sizeBytes > 1024 
-        ? `${(sizeBytes/1024).toFixed(1)} KB` 
-        : `${sizeBytes} B`;
-      let infoLine = `       ${DIM}Lines: ${codeLines} · Size: ${sizeStr}${R}`;
-      lines.push(`  ${BRAND}│${R}${infoLine}`);
-    }
-    
-    lines.push(`  ${BRAND}│${R}`);
   }
-  
-  if (lines.length > 2) {
-    lines.pop();
-  }
-  
-  lines.push(`  ${BRAND}╰${'─'.repeat(w + 2)}╯${R}`);
-  return '\n' + lines.join('\n') + '\n';
+  return lines.join('\n') + '\n';
 }
 
 // ─── Markdown / Syntax ───────────────────────────────────────────────────────
@@ -398,7 +390,7 @@ function renderMarkdown(text: string): string {
       const code = lines.slice(1, -1).join('\n');
       const title = (lang || 'code').toUpperCase();
       const w = Math.min(termWidth() - 6, 72);
-      out += `\n${DIM}  ╭─ ${R}${BOLD}${BRIGHT_CYAN}${title}${R} ${DIM}${'─'.repeat(Math.max(0, w - title.length - 2))}╮${R}\n`;
+      out += `\n  ${DIM}╭─ ${title} ${'─'.repeat(Math.max(0, w - title.length - 3))}╮${R}\n`;
       const hl = (lang === 'lua' || lang === 'luau') ? highlightLuau(code) : code;
       out += hl.split('\n').map(l => `  ${DIM}│${R} ${l}`).join('\n');
       out += `\n  ${DIM}╰${'─'.repeat(w + 2)}╯${R}\n`;
@@ -420,9 +412,21 @@ function renderMarkdown(text: string): string {
 // ─── Header ──────────────────────────────────────────────────────────────────
 function drawHeader(serverOnline: boolean, paired: boolean, config: CLIConfig): void {
   const w = termWidth();
-  const titleText = gradientText('Apple Juice', SUNSET_START, SUNSET_END);
-  process.stdout.write(`\n  ${BOLD}${titleText}${R}\n`);
-  process.stdout.write(`  \x1b[38;2;100;100;100m${'─'.repeat(w - 4)}${R}\n\n`);
+  const titleText = gradientText('Apple Juice CLI', SUNSET_START, SUNSET_END);
+  const projectLabel = `${DIM}active project:${R} ${WHITE}${path.basename(process.cwd())}${R}`;
+  const engineVersion = `${DIM}v2.0.4${R}`;
+
+  const leftPart = `  ${BOLD}${titleText}${R}  │  ${projectLabel}`;
+  const gap = Math.max(1, w - stripAnsi(leftPart).length - stripAnsi(engineVersion).length - 4);
+
+  // Row 1: App Title and Environmental Metadata
+  process.stdout.write(`\x1b[1;1H\x1b[2K${leftPart}${' '.repeat(gap)}${engineVersion}\n`);
+
+  // Row 2: Sleek, high-density structural divider line
+  process.stdout.write(`\x1b[2;1H\x1b[2K  \x1b[38;2;65;65;65m${'─'.repeat(w - 4)}${R}\n`);
+
+  // Row 3: Spacing layout line for structural padding
+  process.stdout.write(`\x1b[3;1H\x1b[2K`);
 }
 
 // ─── Welcome Card ────────────────────────────────────────────────────────────
@@ -467,17 +471,12 @@ function drawWelcomeCard(state: SessionState): void {
   col1.push(padC(`${DIM}${shortenedCwd}${R}`, col1W));
 
   const col2: string[] = [];
-  if (!state.paired && state.pairingCode) {
-    col2.push(padR(`${BOLD}${WHITE}Pairing Instructions${R}`, col2W));
-    col2.push(padR(`Code: ${BOLD}${BRIGHT_CYAN}${state.pairingCode}${R}`, col2W));
-    col2.push(padR(`1. Open Apple Juice plugin`, col2W));
-    col2.push(padR(`2. Enter code & press Connect`, col2W));
-  } else {
-    col2.push(padR(`${BOLD}${WHITE}Tips for getting started${R}`, col2W));
-    col2.push(padR(`Run ${BRAND}/pair${R} to link Roblox Studio`, col2W));
-    col2.push(padR(`Use ${BRAND}/sync <file>${R} to push code`, col2W));
-    col2.push(padR(`Type any question to ask the AI`, col2W));
-  }
+  col2.push(padR(`${BOLD}${WHITE}Getting Started${R}`, col2W));
+  col2.push(padR(`Type any prompt to ask the AI.`, col2W));
+  col2.push(padR(`Prefix with ${BRAND}/${R} to run TUI commands:`, col2W));
+  col2.push(padR(`  ${BRAND}/model${R}    Change AI Model`, col2W));
+  col2.push(padR(`  ${BRAND}/sync${R}     Push files to Studio`, col2W));
+  col2.push(padR(`  ${BRAND}/config${R}   View configuration`, col2W));
   col2.push('---');
   col2.push(padR(`${BOLD}${WHITE}What's new${R}`, col2W));
   col2.push(padR(`Server: ${state.serverOnline ? `${BRIGHT_GREEN}Online${R} ${DIM}(port 3000)${R}` : `${BRIGHT_RED}Offline${R}`}`, col2W));
@@ -497,7 +496,8 @@ function drawWelcomeCard(state: SessionState): void {
   const col1Top = `${prefix}${coloredTitle}${G_LINE}${suffix}`;
   const col2Top = '─'.repeat(col2W + 2);
 
-  process.stdout.write(`  ${G_LINE}┌${col1Top}┬${col2Top}┐${R}\n`);
+  // Jump directly to Row 5 so the welcome box doesn't overlap the pinned header frame
+  process.stdout.write(`\x1b[5;1H  ${G_LINE}┌${col1Top}┬${col2Top}┐${R}\n`);
   for (let i = 0; i < maxLines; i++) {
     const c1 = col1[i];
     const c2 = col2[i];
@@ -523,7 +523,9 @@ function drawFooter(serverOnline: boolean, paired: boolean): string {
 
 // ─── Message rendering ────────────────────────────────────────────────────────
 function printUserMsg(text: string): void {
-  process.stdout.write(`\n  \x1b[48;2;50;50;50m\x1b[38;2;250;250;250m  You  \x1b[0m\n  ${text}\n`);
+  // Claude style: Bold muted text for name, slightly dimmed user input, indented
+  const indentedText = text.split('\n').join('\n  ');
+  process.stdout.write(`\n  ${BOLD}${WHITE}You${R}\n  ${DIM}${indentedText}${R}\n`);
 }
 
 function printAssistantMsg(text: string): void {
@@ -541,7 +543,8 @@ function printAssistantMsg(text: string): void {
       // Not valid JSON, keep original text
     }
   }
-  process.stdout.write(`\n  \x1b[48;2;204;107;73m\x1b[38;2;255;255;255m  Apple Juice  \x1b[0m\n`);
+  // Claude style: Brand color text for the AI name, no background block
+  process.stdout.write(`\n  ${BOLD}${BRAND}Apple Juice${R}\n`);
   const rendered = renderMarkdown(displayText);
   for (const line of rendered.split('\n')) {
     process.stdout.write(`  ${line}\n`);
@@ -566,12 +569,11 @@ function printSuccess(msg: string): void {
 function redrawScreen(state: SessionState): void {
   const rows = process.stdout.rows || 24;
 
+  // Fallback for tiny terminals
   if (rows < 10) {
     console.clear();
     drawHeader(state.serverOnline, state.paired, state.config);
-    if (state.history.length === 0) {
-      drawWelcomeCard(state);
-    }
+    if (state.history.length === 0) drawWelcomeCard(state);
     if (state.history.length > 0) {
       const last = state.history[state.history.length - 1];
       if (last.role === 'assistant') {
@@ -579,37 +581,35 @@ function redrawScreen(state: SessionState): void {
         if (prev?.role === 'user') printUserMsg(prev.content);
         printAssistantMsg(last.content);
       }
-      process.stdout.write('\n');
     }
-    if (state.lastError) printError(state.lastError);
-    if (state.infoMessage) printInfo(state.infoMessage);
-    process.stdout.write('\n');
-    process.stdout.write(drawFooter(state.serverOnline, state.paired));
     if (globalRl) globalRl.prompt(true);
     return;
   }
 
-  // Reset margins to clear whole screen
+  // 1. Reset terminal margins completely to paint the whole screen
   process.stdout.write('\x1b[r');
   console.clear();
 
-  // Set scrolling margins to leave bottom 4 rows untouched (rows-3, rows-2, rows-1, rows)
-  process.stdout.write(`\x1b[1;${rows - 4}r`);
-  process.stdout.write('\x1b[1;1H'); // Move to top of scrolling region
-
+  // 2. Draw the Frozen Header at the absolute top of the terminal screen
+  process.stdout.write('\x1b[1;1H');
   drawHeader(state.serverOnline, state.paired, state.config);
+
+  // 3. LOCK SCROLL MARGINS: Start at Row 4, end right above the bottom menu boundaries
+  process.stdout.write(`\x1b[4;${rows - 4}r`);
+
+  // 4. Position the cursor at the top of the scroll viewport to drop history
+  process.stdout.write('\x1b[4;1H');
+
   if (state.history.length === 0) {
     drawWelcomeCard(state);
-  }
-  if (state.history.length > 0) {
-    const last = state.history[state.history.length - 1];
-    if (last.role === 'assistant') {
-      const prev = state.history[state.history.length - 2];
-      if (prev?.role === 'user') printUserMsg(prev.content);
-      printAssistantMsg(last.content);
+  } else {
+    // Print full chat history sequentially into the scrolling container
+    for (const msg of state.history) {
+      if (msg.role === 'user') printUserMsg(msg.content);
+      else printAssistantMsg(msg.content);
     }
-    process.stdout.write('\n');
   }
+
   if (state.lastError) printError(state.lastError);
   if (state.infoMessage) printInfo(state.infoMessage);
 
@@ -1160,26 +1160,36 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
           'deepseek-chat', 'deepseek-coder', 'deepseek-v3', 'deepseek-r1',
           'openrouter/anthropic/claude-3.5-sonnet', 'openrouter/google/gemini-2.5-pro',
           'openrouter/deepseek/deepseek-r1', 'openrouter/meta-llama/llama-3.1-405b-instruct',
-          'openrouter/meta-llama/llama-3-8b-instruct:free'
+          'openrouter/meta-llama/llama-3-8b-instruct:free',
+          ...localOpenRouterModels.map(m => m.startsWith('openrouter/') ? m : `openrouter/${m}`)
         ];
       if (cmdPart === '/model' && parts.length > 1) {
         const pref = parts[1] ?? '';
         const hits = modelSuggestions.filter(m => m.toLowerCase().startsWith(pref.toLowerCase()));
-        return [hits.length ? hits : modelSuggestions, line];
+        if (hits.length === 1 && hits[0].toLowerCase() !== pref.toLowerCase()) {
+          if (globalRl) {
+            (globalRl as any).line = `/model ${hits[0]}`;
+            (globalRl as any).cursor = (globalRl as any).line.length;
+          }
+        }
+        return [[], line];
       }
 
-      const matches = allCmds.filter(c => {
+      if (line.startsWith('/')) {
         const query = line.toLowerCase();
-        return c.command.toLowerCase().startsWith(query) ||
-          c.command.toLowerCase().includes(query) ||
-          c.description.toLowerCase().includes(query) ||
-          c.label.toLowerCase().includes(query);
-      });
-      const matchValues = matches.map(m => m.command);
+        const matches = allCmds.filter(c => c.command.toLowerCase().startsWith(query));
+        if (matches.length === 1 && matches[0].command.toLowerCase() !== query) {
+          if (globalRl) {
+            (globalRl as any).line = matches[0].command + ' ';
+            (globalRl as any).cursor = (globalRl as any).line.length;
+          }
+        }
+      }
+
       if (globalRl) {
         process.nextTick(() => (globalRl as any)._refreshLine());
       }
-      return [matchValues.length ? matchValues : [], line];
+      return [[], line];
     },
   });
 
@@ -1202,7 +1212,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   // Keypress listener to capture Shift+Tab (Z sequence or shift+tab tab)
   const onKeyPressGlobal = (ch: any, key: any) => {
     if (exiting || isCommandRunning) return;
-    if (key && ((key.name === 'tab' && key.shift) || key.sequence === '\x1b[Z')) {
+    if (key && (key.name === 'backtab' || (key.name === 'tab' && key.shift) || key.sequence === '\x1b[Z')) {
       const modes: ('Normal' | 'Plan' | 'Auto')[] = ['Normal', 'Plan', 'Auto'];
       const currentIdx = modes.indexOf(activeMode);
       activeMode = modes[(currentIdx + 1) % modes.length];
@@ -1217,11 +1227,19 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     const rows = process.stdout.rows || 24;
     const w = termWidth();
     if (rows >= 10) {
-      // 1. Draw top border at rows - 3
-      process.stdout.write(`\x1b[${rows - 3};1H\x1b[2K\x1b[38;2;100;100;100m${'─'.repeat(w)}${R}`);
+      // 1. Draw structured top border at rows - 3 with contextual command hints embedded
+      process.stdout.write(`\x1b[${rows - 3};1H\x1b[2K`);
+      const shortcutsHint = ` ${DIM}Press ${R}${BRAND}[Tab]${R}${DIM} for commands · ${R}${BRAND}[Shift+Tab]${R}${DIM} to toggle agents · ${R}${BRAND}[Ctrl+C]${R}${DIM} to exit${R} `;
+      const linePadding = Math.max(0, Math.floor((w - stripAnsi(shortcutsHint).length) / 2));
+      const rightPadding = Math.max(0, w - stripAnsi(shortcutsHint).length - linePadding);
+      process.stdout.write(
+        `\x1b[38;2;65;65;65m${'─'.repeat(linePadding)}${R}` +
+        shortcutsHint +
+        `\x1b[38;2;65;65;65m${'─'.repeat(rightPadding)}${R}`
+      );
 
       // 2. Draw bottom border at rows - 1
-      process.stdout.write(`\x1b[${rows - 1};1H\x1b[2K\x1b[38;2;100;100;100m${'─'.repeat(w)}${R}`);
+      process.stdout.write(`\x1b[${rows - 1};1H\x1b[2K${BRAND_DIM}${'─'.repeat(w)}${R}`);
 
       // 3. Draw detailed status bar at rows
       process.stdout.write(`\x1b[${rows};1H\x1b[2K`);
@@ -1238,10 +1256,10 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       
       process.stdout.write(drawHorizontalLineWithText(leftPart, rightPart));
 
-      // 4. Move to input prompt row (rows - 2), clear line and print Mode Pill
+      // 4. Move to input prompt row (rows - 2), clear line
       process.stdout.write(`\x1b[${rows - 2};1H\x1b[2K`);
-      process.stdout.write(getModePill(activeMode));
     }
+    rl.setPrompt(getModePill(activeMode));
     originalPrompt(preserveCursor);
   };
 
@@ -1262,11 +1280,15 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   function clearSlashListLocal() {
     if (slashListLines > 0) {
       const rows = process.stdout.rows || 24;
+      // Draw origin is rows - 3 - slashListLines (just above the hint divider at rows-3)
       const startRow = rows - 3 - slashListLines;
       for (let i = 0; i < slashListLines; i++) {
         process.stdout.write(`\x1b[${startRow + i};1H\x1b[2K`);
       }
       slashListLines = 0;
+      // Restore cursor to input line
+      const inputRow = rows - 2;
+      process.stdout.write(`\x1b[${inputRow};1H`);
     }
   }
 
@@ -1303,9 +1325,12 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       
       process.stdout.write(`\x1b[${startRow};1H\x1b[2K  ${DIM}No matching commands for "/${query}"${R}`);
       process.stdout.write(`\x1b[${startRow + 1};1H\x1b[2K  ${DIM}${'─'.repeat(40)}${R}`);
-      
-      const col = 4 + query.length;
-      process.stdout.write(`\x1b[${rows - 1};${col}H`);
+
+      // Restore cursor to input line
+      const pill = getModePill(activeMode);
+      const pillLen = stripAnsi(pill).length;
+      const col = 1 + pillLen + ((globalRl as any).cursor || 0);
+      process.stdout.write(`\x1b[${rows - 2};${col}H`);
       return;
     }
 
@@ -1328,14 +1353,18 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     lines.push(`  ${DIM}${'─'.repeat(w)}${R}`);
 
     slashListLines = lines.length;
-    const startRow = rows - 2 - slashListLines;
+    // Draw just above the hint divider line (rows-3); overlay grows upward
+    const startRow = rows - 3 - slashListLines;
 
     for (let i = 0; i < lines.length; i++) {
       process.stdout.write(`\x1b[${startRow + i};1H\x1b[2K${lines[i]}`);
     }
 
-    const col = 4 + query.length;
-    process.stdout.write(`\x1b[${rows - 1};${col}H`);
+    // Restore cursor to the actual input line (rows-2) after the mode pill
+    const pill = getModePill(activeMode);
+    const pillLen = stripAnsi(pill).length;
+    const col = 1 + pillLen + ((globalRl as any).cursor || 0);
+    process.stdout.write(`\x1b[${rows - 2};${col}H`);
   }
 
   let isCommandRunning = false;
@@ -1403,13 +1432,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
   rl.on('line', async (rawLine: string) => {
     isCommandRunning = true;
-    const rows = process.stdout.rows || 24;
-    if (rows >= 10) {
-      // Position cursor at bottom of scrolling region and scroll up to fit user message
-      process.stdout.write(`\x1b[${rows - 4};1H\n\n`);
-    } else {
-      process.stdout.write('\n\n');
-    }
+
     if (slashActive) {
       clearSlashListLocal();
       slashActive = false;
@@ -1419,10 +1442,18 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
     try {
       let input = rawLine.trim();
+      // Early-return for blank/bare-slash input — no scroll, no extra space
       if (!input || input === '/') {
-        process.stdout.write('\x1b[A\x1b[2K');
         rl.prompt(true);
         return;
+      }
+
+      // Only push the scroll region down once we know there's real content
+      const rows = process.stdout.rows || 24;
+      if (rows >= 10) {
+        process.stdout.write(`\x1b[${rows - 4};1H\n\n`);
+      } else {
+        process.stdout.write('\n\n');
       }
 
       // ── Slash commands ──────────────────────────────────────────────────────
@@ -1554,23 +1585,27 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
                   'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro',
                   'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-opus',
                   'deepseek-chat', 'deepseek-coder', 'deepseek-v3', 'deepseek-r1',
-                  'anthropic/claude-3.5-sonnet', 'google/gemini-2.5-pro',
-                  'deepseek/deepseek-r1', 'meta-llama/llama-3.1-405b-instruct',
-                  'meta-llama/llama-3.3-70b-instruct:free'
+                  'openrouter/anthropic/claude-3.5-sonnet', 'openrouter/google/gemini-2.5-pro',
+                  'openrouter/deepseek/deepseek-r1', 'openrouter/meta-llama/llama-3.1-405b-instruct',
+                  'openrouter/meta-llama/llama-3-8b-instruct:free',
+                  ...localOpenRouterModels.map(x => x.startsWith('openrouter/') ? x : `openrouter/${x}`)
                 ];
 
               if (state.config.provider === 'openrouter') {
+                if (localOpenRouterModels.length > 0) {
+                  popularModels = localOpenRouterModels.map(x => x.startsWith('openrouter/') ? x : `openrouter/${x}`);
+                }
                 try {
                   state.infoMessage = 'Fetching OpenRouter models...';
                   redrawScreen(state);
                   const res = await fetch('https://openrouter.ai/api/v1/models');
                   const data: any = await res.json();
                   if (data && data.data) {
-                    popularModels = data.data.map((m: any) => m.id);
+                    popularModels = data.data.map((x: any) => x.id.startsWith('openrouter/') ? x.id : `openrouter/${x.id}`);
                   }
                   state.infoMessage = undefined;
                 } catch (e) {
-                  // Fallback to default list on error
+                  // Fallback to local list on error
                   state.infoMessage = undefined;
                 }
               }
@@ -1579,17 +1614,27 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
               const selected = await showModelSelector(rl, popularModels);
               state.modalOpen = false;
               if (selected) {
-                state.config.model = selected;
+                let finalModel = selected;
+                if (selected.startsWith('openrouter/')) {
+                  finalModel = selected.substring(11);
+                  state.config.provider = 'openrouter';
+                }
+                state.config.model = finalModel;
                 saveConfig(state.config);
-                state.infoMessage = `Model → ${selected}`;
+                state.infoMessage = `Model → ${finalModel} (Provider: ${state.config.provider})`;
               } else {
                 state.infoMessage = 'Model selection cancelled.';
               }
               await new Promise(r => setTimeout(r, 100));
             } else {
-              state.config.model = m;
+              let finalModel = m;
+              if (m.startsWith('openrouter/')) {
+                finalModel = m.substring(11);
+                state.config.provider = 'openrouter';
+              }
+              state.config.model = finalModel;
               saveConfig(state.config);
-              state.infoMessage = `Model → ${m}`;
+              state.infoMessage = `Model → ${finalModel} (Provider: ${state.config.provider})`;
             }
             redrawScreen(state);
             state.lastError = undefined; state.infoMessage = undefined;
@@ -1640,11 +1685,11 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       process.stdout.write('\n');
       const thinking = setInterval(() => {
         const s = SPIN_FRAMES[spinFrame % SPIN_FRAMES.length];
-        const color = getSpinnerColor(spinFrame);
         const elapsed = (Date.now() - startTime) / 1000;
         const elapsedSec = elapsed.toFixed(1);
         const phase = getReasoningPhase(elapsed);
-        process.stdout.write(`\r\x1b[K  ${color}${s}${R}  ${BOLD}${WHITE}${phase}${R}  ${DIM}[${elapsedSec}s]${R}`);
+        // Claude style: brand spinner, dimmed reasoning phase text
+        process.stdout.write(`\r\x1b[K  ${BRAND}${s}${R}  ${DIM}${phase} [${elapsedSec}s]${R}`);
         spinFrame++;
       }, 80);
 
