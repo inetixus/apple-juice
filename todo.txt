@@ -1,0 +1,21 @@
+# 🧃 Apple Juice - Improvement To-Do List
+
+## 🏗️ Architecture & Performance
+- [x] Refactor `dashboard-client.tsx` into modular components (Sidebar, Chat, Editor).
+- [x] Move state management to a store (Zustand) or Context Provider.
+- [ ] Implement `next/dynamic` for heavy 3D components (Medusae, StripeWave).
+
+## ⚡ Developer Experience (DX)
+- [ ] Replace standard code views with a Monaco-based editor (Luau highlighting).
+- [ ] Add a "Live Sync" status indicator for the Roblox Studio pairing.
+- [ ] Create "Juice Packs" (system prompt snippets) for common Roblox logic.
+- [ ] Add API key validation with a "Test Connection" button.
+
+## 🎨 Aesthetics & Brand
+- [x] Implement "Juicing" loading animations for AI generations.
+- [ ] Refine UI with glassmorphism and premium backdrop-blur effects.
+- [ ] Polish Dark Mode color palette with rich grays and vibrant accents.
+
+## 🚀 SEO & Metadata
+- [ ] Enhance OpenGraph meta tags and dynamic preview images.
+- [ ] Audit semantic HTML and accessibility across the dashboard.

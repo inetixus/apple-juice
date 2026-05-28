@@ -1,0 +1,70 @@
+.next/
+node_modules/
+out/
+dist/
+build/
+
+# Local env files
+.env*
+!.env.example
+.env.local
+
+# Vercel & deploy
+.vercel/
+
+# Cache / turbopack / turbo
+.turbopack/
+.turbo/
+.cache/
+
+# Editor directories
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# Misc
+.expo/
+/.pnp/
+*.local
+.vercel
+.env*.local
+*.mp3
+
+# Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Scratch, logs, and temporary diagnostic files
+scratch/
+scratch.cjs
+output.txt
+output_test.txt
+prettier_error.txt
+prettier_final_err.txt
+zap.txt
+chunk.txt
+
+# Claude Code
+claude-code-main/
+
+# Large compiled binaries and media
+public/*.exe
+public/*.bin
+public/*.mp4

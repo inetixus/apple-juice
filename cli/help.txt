@@ -1,0 +1,49 @@
+Shortcuts
+! for shell mode          double tap esc to clear input        ctrl + shift + _ to undo
+/ for commands            shift + tab to auto-accept edits     alt + v to paste images
+@ for file paths          ctrl + o for verbose output          alt + p to switch model
+& for background          ctrl + t to toggle tasks             ctrl + s to stash prompt
+/btw for side question    backslash (\) + return (⏎) for       ctrl + g to edit in $EDITOR
+                          newline                              /keybindings to customize
+
+Default commands
+/add-dir
+  Add a new working directory
+/agents
+  Manage agent configurations
+/background
+  Send this session to the background and free the terminal
+/branch
+  Create a branch of the current conversation at this point
+/btw
+  Ask a quick side question without interrupting the main conversation
+/clear
+  Start a new session with empty context; previous session stays on disk (resumable with /resume)
+/color
+  Set the prompt bar color for this session
+/compact
+  Free up context by summarizing the conversation so far
+/config
+  Open config panel
+/context
+  Visualize current context usage as a colored grid
+
+Custom commands
+/pair
+  Link terminal to Roblox Studio
+/status
+  Refresh server + Studio status
+/sync
+  AI-edit a file and push to Studio
+/provider
+  Set API provider (openai|google|deepseek|openrouter)
+/key
+  Set API key (optional provider)
+/model
+  Select AI model interactively
+/config
+  Show configuration
+/clear
+  Clear history and screen
+/exit
+  Quit Apple Juice CLI
