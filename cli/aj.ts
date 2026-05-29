@@ -1563,7 +1563,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
       // ── Slash commands ──────────────────────────────────────────────────────
       if (input.startsWith('/') || input === '?') {
-        const allCmds = ['/pair', '/status', '/sync', '/clear', '/key', '/model', '/config', '/help', '/exit'];
+        const allCmds = ['/add-dir', '/agents', '/background', '/branch', '/btw', '/clear', '/resume', '/color', '/compact', '/context', '/pair', '/status', '/sync', '/key', '/model', '/config', '/help', '/exit'];
         const [rawCmd, ...args] = input.slice(1).split(' ');
         const cmd = rawCmd.toLowerCase();
 
