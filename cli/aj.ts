@@ -808,6 +808,7 @@ function parseHelpFile(): HelpData {
       ['/branch', 'Create a branch of the current conversation at this point'],
       ['/btw', 'Ask a quick side question without interrupting the main conversation'],
       ['/clear', 'Start a new session with empty context; previous session stays on disk (resumable with /resume)'],
+      ['/resume', 'Restore the previous session cleared with /clear'],
       ['/color', 'Set the prompt bar color for this session'],
       ['/compact', 'Free up context by summarizing the conversation so far'],
       ['/config', 'Open config panel'],
@@ -2477,7 +2478,7 @@ async function handleCodeCommand(config: CLIConfig, filePath: string, instructio
 function showHelp(): void {
   const w = termWidth();
   const titleText = gradientText('Apple Juice CLI', SUNSET_START, SUNSET_END);
-  process.stdout.write(`\n  ${BOLD}${titleText}${R}  ${DIM}v2.0${R}\n`);
+  process.stdout.write(`\n  ${BOLD}${titleText}${R}  ${DIM}v2.1${R}\n`);
   process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n\n`);
   process.stdout.write(`  ${DIM}Commands${R}\n\n`);
   const cmds: [string, string][] = [
@@ -2496,20 +2497,36 @@ function showHelp(): void {
   for (const [c, d] of cmds) {
     process.stdout.write(`  ${BRAND}${c.padEnd(28)}${R}${DIM}${d}${R}\n`);
   }
-  process.stdout.write(`\n  ${DIM}Inside a session${R}\n\n`);
-  const inner: [string, string][] = [
-    ['/pair', 'Link to Studio'],
-    ['/status', 'Refresh status'],
-    ['/sync <f> [p]', 'Sync a file to Studio'],
-    ['/provider <p>', 'Set API provider'],
-    ['/key [p] <k>', 'Set API key (optional provider)'],
-    ['/model', 'Select AI model interactively'],
-    ['/config', 'Show config'],
-    ['/clear', 'Clear history'],
-    ['/exit', 'Exit'],
-    ['?', 'Show commands'],
+  process.stdout.write(`\n  ${DIM}Default Commands (Inside a session)${R}\n\n`);
+  const defaultCmds: [string, string][] = [
+    ['/add-dir', 'Add a new working directory'],
+    ['/agents', 'Manage agent configurations'],
+    ['/background', 'Send session to background and free terminal'],
+    ['/branch', 'Create branch of current conversation'],
+    ['/btw', 'Ask quick side question out-of-context'],
+    ['/clear', 'Backup & start new session (resumable with /resume)'],
+    ['/resume', 'Restore a previously cleared session'],
+    ['/color', 'Set the prompt bar theme color'],
+    ['/compact', 'Summarize conversation to free up context'],
+    ['/config', 'Open config panel'],
+    ['/context', 'Visualize context usage as colored grid'],
   ];
-  for (const [c, d] of inner) {
+  for (const [c, d] of defaultCmds) {
+    process.stdout.write(`  ${BRAND}${c.padEnd(28)}${R}${DIM}${d}${R}\n`);
+  }
+  process.stdout.write(`\n  ${DIM}Custom Commands (Inside a session)${R}\n\n`);
+  const customCmds: [string, string][] = [
+    ['/pair', 'Link terminal to Roblox Studio'],
+    ['/status', 'Refresh server + Studio status'],
+    ['/sync', 'AI-edit a file and push to Studio'],
+    ['/provider', 'Set API provider (openai|google|deepseek|openrouter)'],
+    ['/key', 'Set API key (optional provider)'],
+    ['/model', 'Select AI model interactively'],
+    ['/config', 'Show configuration'],
+    ['/clear', 'Clear history and screen'],
+    ['/exit', 'Quit Apple Juice CLI'],
+  ];
+  for (const [c, d] of customCmds) {
     process.stdout.write(`  ${BRAND}${c.padEnd(28)}${R}${DIM}${d}${R}\n`);
   }
   process.stdout.write('\n');
