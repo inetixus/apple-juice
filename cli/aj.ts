@@ -438,7 +438,7 @@ function drawHeader(serverOnline: boolean, paired: boolean, config: CLIConfig): 
   const w = termWidth();
   const titleText = gradientText('Apple Juice CLI', SUNSET_START, SUNSET_END);
   const projectLabel = `${DIM}active project:${R} ${WHITE}${path.basename(process.cwd())}${R}`;
-  const engineVersion = `${DIM}v2.0.4${R}`;
+  const engineVersion = `${DIM}v2.1.0${R}`;
 
   const leftPart = `  ${BOLD}${titleText}${R}  │  ${projectLabel}`;
   const gap = Math.max(1, w - stripAnsi(leftPart).length - stripAnsi(engineVersion).length - 4);
@@ -511,7 +511,7 @@ function drawWelcomeCard(state: SessionState): void {
   while (col1.length < maxLines) col1.push(padR('', col1W));
   while (col2.length < maxLines) col2.push(padR('', col2W));
 
-  const rawTitle = ' Apple Juice Sync v2.0 ';
+  const rawTitle = ' Apple Juice Sync v2.1 ';
   const coloredTitle = gradientText(rawTitle, SUNSET_START, SUNSET_END);
   const rawTitleLen = rawTitle.length;
   const prefix = '───';
@@ -941,7 +941,7 @@ function drawHelpTab(tabIndex: number, helpData: HelpData): void {
   process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n\n`);
 
   if (tabIndex === 0) {
-    process.stdout.write(`  ${BOLD}Apple Juice Sync v2.0${R}\n\n`);
+    process.stdout.write(`  ${BOLD}Apple Juice Sync v2.1${R}\n\n`);
     process.stdout.write(`  Apple Juice is an AI-powered sync interface designed to sync your local workspace\n`);
     process.stdout.write(`  directly to Roblox Studio while using powerful LLM generation.\n\n`);
     process.stdout.write(`  ${BRAND}•${R} Type any chat message to chat with the AI about your Roblox scripts.\n`);
