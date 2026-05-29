@@ -1740,13 +1740,13 @@ async function showInteractiveSettings(rl: any, state: any): Promise<void> {
         let mockPrompt = '';
         const style = state.config.chatbarStyle || 'mode';
         if (style === 'mode') {
-          mockPrompt = `\x1b[38;2;140;140;140m[ Normal ]\x1b[0m ${BRAND}›\x1b[0m  _`;
+          mockPrompt = `\x1b[38;2;140;140;140m[ Normal ]\x1b[0m ${BRAND}>\x1b[0m  _`;
         } else if (style === 'minimal') {
-          mockPrompt = `${BRAND}›\x1b[0m  _`;
+          mockPrompt = `${BRAND}>\x1b[0m  _`;
         } else if (style === 'model') {
-          mockPrompt = `\x1b[38;2;140;140;140m[ gpt-4o-mini ]\x1b[0m ${BRAND}›\x1b[0m  _`;
+          mockPrompt = `\x1b[38;2;140;140;140m[ gpt-4o-mini ]\x1b[0m ${BRAND}>\x1b[0m  _`;
         } else if (style === 'both') {
-          mockPrompt = `\x1b[38;2;140;140;140m[ Normal | gpt-4o-mini ]\x1b[0m ${BRAND}›\x1b[0m  _`;
+          mockPrompt = `\x1b[38;2;140;140;140m[ Normal | gpt-4o-mini ]\x1b[0m ${BRAND}>\x1b[0m  _`;
         }
 
         process.stdout.write(`  ${G_LINE}│${R}  ${mockPrompt}`.padEnd(w + 40) + `${G_LINE}│${R}\n`);
@@ -2134,7 +2134,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     const displayModel = modelLabel.length > 25 ? modelLabel.slice(0, 22) + '…' : modelLabel;
 
     if (style === 'minimal') {
-      return `${BRAND}›${R} `;
+      return `${BRAND}>${R} `;
     }
 
     let pillText = '';
@@ -2150,7 +2150,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     if (mode === 'Plan') pillColor = '\x1b[38;2;160;110;235m';
     else if (mode === 'Auto') pillColor = '\x1b[38;2;60;185;120m';
 
-    return `${pillColor}[ ${pillText} ]${R} ${BRAND}›${R} `;
+    return `${pillColor}[ ${pillText} ]${R} ${BRAND}>${R} `;
   }
 
   function updatePromptAndRedraw() {
@@ -2173,7 +2173,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   rl.prompt = (preserveCursor?: boolean) => {
     const rows = process.stdout.rows || 24;
     const w = termWidth();
-    if (rows >= 10) {
+    if (rows >= 10 && !exiting) {
       process.stdout.write(`\x1b[${rows - 3};1H\x1b[2K`);
       const shortcutsHint = ` ${DIM}Press ${R}${BRAND}[Tab]${R}${DIM} for commands · ${R}${BRAND}[Shift+Tab]${R}${DIM} to toggle agents · ${R}${BRAND}[Ctrl+C]${R}${DIM} to exit${R} `;
       const linePadding = Math.max(0, Math.floor((w - stripAnsi(shortcutsHint).length) / 2));
@@ -2190,29 +2190,36 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       process.stdout.write(`\x1b[${rows};1H\x1b[2K`);
       process.stdout.write(`\x1b[${rows - 2};1H\x1b[2K`);
     }
-    // Write colored pill manually to stdout so readline doesn't miscalculate width
+    // Use simple plain text prompt so readline works and tracks width perfectly
     const pillColored = getModePill(activeMode);
     const pillPlain = stripAnsi(pillColored);
-    process.stdout.write(pillColored);
-    // Use empty prompt for readline so cursor tracks from column 0
-    rl.setPrompt('');
+    rl.setPrompt(pillPlain);
     originalPrompt(preserveCursor);
+    
+    // Draw colored pill over the plain text one immediately
+    process.stdout.write(`\x1b[${rows - 2};1H${pillColored}`);
+    // Position cursor back to the correct spot
+    const cursorPos = (rl as any).cursor || 0;
+    process.stdout.write(`\x1b[${rows - 2};${1 + pillPlain.length + cursorPos}H`);
   };
 
-  // Override _refreshLine only to redraw bottom bar, not to touch prompt
+  // Override _refreshLine to redraw colored prompt and bottom bars safely
   const originalRefreshLine = (rl as any)._refreshLine.bind(rl);
   (rl as any)._refreshLine = function () {
     originalRefreshLine();
     const rows = process.stdout.rows || 24;
+    const pillColored = getModePill(activeMode);
+    // Overwrite the plain text prompt with colored one on the input line
+    process.stdout.write(`\x1b[s`); // Save cursor position
+    process.stdout.write(`\x1b[${rows - 2};1H${pillColored}`);
     if (rows >= 10 && !exiting && !state.modalOpen) {
-      process.stdout.write('\x1b[s');
       process.stdout.write(`\x1b[${rows - 1};1H\x1b[2K`);
       const modelLabel = state.config.provider === 'google' ? 'Google (128K)' : formatModelName(state.config.model || 'gpt-4o-mini');
       const contextLabel = getTokenPricingLabel(state);
       process.stdout.write(drawHorizontalLineWithText(modelLabel, contextLabel));
       process.stdout.write(`\x1b[${rows};1H\x1b[2K`);
-      process.stdout.write('\x1b[u');
     }
+    process.stdout.write(`\x1b[u`); // Restore cursor position
   };
 
   const onResize = () => {
@@ -2406,11 +2413,13 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         return;
       }
 
-      const rows = process.stdout.rows || 24;
-      if (rows >= 10) {
-        process.stdout.write(`\x1b[${rows - 4};1H\n\n`);
-      } else {
-        process.stdout.write('\n\n');
+      if (!input.startsWith('/')) {
+        const rows = process.stdout.rows || 24;
+        if (rows >= 10) {
+          process.stdout.write(`\x1b[${rows - 4};1H\n\n`);
+        } else {
+          process.stdout.write('\n\n');
+        }
       }
 
       if (input.startsWith('/') || input === '?') {
