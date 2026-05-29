@@ -1372,7 +1372,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   let slashQuery = '';
   let lastInputLen = 0;
   let slashListLines = 0;
-  let origRedraw: typeof redrawScreen;
 
   function clearSlashListLocal() {
     if (slashListLines > 0) {
@@ -1413,9 +1412,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
   function drawSlashListLocal(query: string) {
     clearSlashListLocal();
-    if (origRedraw) {
-      origRedraw(state);
-    }
 
     const lower = query.toLowerCase();
     const filtered = COMMANDS_LIST.filter(c =>
@@ -1430,7 +1426,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     if (filtered.length === 0) {
       const totalRows = 2;
       slashListLines = totalRows;
-      const startRow = rows - 3 - totalRows;
+      const startRow = rows - 2 - totalRows;
       
       process.stdout.write(`\x1b[${startRow};1H\x1b[2K  ${DIM}No matching commands for "/${query}"${R}`);
       process.stdout.write(`\x1b[${startRow + 1};1H\x1b[2K  ${DIM}${'─'.repeat(40)}${R}`);
@@ -1501,16 +1497,13 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         clearSlashListLocal();
         slashActive = false;
         slashQuery = '';
-        if (origRedraw) {
-          origRedraw(state);
-        }
       }
     }
   }, 100);
   slashCheckInterval.unref();
 
   // ─── Override redrawScreen to clear slash list before redraw ────────────
-  origRedraw = redrawScreen;
+  const origRedraw = redrawScreen;
   redrawScreen = (s: SessionState) => {
     if (slashActive) { clearSlashListLocal(); slashActive = false; }
     origRedraw(s);
@@ -1550,9 +1543,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       slashActive = false;
       slashQuery = '';
       lastInputLen = 0;
-      if (origRedraw) {
-        origRedraw(state);
-      }
     }
 
     try {
