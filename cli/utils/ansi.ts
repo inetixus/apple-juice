@@ -20,6 +20,10 @@ export const SUNSET_END: RGB   = { r: 255, g: 215, b: 0 };   // Radiant Gold / Y
 export const SYNTH_START: RGB  = { r: 236, g: 72,  b: 153 }; // Pink
 export const SYNTH_END: RGB    = { r: 99,  g: 102, b: 241 }; // Indigo
 
+export const C_MAGENTA_SPIKE = '\x1b[38;2;255;0;255m';
+export const C_CYAN_SPIKE     = '\x1b[38;2;0;255;255m';
+export const C_ORANGE_SPIKE   = '\x1b[38;2;255;165;0m';
+
 export function rgb(r: number, g: number, b: number): string {
   return `\x1b[38;2;${Math.round(r)};${Math.round(g)};${Math.round(b)}m`;
 }

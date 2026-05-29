@@ -1,5 +1,5 @@
 {
-  "sessionKey": "U9CYTA",
+  "sessionKey": "TU2TB8",
   "apiUrl": "http://localhost:3000",
   "isFirstRun": false,
   "cliUserId": "e5c7fe25b8736574",
@@ -7,5 +7,9 @@
   "provider": "google",
   "googleKey": "AIzaSyCoJKcB-20sVlixvKPdgztpjumy413xwok",
   "openrouterKey": "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",
-  "model": "gemini-2.5-flash"
+  "model": "gemini-2.5-flash",
+  "themeColor": "green",
+  "showTokenPricing": false,
+  "chatbarStyle": "minimal",
+  "buddyMuted": false
 }

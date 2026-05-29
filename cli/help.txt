@@ -19,6 +19,8 @@ Default commands
   Ask a quick side question without interrupting the main conversation
 /clear
   Start a new session with empty context; previous session stays on disk (resumable with /resume)
+/resume
+  Restore the previous session cleared with /clear
 /color
   Set the prompt bar color for this session
 /compact

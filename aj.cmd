@@ -1,2 +1,2 @@
 @echo off
-node "%~dp0cli\aj.ts" %*
+node --experimental-strip-types "%~dp0cli\aj.ts" %*

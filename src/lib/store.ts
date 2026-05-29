@@ -65,7 +65,12 @@ export const MODEL_MULTIPLIERS: Record<string, number> = {
   "claude-3-5-sonnet": 6,
   "claude-3-5-sonnet-20241022": 6,
   "claude-3-5-haiku": 1.5,
+  "claude-3-5-haiku-20241022": 1.5,
   "claude-3-opus": 12,
+  "claude-opus-4.6": 4,
+  "claude-opus-4.7": 4,
+  "claude-opus-4.6-fast": 24,
+  "claude-opus-4.7-fast": 24,
 
   // OpenAI Models
   "gpt-4o": 5,

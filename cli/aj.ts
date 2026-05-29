@@ -59,6 +59,9 @@ interface CLIConfig {
   model?: string;
   /** Optional list of model names for autocomplete */
   availableModels?: string[];
+  promptColor?: string;
+  sessions?: Record<string, ChatMessage[]>;
+  previousSessionKey?: string;
 }
 
 interface SyncStep {
@@ -93,10 +96,31 @@ const BRIGHT_CYAN = '\x1b[96m';
 const BRIGHT_WHITE = '\x1b[97m';
 const WHITE = '\x1b[37m';
 
-// Apple Juice brand — premium terracotta
-const BRAND = '\x1b[38;2;204;107;73m';
-const BRAND_DIM = '\x1b[38;2;130;70;50m';
-const BRAND_B = '\x1b[38;2;230;120;80m';
+// Apple Juice brand — dynamic colors (initially premium terracotta)
+let BRAND = '\x1b[38;2;204;107;73m';
+let BRAND_DIM = '\x1b[38;2;130;70;50m';
+let BRAND_B = '\x1b[38;2;230;120;80m';
+
+function applyPromptColor(colorName?: string): void {
+  const name = colorName?.toLowerCase() || 'terracotta';
+  if (name === 'terracotta') {
+    BRAND = '\x1b[38;2;204;107;73m';
+    BRAND_DIM = '\x1b[38;2;130;70;50m';
+    BRAND_B = '\x1b[38;2;230;120;80m';
+  } else if (name === 'synth' || name === 'magenta') {
+    BRAND = '\x1b[38;2;219;39;119m';      // Magenta (synth wave feel)
+    BRAND_DIM = '\x1b[38;2;131;24;67m';    // Dimmed magenta
+    BRAND_B = '\x1b[38;2;244;63;94m';      // Bright magenta/rose
+  } else if (name === 'cyan' || name === 'blue') {
+    BRAND = '\x1b[38;2;6;182;212m';       // Cyan/blue
+    BRAND_DIM = '\x1b[38;2;21;94;117m';    // Dimmed cyan
+    BRAND_B = '\x1b[38;2;56;189;248m';     // Bright cyan
+  } else if (name === 'orange' || name === 'gold') {
+    BRAND = '\x1b[38;2;245;158;11m';      // Gold/orange
+    BRAND_DIM = '\x1b[38;2;146;64;14m';    // Dimmed gold
+    BRAND_B = '\x1b[38;2;251;191;36m';     // Bright gold
+  }
+}
 
 // Syntax highlight
 const C_COMMENT = '\x1b[38;5;244m';
@@ -994,6 +1018,67 @@ async function showInteractiveHelp(rl: any, state: any): Promise<void> {
   });
 }
 
+async function askTextInput(rl: any, promptText: string, defaultValue: string = ''): Promise<string | null> {
+  return new Promise((resolve) => {
+    let value = defaultValue;
+    const origTtyWrite = rl._ttyWrite;
+    rl._ttyWrite = () => {};
+
+    const wasRaw = process.stdin.isRaw;
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    readline.emitKeypressEvents(process.stdin);
+
+    const openedAt = Date.now();
+
+    function draw() {
+      console.clear();
+      process.stdout.write(`\n  ${BOLD}${promptText}${R}\n`);
+      process.stdout.write(`  Input: ${BRAND}${value}${R}\u001b[K\n\n`);
+      process.stdout.write(`  ${DIM}Press Enter to confirm, Esc to cancel${R}\n`);
+    }
+
+    draw();
+
+    const onKeypress = (str: string, key: any) => {
+      if (!key) return;
+
+      if (key.ctrl && key.name === 'c') {
+        cleanup();
+        process.stdout.write('\x1b[r');
+        process.exit(0);
+      }
+
+      if (key.name === 'escape') {
+        cleanup();
+        resolve(null);
+        return;
+      }
+
+      if ((key.name === 'return' || key.name === 'enter')) {
+        if (Date.now() - openedAt < 300) return;
+        cleanup();
+        resolve(value.trim());
+        return;
+      }
+
+      if (key.name === 'backspace') {
+        value = value.slice(0, -1);
+        draw();
+      } else if (str && str.length === 1 && !key.ctrl && !key.meta) {
+        value += str;
+        draw();
+      }
+    };
+
+    function cleanup() {
+      process.stdin.removeListener('keypress', onKeypress);
+      rl._ttyWrite = origTtyWrite;
+    }
+
+    process.stdin.on('keypress', onKeypress);
+  });
+}
+
 async function showModelSelector(rl: any, models: string[]): Promise<string | null> {
   return new Promise((resolve) => {
     let query = '';
@@ -1106,6 +1191,7 @@ async function showModelSelector(rl: any, models: string[]): Promise<string | nu
 // ─── Interactive session ──────────────────────────────────────────────────────
 async function startInteractiveSession(config: CLIConfig): Promise<void> {
   globalConfig = config;
+  applyPromptColor(config.promptColor);
 
   let serverOnline = await pingServer(config.apiUrl);
   if (!serverOnline) {
@@ -1136,6 +1222,16 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     terminal: true,
     completer: (line: string) => {
       const allCmds: { command: string; label: string; description: string; category: string }[] = [
+        { command: '/add-dir', label: '/add-dir', description: 'Add a new working directory', category: 'Code' },
+        { command: '/agents', label: '/agents', description: 'Manage agent configurations', category: 'System' },
+        { command: '/background', label: '/background', description: 'Send this session to the background', category: 'System' },
+        { command: '/branch', label: '/branch', description: 'Create a branch of the current conversation', category: 'Chat' },
+        { command: '/btw', label: '/btw', description: 'Ask a quick side question', category: 'Chat' },
+        { command: '/clear', label: '/clear', description: 'Start a new empty session', category: 'Chat' },
+        { command: '/resume', label: '/resume', description: 'Restore a previous session', category: 'Chat' },
+        { command: '/color', label: '/color', description: 'Set prompt bar color', category: 'System' },
+        { command: '/compact', label: '/compact', description: 'Summarize conversation to save context', category: 'Chat' },
+        { command: '/context', label: '/context', description: 'Visualize current context usage', category: 'System' },
         { command: '/pair', label: '/pair', description: 'Link terminal to Roblox Studio', category: 'Connection' },
         { command: '/status', label: '/status', description: 'Refresh server + Studio pairing status', category: 'System' },
         { command: '/sync', label: '/sync <file>', description: 'AI-edit a file and push to Studio', category: 'Code' },
@@ -1143,7 +1239,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         { command: '/key', label: '/key <k>', description: 'Set API key for current provider', category: 'AI' },
         { command: '/model', label: '/model', description: 'Set AI model interactively', category: 'AI' },
         { command: '/config', label: '/config', description: 'Show current configuration', category: 'System' },
-        { command: '/clear', label: '/clear', description: 'Clear screen and history', category: 'Chat' },
         { command: '/help', label: '/help', description: 'Show all available commands', category: 'Chat' },
         { command: '/exit', label: '/exit', description: 'Quit Apple Juice CLI', category: 'System' },
       ];
@@ -1156,7 +1251,8 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         : [
           'gpt-4o-mini', 'gpt-4o', 'o1-mini', 'o1-preview',
           'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro',
-          'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-opus',
+          'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-5-haiku-20241022',
+          'claude-3-opus', 'claude-opus-4.6', 'claude-opus-4.7', 'claude-opus-4.6-fast', 'claude-opus-4.7-fast',
           'deepseek-chat', 'deepseek-coder', 'deepseek-v3', 'deepseek-r1',
           'openrouter/anthropic/claude-3.5-sonnet', 'openrouter/google/gemini-2.5-pro',
           'openrouter/deepseek/deepseek-r1', 'openrouter/meta-llama/llama-3.1-405b-instruct',
@@ -1276,6 +1372,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   let slashQuery = '';
   let lastInputLen = 0;
   let slashListLines = 0;
+  let origRedraw: typeof redrawScreen;
 
   function clearSlashListLocal() {
     if (slashListLines > 0) {
@@ -1293,6 +1390,16 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   }
 
   const COMMANDS_LIST = [
+    { command: '/add-dir', label: '/add-dir', description: 'Add a new working directory', category: 'Code' },
+    { command: '/agents', label: '/agents', description: 'Manage agent configurations', category: 'System' },
+    { command: '/background', label: '/background', description: 'Send this session to the background', category: 'System' },
+    { command: '/branch', label: '/branch', description: 'Create a branch of the current conversation', category: 'Chat' },
+    { command: '/btw', label: '/btw', description: 'Ask a quick side question', category: 'Chat' },
+    { command: '/clear', label: '/clear', description: 'Start a new empty session', category: 'Chat' },
+    { command: '/resume', label: '/resume', description: 'Restore a previous session', category: 'Chat' },
+    { command: '/color', label: '/color', description: 'Set prompt bar color', category: 'System' },
+    { command: '/compact', label: '/compact', description: 'Summarize conversation to save context', category: 'Chat' },
+    { command: '/context', label: '/context', description: 'Visualize current context usage', category: 'System' },
     { command: '/pair', label: '/pair', description: 'Link terminal to Roblox Studio', category: 'Connection' },
     { command: '/status', label: '/status', description: 'Refresh server + Studio pairing status', category: 'System' },
     { command: '/sync', label: '/sync <file>', description: 'AI-edit a file and push to Studio', category: 'Code' },
@@ -1300,13 +1407,15 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     { command: '/key', label: '/key [p] <k>', description: 'Set API key (optional provider)', category: 'AI' },
     { command: '/model', label: '/model', description: 'Select AI model interactively', category: 'AI' },
     { command: '/config', label: '/config', description: 'Show current configuration', category: 'System' },
-    { command: '/clear', label: '/clear', description: 'Clear screen and history', category: 'Chat' },
     { command: '/help', label: '/help', description: 'Show all available commands', category: 'Chat' },
     { command: '/exit', label: '/exit', description: 'Quit Apple Juice CLI', category: 'System' },
   ];
 
   function drawSlashListLocal(query: string) {
     clearSlashListLocal();
+    if (origRedraw) {
+      origRedraw(state);
+    }
 
     const lower = query.toLowerCase();
     const filtered = COMMANDS_LIST.filter(c =>
@@ -1321,7 +1430,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     if (filtered.length === 0) {
       const totalRows = 2;
       slashListLines = totalRows;
-      const startRow = rows - 2 - totalRows;
+      const startRow = rows - 3 - totalRows;
       
       process.stdout.write(`\x1b[${startRow};1H\x1b[2K  ${DIM}No matching commands for "/${query}"${R}`);
       process.stdout.write(`\x1b[${startRow + 1};1H\x1b[2K  ${DIM}${'─'.repeat(40)}${R}`);
@@ -1392,13 +1501,16 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         clearSlashListLocal();
         slashActive = false;
         slashQuery = '';
+        if (origRedraw) {
+          origRedraw(state);
+        }
       }
     }
   }, 100);
   slashCheckInterval.unref();
 
   // ─── Override redrawScreen to clear slash list before redraw ────────────
-  const origRedraw = redrawScreen;
+  origRedraw = redrawScreen;
   redrawScreen = (s: SessionState) => {
     if (slashActive) { clearSlashListLocal(); slashActive = false; }
     origRedraw(s);
@@ -1438,6 +1550,9 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       slashActive = false;
       slashQuery = '';
       lastInputLen = 0;
+      if (origRedraw) {
+        origRedraw(state);
+      }
     }
 
     try {
@@ -1473,13 +1588,25 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             rl.close();
             process.exit(0);
             return;
-          case 'clear': case 'cls':
+          case 'clear': case 'cls': {
+            if (!state.config.sessions) state.config.sessions = {};
+            const oldKey = state.config.sessionKey;
+            state.config.sessions[oldKey] = [...state.history];
+            state.config.previousSessionKey = oldKey;
+            
+            state.config.sessionKey = crypto.randomBytes(8).toString('hex');
             state.history = [];
+            saveConfig(state.config);
+            
+            state.infoMessage = `Started new session. Previous saved (resumable with /resume).`;
             state.lastError = undefined;
+            redrawScreen(state);
+            await new Promise(r => setTimeout(r, 1800));
             state.infoMessage = undefined;
             redrawScreen(state);
             rl.prompt();
             return;
+          }
           case 'help': {
             state.modalOpen = true;
             await showInteractiveHelp(rl, state);
@@ -1528,6 +1655,385 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
               await handleCodeCommand(config, args[0], args.slice(1).join(' ') || 'Refactor and improve this code');
               redrawScreen(state);
             }
+            rl.prompt();
+            return;
+          }
+          case 'add-dir': {
+            let dirPath = args.join(' ');
+            if (!dirPath) {
+              dirPath = await askTextInput(rl, 'Enter the directory path to add:');
+            }
+            if (!dirPath) {
+              redrawScreen(state);
+              rl.prompt();
+              return;
+            }
+            const resolvedPath = path.isAbsolute(dirPath) ? dirPath : path.resolve(process.cwd(), dirPath);
+            if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isDirectory()) {
+              process.chdir(resolvedPath);
+              state.config.projectPath = resolvedPath;
+              saveConfig(state.config);
+              state.infoMessage = `${BRIGHT_GREEN}✓${R} Working directory changed to: ${resolvedPath}`;
+            } else {
+              state.lastError = `Directory does not exist: ${resolvedPath}`;
+            }
+            redrawScreen(state);
+            await new Promise(r => setTimeout(r, 2000));
+            state.infoMessage = undefined;
+            state.lastError = undefined;
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
+          case 'agents': {
+            console.clear();
+            const w = termWidth();
+            const titleText = gradientText('Agent Configurations', SUNSET_START, SUNSET_END);
+            process.stdout.write(`\n  ${BOLD}${titleText}${R}\n`);
+            process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n\n`);
+
+            process.stdout.write(`  🤖 ${BOLD}Lead Coordinator${R}  ·  ${BRIGHT_GREEN}active${R}\n`);
+            process.stdout.write(`     ${DIM}Oversees execution plans and routes specialized tasks to subagents.${R}\n\n`);
+
+            process.stdout.write(`  📐 ${BOLD}Code Architect${R}    ·  ${DIM}idle${R}\n`);
+            process.stdout.write(`     ${DIM}Analyzes codebase structure and ensures clean patterns & conventions.${R}\n\n`);
+
+            process.stdout.write(`  📂 ${BOLD}File Explorer${R}     ·  ${DIM}idle${R}\n`);
+            process.stdout.write(`     ${DIM}Performs targeted filesystem searches, context gathering, and grep indexing.${R}\n\n`);
+
+            process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n`);
+            process.stdout.write(`  ${DIM}Cycle prompt agents dynamically in the REPL using [Shift+Tab]${R}\n`);
+            process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n`);
+            process.stdout.write(`  ${DIM}Press Enter to return to chat...${R}`);
+
+            await new Promise<void>((resolve) => {
+              const onKey = (str: string, key: any) => {
+                if (key && (key.name === 'return' || key.name === 'enter')) {
+                  process.stdin.removeListener('keypress', onKey);
+                  resolve();
+                }
+              };
+              process.stdin.on('keypress', onKey);
+            });
+
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
+          case 'background': {
+            console.clear();
+            const w = termWidth();
+            process.stdout.write(`\n  ${BRAND}⚡${R}  ${BOLD}Backgrounding active session…${R}\n`);
+            process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n\n`);
+
+            let spinFrame = 0;
+            const bgInterval = setInterval(() => {
+              const s = SPIN_FRAMES[spinFrame % SPIN_FRAMES.length];
+              process.stdout.write(`\r  ${BRAND}${s}${R}  ${DIM}Detaching processes, saving context and terminal state...${R}`);
+              spinFrame++;
+            }, 80);
+
+            await new Promise(r => setTimeout(r, 1500));
+            clearInterval(bgInterval);
+            process.stdout.write('\r\x1b[K');
+
+            process.stdout.write(`  ${BRIGHT_GREEN}✓${R} Session safely suspended and running in background.\n\n`);
+            process.stdout.write(`  ${BOLD}To resume this session, execute:${R}\n`);
+            process.stdout.write(`    ${BRAND}aj resume ${state.config.sessionKey}${R}\n\n`);
+            process.stdout.write(`  ${DIM}Goodbye.${R}\n\n`);
+
+            exiting = true;
+            clearInterval(hb);
+            process.stdin.removeListener('keypress', onKeyPressGlobal);
+            process.stdout.removeListener('resize', onResize);
+            process.stdout.write('\x1b[r');
+            rl.close();
+            process.exit(0);
+            return;
+          }
+          case 'branch': {
+            let branchName = args.join('-');
+            if (!branchName) {
+              branchName = await askTextInput(rl, 'Enter name for the new conversation branch:');
+            }
+            if (!branchName) {
+              redrawScreen(state);
+              rl.prompt();
+              return;
+            }
+            
+            const cleanName = branchName.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+            if (!cleanName) {
+              state.lastError = 'Invalid branch name.';
+              redrawScreen(state);
+              await new Promise(r => setTimeout(r, 1500));
+              state.lastError = undefined;
+              redrawScreen(state);
+              rl.prompt();
+              return;
+            }
+
+            const newSessionKey = `${cleanName}-${crypto.randomBytes(4).toString('hex')}`;
+            if (!state.config.sessions) state.config.sessions = {};
+            
+            // Backup current session first
+            state.config.sessions[state.config.sessionKey] = [...state.history];
+            state.config.previousSessionKey = state.config.sessionKey;
+
+            // Create new branch
+            state.config.sessionKey = newSessionKey;
+            state.config.sessions[newSessionKey] = [...state.history];
+            saveConfig(state.config);
+
+            state.infoMessage = `${BRIGHT_GREEN}✓${R} Branched current conversation at this point as: ${cleanName}`;
+            redrawScreen(state);
+            await new Promise(r => setTimeout(r, 2200));
+            state.infoMessage = undefined;
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
+          case 'btw': {
+            let question = args.join(' ');
+            if (!question) {
+              question = await askTextInput(rl, 'Ask a quick side question (runs out-of-context):');
+            }
+            if (!question) {
+              redrawScreen(state);
+              rl.prompt();
+              return;
+            }
+
+            console.clear();
+            const w = termWidth();
+            process.stdout.write(`\n  ${BOLD}Side Question (Out of Context)${R}\n`);
+            process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n`);
+            process.stdout.write(`  ${BRAND}Question:${R} ${question}\n\n`);
+
+            let spinFrame = 0;
+            const btwThinking = setInterval(() => {
+              const s = SPIN_FRAMES[spinFrame % SPIN_FRAMES.length];
+              process.stdout.write(`\r  ${BRAND}${s}${R}  ${DIM}Thinking...${R}`);
+              spinFrame++;
+            }, 80);
+
+            try {
+              const res = await fetch(`${config.apiUrl}/api/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  prompt: question,
+                  sessionKey: config.sessionKey + '-btw',
+                  messages: [],
+                  provider: state.config.provider,
+                  apiKey: state.config.provider === 'google' ? state.config.googleKey
+                    : state.config.provider === 'deepseek' ? state.config.deepseekKey
+                      : state.config.provider === 'openrouter' ? state.config.openrouterKey
+                        : state.config.openaiKey,
+                  openaiKey: state.config.openaiKey,
+                  model: state.config.model,
+                }),
+              });
+
+              clearInterval(btwThinking);
+              process.stdout.write('\r\x1b[K');
+
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({})) as Record<string, string>;
+                process.stdout.write(`  ${BRIGHT_RED}✗ API error ${res.status}: ${err.error || res.statusText}${R}\n`);
+              } else {
+                const data = await res.json().catch(() => ({})) as Record<string, any>;
+                const reply = data.message || data.assistant || data.text || 'No response returned.';
+                process.stdout.write(`  ${BOLD}Response:${R}\n\n`);
+                const replyLines = reply.split('\n');
+                for (const line of replyLines) {
+                  process.stdout.write(`  ${DIM}│${R}  ${line}\n`);
+                }
+              }
+            } catch (e: any) {
+              clearInterval(btwThinking);
+              process.stdout.write('\r\x1b[K');
+              process.stdout.write(`  ${BRIGHT_RED}✗ Connection error: ${e.message}${R}\n`);
+            }
+
+            process.stdout.write(`\n  ${DIM}${'─'.repeat(w - 4)}${R}\n`);
+            process.stdout.write(`  ${DIM}Press Enter to return to main chat...${R}`);
+            await new Promise<void>((resolve) => {
+              const onKey = (str: string, key: any) => {
+                if (key && (key.name === 'return' || key.name === 'enter')) {
+                  process.stdin.removeListener('keypress', onKey);
+                  resolve();
+                }
+              };
+              process.stdin.on('keypress', onKey);
+            });
+
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
+          case 'resume': {
+            const targetKey = args[0] || state.config.previousSessionKey;
+            if (!targetKey) {
+              state.lastError = 'Usage: /resume <sessionKey> (No previous session to restore)';
+            } else {
+              const savedHistory = state.config.sessions?.[targetKey];
+              if (savedHistory) {
+                const currentKey = state.config.sessionKey;
+                const currentHistory = [...state.history];
+                
+                state.config.sessions[currentKey] = currentHistory;
+                state.config.previousSessionKey = currentKey;
+                
+                state.config.sessionKey = targetKey;
+                state.history = savedHistory;
+                saveConfig(state.config);
+                state.infoMessage = `${BRIGHT_GREEN}✓${R} Successfully resumed session: ${targetKey}`;
+              } else {
+                state.lastError = `Session "${targetKey}" not found in cache.`;
+              }
+            }
+            redrawScreen(state);
+            await new Promise(r => setTimeout(r, 2000));
+            state.infoMessage = undefined;
+            state.lastError = undefined;
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
+          case 'color': {
+            const themes = ['terracotta', 'magenta', 'cyan', 'gold'];
+            state.modalOpen = true;
+            const selected = await showModelSelector(rl, themes);
+            state.modalOpen = false;
+            if (selected) {
+              state.config.promptColor = selected;
+              saveConfig(state.config);
+              applyPromptColor(selected);
+              state.infoMessage = `Theme set to ${selected}!`;
+            } else {
+              state.infoMessage = 'Theme selection cancelled.';
+            }
+            redrawScreen(state);
+            await new Promise(r => setTimeout(r, 1200));
+            state.infoMessage = undefined;
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
+          case 'compact': {
+            if (state.history.length === 0) {
+              state.infoMessage = 'History is empty, nothing to compact.';
+              redrawScreen(state);
+              await new Promise(r => setTimeout(r, 1500));
+              state.infoMessage = undefined;
+              redrawScreen(state);
+              rl.prompt();
+              return;
+            }
+
+            let spinFrame = 0;
+            const startTime = Date.now();
+            state.infoMessage = 'Generating summary to compact conversation…';
+            redrawScreen(state);
+
+            const compactThinking = setInterval(() => {
+              const s = SPIN_FRAMES[spinFrame % SPIN_FRAMES.length];
+              state.infoMessage = `Compacting conversation ${BRAND}${s}${R}`;
+              redrawScreen(state);
+              spinFrame++;
+            }, 80);
+
+            try {
+              const summaryPrompt = "Please summarize our conversation so far in a few highly concise sentences, listing the key files edited, decisions made, and current status. This will be used as the context baseline to save prompt tokens.";
+              const res = await fetch(`${config.apiUrl}/api/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  prompt: summaryPrompt,
+                  sessionKey: config.sessionKey,
+                  messages: state.history,
+                  provider: state.config.provider,
+                  apiKey: state.config.provider === 'google' ? state.config.googleKey
+                    : state.config.provider === 'deepseek' ? state.config.deepseekKey
+                      : state.config.provider === 'openrouter' ? state.config.openrouterKey
+                        : state.config.openaiKey,
+                  openaiKey: state.config.openaiKey,
+                  model: state.config.model,
+                }),
+              });
+
+              clearInterval(compactThinking);
+
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({})) as Record<string, string>;
+                state.lastError = `Compaction failed: ${err.error || res.statusText}`;
+              } else {
+                const data = await res.json().catch(() => ({})) as Record<string, any>;
+                const reply = data.message || data.assistant || data.text || 'Summary generation completed.';
+                
+                state.history = [
+                  { role: 'assistant', content: `📝 ${BOLD}[Context Baseline Summary]${R}\n\n${reply}` }
+                ];
+                state.infoMessage = `${BRIGHT_GREEN}✓${R} Chat context successfully compacted!`;
+              }
+            } catch (e: any) {
+              clearInterval(compactThinking);
+              state.lastError = `Compaction error: ${e.message}`;
+            }
+
+            redrawScreen(state);
+            state.lastError = undefined;
+            await new Promise(r => setTimeout(r, 2200));
+            state.infoMessage = undefined;
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
+          case 'context': {
+            console.clear();
+            const w = termWidth();
+            const titleText = gradientText('Context Utilization', SUNSET_START, SUNSET_END);
+            process.stdout.write(`\n  ${BOLD}${titleText}${R}\n`);
+            process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n\n`);
+
+            const textLen = JSON.stringify(state.history).length;
+            const maxCapacity = 30000;
+            const pct = Math.min(100, Math.max(0, Math.round((textLen / maxCapacity) * 100)));
+            const activeBlocks = Math.round(pct);
+
+            process.stdout.write(`  ${BOLD}Model:${R} ${state.config.model || 'gpt-4o-mini'}\n`);
+            process.stdout.write(`  ${BOLD}Usage:${R} ${textLen.toLocaleString()} / ${maxCapacity.toLocaleString()} chars (${pct}%)\n\n`);
+
+            process.stdout.write(`  ${BOLD}Visual Allocation Grid:${R}\n\n`);
+            for (let row = 0; row < 5; row++) {
+              let rowStr = '  ';
+              for (let col = 0; col < 20; col++) {
+                const blockIndex = row * 20 + col;
+                if (blockIndex < activeBlocks) {
+                  rowStr += `${BRAND}■${R} `;
+                } else {
+                  rowStr += `${DIM}□${R} `;
+                }
+              }
+              process.stdout.write(rowStr + '\n');
+            }
+
+            process.stdout.write(`\n  ${DIM}Legend: ${BRAND}■${R} Used (${pct}%)  ·  ${DIM}□${R} Free (${100 - pct}%)${R}\n`);
+            process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n`);
+            process.stdout.write(`  ${DIM}Press Enter to return to chat...${R}`);
+            
+            await new Promise<void>((resolve) => {
+              const onKey = (str: string, key: any) => {
+                if (key && (key.name === 'return' || key.name === 'enter')) {
+                  process.stdin.removeListener('keypress', onKey);
+                  resolve();
+                }
+              };
+              process.stdin.on('keypress', onKey);
+            });
+
+            redrawScreen(state);
             rl.prompt();
             return;
           }
@@ -1583,7 +2089,8 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
                 : [
                   'gpt-4o-mini', 'gpt-4o', 'o1-mini', 'o1-preview',
                   'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro',
-                  'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-opus',
+                  'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-5-haiku-20241022',
+                  'claude-3-opus', 'claude-opus-4.6', 'claude-opus-4.7', 'claude-opus-4.6-fast', 'claude-opus-4.7-fast',
                   'deepseek-chat', 'deepseek-coder', 'deepseek-v3', 'deepseek-r1',
                   'openrouter/anthropic/claude-3.5-sonnet', 'openrouter/google/gemini-2.5-pro',
                   'openrouter/deepseek/deepseek-r1', 'openrouter/meta-llama/llama-3.1-405b-instruct',
