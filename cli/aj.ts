@@ -17,6 +17,7 @@ import http from 'http';
 import { gradientText, SUNSET_START, SUNSET_END } from './utils/ansi.ts';
 import * as Diff from 'diff';
 import https from 'https';
+import { fileURLToPath } from 'url';
 
 async function customFetch(url: string, options: any = {}): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -89,13 +90,34 @@ let globalRl: readline.Interface | null = null;
 
 let localOpenRouterModels: string[] = [];
 try {
-  const candidates = [
-    path.join(__dirname, 'modellist.txt'),
-    path.join(__dirname, '../cli/modellist.txt'),
-    path.join(process.cwd(), 'cli/modellist.txt'),
-    path.join(path.dirname(process.execPath), 'cli/modellist.txt'),
-    path.join(path.dirname(process.execPath), 'modellist.txt'),
-  ];
+  const candidates: string[] = [];
+  
+  // Try using ESM import.meta.url
+  try {
+    const esmDirname = path.dirname(fileURLToPath(import.meta.url));
+    if (esmDirname) {
+      candidates.push(path.join(esmDirname, 'modellist.txt'));
+      candidates.push(path.join(esmDirname, '../cli/modellist.txt'));
+    }
+  } catch (_) {}
+
+  // Try using CJS __dirname
+  try {
+    if (typeof __dirname !== 'undefined') {
+      candidates.push(path.join(__dirname, 'modellist.txt'));
+      candidates.push(path.join(__dirname, '../cli/modellist.txt'));
+    }
+  } catch (_) {}
+
+  // Fallbacks
+  candidates.push(path.join(process.cwd(), 'cli/modellist.txt'));
+  candidates.push(path.join(process.cwd(), 'modellist.txt'));
+  
+  try {
+    candidates.push(path.join(path.dirname(process.execPath), 'cli/modellist.txt'));
+    candidates.push(path.join(path.dirname(process.execPath), 'modellist.txt'));
+  } catch (_) {}
+
   let foundPath = '';
   for (const c of candidates) {
     if (fs.existsSync(c)) {
@@ -256,7 +278,7 @@ function padRight(text: string, visLen: number): string {
 }
 
 function drawHorizontalLineWithText(leftText: string, rightText?: string): string {
-  const w = process.stdout.columns || 80;
+  const w = (process.stdout.columns || 80) - 1;
   const leftTextPart = leftText ? ` ${leftText} ` : '';
   const rightTextPart = rightText ? ` ${rightText} ` : '';
   const leftLen = stripAnsi(leftTextPart).length;
@@ -797,8 +819,8 @@ function drawHeader(serverOnline: boolean, paired: boolean, config: CLIConfig): 
 }
 
 function drawWelcomeCard(state: SessionState): void {
-  const col1W = 44;
-  const col2W = 32;
+  const col1W = 38;
+  const col2W = 30;
 
   const padR = (str: string, len: number) => {
     const vis = stripAnsi(str).length;
@@ -833,16 +855,21 @@ function drawWelcomeCard(state: SessionState): void {
   const provider = state.config.provider || 'openai';
   const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
   col1.push(padC(`${DIM}${providerLabel} (128K context)${R}`, col1W));
+  
   const shortenedCwd = process.cwd().replace(os.homedir(), '~');
-  col1.push(padC(`${DIM}${shortenedCwd}${R}`, col1W));
+  let pathText = shortenedCwd;
+  if (pathText.length > col1W) {
+    pathText = '…' + pathText.slice(-(col1W - 2));
+  }
+  col1.push(padC(`${DIM}${pathText}${R}`, col1W));
 
   const col2: string[] = [];
   col2.push(padR(`${BOLD}${WHITE}Getting Started${R}`, col2W));
   col2.push(padR(`Type any prompt to ask the AI.`, col2W));
-  col2.push(padR(`Prefix with ${BRAND}/${R} to run TUI commands:`, col2W));
-  col2.push(padR(`  ${BRAND}/model${R}    Change AI Model`, col2W));
-  col2.push(padR(`  ${BRAND}/sync${R}     Push files to Studio`, col2W));
-  col2.push(padR(`  ${BRAND}/config${R}   View configuration`, col2W));
+  col2.push(padR(`Use / for TUI commands:`, col2W));
+  col2.push(padR(`  ${BRAND}/model${R}   Change AI Model`, col2W));
+  col2.push(padR(`  ${BRAND}/sync${R}    Push files to Studio`, col2W));
+  col2.push(padR(`  ${BRAND}/config${R}  View configuration`, col2W));
   col2.push('---');
   col2.push(padR(`${BOLD}${WHITE}What's new${R}`, col2W));
   col2.push(padR(`Server: ${state.serverOnline ? `${BRIGHT_GREEN}Online${R} ${DIM}(port 3000)${R}` : `${BRIGHT_RED}Offline${R}`}`, col2W));
@@ -858,7 +885,8 @@ function drawWelcomeCard(state: SessionState): void {
   const rawTitleLen = rawTitle.length;
   const prefix = '───';
   const G_LINE = '\x1b[38;2;100;100;100m';
-  const suffix = '─'.repeat(col1W + 2 - prefix.length - rawTitleLen);
+  const suffixLen = Math.max(0, col1W + 2 - prefix.length - rawTitleLen);
+  const suffix = '─'.repeat(suffixLen);
   const col1Top = `${prefix}${coloredTitle}${G_LINE}${suffix}`;
   const col2Top = '─'.repeat(col2W + 2);
 
@@ -925,7 +953,7 @@ function redrawScreen(state: SessionState): void {
   const rows = process.stdout.rows || 24;
 
   if (rows < 10) {
-    console.clear();
+    process.stdout.write('\x1b[3J\x1b[H\x1b[2J');
     drawHeader(state.serverOnline, state.paired, state.config);
     if (state.history.length === 0) drawWelcomeCard(state);
     if (state.history.length > 0) {
@@ -941,7 +969,7 @@ function redrawScreen(state: SessionState): void {
   }
 
   process.stdout.write('\x1b[r');
-  console.clear();
+  process.stdout.write('\x1b[3J\x1b[H\x1b[2J');
 
   process.stdout.write('\x1b[1;1H');
   drawHeader(state.serverOnline, state.paired, state.config);
@@ -1901,7 +1929,7 @@ async function askTextInput(rl: any, promptText: string, defaultValue: string = 
   });
 }
 
-async function showModelSelector(rl: any, models: string[]): Promise<string | null> {
+async function showModelSelector(rl: any, models: string[], state?: any): Promise<string | null> {
   return new Promise((resolve) => {
     let query = '';
     let selectedIndex = 0;
@@ -1915,13 +1943,43 @@ async function showModelSelector(rl: any, models: string[]): Promise<string | nu
     readline.emitKeypressEvents(process.stdin);
 
     const openedAt = Date.now();
+    const rows = process.stdout.rows || 24;
+    const w = termWidth() - 1;
+
+    // Temporarily shrink chatbox scrolling region and redraw to make space for the longer dropbox
+    if (state && rows >= 19) {
+      process.stdout.write(`\x1b[4;${rows - 17}r`);
+      redrawScreen(state);
+    }
 
     function draw() {
-      console.clear();
-      process.stdout.write(`\n  ${BOLD}Select AI model${R}\n`);
-      process.stdout.write(`  Search: ${query}\n\n`);
+      process.stdout.write('\x1b[s'); // Save cursor position
+      
+      const startRow = rows >= 19 ? rows - 16 : 1;
+      const G_LINE = '\x1b[38;2;100;100;100m';
+      const boxW = Math.min(68, w - 4);
+      
+      // Clear the popup area first (12 lines total)
+      for (let r = 0; r < 12; r++) {
+        process.stdout.write(`\x1b[${startRow + r};1H\x1b[2K`);
+      }
 
-      const MAX_VISIBLE = 10;
+      // Draw Top Border
+      const title = ' Select Option ';
+      const borderTop = `${G_LINE}┌─${BRAND}${title}${G_LINE}${'─'.repeat(boxW - 2 - title.length)}┐${R}`;
+      process.stdout.write(`\x1b[${startRow};1H  ${borderTop}`);
+
+      // Draw Search Line
+      const searchStr = ` Search: ${query}`;
+      const searchLine = `${G_LINE}│${R}${searchStr}${' '.repeat(Math.max(0, boxW - stripAnsi(searchStr).length))}${G_LINE}│${R}`;
+      process.stdout.write(`\x1b[${startRow + 1};1H  ${searchLine}`);
+
+      // Draw Mid Separator
+      const sep = `${G_LINE}├${'─'.repeat(boxW)}┤${R}`;
+      process.stdout.write(`\x1b[${startRow + 2};1H  ${sep}`);
+
+      // Draw visible options (compact 8 items list)
+      const MAX_VISIBLE = 8;
       let startIdx = 0;
       let endIdx = filtered.length;
 
@@ -1934,23 +1992,27 @@ async function showModelSelector(rl: any, models: string[]): Promise<string | nu
         }
       }
 
-      if (startIdx > 0) {
-        process.stdout.write(`    ↑ ...\n`);
-      }
-
-      for (let i = startIdx; i < endIdx; i++) {
-        if (i === selectedIndex) {
-          process.stdout.write(`  > \x1b[36m${filtered[i]}\x1b[0m\n`);
+      for (let idx = 0; idx < MAX_VISIBLE; idx++) {
+        const itemIdx = startIdx + idx;
+        const lineRow = startRow + 3 + idx;
+        if (itemIdx < filtered.length) {
+          const item = filtered[itemIdx];
+          const isSelected = itemIdx === selectedIndex;
+          const itemText = isSelected ? ` > \x1b[36m${item}\x1b[0m` : `   ${item}`;
+          const finalLine = `${G_LINE}│${R}${itemText}${' '.repeat(Math.max(0, boxW - stripAnsi(itemText).length))}${G_LINE}│${R}`;
+          process.stdout.write(`\x1b[${lineRow};1H  ${finalLine}`);
         } else {
-          process.stdout.write(`    ${filtered[i]}\n`);
+          const finalLine = `${G_LINE}│${' '.repeat(boxW)}│${R}`;
+          process.stdout.write(`\x1b[${lineRow};1H  ${finalLine}`);
         }
       }
 
-      if (endIdx < filtered.length) {
-        process.stdout.write(`    ↓ ...\n`);
-      }
-
-      process.stdout.write('\n  Use ↑/↓ to select, Enter to confirm, Esc to cancel\n');
+      // Draw Bottom Help Line / Border
+      const helpText = ` ↑/↓ select · Enter confirm · Esc close `;
+      const borderBot = `${G_LINE}└${'─'.repeat(Math.floor((boxW - helpText.length) / 2))}${DIM}${helpText}${R}${G_LINE}${'─'.repeat(boxW - helpText.length - Math.floor((boxW - helpText.length) / 2))}┘${R}`;
+      process.stdout.write(`\x1b[${startRow + 11};1H  ${borderBot}`);
+      
+      process.stdout.write('\x1b[u'); // Restore cursor position
     }
 
     draw();
@@ -2004,6 +2066,18 @@ async function showModelSelector(rl: any, models: string[]): Promise<string | nu
     function cleanup() {
       process.stdin.removeListener('keypress', onKeypress);
       rl._ttyWrite = origTtyWrite;
+      
+      // Clear the popover area lines from screen (12 lines total)
+      const startRow = rows >= 19 ? rows - 16 : 1;
+      for (let r = 0; r < 12; r++) {
+        process.stdout.write(`\x1b[${startRow + r};1H\x1b[2K`);
+      }
+      
+      // Restore standard scrolling region and redraw full-screen TUI
+      if (state && rows >= 19) {
+        process.stdout.write(`\x1b[4;${rows - 4}r`);
+        redrawScreen(state);
+      }
     }
 
     process.stdin.on('keypress', onKeypress);
@@ -2072,17 +2146,386 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
       const modelSuggestions = (state.config.availableModels && state.config.availableModels.length > 0)
         ? state.config.availableModels
-        : [
-          'gpt-4o-mini', 'gpt-4o', 'o1-mini', 'o1-preview',
-          'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro',
-          'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-5-haiku-20241022',
-          'claude-3-opus', 'claude-opus-4.6', 'claude-opus-4.7', 'claude-opus-4.6-fast', 'claude-opus-4.7-fast',
-          'deepseek-chat', 'deepseek-coder', 'deepseek-v3', 'deepseek-r1',
-          'openrouter/anthropic/claude-3.5-sonnet', 'openrouter/google/gemini-2.5-pro',
-          'openrouter/deepseek/deepseek-r1', 'openrouter/meta-llama/llama-3.1-405b-instruct',
+        : Array.from(new Set([
+          'gpt-4o-mini',
+          'gpt-4o',
+          'o1-mini',
+          'o1-preview',
+          'gemini-3.5-flash',
+          'gemini-2.5-flash',
+          'gemini-2.5-pro',
+          'gemini-1.5-flash',
+          'claude-3-5-sonnet',
+          'claude-3-5-haiku',
+          'claude-3-opus',
+          'claude-opus-4.7-fast',
+          'deepseek-chat',
+          'deepseek-coder',
+          'deepseek-r1',
+          'deepseek/deepseek-v4-pro',
+          'deepseek/deepseek-v4-flash',
+          'qwen/qwen3.7-max',
+          'x-ai/grok-build-0.1',
+          'x-ai/grok-4.3',
+          'openai/gpt-5.5',
+          'openai/gpt-5.5-pro',
+          'openrouter/anthropic/claude-3.5-sonnet',
+          'openrouter/google/gemini-2.5-pro',
+          'openrouter/deepseek/deepseek-r1',
+          'openrouter/meta-llama/llama-3.1-405b-instruct',
           'openrouter/meta-llama/llama-3-8b-instruct:free',
+          'google/gemini-3.5-flash',
+          'anthropic/claude-opus-4.7-fast',
+          'perceptron/perceptron-mk1',
+          'inclusionai/ring-2.6-1t',
+          'google/gemini-3.1-flash-lite',
+          'openai/gpt-chat-latest',
+          'ibm-granite/granite-4.1-8b',
+          'mistralai/mistral-medium-3-5',
+          'openrouter/owl-alpha',
+          'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+          'poolside/laguna-xs.2:free',
+          'poolside/laguna-m.1:free',
+          '~anthropic/claude-haiku-latest',
+          '~openai/gpt-mini-latest',
+          '~google/gemini-pro-latest',
+          '~moonshotai/kimi-latest',
+          '~google/gemini-flash-latest',
+          '~anthropic/claude-sonnet-latest',
+          '~openai/gpt-latest',
+          'qwen/qwen3.5-plus-20260420',
+          'qwen/qwen3.6-flash',
+          'qwen/qwen3.6-35b-a3b',
+          'qwen/qwen3.6-max-preview',
+          'qwen/qwen3.6-27b',
+          'deepseek/deepseek-v4-flash:free',
+          'inclusionai/ling-2.6-1t',
+          'tencent/hy3-preview',
+          'xiaomi/mimo-v2.5-pro',
+          'xiaomi/mimo-v2.5',
+          'openai/gpt-5.4-image-2',
+          'inclusionai/ling-2.6-flash',
+          '~anthropic/claude-opus-latest',
+          'openrouter/pareto-code',
+          'baidu/qianfan-ocr-fast',
+          'moonshotai/kimi-k2.6',
+          'anthropic/claude-opus-4.7',
+          'anthropic/claude-opus-4.6-fast',
+          'z-ai/glm-5.1',
+          'google/gemma-4-26b-a4b-it:free',
+          'google/gemma-4-26b-a4b-it',
+          'google/gemma-4-31b-it:free',
+          'google/gemma-4-31b-it',
+          'qwen/qwen3.6-plus',
+          'z-ai/glm-5v-turbo',
+          'arcee-ai/trinity-large-thinking',
+          'x-ai/grok-4.20-multi-agent',
+          'x-ai/grok-4.20',
+          'google/lyria-3-pro-preview',
+          'google/lyria-3-clip-preview',
+          'kwaipilot/kat-coder-pro-v2',
+          'rekaai/reka-edge',
+          'xiaomi/mimo-v2-omni',
+          'xiaomi/mimo-v2-pro',
+          'minimax/minimax-m2.7',
+          'openai/gpt-5.4-nano',
+          'openai/gpt-5.4-mini',
+          'mistralai/mistral-small-2603',
+          'z-ai/glm-5-turbo',
+          'nvidia/nemotron-3-super-120b-a12b:free',
+          'nvidia/nemotron-3-super-120b-a12b',
+          'bytedance-seed/seed-2.0-lite',
+          'qwen/qwen3.5-9b',
+          'openai/gpt-5.4-pro',
+          'openai/gpt-5.4',
+          'inception/mercury-2',
+          'openai/gpt-5.3-chat',
+          'google/gemini-3.1-flash-lite-preview',
+          'bytedance-seed/seed-2.0-mini',
+          'google/gemini-3.1-flash-image-preview',
+          'qwen/qwen3.5-35b-a3b',
+          'qwen/qwen3.5-27b',
+          'qwen/qwen3.5-122b-a10b',
+          'qwen/qwen3.5-flash-02-23',
+          'liquid/lfm-2-24b-a2b',
+          'google/gemini-3.1-pro-preview-customtools',
+          'openai/gpt-5.3-codex',
+          'aion-labs/aion-2.0',
+          'google/gemini-3.1-pro-preview',
+          'anthropic/claude-sonnet-4.6',
+          'qwen/qwen3.5-plus-02-15',
+          'qwen/qwen3.5-397b-a17b',
+          'minimax/minimax-m2.5:free',
+          'minimax/minimax-m2.5',
+          'z-ai/glm-5',
+          'qwen/qwen3-max-thinking',
+          'anthropic/claude-opus-4.6',
+          'qwen/qwen3-coder-next',
+          'openrouter/free',
+          'stepfun/step-3.5-flash',
+          'moonshotai/kimi-k2.5',
+          'upstage/solar-pro-3',
+          'minimax/minimax-m2-her',
+          'writer/palmyra-x5',
+          'liquid/lfm-2.5-1.2b-thinking:free',
+          'liquid/lfm-2.5-1.2b-instruct:free',
+          'openai/gpt-audio',
+          'openai/gpt-audio-mini',
+          'z-ai/glm-4.7-flash',
+          'openai/gpt-5.2-codex',
+          'bytedance-seed/seed-1.6-flash',
+          'bytedance-seed/seed-1.6',
+          'minimax/minimax-m2.1',
+          'z-ai/glm-4.7',
+          'google/gemini-3-flash-preview',
+          'xiaomi/mimo-v2-flash',
+          'nvidia/nemotron-3-nano-30b-a3b:free',
+          'nvidia/nemotron-3-nano-30b-a3b',
+          'openai/gpt-5.2-chat',
+          'openai/gpt-5.2-pro',
+          'openai/gpt-5.2',
+          'mistralai/devstral-2512',
+          'relace/relace-search',
+          'z-ai/glm-4.6v',
+          'nex-agi/deepseek-v3.1-nex-n1',
+          'essentialai/rnj-1-instruct',
+          'openrouter/bodybuilder',
+          'openai/gpt-5.1-codex-max',
+          'amazon/nova-2-lite-v1',
+          'mistralai/ministral-14b-2512',
+          'mistralai/ministral-8b-2512',
+          'mistralai/ministral-3b-2512',
+          'mistralai/mistral-large-2512',
+          'arcee-ai/trinity-mini',
+          'deepseek/deepseek-v3.2-speciale',
+          'deepseek/deepseek-v3.2',
+          'prime-intellect/intellect-3',
+          'anthropic/claude-opus-4.5',
+          'allenai/olmo-3-32b-think',
+          'google/gemini-3-pro-image-preview',
+          'deepcogito/cogito-v2.1-671b',
+          'openai/gpt-5.1',
+          'openai/gpt-5.1-chat',
+          'openai/gpt-5.1-codex',
+          'openai/gpt-5.1-codex-mini',
+          'moonshotai/kimi-k2-thinking',
+          'amazon/nova-premier-v1',
+          'perplexity/sonar-pro-search',
+          'mistralai/voxtral-small-24b-2507',
+          'openai/gpt-oss-safeguard-20b',
+          'nvidia/nemotron-nano-12b-v2-vl:free',
+          'minimax/minimax-m2',
+          'qwen/qwen3-vl-32b-instruct',
+          'ibm-granite/granite-4.0-h-micro',
+          'microsoft/phi-4-mini-instruct',
+          'openai/gpt-5-image-mini',
+          'anthropic/claude-haiku-4.5',
+          'qwen/qwen3-vl-8b-thinking',
+          'qwen/qwen3-vl-8b-instruct',
+          'openai/gpt-5-image',
+          'openai/o3-deep-research',
+          'openai/o4-mini-deep-research',
+          'nvidia/llama-3.3-nemotron-super-49b-v1.5',
+          'baidu/ernie-4.5-21b-a3b-thinking',
+          'google/gemini-2.5-flash-image',
+          'qwen/qwen3-vl-30b-a3b-thinking',
+          'qwen/qwen3-vl-30b-a3b-instruct',
+          'openai/gpt-5-pro',
+          'z-ai/glm-4.6',
+          'anthropic/claude-sonnet-4.5',
+          'deepseek/deepseek-v3.2-exp',
+          'thedrummer/cydonia-24b-v4.1',
+          'relace/relace-apply-3',
+          'google/gemini-2.5-flash-lite-preview-09-2025',
+          'qwen/qwen3-vl-235b-a22b-thinking',
+          'qwen/qwen3-vl-235b-a22b-instruct',
+          'qwen/qwen3-max',
+          'qwen/qwen3-coder-plus',
+          'openai/gpt-5-codex',
+          'deepseek/deepseek-v3.1-terminus',
+          'qwen/qwen3-coder-flash',
+          'qwen/qwen3-next-80b-a3b-thinking',
+          'qwen/qwen3-next-80b-a3b-instruct:free',
+          'qwen/qwen3-next-80b-a3b-instruct',
+          'qwen/qwen-plus-2025-07-28:thinking',
+          'qwen/qwen-plus-2025-07-28',
+          'nvidia/nemotron-nano-9b-v2:free',
+          'nvidia/nemotron-nano-9b-v2',
+          'moonshotai/kimi-k2-0905',
+          'qwen/qwen3-30b-a3b-thinking-2507',
+          'nousresearch/hermes-4-70b',
+          'nousresearch/hermes-4-405b',
+          'deepseek/deepseek-chat-v3.1',
+          'openai/gpt-4o-audio-preview',
+          'mistralai/mistral-medium-3.1',
+          'baidu/ernie-4.5-21b-a3b',
+          'baidu/ernie-4.5-vl-28b-a3b',
+          'z-ai/glm-4.5v',
+          'ai21/jamba-large-1.7',
+          'openai/gpt-5-chat',
+          'openai/gpt-5',
+          'openai/gpt-5-mini',
+          'openai/gpt-5-nano',
+          'openai/gpt-oss-120b:free',
+          'openai/gpt-oss-120b',
+          'openai/gpt-oss-20b:free',
+          'openai/gpt-oss-20b',
+          'anthropic/claude-opus-4.1',
+          'mistralai/codestral-2508',
+          'qwen/qwen3-coder-30b-a3b-instruct',
+          'qwen/qwen3-30b-a3b-instruct-2507',
+          'z-ai/glm-4.5',
+          'z-ai/glm-4.5-air:free',
+          'z-ai/glm-4.5-air',
+          'qwen/qwen3-235b-a22b-thinking-2507',
+          'z-ai/glm-4-32b',
+          'qwen/qwen3-coder:free',
+          'qwen/qwen3-coder',
+          'bytedance/ui-tars-1.5-7b',
+          'google/gemini-2.5-flash-lite',
+          'qwen/qwen3-235b-a22b-2507',
+          'switchpoint/router',
+          'moonshotai/kimi-k2',
+          'mistralai/devstral-medium',
+          'mistralai/devstral-small',
+          'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
+          'tencent/hunyuan-a13b-instruct',
+          'morph/morph-v3-large',
+          'morph/morph-v3-fast',
+          'baidu/ernie-4.5-vl-424b-a47b',
+          'baidu/ernie-4.5-300b-a47b',
+          'mistralai/mistral-small-3.2-24b-instruct',
+          'minimax/minimax-m1',
+          'google/gemini-2.5-flash',
+          'google/gemini-2.5-pro',
+          'openai/o3-pro',
+          'google/gemini-2.5-pro-preview',
+          'deepseek/deepseek-r1-0528',
+          'anthropic/claude-opus-4',
+          'anthropic/claude-sonnet-4',
+          'google/gemma-3n-e4b-it',
+          'mistralai/mistral-medium-3',
+          'google/gemini-2.5-pro-preview-05-06',
+          'arcee-ai/spotlight',
+          'arcee-ai/maestro-reasoning',
+          'arcee-ai/virtuoso-large',
+          'arcee-ai/coder-large',
+          'meta-llama/llama-guard-4-12b',
+          'qwen/qwen3-30b-a3b',
+          'qwen/qwen3-8b',
+          'qwen/qwen3-14b',
+          'qwen/qwen3-32b',
+          'qwen/qwen3-235b-a22b',
+          'openai/o4-mini-high',
+          'openai/o3',
+          'openai/o4-mini',
+          'openai/gpt-4.1',
+          'openai/gpt-4.1-mini',
+          'openai/gpt-4.1-nano',
+          'alfredpros/codellama-7b-instruct-solidity',
+          'meta-llama/llama-4-maverick',
+          'meta-llama/llama-4-scout',
+          'deepseek/deepseek-chat-v3-0324',
+          'openai/o1-pro',
+          'mistralai/mistral-small-3.1-24b-instruct',
+          'google/gemma-3-4b-it',
+          'google/gemma-3-12b-it',
+          'cohere/command-a',
+          'openai/gpt-4o-mini-search-preview',
+          'openai/gpt-4o-search-preview',
+          'rekaai/reka-flash-3',
+          'google/gemma-3-27b-it',
+          'thedrummer/skyfall-36b-v2',
+          'perplexity/sonar-reasoning-pro',
+          'perplexity/sonar-pro',
+          'perplexity/sonar-deep-research',
+          'google/gemini-2.0-flash-lite-001',
+          'mistralai/mistral-saba',
+          'meta-llama/llama-guard-3-8b',
+          'openai/o3-mini-high',
+          'google/gemini-2.0-flash-001',
+          'aion-labs/aion-1.0',
+          'aion-labs/aion-1.0-mini',
+          'aion-labs/aion-rp-llama-3.1-8b',
+          'qwen/qwen2.5-vl-72b-instruct',
+          'qwen/qwen-plus',
+          'openai/o3-mini',
+          'mistralai/mistral-small-24b-instruct-2501',
+          'deepseek/deepseek-r1-distill-qwen-32b',
+          'perplexity/sonar',
+          'deepseek/deepseek-r1-distill-llama-70b',
+          'deepseek/deepseek-r1',
+          'minimax/minimax-01',
+          'microsoft/phi-4',
+          'sao10k/l3.1-70b-hanami-x1',
+          'deepseek/deepseek-chat',
+          'sao10k/l3.3-euryale-70b',
+          'openai/o1',
+          'cohere/command-r7b-12-2024',
+          'meta-llama/llama-3.3-70b-instruct:free',
+          'meta-llama/llama-3.3-70b-instruct',
+          'amazon/nova-lite-v1',
+          'amazon/nova-micro-v1',
+          'amazon/nova-pro-v1',
+          'openai/gpt-4o-2024-11-20',
+          'mistralai/mistral-large-2411',
+          'mistralai/mistral-large-2407',
+          'mistralai/pixtral-large-2411',
+          'qwen/qwen-2.5-coder-32b-instruct',
+          'thedrummer/unslopnemo-12b',
+          'anthropic/claude-3.5-haiku',
+          'anthropic/claude-3-5-haiku-20241022',
+          'anthracite-org/magnum-v4-72b',
+          'qwen/qwen-2.5-7b-instruct',
+          'inflection/inflection-3-productivity',
+          'inflection/inflection-3-pi',
+          'thedrummer/rocinante-12b',
+          'meta-llama/llama-3.2-11b-vision-instruct',
+          'meta-llama/llama-3.2-1b-instruct',
+          'meta-llama/llama-3.2-3b-instruct:free',
+          'meta-llama/llama-3.2-3b-instruct',
+          'qwen/qwen-2.5-72b-instruct',
+          'cohere/command-r-08-2024',
+          'cohere/command-r-plus-08-2024',
+          'sao10k/l3.1-euryale-70b',
+          'nousresearch/hermes-3-llama-3.1-70b',
+          'nousresearch/hermes-3-llama-3.1-405b:free',
+          'nousresearch/hermes-3-llama-3.1-405b',
+          'sao10k/l3-lunaris-8b',
+          'openai/gpt-4o-2024-08-06',
+          'meta-llama/llama-3.1-70b-instruct',
+          'meta-llama/llama-3.1-8b-instruct',
+          'mistralai/mistral-nemo',
+          'openai/gpt-4o-mini-2024-07-18',
+          'openai/gpt-4o-mini',
+          'google/gemma-2-27b-it',
+          'sao10k/l3-euryale-70b',
+          'nousresearch/hermes-2-pro-llama-3-8b',
+          'openai/gpt-4o',
+          'openai/gpt-4o-2024-05-13',
+          'meta-llama/llama-3-70b-instruct',
+          'meta-llama/llama-3-8b-instruct',
+          'mistralai/mixtral-8x22b-instruct',
+          'microsoft/wizardlm-2-8x22b',
+          'openai/gpt-4-turbo',
+          'anthropic/claude-3-haiku',
+          'mistralai/mistral-large',
+          'openai/gpt-3.5-turbo-0613',
+          'openai/gpt-4-turbo-preview',
+          'openrouter/auto',
+          'openai/gpt-4-1106-preview',
+          'mistralai/mistral-7b-instruct-v0.1',
+          'openai/gpt-3.5-turbo-instruct',
+          'openai/gpt-3.5-turbo-16k',
+          'mancer/weaver',
+          'undi95/remm-slerp-l2-13b',
+          'gryphe/mythomax-l2-13b',
+          'openai/gpt-4-0314',
+          'openai/gpt-3.5-turbo',
+          'openai/gpt-4',
+          ...localOpenRouterModels,
           ...localOpenRouterModels.map(m => m.startsWith('openrouter/') ? m : `openrouter/${m}`)
-        ];
+        ]));
       if (cmdPart === '/model' && parts.length > 1) {
         const pref = parts[1] ?? '';
         const hits = modelSuggestions.filter(m => m.toLowerCase().startsWith(pref.toLowerCase()));
@@ -2172,7 +2615,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   const originalPrompt = rl.prompt.bind(rl);
   rl.prompt = (preserveCursor?: boolean) => {
     const rows = process.stdout.rows || 24;
-    const w = termWidth();
+    const w = termWidth() - 1;
     if (rows >= 10 && !exiting) {
       process.stdout.write(`\x1b[${rows - 3};1H\x1b[2K`);
       const shortcutsHint = ` ${DIM}Press ${R}${BRAND}[Tab]${R}${DIM} for commands · ${R}${BRAND}[Shift+Tab]${R}${DIM} to toggle agents · ${R}${BRAND}[Ctrl+C]${R}${DIM} to exit${R} `;
@@ -2745,7 +3188,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
           case 'color': {
             const themes = ['terracotta', 'magenta', 'cyan', 'gold'];
             state.modalOpen = true;
-            const selected = await showModelSelector(rl, themes);
+            const selected = await showModelSelector(rl, themes, state);
             state.modalOpen = false;
             if (selected) {
               state.config.promptColor = selected;
@@ -2917,17 +3360,386 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             if (!m) {
               let popularModels = (state.config.availableModels && state.config.availableModels.length > 0)
                 ? state.config.availableModels
-                : [
-                  'gpt-4o-mini', 'gpt-4o', 'o1-mini', 'o1-preview',
-                  'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro',
-                  'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-5-haiku-20241022',
-                  'claude-3-opus', 'claude-opus-4.6', 'claude-opus-4.7', 'claude-opus-4.6-fast', 'claude-opus-4.7-fast',
-                  'deepseek-chat', 'deepseek-coder', 'deepseek-v3', 'deepseek-r1',
-                  'openrouter/anthropic/claude-3.5-sonnet', 'openrouter/google/gemini-2.5-pro',
-                  'openrouter/deepseek/deepseek-r1', 'openrouter/meta-llama/llama-3.1-405b-instruct',
+                : Array.from(new Set([
+                  'gpt-4o-mini',
+                  'gpt-4o',
+                  'o1-mini',
+                  'o1-preview',
+                  'gemini-3.5-flash',
+                  'gemini-2.5-flash',
+                  'gemini-2.5-pro',
+                  'gemini-1.5-flash',
+                  'claude-3-5-sonnet',
+                  'claude-3-5-haiku',
+                  'claude-3-opus',
+                  'claude-opus-4.7-fast',
+                  'deepseek-chat',
+                  'deepseek-coder',
+                  'deepseek-r1',
+                  'deepseek/deepseek-v4-pro',
+                  'deepseek/deepseek-v4-flash',
+                  'qwen/qwen3.7-max',
+                  'x-ai/grok-build-0.1',
+                  'x-ai/grok-4.3',
+                  'openai/gpt-5.5',
+                  'openai/gpt-5.5-pro',
+                  'openrouter/anthropic/claude-3.5-sonnet',
+                  'openrouter/google/gemini-2.5-pro',
+                  'openrouter/deepseek/deepseek-r1',
+                  'openrouter/meta-llama/llama-3.1-405b-instruct',
                   'openrouter/meta-llama/llama-3-8b-instruct:free',
+                  'google/gemini-3.5-flash',
+                  'anthropic/claude-opus-4.7-fast',
+                  'perceptron/perceptron-mk1',
+                  'inclusionai/ring-2.6-1t',
+                  'google/gemini-3.1-flash-lite',
+                  'openai/gpt-chat-latest',
+                  'ibm-granite/granite-4.1-8b',
+                  'mistralai/mistral-medium-3-5',
+                  'openrouter/owl-alpha',
+                  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+                  'poolside/laguna-xs.2:free',
+                  'poolside/laguna-m.1:free',
+                  '~anthropic/claude-haiku-latest',
+                  '~openai/gpt-mini-latest',
+                  '~google/gemini-pro-latest',
+                  '~moonshotai/kimi-latest',
+                  '~google/gemini-flash-latest',
+                  '~anthropic/claude-sonnet-latest',
+                  '~openai/gpt-latest',
+                  'qwen/qwen3.5-plus-20260420',
+                  'qwen/qwen3.6-flash',
+                  'qwen/qwen3.6-35b-a3b',
+                  'qwen/qwen3.6-max-preview',
+                  'qwen/qwen3.6-27b',
+                  'deepseek/deepseek-v4-flash:free',
+                  'inclusionai/ling-2.6-1t',
+                  'tencent/hy3-preview',
+                  'xiaomi/mimo-v2.5-pro',
+                  'xiaomi/mimo-v2.5',
+                  'openai/gpt-5.4-image-2',
+                  'inclusionai/ling-2.6-flash',
+                  '~anthropic/claude-opus-latest',
+                  'openrouter/pareto-code',
+                  'baidu/qianfan-ocr-fast',
+                  'moonshotai/kimi-k2.6',
+                  'anthropic/claude-opus-4.7',
+                  'anthropic/claude-opus-4.6-fast',
+                  'z-ai/glm-5.1',
+                  'google/gemma-4-26b-a4b-it:free',
+                  'google/gemma-4-26b-a4b-it',
+                  'google/gemma-4-31b-it:free',
+                  'google/gemma-4-31b-it',
+                  'qwen/qwen3.6-plus',
+                  'z-ai/glm-5v-turbo',
+                  'arcee-ai/trinity-large-thinking',
+                  'x-ai/grok-4.20-multi-agent',
+                  'x-ai/grok-4.20',
+                  'google/lyria-3-pro-preview',
+                  'google/lyria-3-clip-preview',
+                  'kwaipilot/kat-coder-pro-v2',
+                  'rekaai/reka-edge',
+                  'xiaomi/mimo-v2-omni',
+                  'xiaomi/mimo-v2-pro',
+                  'minimax/minimax-m2.7',
+                  'openai/gpt-5.4-nano',
+                  'openai/gpt-5.4-mini',
+                  'mistralai/mistral-small-2603',
+                  'z-ai/glm-5-turbo',
+                  'nvidia/nemotron-3-super-120b-a12b:free',
+                  'nvidia/nemotron-3-super-120b-a12b',
+                  'bytedance-seed/seed-2.0-lite',
+                  'qwen/qwen3.5-9b',
+                  'openai/gpt-5.4-pro',
+                  'openai/gpt-5.4',
+                  'inception/mercury-2',
+                  'openai/gpt-5.3-chat',
+                  'google/gemini-3.1-flash-lite-preview',
+                  'bytedance-seed/seed-2.0-mini',
+                  'google/gemini-3.1-flash-image-preview',
+                  'qwen/qwen3.5-35b-a3b',
+                  'qwen/qwen3.5-27b',
+                  'qwen/qwen3.5-122b-a10b',
+                  'qwen/qwen3.5-flash-02-23',
+                  'liquid/lfm-2-24b-a2b',
+                  'google/gemini-3.1-pro-preview-customtools',
+                  'openai/gpt-5.3-codex',
+                  'aion-labs/aion-2.0',
+                  'google/gemini-3.1-pro-preview',
+                  'anthropic/claude-sonnet-4.6',
+                  'qwen/qwen3.5-plus-02-15',
+                  'qwen/qwen3.5-397b-a17b',
+                  'minimax/minimax-m2.5:free',
+                  'minimax/minimax-m2.5',
+                  'z-ai/glm-5',
+                  'qwen/qwen3-max-thinking',
+                  'anthropic/claude-opus-4.6',
+                  'qwen/qwen3-coder-next',
+                  'openrouter/free',
+                  'stepfun/step-3.5-flash',
+                  'moonshotai/kimi-k2.5',
+                  'upstage/solar-pro-3',
+                  'minimax/minimax-m2-her',
+                  'writer/palmyra-x5',
+                  'liquid/lfm-2.5-1.2b-thinking:free',
+                  'liquid/lfm-2.5-1.2b-instruct:free',
+                  'openai/gpt-audio',
+                  'openai/gpt-audio-mini',
+                  'z-ai/glm-4.7-flash',
+                  'openai/gpt-5.2-codex',
+                  'bytedance-seed/seed-1.6-flash',
+                  'bytedance-seed/seed-1.6',
+                  'minimax/minimax-m2.1',
+                  'z-ai/glm-4.7',
+                  'google/gemini-3-flash-preview',
+                  'xiaomi/mimo-v2-flash',
+                  'nvidia/nemotron-3-nano-30b-a3b:free',
+                  'nvidia/nemotron-3-nano-30b-a3b',
+                  'openai/gpt-5.2-chat',
+                  'openai/gpt-5.2-pro',
+                  'openai/gpt-5.2',
+                  'mistralai/devstral-2512',
+                  'relace/relace-search',
+                  'z-ai/glm-4.6v',
+                  'nex-agi/deepseek-v3.1-nex-n1',
+                  'essentialai/rnj-1-instruct',
+                  'openrouter/bodybuilder',
+                  'openai/gpt-5.1-codex-max',
+                  'amazon/nova-2-lite-v1',
+                  'mistralai/ministral-14b-2512',
+                  'mistralai/ministral-8b-2512',
+                  'mistralai/ministral-3b-2512',
+                  'mistralai/mistral-large-2512',
+                  'arcee-ai/trinity-mini',
+                  'deepseek/deepseek-v3.2-speciale',
+                  'deepseek/deepseek-v3.2',
+                  'prime-intellect/intellect-3',
+                  'anthropic/claude-opus-4.5',
+                  'allenai/olmo-3-32b-think',
+                  'google/gemini-3-pro-image-preview',
+                  'deepcogito/cogito-v2.1-671b',
+                  'openai/gpt-5.1',
+                  'openai/gpt-5.1-chat',
+                  'openai/gpt-5.1-codex',
+                  'openai/gpt-5.1-codex-mini',
+                  'moonshotai/kimi-k2-thinking',
+                  'amazon/nova-premier-v1',
+                  'perplexity/sonar-pro-search',
+                  'mistralai/voxtral-small-24b-2507',
+                  'openai/gpt-oss-safeguard-20b',
+                  'nvidia/nemotron-nano-12b-v2-vl:free',
+                  'minimax/minimax-m2',
+                  'qwen/qwen3-vl-32b-instruct',
+                  'ibm-granite/granite-4.0-h-micro',
+                  'microsoft/phi-4-mini-instruct',
+                  'openai/gpt-5-image-mini',
+                  'anthropic/claude-haiku-4.5',
+                  'qwen/qwen3-vl-8b-thinking',
+                  'qwen/qwen3-vl-8b-instruct',
+                  'openai/gpt-5-image',
+                  'openai/o3-deep-research',
+                  'openai/o4-mini-deep-research',
+                  'nvidia/llama-3.3-nemotron-super-49b-v1.5',
+                  'baidu/ernie-4.5-21b-a3b-thinking',
+                  'google/gemini-2.5-flash-image',
+                  'qwen/qwen3-vl-30b-a3b-thinking',
+                  'qwen/qwen3-vl-30b-a3b-instruct',
+                  'openai/gpt-5-pro',
+                  'z-ai/glm-4.6',
+                  'anthropic/claude-sonnet-4.5',
+                  'deepseek/deepseek-v3.2-exp',
+                  'thedrummer/cydonia-24b-v4.1',
+                  'relace/relace-apply-3',
+                  'google/gemini-2.5-flash-lite-preview-09-2025',
+                  'qwen/qwen3-vl-235b-a22b-thinking',
+                  'qwen/qwen3-vl-235b-a22b-instruct',
+                  'qwen/qwen3-max',
+                  'qwen/qwen3-coder-plus',
+                  'openai/gpt-5-codex',
+                  'deepseek/deepseek-v3.1-terminus',
+                  'qwen/qwen3-coder-flash',
+                  'qwen/qwen3-next-80b-a3b-thinking',
+                  'qwen/qwen3-next-80b-a3b-instruct:free',
+                  'qwen/qwen3-next-80b-a3b-instruct',
+                  'qwen/qwen-plus-2025-07-28:thinking',
+                  'qwen/qwen-plus-2025-07-28',
+                  'nvidia/nemotron-nano-9b-v2:free',
+                  'nvidia/nemotron-nano-9b-v2',
+                  'moonshotai/kimi-k2-0905',
+                  'qwen/qwen3-30b-a3b-thinking-2507',
+                  'nousresearch/hermes-4-70b',
+                  'nousresearch/hermes-4-405b',
+                  'deepseek/deepseek-chat-v3.1',
+                  'openai/gpt-4o-audio-preview',
+                  'mistralai/mistral-medium-3.1',
+                  'baidu/ernie-4.5-21b-a3b',
+                  'baidu/ernie-4.5-vl-28b-a3b',
+                  'z-ai/glm-4.5v',
+                  'ai21/jamba-large-1.7',
+                  'openai/gpt-5-chat',
+                  'openai/gpt-5',
+                  'openai/gpt-5-mini',
+                  'openai/gpt-5-nano',
+                  'openai/gpt-oss-120b:free',
+                  'openai/gpt-oss-120b',
+                  'openai/gpt-oss-20b:free',
+                  'openai/gpt-oss-20b',
+                  'anthropic/claude-opus-4.1',
+                  'mistralai/codestral-2508',
+                  'qwen/qwen3-coder-30b-a3b-instruct',
+                  'qwen/qwen3-30b-a3b-instruct-2507',
+                  'z-ai/glm-4.5',
+                  'z-ai/glm-4.5-air:free',
+                  'z-ai/glm-4.5-air',
+                  'qwen/qwen3-235b-a22b-thinking-2507',
+                  'z-ai/glm-4-32b',
+                  'qwen/qwen3-coder:free',
+                  'qwen/qwen3-coder',
+                  'bytedance/ui-tars-1.5-7b',
+                  'google/gemini-2.5-flash-lite',
+                  'qwen/qwen3-235b-a22b-2507',
+                  'switchpoint/router',
+                  'moonshotai/kimi-k2',
+                  'mistralai/devstral-medium',
+                  'mistralai/devstral-small',
+                  'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
+                  'tencent/hunyuan-a13b-instruct',
+                  'morph/morph-v3-large',
+                  'morph/morph-v3-fast',
+                  'baidu/ernie-4.5-vl-424b-a47b',
+                  'baidu/ernie-4.5-300b-a47b',
+                  'mistralai/mistral-small-3.2-24b-instruct',
+                  'minimax/minimax-m1',
+                  'google/gemini-2.5-flash',
+                  'google/gemini-2.5-pro',
+                  'openai/o3-pro',
+                  'google/gemini-2.5-pro-preview',
+                  'deepseek/deepseek-r1-0528',
+                  'anthropic/claude-opus-4',
+                  'anthropic/claude-sonnet-4',
+                  'google/gemma-3n-e4b-it',
+                  'mistralai/mistral-medium-3',
+                  'google/gemini-2.5-pro-preview-05-06',
+                  'arcee-ai/spotlight',
+                  'arcee-ai/maestro-reasoning',
+                  'arcee-ai/virtuoso-large',
+                  'arcee-ai/coder-large',
+                  'meta-llama/llama-guard-4-12b',
+                  'qwen/qwen3-30b-a3b',
+                  'qwen/qwen3-8b',
+                  'qwen/qwen3-14b',
+                  'qwen/qwen3-32b',
+                  'qwen/qwen3-235b-a22b',
+                  'openai/o4-mini-high',
+                  'openai/o3',
+                  'openai/o4-mini',
+                  'openai/gpt-4.1',
+                  'openai/gpt-4.1-mini',
+                  'openai/gpt-4.1-nano',
+                  'alfredpros/codellama-7b-instruct-solidity',
+                  'meta-llama/llama-4-maverick',
+                  'meta-llama/llama-4-scout',
+                  'deepseek/deepseek-chat-v3-0324',
+                  'openai/o1-pro',
+                  'mistralai/mistral-small-3.1-24b-instruct',
+                  'google/gemma-3-4b-it',
+                  'google/gemma-3-12b-it',
+                  'cohere/command-a',
+                  'openai/gpt-4o-mini-search-preview',
+                  'openai/gpt-4o-search-preview',
+                  'rekaai/reka-flash-3',
+                  'google/gemma-3-27b-it',
+                  'thedrummer/skyfall-36b-v2',
+                  'perplexity/sonar-reasoning-pro',
+                  'perplexity/sonar-pro',
+                  'perplexity/sonar-deep-research',
+                  'google/gemini-2.0-flash-lite-001',
+                  'mistralai/mistral-saba',
+                  'meta-llama/llama-guard-3-8b',
+                  'openai/o3-mini-high',
+                  'google/gemini-2.0-flash-001',
+                  'aion-labs/aion-1.0',
+                  'aion-labs/aion-1.0-mini',
+                  'aion-labs/aion-rp-llama-3.1-8b',
+                  'qwen/qwen2.5-vl-72b-instruct',
+                  'qwen/qwen-plus',
+                  'openai/o3-mini',
+                  'mistralai/mistral-small-24b-instruct-2501',
+                  'deepseek/deepseek-r1-distill-qwen-32b',
+                  'perplexity/sonar',
+                  'deepseek/deepseek-r1-distill-llama-70b',
+                  'deepseek/deepseek-r1',
+                  'minimax/minimax-01',
+                  'microsoft/phi-4',
+                  'sao10k/l3.1-70b-hanami-x1',
+                  'deepseek/deepseek-chat',
+                  'sao10k/l3.3-euryale-70b',
+                  'openai/o1',
+                  'cohere/command-r7b-12-2024',
+                  'meta-llama/llama-3.3-70b-instruct:free',
+                  'meta-llama/llama-3.3-70b-instruct',
+                  'amazon/nova-lite-v1',
+                  'amazon/nova-micro-v1',
+                  'amazon/nova-pro-v1',
+                  'openai/gpt-4o-2024-11-20',
+                  'mistralai/mistral-large-2411',
+                  'mistralai/mistral-large-2407',
+                  'mistralai/pixtral-large-2411',
+                  'qwen/qwen-2.5-coder-32b-instruct',
+                  'thedrummer/unslopnemo-12b',
+                  'anthropic/claude-3.5-haiku',
+                  'anthropic/claude-3-5-haiku-20241022',
+                  'anthracite-org/magnum-v4-72b',
+                  'qwen/qwen-2.5-7b-instruct',
+                  'inflection/inflection-3-productivity',
+                  'inflection/inflection-3-pi',
+                  'thedrummer/rocinante-12b',
+                  'meta-llama/llama-3.2-11b-vision-instruct',
+                  'meta-llama/llama-3.2-1b-instruct',
+                  'meta-llama/llama-3.2-3b-instruct:free',
+                  'meta-llama/llama-3.2-3b-instruct',
+                  'qwen/qwen-2.5-72b-instruct',
+                  'cohere/command-r-08-2024',
+                  'cohere/command-r-plus-08-2024',
+                  'sao10k/l3.1-euryale-70b',
+                  'nousresearch/hermes-3-llama-3.1-70b',
+                  'nousresearch/hermes-3-llama-3.1-405b:free',
+                  'nousresearch/hermes-3-llama-3.1-405b',
+                  'sao10k/l3-lunaris-8b',
+                  'openai/gpt-4o-2024-08-06',
+                  'meta-llama/llama-3.1-70b-instruct',
+                  'meta-llama/llama-3.1-8b-instruct',
+                  'mistralai/mistral-nemo',
+                  'openai/gpt-4o-mini-2024-07-18',
+                  'openai/gpt-4o-mini',
+                  'google/gemma-2-27b-it',
+                  'sao10k/l3-euryale-70b',
+                  'nousresearch/hermes-2-pro-llama-3-8b',
+                  'openai/gpt-4o',
+                  'openai/gpt-4o-2024-05-13',
+                  'meta-llama/llama-3-70b-instruct',
+                  'meta-llama/llama-3-8b-instruct',
+                  'mistralai/mixtral-8x22b-instruct',
+                  'microsoft/wizardlm-2-8x22b',
+                  'openai/gpt-4-turbo',
+                  'anthropic/claude-3-haiku',
+                  'mistralai/mistral-large',
+                  'openai/gpt-3.5-turbo-0613',
+                  'openai/gpt-4-turbo-preview',
+                  'openrouter/auto',
+                  'openai/gpt-4-1106-preview',
+                  'mistralai/mistral-7b-instruct-v0.1',
+                  'openai/gpt-3.5-turbo-instruct',
+                  'openai/gpt-3.5-turbo-16k',
+                  'mancer/weaver',
+                  'undi95/remm-slerp-l2-13b',
+                  'gryphe/mythomax-l2-13b',
+                  'openai/gpt-4-0314',
+                  'openai/gpt-3.5-turbo',
+                  'openai/gpt-4',
+                  ...localOpenRouterModels,
                   ...localOpenRouterModels.map(x => x.startsWith('openrouter/') ? x : `openrouter/${x}`)
-                ];
+                ]));
 
               if (state.config.provider === 'openrouter') {
                 if (localOpenRouterModels.length > 0) {
@@ -2948,7 +3760,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
               }
 
               state.modalOpen = true;
-              const selected = await showModelSelector(rl, popularModels);
+              const selected = await showModelSelector(rl, popularModels, state);
               state.modalOpen = false;
               if (selected) {
                 let finalModel = selected;
