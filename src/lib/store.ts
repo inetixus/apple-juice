@@ -15,6 +15,11 @@ export type SessionEntry = {
   requestedFile?: string;
   fileResponse?: { name: string; content: string };
   pendingCode?: string;
+  provider?: string;
+  model?: string;
+  mode?: string;
+  openaiKey?: string;
+  googleKey?: string;
 };
 
 const PREFIX = "apple-juice:session:";

@@ -14,11 +14,7 @@ import {
   Image as ImageIcon,
   AtSign,
 } from "lucide-react";
-<<<<<<< HEAD
 import { SlashCommandInput } from "@/components/slash-command";
-=======
-import { Textarea } from "@/components/ui/textarea";
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
 import { useDashboard } from "./dashboard-context";
 
 export function ProjectsTab() {
@@ -84,7 +80,6 @@ export function ProjectsTab() {
             </div>
 
             <div className="relative w-full">
-<<<<<<< HEAD
               <SlashCommandInput
                 value={prompt}
                 onChange={setPrompt}
@@ -92,19 +87,6 @@ export function ProjectsTab() {
                 placeholder={placeholderText || "Make shift-to-run with stamina bar UI..."}
                 disabled={isGenerating || !isPluginConnected}
                 className="w-full bg-transparent border-none text-base md:text-lg font-bold text-white placeholder:text-white/10 focus-visible:ring-0 resize-none min-h-[100px] md:min-h-[120px] p-0"
-=======
-              <Textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={placeholderText || "Make shift-to-run with stamina bar UI..."}
-                className="w-full bg-transparent border-none text-base md:text-lg font-bold text-white placeholder:text-white/10 focus-visible:ring-0 resize-none min-h-[100px] md:min-h-[120px] p-0"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    void submitPrompt();
-                  }
-                }}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
               />
             </div>
 
@@ -120,18 +102,10 @@ export function ProjectsTab() {
               <button
                 onClick={() => void submitPrompt()}
                 disabled={isGenerating || !isPluginConnected}
-<<<<<<< HEAD
                 className={`px-6 py-3 rounded-xl border font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${isPluginConnected
                     ? "bg-[#ccff00] text-black border-[#ccff00] hover:bg-[#d4ff33] shadow-[0_4px_12px_rgba(204,255,0,0.2)]"
                     : "text-white/10 bg-white/5 border-white/5 cursor-not-allowed"
                   }`}
-=======
-                className={`px-6 py-3 rounded-xl border font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
-                  isPluginConnected
-                    ? "bg-[#ccff00] text-black border-[#ccff00] hover:bg-[#d4ff33] shadow-[0_4px_12px_rgba(204,255,0,0.2)]"
-                    : "text-white/10 bg-white/5 border-white/5 cursor-not-allowed"
-                }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
               >
                 <span>Inject Live</span>
                 <ArrowRight className="w-4 h-4" />
@@ -228,14 +202,8 @@ export function ProjectsTab() {
                       <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-4">
                         <div className="flex items-center gap-1.5">
                           <div
-<<<<<<< HEAD
                             className={`w-1.5 h-1.5 rounded-full ${p.sessionKey ? "bg-emerald-500 animate-pulse" : "bg-white/10"
                               }`}
-=======
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              p.sessionKey ? "bg-emerald-500 animate-pulse" : "bg-white/10"
-                            }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                           />
                           <span className="text-[9px] font-black text-white/30 uppercase tracking-wider">
                             {p.sessionKey ? "Connected" : "Keyless mode"}

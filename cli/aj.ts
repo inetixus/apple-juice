@@ -15,6 +15,74 @@ import Enquirer from 'enquirer';
 import { spawn } from 'child_process';
 import http from 'http';
 import { gradientText, SUNSET_START, SUNSET_END } from './utils/ansi.ts';
+import * as Diff from 'diff';
+import https from 'https';
+
+async function customFetch(url: string, options: any = {}): Promise<any> {
+  return new Promise((resolve, reject) => {
+    try {
+      const isHttps = url.startsWith('https:');
+      const lib = isHttps ? https : http;
+      const method = options.method || 'GET';
+      const headers = { ...options.headers };
+      let body = options.body;
+
+      if (body && typeof body === 'object') {
+        body = JSON.stringify(body);
+        headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+      }
+
+      const req = lib.request(url, {
+        method,
+        headers,
+      }, (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          const raw = Buffer.concat(chunks).toString('utf8');
+          resolve({
+            ok: (res.statusCode || 0) >= 200 && (res.statusCode || 0) < 300,
+            status: res.statusCode || 0,
+            statusText: res.statusMessage || '',
+            text: async () => raw,
+            json: async () => {
+              try { return JSON.parse(raw); }
+              catch { return {}; }
+            },
+          });
+        });
+      });
+
+      if (options.signal) {
+        if (typeof options.signal.addEventListener === 'function') {
+          options.signal.addEventListener('abort', () => {
+            req.destroy();
+            reject(new Error('The operation was aborted.'));
+          });
+        } else {
+          options.signal.onabort = () => {
+            req.destroy();
+            reject(new Error('The operation was aborted.'));
+          };
+        }
+      }
+
+      req.on('error', (err) => {
+        reject(err);
+      });
+
+      if (body) {
+        req.write(body);
+      }
+      req.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+// Shadow global fetch to avoid experimental fetch warning and pkg Node 18 compatibility crash
+const fetch = customFetch;
 
 let globalConfig: CLIConfig | null = null;
 let globalRl: readline.Interface | null = null;
@@ -62,6 +130,9 @@ interface CLIConfig {
   promptColor?: string;
   sessions?: Record<string, ChatMessage[]>;
   previousSessionKey?: string;
+  themeColor?: 'terracotta' | 'red' | 'blue' | 'green' | 'yellow' | 'cyan';
+  chatbarStyle?: 'mode' | 'minimal' | 'model' | 'both';
+  showTokenPricing?: boolean;
 }
 
 interface SyncStep {
@@ -82,6 +153,10 @@ interface SessionState {
   lastError?: string;
   infoMessage?: string;
   pairingCode?: string;
+  artifacts?: any[];
+  modalOpen?: boolean;
+  totalInputTokens?: number;
+  totalOutputTokens?: number;
 }
 
 // ─── ANSI ────────────────────────────────────────────────────────────────────
@@ -96,33 +171,49 @@ const BRIGHT_CYAN = '\x1b[96m';
 const BRIGHT_WHITE = '\x1b[97m';
 const WHITE = '\x1b[37m';
 
+const THEME_COLORS = ['terracotta', 'red', 'blue', 'green', 'yellow', 'cyan'] as const;
+
 // Apple Juice brand — dynamic colors (initially premium terracotta)
 let BRAND = '\x1b[38;2;204;107;73m';
 let BRAND_DIM = '\x1b[38;2;130;70;50m';
 let BRAND_B = '\x1b[38;2;230;120;80m';
+let BRAND_SHIMMER = '\x1b[38;2;250;165;130m';
 
 function applyPromptColor(colorName?: string): void {
   const name = colorName?.toLowerCase() || 'terracotta';
-  if (name === 'terracotta') {
+  if (name === 'red') {
+    BRAND = '\x1b[38;2;230;30;30m';
+    BRAND_DIM = '\x1b[38;2;140;20;20m';
+    BRAND_B = '\x1b[38;2;255;60;60m';
+    BRAND_SHIMMER = '\x1b[38;2;255;120;120m';
+  } else if (name === 'blue') {
+    BRAND = '\x1b[38;2;40;110;230m';
+    BRAND_DIM = '\x1b[38;2;25;65;140m';
+    BRAND_B = '\x1b[38;2;70;150;255m';
+    BRAND_SHIMMER = '\x1b[38;2;140;185;255m';
+  } else if (name === 'green') {
+    BRAND = '\x1b[38;2;46;204;113m';
+    BRAND_DIM = '\x1b[38;2;25;120;65m';
+    BRAND_B = '\x1b[38;2;85;235;150m';
+    BRAND_SHIMMER = '\x1b[38;2;135;245;180m';
+  } else if (name === 'yellow') {
+    BRAND = '\x1b[38;2;241;196;15m';
+    BRAND_DIM = '\x1b[38;2;145;115;8m';
+    BRAND_B = '\x1b[38;2;255;220;50m';
+    BRAND_SHIMMER = '\x1b[38;2;255;235;120m';
+  } else if (name === 'cyan') {
+    BRAND = '\x1b[38;2;52;152;219m';
+    BRAND_DIM = '\x1b[38;2;30;90;130m';
+    BRAND_B = '\x1b[38;2;85;185;245m';
+    BRAND_SHIMMER = '\x1b[38;2;145;210;255m';
+  } else {
     BRAND = '\x1b[38;2;204;107;73m';
     BRAND_DIM = '\x1b[38;2;130;70;50m';
     BRAND_B = '\x1b[38;2;230;120;80m';
-  } else if (name === 'synth' || name === 'magenta') {
-    BRAND = '\x1b[38;2;219;39;119m';      // Magenta (synth wave feel)
-    BRAND_DIM = '\x1b[38;2;131;24;67m';    // Dimmed magenta
-    BRAND_B = '\x1b[38;2;244;63;94m';      // Bright magenta/rose
-  } else if (name === 'cyan' || name === 'blue') {
-    BRAND = '\x1b[38;2;6;182;212m';       // Cyan/blue
-    BRAND_DIM = '\x1b[38;2;21;94;117m';    // Dimmed cyan
-    BRAND_B = '\x1b[38;2;56;189;248m';     // Bright cyan
-  } else if (name === 'orange' || name === 'gold') {
-    BRAND = '\x1b[38;2;245;158;11m';      // Gold/orange
-    BRAND_DIM = '\x1b[38;2;146;64;14m';    // Dimmed gold
-    BRAND_B = '\x1b[38;2;251;191;36m';     // Bright gold
+    BRAND_SHIMMER = '\x1b[38;2;250;165;130m';
   }
 }
 
-// Syntax highlight
 const C_COMMENT = '\x1b[38;5;244m';
 const C_STRING = '\x1b[38;5;78m';
 const C_NUMBER = '\x1b[38;5;215m';
@@ -131,13 +222,32 @@ const C_BUILTIN = '\x1b[38;5;75m';
 const C_OPERATOR = '\x1b[38;5;116m';
 const C_IDENTIFIER = '\x1b[38;5;253m';
 
-// ─── ANSI Utilities ──────────────────────────────────────────────────────────
 function stripAnsi(s: string): string {
   return s.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
 }
 
+function formatModelName(model: string): string {
+  if (!model) return '';
+  const parts = model.split('/');
+  let name = parts[parts.length - 1];
+  let suffix = '';
+  if (name.includes(':')) {
+    const colonIdx = name.indexOf(':');
+    suffix = ` <${name.slice(colonIdx + 1)}>`;
+    name = name.slice(0, colonIdx);
+  }
+  const words = name.split('-');
+  const formattedWords = words.map(word => {
+    if (!word) return '';
+    if (/\d/.test(word)) return word;
+    if (word.toLowerCase() === 'reasoning') return 'reasoning';
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+  return formattedWords.filter(Boolean).join(' ') + suffix;
+}
+
 function termWidth(): number {
-  return Math.min(process.stdout.columns || 80, 120);
+  return process.stdout.columns || 80;
 }
 
 function padRight(text: string, visLen: number): string {
@@ -154,9 +264,9 @@ function drawHorizontalLineWithText(leftText: string, rightText?: string): strin
   const leftLines = 3;
   const remaining = w - leftLines - leftLen - rightLen - 4;
   if (remaining <= 0) {
-    return `${BRAND_DIM}${'─'.repeat(w)}${R}`;
+    return `\x1b[38;2;65;65;65m${'─'.repeat(w)}${R}`;
   }
-  return `${BRAND_DIM}${'─'.repeat(leftLines)}${R}${leftTextPart}${BRAND_DIM}${'─'.repeat(remaining)}${R}${rightTextPart}${BRAND_DIM}────${R}`;
+  return `\x1b[38;2;65;65;65m${'─'.repeat(leftLines)}${R}${leftTextPart}\x1b[38;2;65;65;65m${'─'.repeat(remaining)}${R}${rightTextPart}\x1b[38;2;65;65;65m────${R}`;
 }
 
 function getGitBranch(): string {
@@ -168,7 +278,7 @@ function getGitBranch(): string {
         return head.replace('ref: refs/heads/', '');
       }
     }
-  } catch (_) {}
+  } catch (_) { }
   return 'main';
 }
 
@@ -180,40 +290,200 @@ function getContextBar(history: ChatMessage[]): string {
   return `${barStr} ${pct}% used`;
 }
 
-
 // ─── Spinner ─────────────────────────────────────────────────────────────────
 const SPIN_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
-let _spinInterval: NodeJS.Timeout | null = null;
+// Fixed apple frames: consistent dimensions, proper centered rotation effect
+const APPLE_FRAMES: string[][] = [
+  [
+    "    \\|/     ",
+    "   .-\"-.    ",
+    "  /     \\   ",
+    "  |  |  |   ",
+    "  \\     /   ",
+    "   `-'-`    "
+  ],
+  [
+    "    \\|/     ",
+    "   .-\"-.    ",
+    "  /  |  \\   ",
+    "  |  |  |   ",
+    "  \\  |  /   ",
+    "   `-'-`    "
+  ],
+  [
+    "    \\|/     ",
+    "   .-\"-.    ",
+    "  / (|\\ \\   ",
+    "  | (|)| |   ",
+    "  \\ (|/ /   ",
+    "   `-'-`    "
+  ],
+  [
+    "    \\|/     ",
+    "   .-\"-.    ",
+    "  /  |\\ \\   ",
+    "  |  |)| |   ",
+    "  \\  |/ /   ",
+    "   `-'-`    "
+  ],
+  [
+    "    \\|/     ",
+    "   .-\"-.    ",
+    "  /     \\   ",
+    "  |  |  |   ",
+    "  \\     /   ",
+    "   `-'-`    "
+  ],
+  [
+    "    \\|/     ",
+    "   .-\"-.    ",
+    "  /  )| \\   ",
+    "  |  )| |   ",
+    "  \\  )| /   ",
+    "   `-'-`    "
+  ],
+  [
+    "    \\|/     ",
+    "   .-\"-.    ",
+    "  / (|  \\   ",
+    "  | (|  |   ",
+    "  \\ (|  /   ",
+    "   `-'-`    "
+  ],
+  [
+    "    \\|/     ",
+    "   .-\"-.    ",
+    "  /  \\| \\   ",
+    "  |  \\| |   ",
+    "  \\  \\| /   ",
+    "   `-'-`    "
+  ]
+];
 
-function getSpinnerColor(frame: number): string {
-  const colors = [
-    '\x1b[38;2;204;107;73m', // Terracotta
-    '\x1b[38;2;220;125;90m',
-    '\x1b[38;2;235;145;110m',
-    '\x1b[38;2;250;165;130m',
-    '\x1b[38;2;235;145;110m',
-    '\x1b[38;2;220;125;90m'
-  ];
+function getAppleFrame(frame: number, isRainbow = false): string[] {
+  const fIndex = frame % APPLE_FRAMES.length;
+  const rawLines = APPLE_FRAMES[fIndex];
+
+  let frameColor = BRAND;
+  if (isRainbow) {
+    const rainbowColors = [
+      '\x1b[38;2;255;99;71m',
+      '\x1b[38;2;255;165;0m',
+      '\x1b[38;2;238;232;170m',
+      '\x1b[38;2;50;205;50m',
+      '\x1b[38;2;64;224;208m',
+      '\x1b[38;2;30;144;255m',
+      '\x1b[38;2;147;112;219m'
+    ];
+    frameColor = rainbowColors[frame % rainbowColors.length];
+  }
+
+  const green = '\x1b[38;2;46;204;113m';
+  const stem = '\x1b[38;2;139;69;19m';
+
+  const lines = [...rawLines];
+  lines[0] = lines[0].replace(/\\\|\//g, `${stem}\\${green}│${stem}/${R}`);
+  lines[0] = lines[0].replace(/\|/g, `${stem}│${R}`);
+  lines[0] = lines[0].replace(/\\\|/g, `${stem}\\│${R}`);
+  lines[0] = lines[0].replace(/\|\\/g, `${stem}│\\${R}`);
+
+  for (let idx = 1; idx < lines.length; idx++) {
+    let line = lines[idx];
+    line = line.replace(/([()|])/g, `${BRAND_SHIMMER}$1${frameColor}`);
+    lines[idx] = `${frameColor}${line}${R}`;
+  }
+
+  return lines;
+}
+
+let _spinInterval: any = null;
+let lastSpinnerLinesCount = 0;
+
+function clearSpinner(cursorRow?: number): void {
+  if (lastSpinnerLinesCount > 0) {
+    // Use absolute cursor positioning (row, col) instead of relative moves
+    const startRow = cursorRow !== undefined ? cursorRow - lastSpinnerLinesCount + 1 : undefined;
+    for (let i = 0; i < lastSpinnerLinesCount; i++) {
+      if (startRow !== undefined) {
+        process.stdout.write(`\x1b[${startRow + i};1H\x1b[2K`);
+      } else {
+        process.stdout.write('\x1b[A\r\x1b[2K');
+      }
+    }
+    lastSpinnerLinesCount = 0;
+  }
+}
+
+function getSpinnerColor(frame: number, isRainbow = false): string {
+  if (isRainbow) {
+    const rainbowColors = [
+      '\x1b[38;2;255;99;71m',
+      '\x1b[38;2;255;165;0m',
+      '\x1b[38;2;238;232;170m',
+      '\x1b[38;2;50;205;50m',
+      '\x1b[38;2;64;224;208m',
+      '\x1b[38;2;30;144;255m',
+      '\x1b[38;2;147;112;219m'
+    ];
+    return rainbowColors[frame % rainbowColors.length];
+  }
+  const colors = [BRAND, BRAND_B, BRAND_SHIMMER, BRAND_B, BRAND];
   return colors[frame % colors.length];
 }
 
-function startSpinner(msg: string): void {
+const SPIN_DURATIONS = [300, 150, 120, 120, 150, 300];
+
+let _spinnerStartRow = 0;
+let _spinnerRows = 0;
+
+function startSpinner(msg: string, isRainbow = false): void {
+  clearSpinner();
   let frame = 0;
   const startTime = Date.now();
+  // Write a single newline where spinner will go, track our absolute row
   process.stdout.write('\n');
-  _spinInterval = setInterval(() => {
-    const s = SPIN_FRAMES[frame % SPIN_FRAMES.length];
-    const color = getSpinnerColor(frame);
-    const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
-    process.stdout.write(`\r\x1b[K  ${color}${s}${R}  ${BOLD}${WHITE}${msg}${R}  ${DIM}[${elapsedSec}s]${R}`);
+  _spinnerStartRow = (process.stdout.rows || 24) - 2; // Approximate, will be refined
+
+  const tick = () => {
+    clearSpinner();
+    const elapsed = (Date.now() - startTime) / 1000;
+    const elapsedSec = elapsed.toFixed(1);
+    const phase = getReasoningPhase(elapsed);
+    const appleLines = getAppleFrame(frame, isRainbow);
+
+    const outputLines: string[] = [];
+    outputLines.push('');
+
+    const appleHeight = appleLines.length;
+    for (let i = 0; i < appleHeight; i++) {
+      if (i === Math.floor(appleHeight / 2)) {
+        outputLines.push(`    ${appleLines[i]}   ${BOLD}${WHITE}${msg}${R} ${BRAND_DIM}➔${R} ${DIM}${phase}${R}  ${DIM}[${elapsedSec}s]${R}`);
+      } else {
+        outputLines.push(`    ${appleLines[i]}`);
+      }
+    }
+    outputLines.push('');
+
+    process.stdout.write(outputLines.join('\n') + '\n');
+    lastSpinnerLinesCount = outputLines.length + 1;
+    _spinnerRows = lastSpinnerLinesCount;
+
+    const delay = SPIN_DURATIONS[frame % SPIN_DURATIONS.length];
     frame++;
-  }, 80);
+
+    _spinInterval = setTimeout(tick, delay);
+  };
+
+  tick();
 }
 
 function stopSpinner(): void {
-  if (_spinInterval) { clearInterval(_spinInterval); _spinInterval = null; }
-  process.stdout.write('\r\x1b[K');
+  if (_spinInterval) {
+    clearTimeout(_spinInterval);
+    _spinInterval = null;
+  }
+  clearSpinner();
 }
 
 // ─── Sync Progress ────────────────────────────────────────────────────────────
@@ -225,7 +495,6 @@ let _sfStartTime = 0;
 let _sfStepTimes: Record<string, { start?: number; elapsed?: number }> = {};
 
 function _drawSync(steps: SyncStep[]): void {
-  // Track timing
   for (const s of steps) {
     if (s.status === 'running' && !_sfStepTimes[s.name]?.start) {
       _sfStepTimes[s.name] = { start: Date.now() };
@@ -247,15 +516,13 @@ function _drawSync(steps: SyncStep[]): void {
   const w = Math.min(termWidth() - 4, 70);
   const lines: string[] = [];
 
-  // Draw header line
   const headerText = ` ${BOLD}${gradientText('Syncing to Roblox Studio', SUNSET_START, SUNSET_END)}${R} `;
   const rawHeaderLen = 'Syncing to Roblox Studio'.length + 2;
   const sideLineLen = Math.max(0, Math.floor((w - rawHeaderLen - 12) / 2));
   const rightSideLineLen = Math.max(0, w - rawHeaderLen - sideLineLen - 12);
-  
+
   lines.push(`  ${BRAND}╭${'─'.repeat(sideLineLen)}${headerText}${BRAND}${'─'.repeat(rightSideLineLen)} [${overallElapsed}s] ╮${R}`);
 
-  // Draw steps
   for (const s of steps) {
     let icon = `${DIM}○${R}`;
     let nameText = `${DIM}${s.name}${R}`;
@@ -282,10 +549,8 @@ function _drawSync(steps: SyncStep[]): void {
     lines.push(padRight(stepLine, w + 12) + `${BRAND}│${R}`);
   }
 
-  // Draw separator
   lines.push(`  ${BRAND}├${'─'.repeat(w + 2)}┤${R}`);
 
-  // Draw progress bar line
   const barWidth = Math.max(10, w - 24);
   const filledLen = Math.round(barWidth * ratio);
   const emptyLen = barWidth - filledLen;
@@ -296,7 +561,6 @@ function _drawSync(steps: SyncStep[]): void {
   const progressLine = `  ${BRAND}│${R}  ${progressBar}`;
   lines.push(padRight(progressLine, w + 12) + `${BRAND}│${R}`);
 
-  // Draw footer line
   lines.push(`  ${BRAND}╰${'─'.repeat(w + 2)}╯${R}`);
 
   const box = lines.join('\n');
@@ -323,22 +587,35 @@ function stopSyncProgress(steps: SyncStep[]): void {
 }
 
 const STATUS_VERBS = [
-  'Calculating', 'Compiling', 'Computing', 'Deciphering', 'Generating', 'Hashing', 'Inferring', 'Orchestrating', 'Processing', 'Synthesizing', 'Reticulating',
-  'Cerebrating', 'Cogitating', 'Considering', 'Contemplating', 'Deliberating', 'Envisioning', 'Musing', 'Philosophising', 'Pondering', 'Puzzling', 'Ruminating',
-  'Baking', 'Brewing', 'Caramelizing', 'Concocting', 'Fermenting', 'Flambéing', 'Frosting', 'Julienning', 'Kneading', 'Marinating', 'Simmering', 'Tempering', 'Zesting',
-  'Cascading', 'Catapulting', 'Fluttering', 'Gallivanting', 'Galloping', 'Levitating', 'Orbiting', 'Scurrying', 'Slithering', 'Swooping', 'Undulating', 'Whirlpooling',
-  "Beboppin'", 'Boondoggling', 'Booping', 'Dilly-dallying', 'Discombobulating', 'Flibbertigibbeting', 'Lollygagging', 'Shenaniganing', 'Skedaddling', 'Tomfoolering',
-  'Architecting', 'Composing', 'Crafting', 'Creating', 'Cultivating', 'Embellishing', 'Forging', 'Forming', 'Hatching', 'Manifesting', 'Sketching', 'Sprouting'
+  'Reticulating', 'Orchestrating', 'Compiling', 'Restructuring', 'Optimizing', 'Indexing', 'Tokenizing', 'Hashing', 'Decrypting', 'Encrypting',
+  'Parsing', 'Resolving', 'Validating', 'Calibrating', 'Synthesizing', 'Normalizing', 'Quantizing', 'Sharding', 'Serializing', 'Compressing',
+  'Interpreting', 'Assembling', 'Refactoring', 'Profiling', 'Debugging', 'Tracing', 'Caching', 'Synchronizing', 'Serialising', 'Hydrating',
+  'Dehydrating', 'Transpiling', 'Vectorizing', 'Clustering', 'Pruning', 'Pipetuning', 'Backpropagating', 'Fine-tuning', 'Quantifying', 'Formulating',
+  'Cerebrating', 'Ruminating', 'Cogitating', 'Deliberating', 'Contemplating', 'Musing', 'Speculating', 'Envisioning', 'Rationalizing', 'Conceptualizing',
+  'Hypothesizing', 'Analyzing', 'Deducting', 'Inferring', 'Deconstructing', 'Deciphering', 'Pondering', 'Meditating', 'Philosophizing', 'Weighing',
+  'Synthesising', 'Diagnosing', 'Evaluating', 'Extrapolating', 'Brainstorming', 'Reviewing', 'Reflecting', 'Visualizing', 'Predicting', 'Discerning',
+  'Grasping', 'Apprehending', 'Comprehending', 'Fathoming', 'Intuiting', 'Postulating', 'Scheming', 'Puzzling', 'Synthetizing', 'Postulating',
+  'Brewing', 'Fermenting', 'Simmering', 'Distilling', 'Tempering', 'Kneading', 'Caramelizing', 'Flambéing', 'Zesting', 'Infusing',
+  'Crystallizing', 'Transmuting', 'Coagulating', 'Sublimating', 'Filtering', 'Decanting', 'Steeping', 'Macerating', 'Roasting', 'Searing',
+  'Baking', 'Basting', 'Pureeing', 'Whisking', 'Marinating', 'Glazing', 'Pickling', 'Chilling', 'Smoking', 'Condensing',
+  'Extracting', 'Concentrating', 'Liquefying', 'Solidifying', 'Precipitating', 'Alchemizing', 'Vaporizing', 'Evaporating', 'Dissolving', 'Charring',
+  'Orbiting', 'Undulating', 'Cascading', 'Hovering', 'Fluttering', 'Swooping', 'Gliding', 'Levitating', 'Oscillating', 'Vibrating',
+  'Pulsating', 'Spinning', 'Swirling', 'Spiraling', 'Launching', 'Catapulting', 'Scurrying', 'Slithering', 'Galloping', 'Rippling',
+  'Fluctuating', 'Surging', 'Sweeping', 'Whirling', 'Rotating', 'Revolving', 'Precessing', 'Drifting', 'Flowing', 'Streaming',
+  'Zooming', 'Darting', 'Sprinting', 'Bounding', 'Leaping', 'Bouncing', 'Prancing', 'Swaying', 'Tumbling', 'Rolling',
+  'Booping', "Beboppin'", 'Flibbertigibbeting', 'Lollygagging', 'Skedaddling', 'Shenaniganing', 'Bamboozling', 'Dilly-dallying', 'Tomfoolering', 'Boondoggling',
+  'Discombobulating', 'Giga-thinking', 'Hyper-focusing', 'Coffee-powered', 'Pixel-pushing', 'Byte-chewing', 'Glitch-hunting', 'Rubber-ducking', 'Nonsensing', 'Kerfuffling',
+  'Architecting', 'Composing', 'Crafting', 'Creating'
 ];
 
 function getReasoningPhase(elapsed: number): string {
-  const idx = Math.floor(elapsed / 2.0);
-  const seed = (idx * 13 + 7) % STATUS_VERBS.length;
+  const idx = Math.floor(elapsed / 1.5);
+  const seed = (idx * 17 + 11) % STATUS_VERBS.length;
   return STATUS_VERBS[seed] + '...';
 }
 
 function formatArtifactsBox(scripts: any[]): string {
-  const lines: string[] = ['']; // Empty line for padding
+  const lines: string[] = [''];
 
   for (const s of scripts) {
     const action = String(s.action || 'create').toLowerCase();
@@ -353,11 +630,10 @@ function formatArtifactsBox(scripts: any[]): string {
     } else if (action === 'rename_instance' || action === 'move_instance') {
       lines.push(`  ${DIM}📦 Moved ${s.oldPath || ''} ➔ ${s.newParentPath || s.newName || ''}${R}`);
     } else {
-      // Create / Edit
       let sizeStr = '';
       if (s.code) {
         const sizeBytes = s.code.length;
-        sizeStr = sizeBytes > 1024 ? `${(sizeBytes/1024).toFixed(1)} KB` : `${sizeBytes} B`;
+        sizeStr = sizeBytes > 1024 ? `${(sizeBytes / 1024).toFixed(1)} KB` : `${sizeBytes} B`;
         sizeStr = ` ${DIM}(${s.code.split('\n').length} lines, ${sizeStr})${R}`;
       }
       lines.push(`  ${BRIGHT_GREEN}✓${R} ${DIM}Created${R} ${WHITE}${typeLabel}:${nameLabel}${R} ${DIM}in ${pathLabel}${R}${sizeStr}`);
@@ -366,7 +642,6 @@ function formatArtifactsBox(scripts: any[]): string {
   return lines.join('\n') + '\n';
 }
 
-// ─── Markdown / Syntax ───────────────────────────────────────────────────────
 function highlightLuau(code: string): string {
   const rules = [
     { type: 'comment', re: /^--\[\[\s\S]*?\]\]|^--.*$/ },
@@ -403,6 +678,52 @@ function highlightLuau(code: string): string {
   return out;
 }
 
+function renderAlignedTable(rows: string[][]): string {
+  const dataRows = rows.filter(row => !row.every(cell => cell.startsWith('-')));
+  if (dataRows.length === 0) return '';
+
+  const numCols = dataRows[0].length;
+  const colWidths = Array(numCols).fill(0);
+  for (const row of dataRows) {
+    for (let c = 0; c < numCols; c++) {
+      if (row[c]) {
+        colWidths[c] = Math.max(colWidths[c], stripAnsi(row[c]).length);
+      }
+    }
+  }
+
+  const w = termWidth();
+  const G_LINE = '\x1b[38;2;100;100;100m';
+  const outLines: string[] = [];
+
+  const topBorder = G_LINE + '┌─' + colWidths.map(w => '─'.repeat(w)).join('─┬─') + '─┐' + R;
+  outLines.push('  ' + topBorder);
+
+  const header = dataRows[0];
+  const headerCells = header.map((cell, idx) => {
+    const text = `${BOLD}${WHITE}${cell}${R}`;
+    return padRight(text, colWidths[idx]);
+  }).join(` ${G_LINE}│${R} `);
+  outLines.push(`  ${G_LINE}│${R} ` + headerCells + ` ${G_LINE}│${R}`);
+
+  const midBorder = G_LINE + '├─' + colWidths.map(w => '─'.repeat(w)).join('─┼─') + '─┤' + R;
+  outLines.push('  ' + midBorder);
+
+  for (let r = 1; r < dataRows.length; r++) {
+    const row = dataRows[r];
+    const cells = row.map((cell, idx) => {
+      const text = `${DIM}${cell}${R}`;
+      return padRight(text, colWidths[idx]);
+    }).join(` ${G_LINE}│${R} `);
+    outLines.push(`  ${G_LINE}│${R} ` + cells + ` ${G_LINE}│${R}`);
+  }
+
+  const botBorder = G_LINE + '└─' + colWidths.map(w => '─'.repeat(w)).join('─┴─') + '─┘' + R;
+  outLines.push('  ' + botBorder);
+
+  return '\n' + outLines.join('\n') + '\n';
+}
+
 function renderMarkdown(text: string): string {
   if ((text.match(/```/g) || []).length % 2 === 1) text += '\n```';
   const parts = text.split(/(```[a-zA-Z]*\n[\s\S]*?\n```)/g);
@@ -420,6 +741,34 @@ function renderMarkdown(text: string): string {
       out += `\n  ${DIM}╰${'─'.repeat(w + 2)}╯${R}\n`;
     } else {
       let r = part;
+
+      const lines = r.split('\n');
+      const tableLinesList: string[][] = [];
+      let isTable = false;
+      let newLines: string[] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+          isTable = true;
+          const cells = trimmed.split('|').map(c => c.trim()).slice(1, -1);
+          tableLinesList.push(cells);
+        } else {
+          if (isTable && tableLinesList.length > 0) {
+            const alignedTable = renderAlignedTable(tableLinesList);
+            newLines.push(alignedTable);
+            tableLinesList.length = 0;
+            isTable = false;
+          }
+          newLines.push(line);
+        }
+      }
+      if (isTable && tableLinesList.length > 0) {
+        const alignedTable = renderAlignedTable(tableLinesList);
+        newLines.push(alignedTable);
+      }
+
+      r = newLines.join('\n');
       r = r.replace(/\*\*(.*?)\*\*/g, `${BOLD}$1${R}`);
       r = r.replace(/\*(.*?)\*/g, `\x1b[3m$1${R}`);
       r = r.replace(/`(.*?)`/g, `${BRIGHT_YELLOW}$1${R}`);
@@ -433,7 +782,6 @@ function renderMarkdown(text: string): string {
   return out;
 }
 
-// ─── Header ──────────────────────────────────────────────────────────────────
 function drawHeader(serverOnline: boolean, paired: boolean, config: CLIConfig): void {
   const w = termWidth();
   const titleText = gradientText('Apple Juice CLI', SUNSET_START, SUNSET_END);
@@ -443,17 +791,11 @@ function drawHeader(serverOnline: boolean, paired: boolean, config: CLIConfig): 
   const leftPart = `  ${BOLD}${titleText}${R}  │  ${projectLabel}`;
   const gap = Math.max(1, w - stripAnsi(leftPart).length - stripAnsi(engineVersion).length - 4);
 
-  // Row 1: App Title and Environmental Metadata
   process.stdout.write(`\x1b[1;1H\x1b[2K${leftPart}${' '.repeat(gap)}${engineVersion}\n`);
-
-  // Row 2: Sleek, high-density structural divider line
   process.stdout.write(`\x1b[2;1H\x1b[2K  \x1b[38;2;65;65;65m${'─'.repeat(w - 4)}${R}\n`);
-
-  // Row 3: Spacing layout line for structural padding
   process.stdout.write(`\x1b[3;1H\x1b[2K`);
 }
 
-// ─── Welcome Card ────────────────────────────────────────────────────────────
 function drawWelcomeCard(state: SessionState): void {
   const col1W = 44;
   const col2W = 32;
@@ -474,14 +816,14 @@ function drawWelcomeCard(state: SessionState): void {
 
   const green = '\x1b[38;2;46;204;113m';
   const stem = '\x1b[38;2;139;69;19m';
-  const red = '\x1b[38;2;204;107;73m'; // terracotta
+  const red = '\x1b[38;2;230;30;30m';
   const white = '\x1b[38;2;255;255;255m';
   const art = [
-    `      ${stem}█${green}▄▀${R}`,
-    `    ${red}▄█████▄${R}`,
-    `   ${red}██${white}█${red}█████${R}`,
-    `   ${red}█████████${R}`,
-    `    ${red}▀█████▀${R}`
+    `            ${stem}█${green}▄▀${R}          `,
+    `     ${red}▄█████████████▄${R}     `,
+    `   ${red}▄████${white}██${red}███████████▄${R}   `,
+    `   ${red}███████████████████${R}   `,
+    `     ${red}▀█████████████▀${R}     `
   ];
   for (const line of art) {
     col1.push(padC(line, col1W));
@@ -520,7 +862,6 @@ function drawWelcomeCard(state: SessionState): void {
   const col1Top = `${prefix}${coloredTitle}${G_LINE}${suffix}`;
   const col2Top = '─'.repeat(col2W + 2);
 
-  // Jump directly to Row 5 so the welcome box doesn't overlap the pinned header frame
   process.stdout.write(`\x1b[5;1H  ${G_LINE}┌${col1Top}┬${col2Top}┐${R}\n`);
   for (let i = 0; i < maxLines; i++) {
     const c1 = col1[i];
@@ -534,7 +875,6 @@ function drawWelcomeCard(state: SessionState): void {
   process.stdout.write(`  ${G_LINE}└${'─'.repeat(col1W + 2)}┴${'─'.repeat(col2W + 2)}┘${R}\n\n`);
 }
 
-// ─── Footer ──────────────────────────────────────────────────────────────────
 function drawFooter(serverOnline: boolean, paired: boolean): string {
   const hints = `${DIM}?${R} ${DIM}for shortcuts${R}`;
   const srv = serverOnline ? `${BRIGHT_GREEN}● server${R}` : `${DIM}◦ server${R}`;
@@ -545,29 +885,23 @@ function drawFooter(serverOnline: boolean, paired: boolean): string {
   return `  ${hints}${' '.repeat(gap)}${rightStatus}\n                                                               ${DIM}© apple juice · /sync${R}\n\n\n`;
 }
 
-// ─── Message rendering ────────────────────────────────────────────────────────
 function printUserMsg(text: string): void {
-  // Claude style: Bold muted text for name, slightly dimmed user input, indented
   const indentedText = text.split('\n').join('\n  ');
   process.stdout.write(`\n  ${BOLD}${WHITE}You${R}\n  ${DIM}${indentedText}${R}\n`);
 }
 
 function printAssistantMsg(text: string): void {
-  // Detect if the text is a JSON envelope and extract the inner message
   let displayText = text.trim();
   if (displayText.startsWith('{') && displayText.endsWith('}')) {
     try {
       const parsed = JSON.parse(displayText);
-      // Prefer known fields in order of preference
       if (typeof parsed.assistant === 'string') displayText = parsed.assistant;
       else if (typeof parsed.text === 'string') displayText = parsed.text;
       else if (typeof parsed.message === 'string') displayText = parsed.message;
       else if (typeof parsed.code === 'string') displayText = parsed.code;
     } catch (e) {
-      // Not valid JSON, keep original text
     }
   }
-  // Claude style: Brand color text for the AI name, no background block
   process.stdout.write(`\n  ${BOLD}${BRAND}Apple Juice${R}\n`);
   const rendered = renderMarkdown(displayText);
   for (const line of rendered.split('\n')) {
@@ -587,13 +921,9 @@ function printSuccess(msg: string): void {
   process.stdout.write(`\n  ${BRIGHT_GREEN}✓${R}  ${msg}\n`);
 }
 
-
-
-// ─── Full-screen redraw ───────────────────────────────────────────────────────
 function redrawScreen(state: SessionState): void {
   const rows = process.stdout.rows || 24;
 
-  // Fallback for tiny terminals
   if (rows < 10) {
     console.clear();
     drawHeader(state.serverOnline, state.paired, state.config);
@@ -610,24 +940,19 @@ function redrawScreen(state: SessionState): void {
     return;
   }
 
-  // 1. Reset terminal margins completely to paint the whole screen
   process.stdout.write('\x1b[r');
   console.clear();
 
-  // 2. Draw the Frozen Header at the absolute top of the terminal screen
   process.stdout.write('\x1b[1;1H');
   drawHeader(state.serverOnline, state.paired, state.config);
 
-  // 3. LOCK SCROLL MARGINS: Start at Row 4, end right above the bottom menu boundaries
   process.stdout.write(`\x1b[4;${rows - 4}r`);
 
-  // 4. Position the cursor at the top of the scroll viewport to drop history
   process.stdout.write('\x1b[4;1H');
 
   if (state.history.length === 0) {
     drawWelcomeCard(state);
   } else {
-    // Print full chat history sequentially into the scrolling container
     for (const msg of state.history) {
       if (msg.role === 'user') printUserMsg(msg.content);
       else printAssistantMsg(msg.content);
@@ -638,12 +963,13 @@ function redrawScreen(state: SessionState): void {
   if (state.infoMessage) printInfo(state.infoMessage);
 
   if (globalRl) {
+    // Force-clear the input line and redraw prompt to prevent stale command text
+    const inputRow = rows - 2;
+    process.stdout.write(`\x1b[${inputRow};1H\x1b[2K`);
     globalRl.prompt(true);
   }
 }
 
-
-// ─── Config ───────────────────────────────────────────────────────────────────
 const getGlobalConfigPath = () => path.join(os.homedir(), '.aj.json');
 const getLocalConfigPath = () => path.join(process.cwd(), '.aj.json');
 
@@ -658,6 +984,11 @@ function loadConfig(): CLIConfig {
     if (fs.existsSync(l)) Object.assign(config, JSON.parse(fs.readFileSync(l, 'utf8')));
   } catch (_) { }
   if (config.sessionKey) config.isFirstRun = false;
+  if (config.themeColor) {
+    applyPromptColor(config.themeColor);
+  } else if (config.promptColor) {
+    applyPromptColor(config.promptColor);
+  }
   return config;
 }
 
@@ -679,7 +1010,6 @@ function detectAndSaveProjectPath(config: CLIConfig): void {
   }
 }
 
-// ─── Network ──────────────────────────────────────────────────────────────────
 async function pingServer(apiUrl: string): Promise<boolean> {
   try {
     const ctrl = new AbortController();
@@ -701,7 +1031,6 @@ async function checkPairingStatus(config: CLIConfig): Promise<boolean> {
   } catch (_) { return false; }
 }
 
-// ─── Server auto-start ────────────────────────────────────────────────────────
 async function startServerAutomatically(config: CLIConfig): Promise<boolean> {
   process.stdout.write(`\n  ${BRAND}⚡${R}  Starting local server…\n`);
   try {
@@ -709,10 +1038,8 @@ async function startServerAutomatically(config: CLIConfig): Promise<boolean> {
     let cmd = 'node';
     let args = [...process.execArgv, process.argv[1] || '', 'server'];
     if (isPkg) {
-      const dir = path.dirname(process.execPath);
-      const bgExe = path.join(dir, 'aj-bg.exe');
-      cmd = fs.existsSync(bgExe) ? bgExe : process.execPath;
-      args = ['server'];
+      cmd = process.execPath;
+      args = [];
     }
     const env: Record<string, string> = {
       AJ_MODE: 'server', PATH: process.env.PATH || '',
@@ -735,22 +1062,21 @@ async function startServerAutomatically(config: CLIConfig): Promise<boolean> {
   }
 
   startSpinner('Waiting for server');
-  for (let i = 0; i < 20; i++) {
-    await new Promise(r => setTimeout(r, 1000));
+  for (let i = 0; i < 40; i++) {
     if (await pingServer(config.apiUrl)) {
       stopSpinner();
       printSuccess(`Server online at ${BRAND}${config.apiUrl}${R}`);
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 100));
       return true;
     }
+    await new Promise(r => setTimeout(r, 250));
   }
   stopSpinner();
   process.stdout.write(`\n  ${BRIGHT_YELLOW}⚠${R}  Server still starting — proceeding.\n`);
-  await new Promise(r => setTimeout(r, 1200));
+  await new Promise(r => setTimeout(r, 300));
   return false;
 }
 
-// ─── Auth pairing ─────────────────────────────────────────────────────────────
 async function generateAuthCode(): Promise<string> {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let code = '';
@@ -784,7 +1110,6 @@ async function initAuthPairing(config: CLIConfig): Promise<string | null> {
   return null;
 }
 
-// ─── Interactive Tabbed Help ─────────────────────────────────────────────────
 interface HelpData {
   shortcuts: string[];
   defaultCommands: [string, string][];
@@ -973,9 +1298,8 @@ async function showInteractiveHelp(rl: any, state: any): Promise<void> {
     let tabIndex = 0;
     const helpData = parseHelpFile();
 
-    // Stub out rl._ttyWrite so the main readline instance ignores all keys
     const origTtyWrite = rl._ttyWrite;
-    rl._ttyWrite = () => {};
+    rl._ttyWrite = () => { };
 
     drawHelpTab(tabIndex, helpData);
 
@@ -989,7 +1313,6 @@ async function showInteractiveHelp(rl: any, state: any): Promise<void> {
         process.exit(0);
       }
 
-      // Ignore rapid enter/return keypresses to prevent enter-key propagation from the slash command submission
       if (key.name === 'return' && Date.now() - openedAt < 300) {
         return;
       }
@@ -1011,7 +1334,505 @@ async function showInteractiveHelp(rl: any, state: any): Promise<void> {
 
     function cleanup() {
       process.stdin.removeListener('keypress', onKeypress);
-      // Restore rl key handling
+      rl._ttyWrite = origTtyWrite;
+    }
+
+    process.stdin.on('keypress', onKeypress);
+  });
+}
+
+function renderWordDiff(original: string, modified: string): string {
+  const lineDiffs = Diff.diffLines(original, modified);
+  const outLines: string[] = [];
+
+  const w = Math.min(termWidth() - 8, 70);
+  const BG_ADD = '\x1b[48;2;20;70;30m\x1b[38;2;255;255;255m';
+  const BG_REM = '\x1b[48;2;80;20;20m\x1b[38;2;255;255;255m';
+
+  for (let idx = 0; idx < lineDiffs.length; idx++) {
+    const part = lineDiffs[idx];
+    const lines = part.value.split('\n');
+    if (lines[lines.length - 1] === '') lines.pop();
+
+    if (part.added) {
+      for (const line of lines) {
+        outLines.push(`${BRIGHT_GREEN}+${R} ${BG_ADD} ${line} ${R}`);
+      }
+    } else if (part.removed) {
+      for (const line of lines) {
+        outLines.push(`${BRIGHT_RED}-${R} ${BG_REM} ${line} ${R}`);
+      }
+    } else {
+      if (lines.length > 8) {
+        outLines.push(`  ${DIM}[... ${lines.length - 4} unchanged lines collapsed ...]${R}`);
+        outLines.push(`  ${DIM}${lines[lines.length - 2]}${R}`);
+        outLines.push(`  ${DIM}${lines[lines.length - 1]}${R}`);
+      } else {
+        for (const line of lines) {
+          outLines.push(`  ${DIM}${line}${R}`);
+        }
+      }
+    }
+  }
+
+  return outLines.join('\n');
+}
+
+async function showInteractiveArtifacts(rl: any, state: any): Promise<void> {
+  if (!state.artifacts || state.artifacts.length === 0) {
+    printInfo('No active artifacts to review.');
+    await new Promise(r => setTimeout(r, 1500));
+    return;
+  }
+
+  return new Promise<void>((resolve) => {
+    let selectedIndex = 0;
+    let selectedButton: 'open' | 'accept' | 'reject' = 'open';
+    let viewMode: 'list' | 'diff' = 'list';
+    let totalLinesDrawn = 0;
+
+    const origTtyWrite = rl._ttyWrite;
+    rl._ttyWrite = () => { };
+
+    const wasRaw = process.stdin.isRaw;
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    readline.emitKeypressEvents(process.stdin);
+
+    const listHeight = state.artifacts.length + 6;
+    process.stdout.write('\n'.repeat(listHeight));
+    process.stdout.write(`\x1b[${listHeight}A`);
+
+    const draw = () => {
+      if (totalLinesDrawn > 0) {
+        process.stdout.write(`\x1b[${totalLinesDrawn}A`);
+      }
+
+      let output = '';
+      const w = termWidth();
+
+      if (viewMode === 'list') {
+        const titleText = gradientText('Apple Juice Artifact Reviewer', SUNSET_START, SUNSET_END);
+        output += `  ${BOLD}${titleText}${R}\n`;
+        output += `  ${DIM}${'─'.repeat(w - 4)}${R}\n`;
+
+        for (let i = 0; i < state.artifacts.length; i++) {
+          const a = state.artifacts[i];
+          const isActive = i === selectedIndex;
+
+          let statusBadge = `${DIM}[ Pending ]${R}`;
+          if (a.status === 'approved') statusBadge = `${BRIGHT_GREEN}[ Approved ]${R}`;
+          else if (a.status === 'rejected') statusBadge = `${BRIGHT_RED}[ Rejected ]${R}`;
+
+          const actionText = a.action === 'delete' ? `${BRIGHT_RED}[DELETE]${R}` : a.action === 'create' ? `${BRIGHT_GREEN}[NEW]${R}` : `${BRIGHT_YELLOW}[MODIFY]${R}`;
+
+          const openBtn = (isActive && selectedButton === 'open') ? `\x1b[7m Open \x1b[27m` : `[ Open ]`;
+          const acceptBtn = (isActive && selectedButton === 'accept') ? `\x1b[7m Accept \x1b[27m` : `[ Accept ]`;
+          const rejectBtn = (isActive && selectedButton === 'reject') ? `\x1b[7m Reject \x1b[27m` : `[ Reject ]`;
+
+          if (isActive) {
+            output += `  ${BRAND}➔${R} ${BOLD}${WHITE}${a.name}${R} in ${DIM}${a.parent}${R} ${actionText}  ${openBtn}  ${acceptBtn}  ${rejectBtn}  ${statusBadge}\n`;
+          } else {
+            output += `    ${a.name} in ${DIM}${a.parent}${R} ${actionText}  [ Open ]  [ Accept ]  [ Reject ]  ${statusBadge}\n`;
+          }
+        }
+
+        output += `  ${DIM}${'─'.repeat(w - 4)}${R}\n`;
+        output += `  ${BOLD}${WHITE}Commands:${R} Arrow keys to navigate · Enter to select · Esc to return\n`;
+      } else {
+        const a = state.artifacts[selectedIndex];
+        const titleText = gradientText(`Diff for ${a.name}`, SUNSET_START, SUNSET_END);
+        output += `  ${BOLD}${titleText}${R}  [${a.parent}]\n`;
+        output += `  ${DIM}${'─'.repeat(w - 4)}${R}\n`;
+
+        let originalCode = '';
+        try {
+          const possiblePath = path.resolve(process.cwd(), a.name);
+          if (fs.existsSync(possiblePath)) {
+            originalCode = fs.readFileSync(possiblePath, 'utf8');
+          }
+        } catch (_) { }
+
+        const diffText = renderWordDiff(originalCode, a.code);
+        output += diffText + '\n';
+
+        output += `  ${DIM}${'─'.repeat(w - 4)}${R}\n`;
+        output += `  ${BRAND}Esc / Backspace${R} to return to list\n`;
+      }
+
+      const lines = output.split('\n');
+      if (lines[lines.length - 1] === '') {
+        lines.pop();
+      }
+
+      for (const line of lines) {
+        process.stdout.write(`\x1b[2K${line}\n`);
+      }
+      totalLinesDrawn = lines.length;
+    };
+
+    draw();
+
+    const onKeypress = async (str: string, key: any) => {
+      if (!key) return;
+
+      if (key.ctrl && key.name === 'c') {
+        cleanup();
+        process.stdout.write('\x1b[r');
+        process.exit(0);
+      }
+
+      if (viewMode === 'list') {
+        if (key.name === 'escape') {
+          cleanup();
+          resolve();
+          return;
+        }
+
+        if (key.name === 'up') {
+          selectedIndex = (selectedIndex - 1 + state.artifacts.length) % state.artifacts.length;
+          draw();
+        } else if (key.name === 'down') {
+          selectedIndex = (selectedIndex + 1) % state.artifacts.length;
+          draw();
+        } else if (key.name === 'left') {
+          if (selectedButton === 'reject') selectedButton = 'accept';
+          else if (selectedButton === 'accept') selectedButton = 'open';
+          draw();
+        } else if (key.name === 'right') {
+          if (selectedButton === 'open') selectedButton = 'accept';
+          else if (selectedButton === 'accept') selectedButton = 'reject';
+          draw();
+        } else if (key.name === 'return' || key.name === 'enter') {
+          if (selectedButton === 'open') {
+            viewMode = 'diff';
+            if (totalLinesDrawn > 0) {
+              process.stdout.write(`\x1b[${totalLinesDrawn}A`);
+              for (let i = 0; i < totalLinesDrawn; i++) {
+                process.stdout.write('\x1b[2K\n');
+              }
+              process.stdout.write(`\x1b[${totalLinesDrawn}A`);
+              totalLinesDrawn = 0;
+            }
+            draw();
+          } else if (selectedButton === 'accept') {
+            const a = state.artifacts[selectedIndex];
+            a.status = 'approved';
+
+            cleanup();
+            state.infoMessage = `Syncing ${a.name} to Roblox Studio...`;
+            redrawScreen(state);
+
+            try {
+              const pushRes = await fetch(`${state.config.apiUrl}/api/cli/push-scripts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  sessionKey: state.config.sessionKey,
+                  scripts: [a]
+                }),
+              });
+
+              if (pushRes.ok) {
+                state.infoMessage = `${BRIGHT_GREEN}✓${R} Successfully synced ${a.name} to Roblox Studio!`;
+              } else {
+                state.lastError = `Studio push failed: ${pushRes.statusText}`;
+              }
+            } catch (e: any) {
+              state.lastError = `Studio push error: ${e.message}`;
+            }
+
+            redrawScreen(state);
+            await new Promise(r => setTimeout(r, 2000));
+            state.infoMessage = undefined;
+            state.lastError = undefined;
+
+            process.stdout.write('\n'.repeat(listHeight));
+            process.stdout.write(`\x1b[${listHeight}A`);
+            totalLinesDrawn = 0;
+
+            process.stdin.on('keypress', onKeypress);
+            rl._ttyWrite = () => { };
+            draw();
+          } else if (selectedButton === 'reject') {
+            const a = state.artifacts[selectedIndex];
+            a.status = 'rejected';
+            draw();
+          }
+        }
+      } else {
+        if (key.name === 'escape' || key.name === 'backspace') {
+          if (totalLinesDrawn > 0) {
+            process.stdout.write(`\x1b[${totalLinesDrawn}A`);
+            for (let i = 0; i < totalLinesDrawn; i++) {
+              process.stdout.write('\x1b[2K\n');
+            }
+            process.stdout.write(`\x1b[${totalLinesDrawn}A`);
+            totalLinesDrawn = 0;
+          }
+          viewMode = 'list';
+          draw();
+        }
+      }
+    };
+
+    function cleanup() {
+      process.stdin.removeListener('keypress', onKeypress);
+      rl._ttyWrite = origTtyWrite;
+      if (totalLinesDrawn > 0) {
+        process.stdout.write(`\x1b[${totalLinesDrawn}A`);
+        for (let i = 0; i < totalLinesDrawn; i++) {
+          process.stdout.write('\x1b[2K\n');
+        }
+        process.stdout.write(`\x1b[${totalLinesDrawn}A`);
+      }
+    }
+
+    process.stdin.on('keypress', onKeypress);
+  });
+}
+
+async function handleFeedbackSync(rl: any, state: any, feedbackMsg: string): Promise<void> {
+  startSpinner('Thinking', false);
+
+  try {
+    const res = await fetch(`${state.config.apiUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: feedbackMsg,
+        sessionKey: state.config.sessionKey,
+        messages: state.history,
+        provider: state.config.provider,
+        apiKey: state.config.provider === 'google' ? state.config.googleKey
+          : state.config.provider === 'deepseek' ? state.config.deepseekKey
+            : state.config.provider === 'openrouter' ? state.config.openrouterKey
+              : state.config.openaiKey,
+        openaiKey: state.config.openaiKey,
+        model: state.config.model,
+      }),
+    });
+
+    stopSpinner();
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({})) as Record<string, string>;
+      state.lastError = `Steering failed: ${err.error || res.statusText}`;
+    } else {
+      const data = await res.json().catch(() => ({})) as any;
+
+      let reply = (data.message || data.code || JSON.stringify(data)) as string;
+      if (Array.isArray(data.scripts) && data.scripts.length > 0) {
+        reply += formatArtifactsBox(data.scripts);
+
+        state.artifacts = data.scripts.map((s: any, i: number) => ({
+          action: s.action || 'create',
+          type: s.type || s.scriptType || 'Script',
+          parent: s.parent || 'ServerScriptService',
+          name: s.name || `GeneratedScript_${i}`,
+          code: s.code || '',
+          status: 'pending'
+        }));
+        state.infoMessage = `✨ Generated ${data.scripts.length} adjusted artifacts! Type /artifact to view.`;
+      }
+
+      state.history.push({ role: 'assistant', content: reply });
+    }
+  } catch (e: any) {
+    stopSpinner();
+    state.lastError = `Feedback error: ${e.message}`;
+  }
+
+  redrawScreen(state);
+  rl.prompt();
+}
+
+async function showInteractiveSettings(rl: any, state: any): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let selectedIndex = 0;
+    const options = ['themeColor', 'chatbarStyle', 'showTokenPricing'];
+    const optionLabels = ['UI Theme Color', 'Chatbar Prompt Style', 'Show Token Metrics & Cost'];
+
+    const origTtyWrite = rl._ttyWrite;
+    rl._ttyWrite = () => { };
+
+    const wasRaw = process.stdin.isRaw;
+    if (process.stdin.isTTY) process.stdin.setRawMode(true);
+    readline.emitKeypressEvents(process.stdin);
+
+    const draw = () => {
+      console.clear();
+      const w = termWidth();
+      const titleText = gradientText('Apple Juice Personal Settings', SUNSET_START, SUNSET_END);
+      const white_shine = '\x1b[38;2;255;255;255m';
+
+      process.stdout.write(`\n  ${BOLD}${titleText}${R}\n`);
+      process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n\n`);
+
+      for (let i = 0; i < options.length; i++) {
+        const opt = options[i];
+        const label = optionLabels[i];
+        let valDisplay = '';
+
+        if (opt === 'themeColor') {
+          valDisplay = state.config.themeColor || 'terracotta';
+        } else if (opt === 'chatbarStyle') {
+          valDisplay = state.config.chatbarStyle || 'mode';
+        } else if (opt === 'showTokenPricing') {
+          valDisplay = state.config.showTokenPricing !== false ? 'Enabled' : 'Disabled';
+        }
+
+        const active = i === selectedIndex;
+        if (active) {
+          process.stdout.write(`  ${BRAND}➔${R} ${BOLD}${WHITE}${label.padEnd(30)}${R} :  ${BRAND}[ ${valDisplay} ]${R}\n`);
+        } else {
+          process.stdout.write(`    ${DIM}${label.padEnd(30)}${R} :  [ ${valDisplay} ]\n`);
+        }
+      }
+
+      process.stdout.write(`\n  ${DIM}${'─'.repeat(w - 4)}${R}\n`);
+
+      const G_LINE = '\x1b[38;2;100;100;100m';
+      process.stdout.write(`  ${BOLD}${WHITE}Live Preview Panel:${R}\n`);
+      process.stdout.write(`  ${G_LINE}┌${'─'.repeat(w - 6)}┐${R}\n`);
+
+      const currentOpt = options[selectedIndex];
+
+      if (currentOpt === 'themeColor') {
+        const colorsList = THEME_COLORS.map(c => {
+          let cAnsi = BRAND;
+          if (c === 'red') cAnsi = '\x1b[38;2;230;30;30m';
+          else if (c === 'blue') cAnsi = '\x1b[38;2;40;110;230m';
+          else if (c === 'green') cAnsi = '\x1b[38;2;46;204;113m';
+          else if (c === 'yellow') cAnsi = '\x1b[38;2;241;196;15m';
+          else if (c === 'cyan') cAnsi = '\x1b[38;2;52;152;219m';
+          else cAnsi = '\x1b[38;2;204;107;73m';
+
+          const isSelected = c === (state.config.themeColor || 'terracotta');
+          return isSelected ? `${cAnsi}${BOLD}\x1b[4m[ ${c} ]\x1b[24m${R}` : `${cAnsi}${c}${R}`;
+        }).join('  ');
+
+        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Theme Colors:${R}  ${colorsList}  `.padEnd(w + 35) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Example Conversation Preview:${R}`.padEnd(w + 10) + `${G_LINE}│${R}\n`);
+
+        const colUserPrompt = `  ${BRAND}➔${R}  ${WHITE}User:${R} ${DIM}How do I create a script parented to Workspace?${R}`;
+        const divLine = `${BRAND_DIM}${'-'.repeat(Math.max(10, w - 12))}${R}`;
+        const colAssist1 = `     ${WHITE}Assistant:${R} ${DIM}You can write a script or use ${R}${BRAND_B}/sync${R}${DIM} to${R}`;
+        const colAssist2 = `     ${DIM}generate it. Let's create it in ServerScriptService.${R}`;
+
+        process.stdout.write(`  ${G_LINE}│${R}  ${colUserPrompt}`.padEnd(w + 30) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  ${divLine}`.padEnd(w + 10) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  ${colAssist1}`.padEnd(w + 35) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  ${colAssist2}`.padEnd(w + 25) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  ${divLine}`.padEnd(w + 10) + `${G_LINE}│${R}\n`);
+
+      } else if (currentOpt === 'chatbarStyle') {
+        const styles = ['mode', 'minimal', 'model', 'both'];
+        const stylesList = styles.map(s => {
+          const isSelected = s === (state.config.chatbarStyle || 'mode');
+          return isSelected ? `${BRAND}${BOLD}\x1b[4m[ ${s} ]\x1b[24m${R}` : `${DIM}${s}${R}`;
+        }).join('  ');
+
+        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Style Options:${R}  ${stylesList}`.padEnd(w + 35) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Live Prompt Preview:${R}`.padEnd(w + 10) + `${G_LINE}│${R}\n`);
+
+        let mockPrompt = '';
+        const style = state.config.chatbarStyle || 'mode';
+        if (style === 'mode') {
+          mockPrompt = `\x1b[38;2;140;140;140m[ Normal ]\x1b[0m ${BRAND}›\x1b[0m  _`;
+        } else if (style === 'minimal') {
+          mockPrompt = `${BRAND}›\x1b[0m  _`;
+        } else if (style === 'model') {
+          mockPrompt = `\x1b[38;2;140;140;140m[ gpt-4o-mini ]\x1b[0m ${BRAND}›\x1b[0m  _`;
+        } else if (style === 'both') {
+          mockPrompt = `\x1b[38;2;140;140;140m[ Normal | gpt-4o-mini ]\x1b[0m ${BRAND}›\x1b[0m  _`;
+        }
+
+        process.stdout.write(`  ${G_LINE}│${R}  ${mockPrompt}`.padEnd(w + 40) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+
+      } else if (currentOpt === 'showTokenPricing') {
+        const showPricing = state.config.showTokenPricing !== false;
+        const toggleList = `${showPricing ? `${BRAND}${BOLD}\x1b[4m[ Enabled ]\x1b[24m${R}  ${DIM}Disabled${R}` : `${DIM}Enabled${R}  ${BRAND}${BOLD}\x1b[4m[ Disabled ]\x1b[24m${R}`}`;
+
+        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Status Option:${R}  ${toggleList}`.padEnd(w + 35) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Status Line Live Preview:${R}`.padEnd(w + 10) + `${G_LINE}│${R}\n`);
+
+        let bottomLine = '';
+        if (showPricing) {
+          const leftPart = `gpt-4o-mini | 📁 project | 🔀 main | ${BRIGHT_GREEN}● server${R} · ${BRIGHT_GREEN}✓ studio${R}`;
+          const rightPart = `$0.045 / 312 tokens`;
+          bottomLine = drawHorizontalLineWithText(leftPart, rightPart);
+        } else {
+          const leftPart = `gpt-4o-mini | 📁 project | 🔀 main | ${BRIGHT_GREEN}● server${R} · ${BRIGHT_GREEN}✓ studio${R}`;
+          const rightPart = getContextBar(state.history);
+          bottomLine = drawHorizontalLineWithText(leftPart, rightPart);
+        }
+
+        process.stdout.write(`  ${G_LINE}│${R}  ${bottomLine}`.padEnd(w + 40) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+      }
+
+      process.stdout.write(`  ${G_LINE}└${'─'.repeat(w - 6)}┘${R}\n`);
+      process.stdout.write(`\n  Use ↑/↓ to navigate · Enter to cycle value · Esc to save and close\n`);
+    };
+
+    draw();
+
+    const onKeypress = (str: string, key: any) => {
+      if (!key) return;
+
+      if (key.ctrl && key.name === 'c') {
+        cleanup();
+        process.stdout.write('\x1b[r');
+        process.exit(0);
+      }
+
+      if (key.name === 'escape') {
+        cleanup();
+        saveConfig(state.config);
+        resolve();
+        return;
+      }
+
+      if (key.name === 'up') {
+        selectedIndex = (selectedIndex - 1 + options.length) % options.length;
+        draw();
+      } else if (key.name === 'down') {
+        selectedIndex = (selectedIndex + 1) % options.length;
+        draw();
+      } else if (key.name === 'return' || key.name === 'enter') {
+        const opt = options[selectedIndex];
+
+        if (opt === 'themeColor') {
+          const current = state.config.themeColor || 'terracotta';
+          const nextIdx = (THEME_COLORS.indexOf(current) + 1) % THEME_COLORS.length;
+          state.config.themeColor = THEME_COLORS[nextIdx];
+          applyPromptColor(state.config.themeColor);
+        } else if (opt === 'chatbarStyle') {
+          const current = state.config.chatbarStyle || 'mode';
+          const styles: ('mode' | 'minimal' | 'model' | 'both')[] = ['mode', 'minimal', 'model', 'both'];
+          const nextIdx = (styles.indexOf(current) + 1) % styles.length;
+          state.config.chatbarStyle = styles[nextIdx];
+        } else if (opt === 'showTokenPricing') {
+          const current = state.config.showTokenPricing !== false;
+          state.config.showTokenPricing = !current;
+        }
+
+        draw();
+      }
+    };
+
+    function cleanup() {
+      process.stdin.removeListener('keypress', onKeypress);
       rl._ttyWrite = origTtyWrite;
     }
 
@@ -1023,7 +1844,7 @@ async function askTextInput(rl: any, promptText: string, defaultValue: string = 
   return new Promise((resolve) => {
     let value = defaultValue;
     const origTtyWrite = rl._ttyWrite;
-    rl._ttyWrite = () => {};
+    rl._ttyWrite = () => { };
 
     const wasRaw = process.stdin.isRaw;
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
@@ -1087,7 +1908,7 @@ async function showModelSelector(rl: any, models: string[]): Promise<string | nu
     let filtered = [...models];
 
     const origTtyWrite = rl._ttyWrite;
-    rl._ttyWrite = () => {};
+    rl._ttyWrite = () => { };
 
     const wasRaw = process.stdin.isRaw;
     if (process.stdin.isTTY) process.stdin.setRawMode(true);
@@ -1240,6 +2061,8 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         { command: '/key', label: '/key <k>', description: 'Set API key for current provider', category: 'AI' },
         { command: '/model', label: '/model', description: 'Set AI model interactively', category: 'AI' },
         { command: '/config', label: '/config', description: 'Show current configuration', category: 'System' },
+        { command: '/settings', label: '/settings', description: 'Open personal settings panel', category: 'System' },
+        { command: '/artifact', label: '/artifact', description: 'Review, accept, or steer generated code artifacts', category: 'Code' },
         { command: '/help', label: '/help', description: 'Show all available commands', category: 'Chat' },
         { command: '/exit', label: '/exit', description: 'Quit Apple Juice CLI', category: 'System' },
       ];
@@ -1295,10 +2118,39 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   let exiting = false;
   let activeMode: 'Normal' | 'Plan' | 'Auto' = 'Normal';
 
+  function getTokenPricingLabel(state: SessionState): string {
+    if (state.config.showTokenPricing === false) {
+      return getContextBar(state.history);
+    }
+    const inTokens = (state as any).totalInputTokens || 0;
+    const outTokens = (state as any).totalOutputTokens || 0;
+    const cost = ((inTokens * 0.15) / 1000000) + ((outTokens * 0.60) / 1000000);
+    return `Tokens: ${inTokens + outTokens} · Cost: $${cost.toFixed(5)}`;
+  }
+
   function getModePill(mode: 'Normal' | 'Plan' | 'Auto'): string {
-    if (mode === 'Plan') return `\x1b[38;2;160;110;235m[ Plan ]\x1b[0m \x1b[38;2;204;107;73m›\x1b[0m `;
-    if (mode === 'Auto') return `\x1b[38;2;60;185;120m[ Auto ]\x1b[0m \x1b[38;2;204;107;73m›\x1b[0m `;
-    return `\x1b[38;2;140;140;140m[ Normal ]\x1b[0m \x1b[38;2;204;107;73m›\x1b[0m `;
+    const style = state.config.chatbarStyle || 'mode';
+    const modelLabel = state.config.provider === 'google' ? 'Google' : formatModelName(state.config.model || 'gpt-4o-mini');
+    const displayModel = modelLabel.length > 25 ? modelLabel.slice(0, 22) + '…' : modelLabel;
+
+    if (style === 'minimal') {
+      return `${BRAND}›${R} `;
+    }
+
+    let pillText = '';
+    if (style === 'mode') {
+      pillText = mode;
+    } else if (style === 'model') {
+      pillText = displayModel;
+    } else if (style === 'both') {
+      pillText = `${mode} | ${displayModel}`;
+    }
+
+    let pillColor = '\x1b[38;2;140;140;140m';
+    if (mode === 'Plan') pillColor = '\x1b[38;2;160;110;235m';
+    else if (mode === 'Auto') pillColor = '\x1b[38;2;60;185;120m';
+
+    return `${pillColor}[ ${pillText} ]${R} ${BRAND}›${R} `;
   }
 
   function updatePromptAndRedraw() {
@@ -1306,7 +2158,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     (rl as any)._refreshLine();
   }
 
-  // Keypress listener to capture Shift+Tab (Z sequence or shift+tab tab)
   const onKeyPressGlobal = (ch: any, key: any) => {
     if (exiting || isCommandRunning) return;
     if (key && (key.name === 'backtab' || (key.name === 'tab' && key.shift) || key.sequence === '\x1b[Z')) {
@@ -1320,11 +2171,9 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
   const originalPrompt = rl.prompt.bind(rl);
   rl.prompt = (preserveCursor?: boolean) => {
-    const rState = (state as any);
     const rows = process.stdout.rows || 24;
     const w = termWidth();
     if (rows >= 10) {
-      // 1. Draw structured top border at rows - 3 with contextual command hints embedded
       process.stdout.write(`\x1b[${rows - 3};1H\x1b[2K`);
       const shortcutsHint = ` ${DIM}Press ${R}${BRAND}[Tab]${R}${DIM} for commands · ${R}${BRAND}[Shift+Tab]${R}${DIM} to toggle agents · ${R}${BRAND}[Ctrl+C]${R}${DIM} to exit${R} `;
       const linePadding = Math.max(0, Math.floor((w - stripAnsi(shortcutsHint).length) / 2));
@@ -1334,33 +2183,38 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         shortcutsHint +
         `\x1b[38;2;65;65;65m${'─'.repeat(rightPadding)}${R}`
       );
-
-      // 2. Draw bottom border at rows - 1
-      process.stdout.write(`\x1b[${rows - 1};1H\x1b[2K${BRAND_DIM}${'─'.repeat(w)}${R}`);
-
-      // 3. Draw detailed status bar at rows
+      process.stdout.write(`\x1b[${rows - 1};1H\x1b[2K`);
+      const modelLabel = state.config.provider === 'google' ? 'Google (128K)' : formatModelName(state.config.model || 'gpt-4o-mini');
+      const contextLabel = getTokenPricingLabel(state);
+      process.stdout.write(drawHorizontalLineWithText(modelLabel, contextLabel));
       process.stdout.write(`\x1b[${rows};1H\x1b[2K`);
-      const modelLabel = state.config.provider === 'google' ? 'Google (128K)' : (state.config.model || 'gpt-4o-mini');
-      const folderLabel = `📁 ${path.basename(process.cwd())}`;
-      const gitLabel = `🔀 ${getGitBranch()}`;
-      const contextLabel = getContextBar(state.history);
-      
-      const srv = rState.serverOnline ? `${BRIGHT_GREEN}● server${R}` : `${DIM}◦ server${R}`;
-      const std = rState.paired ? `${BRIGHT_GREEN}✓ studio${R}` : `${BRIGHT_YELLOW}◦ studio${R}`;
-      
-      const leftPart = `${modelLabel} | ${folderLabel} | ${gitLabel} | ${srv} · ${std}`;
-      const rightPart = contextLabel;
-      
-      process.stdout.write(drawHorizontalLineWithText(leftPart, rightPart));
-
-      // 4. Move to input prompt row (rows - 2), clear line
       process.stdout.write(`\x1b[${rows - 2};1H\x1b[2K`);
     }
-    rl.setPrompt(getModePill(activeMode));
+    // Write colored pill manually to stdout so readline doesn't miscalculate width
+    const pillColored = getModePill(activeMode);
+    const pillPlain = stripAnsi(pillColored);
+    process.stdout.write(pillColored);
+    // Use empty prompt for readline so cursor tracks from column 0
+    rl.setPrompt('');
     originalPrompt(preserveCursor);
   };
 
-  // Resize listener to adjust margins dynamically
+  // Override _refreshLine only to redraw bottom bar, not to touch prompt
+  const originalRefreshLine = (rl as any)._refreshLine.bind(rl);
+  (rl as any)._refreshLine = function () {
+    originalRefreshLine();
+    const rows = process.stdout.rows || 24;
+    if (rows >= 10 && !exiting && !state.modalOpen) {
+      process.stdout.write('\x1b[s');
+      process.stdout.write(`\x1b[${rows - 1};1H\x1b[2K`);
+      const modelLabel = state.config.provider === 'google' ? 'Google (128K)' : formatModelName(state.config.model || 'gpt-4o-mini');
+      const contextLabel = getTokenPricingLabel(state);
+      process.stdout.write(drawHorizontalLineWithText(modelLabel, contextLabel));
+      process.stdout.write(`\x1b[${rows};1H\x1b[2K`);
+      process.stdout.write('\x1b[u');
+    }
+  };
+
   const onResize = () => {
     if (!exiting && !state.modalOpen) {
       redrawScreen(state);
@@ -1377,15 +2231,17 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   function clearSlashListLocal() {
     if (slashListLines > 0) {
       const rows = process.stdout.rows || 24;
-      // Draw origin is rows - 3 - slashListLines (just above the hint divider at rows-3)
       const startRow = rows - 3 - slashListLines;
       for (let i = 0; i < slashListLines; i++) {
         process.stdout.write(`\x1b[${startRow + i};1H\x1b[2K`);
       }
       slashListLines = 0;
-      // Restore cursor to input line
+      // Move cursor to column 1 of input row, NOT behind the prompt (>)
+      // readline prompt will recalculate the correct position
+      const pill = getModePill(activeMode);
+      const pillLen = stripAnsi(pill).length;
       const inputRow = rows - 2;
-      process.stdout.write(`\x1b[${inputRow};1H`);
+      process.stdout.write(`\x1b[${inputRow};${Math.max(1, 1 + pillLen)}H`);
     }
   }
 
@@ -1407,6 +2263,8 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     { command: '/key', label: '/key [p] <k>', description: 'Set API key (optional provider)', category: 'AI' },
     { command: '/model', label: '/model', description: 'Select AI model interactively', category: 'AI' },
     { command: '/config', label: '/config', description: 'Show current configuration', category: 'System' },
+    { command: '/settings', label: '/settings', description: 'Open personal settings panel', category: 'System' },
+    { command: '/artifact', label: '/artifact', description: 'Review, accept, or steer generated code artifacts', category: 'Code' },
     { command: '/help', label: '/help', description: 'Show all available commands', category: 'Chat' },
     { command: '/exit', label: '/exit', description: 'Quit Apple Juice CLI', category: 'System' },
   ];
@@ -1428,14 +2286,14 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       const totalRows = 2;
       slashListLines = totalRows;
       const startRow = rows - 2 - totalRows;
-      
+
       process.stdout.write(`\x1b[${startRow};1H\x1b[2K  ${DIM}No matching commands for "/${query}"${R}`);
       process.stdout.write(`\x1b[${startRow + 1};1H\x1b[2K  ${DIM}${'─'.repeat(40)}${R}`);
 
-      // Restore cursor to input line
       const pill = getModePill(activeMode);
       const pillLen = stripAnsi(pill).length;
-      const col = 1 + pillLen + ((globalRl as any).cursor || 0);
+      const cursorPos = (globalRl as any).cursor || 0;
+      const col = Math.max(1, 1 + pillLen + cursorPos);
       process.stdout.write(`\x1b[${rows - 2};${col}H`);
       return;
     }
@@ -1459,17 +2317,16 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     lines.push(`  ${DIM}${'─'.repeat(w)}${R}`);
 
     slashListLines = lines.length;
-    // Draw just above the hint divider line (rows-3); overlay grows upward
     const startRow = rows - 3 - slashListLines;
 
     for (let i = 0; i < lines.length; i++) {
       process.stdout.write(`\x1b[${startRow + i};1H\x1b[2K${lines[i]}`);
     }
 
-    // Restore cursor to the actual input line (rows-2) after the mode pill
     const pill = getModePill(activeMode);
     const pillLen = stripAnsi(pill).length;
-    const col = 1 + pillLen + ((globalRl as any).cursor || 0);
+    const cursorPos = (globalRl as any).cursor || 0;
+    const col = Math.max(1, 1 + pillLen + cursorPos);
     process.stdout.write(`\x1b[${rows - 2};${col}H`);
   }
 
@@ -1503,17 +2360,13 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   }, 100);
   slashCheckInterval.unref();
 
-  // ─── Override redrawScreen to clear slash list before redraw ────────────
   const origRedraw = redrawScreen;
   redrawScreen = (s: SessionState) => {
     if (slashActive) { clearSlashListLocal(); slashActive = false; }
     origRedraw(s);
   };
 
-  // Claude Code uses custom prompt glyphs
   rl.setPrompt(' ');
-
-  // Heartbeat: keep status fresh
   const hb = setInterval(async () => {
     if (exiting) return;
     const sv = await pingServer(config.apiUrl);
@@ -1548,13 +2401,11 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
     try {
       let input = rawLine.trim();
-      // Early-return for blank/bare-slash input — no scroll, no extra space
       if (!input || input === '/') {
         rl.prompt(true);
         return;
       }
 
-      // Only push the scroll region down once we know there's real content
       const rows = process.stdout.rows || 24;
       if (rows >= 10) {
         process.stdout.write(`\x1b[${rows - 4};1H\n\n`);
@@ -1562,9 +2413,8 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         process.stdout.write('\n\n');
       }
 
-      // ── Slash commands ──────────────────────────────────────────────────────
       if (input.startsWith('/') || input === '?') {
-        const allCmds = ['/add-dir', '/agents', '/background', '/branch', '/btw', '/clear', '/resume', '/color', '/compact', '/context', '/pair', '/status', '/sync', '/key', '/model', '/config', '/help', '/exit'];
+        const allCmds = ['/add-dir', '/agents', '/background', '/branch', '/btw', '/clear', '/resume', '/color', '/compact', '/context', '/pair', '/status', '/sync', '/key', '/model', '/config', '/settings', '/artifact', '/help', '/exit'];
         const [rawCmd, ...args] = input.slice(1).split(' ');
         const cmd = rawCmd.toLowerCase();
 
@@ -1584,11 +2434,11 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             const oldKey = state.config.sessionKey;
             state.config.sessions[oldKey] = [...state.history];
             state.config.previousSessionKey = oldKey;
-            
+
             state.config.sessionKey = crypto.randomBytes(8).toString('hex');
             state.history = [];
             saveConfig(state.config);
-            
+
             state.infoMessage = `Started new session. Previous saved (resumable with /resume).`;
             state.lastError = undefined;
             redrawScreen(state);
@@ -1752,7 +2602,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
               rl.prompt();
               return;
             }
-            
+
             const cleanName = branchName.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
             if (!cleanName) {
               state.lastError = 'Invalid branch name.';
@@ -1766,12 +2616,10 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
             const newSessionKey = `${cleanName}-${crypto.randomBytes(4).toString('hex')}`;
             if (!state.config.sessions) state.config.sessions = {};
-            
-            // Backup current session first
+
             state.config.sessions[state.config.sessionKey] = [...state.history];
             state.config.previousSessionKey = state.config.sessionKey;
 
-            // Create new branch
             state.config.sessionKey = newSessionKey;
             state.config.sessions[newSessionKey] = [...state.history];
             saveConfig(state.config);
@@ -1801,12 +2649,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n`);
             process.stdout.write(`  ${BRAND}Question:${R} ${question}\n\n`);
 
-            let spinFrame = 0;
-            const btwThinking = setInterval(() => {
-              const s = SPIN_FRAMES[spinFrame % SPIN_FRAMES.length];
-              process.stdout.write(`\r  ${BRAND}${s}${R}  ${DIM}Thinking...${R}`);
-              spinFrame++;
-            }, 80);
+            startSpinner('Thinking', false);
 
             try {
               const res = await fetch(`${config.apiUrl}/api/chat`, {
@@ -1826,8 +2669,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
                 }),
               });
 
-              clearInterval(btwThinking);
-              process.stdout.write('\r\x1b[K');
+              stopSpinner();
 
               if (!res.ok) {
                 const err = await res.json().catch(() => ({})) as Record<string, string>;
@@ -1842,8 +2684,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
                 }
               }
             } catch (e: any) {
-              clearInterval(btwThinking);
-              process.stdout.write('\r\x1b[K');
+              stopSpinner();
               process.stdout.write(`  ${BRIGHT_RED}✗ Connection error: ${e.message}${R}\n`);
             }
 
@@ -1872,10 +2713,10 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
               if (savedHistory) {
                 const currentKey = state.config.sessionKey;
                 const currentHistory = [...state.history];
-                
+
                 state.config.sessions[currentKey] = currentHistory;
                 state.config.previousSessionKey = currentKey;
-                
+
                 state.config.sessionKey = targetKey;
                 state.history = savedHistory;
                 saveConfig(state.config);
@@ -1923,17 +2764,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
               return;
             }
 
-            let spinFrame = 0;
-            const startTime = Date.now();
-            state.infoMessage = 'Generating summary to compact conversation…';
-            redrawScreen(state);
-
-            const compactThinking = setInterval(() => {
-              const s = SPIN_FRAMES[spinFrame % SPIN_FRAMES.length];
-              state.infoMessage = `Compacting conversation ${BRAND}${s}${R}`;
-              redrawScreen(state);
-              spinFrame++;
-            }, 80);
+            startSpinner('Compacting conversation', false);
 
             try {
               const summaryPrompt = "Please summarize our conversation so far in a few highly concise sentences, listing the key files edited, decisions made, and current status. This will be used as the context baseline to save prompt tokens.";
@@ -1954,7 +2785,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
                 }),
               });
 
-              clearInterval(compactThinking);
+              stopSpinner();
 
               if (!res.ok) {
                 const err = await res.json().catch(() => ({})) as Record<string, string>;
@@ -1962,14 +2793,14 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
               } else {
                 const data = await res.json().catch(() => ({})) as Record<string, any>;
                 const reply = data.message || data.assistant || data.text || 'Summary generation completed.';
-                
+
                 state.history = [
                   { role: 'assistant', content: `📝 ${BOLD}[Context Baseline Summary]${R}\n\n${reply}` }
                 ];
                 state.infoMessage = `${BRIGHT_GREEN}✓${R} Chat context successfully compacted!`;
               }
             } catch (e: any) {
-              clearInterval(compactThinking);
+              stopSpinner();
               state.lastError = `Compaction error: ${e.message}`;
             }
 
@@ -2013,7 +2844,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             process.stdout.write(`\n  ${DIM}Legend: ${BRAND}■${R} Used (${pct}%)  ·  ${DIM}□${R} Free (${100 - pct}%)${R}\n`);
             process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n`);
             process.stdout.write(`  ${DIM}Press Enter to return to chat...${R}`);
-            
+
             await new Promise<void>((resolve) => {
               const onKey = (str: string, key: any) => {
                 if (key && (key.name === 'return' || key.name === 'enter')) {
@@ -2103,7 +2934,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
                   }
                   state.infoMessage = undefined;
                 } catch (e) {
-                  // Fallback to local list on error
                   state.infoMessage = undefined;
                 }
               }
@@ -2139,24 +2969,20 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             rl.prompt();
             return;
           }
-          case 'config': {
-            console.clear();
-            const w = termWidth();
-            const titleText = gradientText('Apple Juice', SUNSET_START, SUNSET_END);
-            process.stdout.write(`\n  ${BOLD}${titleText}${R}  ${DIM}Configuration${R}\n`);
-            process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n\n`);
-            const rows: [string, string][] = [
-              ['API URL', state.config.apiUrl],
-              ['Provider', state.config.provider || 'openai (default)'],
-              ['Model', state.config.model || 'gpt-4o-mini (default)'],
-              ['OpenAI Key', state.config.openaiKey ? state.config.openaiKey.slice(0, 12) + '…' : 'not set'],
-              ['Google Key', state.config.googleKey ? state.config.googleKey.slice(0, 12) + '…' : 'not set'],
-            ];
-            for (const [k, v] of rows) {
-              process.stdout.write(`  ${BRAND}${k.padEnd(14)}${R}${DIM}${v}${R}\n`);
-            }
-            process.stdout.write('\n');
-            rl.prompt();
+          case 'settings': case 'config': {
+            state.modalOpen = true;
+            await showInteractiveSettings(rl, state);
+            state.modalOpen = false;
+            redrawScreen(state);
+            rl.prompt(true);
+            return;
+          }
+          case 'artifact': {
+            state.modalOpen = true;
+            await showInteractiveArtifacts(rl, state);
+            state.modalOpen = false;
+            redrawScreen(state);
+            rl.prompt(true);
             return;
           }
           default:
@@ -2168,7 +2994,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         }
       }
 
-      // ── Not paired guard ────────────────────────────────────────────────────
       if (!state.paired) {
         state.lastError = 'Not paired with Studio. Run /pair first.';
         redrawScreen(state);
@@ -2177,19 +3002,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         return;
       }
 
-      // ── AI Chat ─────────────────────────────────────────────────────────────
-      let spinFrame = 0;
-      const startTime = Date.now();
-      process.stdout.write('\n');
-      const thinking = setInterval(() => {
-        const s = SPIN_FRAMES[spinFrame % SPIN_FRAMES.length];
-        const elapsed = (Date.now() - startTime) / 1000;
-        const elapsedSec = elapsed.toFixed(1);
-        const phase = getReasoningPhase(elapsed);
-        // Claude style: brand spinner, dimmed reasoning phase text
-        process.stdout.write(`\r\x1b[K  ${BRAND}${s}${R}  ${DIM}${phase} [${elapsedSec}s]${R}`);
-        spinFrame++;
-      }, 80);
+      startSpinner('Thinking', activeMode !== 'Normal');
 
       try {
         const res = await fetch(`${config.apiUrl}/api/chat`, {
@@ -2209,8 +3022,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
           }),
         });
 
-        clearInterval(thinking);
-        process.stdout.write('\r\x1b[K');
+        stopSpinner();
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({})) as Record<string, string>;
@@ -2219,7 +3031,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
           const data = await res.json().catch(() => ({})) as Record<string, unknown>;
           const d = data as any;
 
-          // ── Server-side error (502, 429, etc.) ──────────────────────────────
           if (d.error) {
             const detail = typeof d.detail === 'string' ? d.detail : '';
             const hint = detail.includes('empty') || detail === ''
@@ -2234,7 +3045,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
           let reply: string;
           if (typeof data === 'object' && data !== null) {
-            // Normalize hallucinated or alternative formats (including capitalized keys, standalone script/Script, and ClassName)
             const normAction = d.action ?? d.Action ?? "create";
             let normSource = d.code ?? d.Source ?? d.content ?? d.Content ?? d.script ?? d.Script;
             let normParent = d.parent ?? d.Parent;
@@ -2267,23 +3077,16 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
               d.message = `Successfully created ${normName} in ${parentStr}`;
             }
 
-            // Case 1: Correct Apple Juice format — has a scripts array
             if (Array.isArray(d.scripts)) {
               const textReply = typeof d.message === 'string' && d.message.trim() ? d.message : '';
               const artifactsBox = d.scripts.length > 0 ? formatArtifactsBox(d.scripts) : '';
               reply = textReply + artifactsBox;
-
-            // Case 2: Single-script success path
             } else if (typeof d.message === 'string' && d.message.trim() && d.ok) {
               reply = d.message;
-
-            // Case 3: Model hallucinated a tool-call format
             } else if (d.tool_call_function || d.tool_calls) {
               reply = typeof d.assistant === 'string' && d.assistant.trim()
                 ? d.assistant + '\n\n⚠️  The model used tool-call syntax instead of creating scripts. Try /model to switch.'
                 : '⚠️  The model returned an unsupported format. Try /model to switch to a more capable model.';
-
-            // Case 4: Plain text fields
             } else if (typeof d.message === 'string' && d.message.trim()) {
               reply = d.message;
             } else if (typeof d.assistant === 'string' && d.assistant.trim()) {
@@ -2292,8 +3095,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
               reply = d.text;
             } else if (typeof d.code === 'string' && d.code.trim()) {
               reply = d.code;
-
-            // Case 5: Useless / empty JSON (e.g. {"":""} or {})
             } else {
               const keys = Object.keys(data);
               const hasUsefulKey = keys.some(k => k && typeof d[k] === 'string' && d[k].trim());
@@ -2325,8 +3126,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         }
 
       } catch (e: any) {
-        clearInterval(thinking);
-        process.stdout.write('\r\x1b[K');
+        stopSpinner();
         state.lastError = `Connection error: ${e.message}`;
       }
 
@@ -2351,7 +3151,6 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   });
 }
 
-// ─── One-off commands ─────────────────────────────────────────────────────────
 async function handleStatusCommand(config: CLIConfig): Promise<void> {
   const serverOnline = await pingServer(config.apiUrl);
   const paired = await checkPairingStatus(config);
@@ -2532,7 +3331,6 @@ function showHelp(): void {
   process.stdout.write('\n');
 }
 
-// ─── Keepalive ────────────────────────────────────────────────────────────────
 const _ka = setInterval(async () => {
   if (globalConfig?.sessionKey) {
     try {
@@ -2546,7 +3344,6 @@ const _ka = setInterval(async () => {
 }, 55_000);
 _ka.unref();
 
-// ─── Entry point ──────────────────────────────────────────────────────────────
 async function main() {
   let args = process.argv.slice(2);
   if (args[0] === '--') args = args.slice(1);
@@ -2688,7 +3485,7 @@ async function main() {
 }
 
 main().catch(err => {
-  process.stderr.write(`\n  ✗ Unexpected error: ${err}\n\n`);
+  process.stderr.write(`\n  ✗ Unexpected error: ${err.stack || err}\n\n`);
   process.exit(1);
 });
 
@@ -2785,8 +3582,8 @@ UI.setTheme("Juice") -- themes: "Juice" (lime), "Midnight" (blue), "Ember" (oran
 Coin, Cash, Crystal, Diamond, Ingot, Premium, Robux, Ticket, VIP, Aura, Trail, Teleport, AngelHeart, Magnet, Crown, LuckyBlock, Coil, Trophy, Shield, Sword, Gift, Potion, Rocket, Fire, Heart, Hoverboard, Lightning, Rebirth, Star, Upgrade, Wheel.
 
 FINAL REMINDER: Return ONLY a single, valid JSON object containing your response. Do not enclose it in markdown code blocks.`;
+
 async function callDirectAI(prompt: string, messages: any[], provider: string, apiKey: string, model: string) {
-  // Define strict JSON Schema for Gemini
   const geminiResponseSchema = {
     type: 'OBJECT',
     properties: {
@@ -2816,12 +3613,11 @@ async function callDirectAI(prompt: string, messages: any[], provider: string, a
     required: ['message']
   };
 
-  // Define strict JSON Schema for OpenAI / OpenRouter
   const openaiResponseFormat = {
     type: 'json_schema',
     json_schema: {
       name: 'AppleJuiceResponse',
-      strict: false, // Set to false to accommodate some OpenRouter providers that do not support strict mode
+      strict: false,
       schema: {
         type: 'object',
         properties: {
@@ -2859,17 +3655,17 @@ async function callDirectAI(prompt: string, messages: any[], provider: string, a
       ...messages.map((m: any) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
       { role: 'user', parts: [{ text: prompt }] },
     ];
-    const res = await fetch(url, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ 
-        contents, 
-        generationConfig: { 
-          temperature: 0.2, 
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
+        generationConfig: {
+          temperature: 0.2,
           responseMimeType: 'application/json',
           responseSchema: geminiResponseSchema
-        } 
-      }) 
+        }
+      })
     });
     if (!res.ok) throw new Error(`Gemini: ${res.statusText} - ${await res.text()}`);
     const data: any = await res.json();
@@ -2883,7 +3679,7 @@ async function callDirectAI(prompt: string, messages: any[], provider: string, a
       url = 'https://openrouter.ai/api/v1/chat/completions';
     }
     const apiMessages = [{ role: 'system', content: LIGHTWEIGHT_SYSTEM_PROMPT }, ...messages.map((m: any) => ({ role: m.role, content: m.content })), { role: 'user', content: prompt }];
-    const headers = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     };
@@ -2891,7 +3687,7 @@ async function callDirectAI(prompt: string, messages: any[], provider: string, a
       headers['HTTP-Referer'] = 'https://github.com/inetixus/apple-juice';
       headers['X-Title'] = 'Apple Juice Roblox Sync';
     }
-    
+
     let resolvedModel = model || (provider === 'deepseek' ? 'deepseek-chat' : provider === 'openrouter' ? 'meta-llama/llama-3.3-70b-instruct:free' : 'gpt-4o-mini');
     if (provider === 'openrouter') {
       resolvedModel = resolvedModel.replace(/^openrouter\//, '');
@@ -2970,8 +3766,7 @@ async function startLightweightServer(inProcess = false) {
       const b = await body();
       try {
         const r = await callDirectAI(b.prompt || '', b.messages || [], b.provider || 'openai', b.apiKey || '', b.model || 'gpt-4o-mini');
-        
-        // Normalize and queue the scripts payload for Roblox Studio plugin polling
+
         if (r && typeof r === 'object') {
           const normAction = r.action ?? r.Action ?? "create";
           let normSource = r.code ?? r.Source ?? r.content ?? r.Content ?? r.script ?? r.Script;
@@ -3022,7 +3817,7 @@ async function startLightweightServer(inProcess = false) {
             };
           }
         }
-        
+
         sendJSON(r);
       } catch (e: any) {
         sendJSON({ error: e.message || 'AI Error' }, 500);

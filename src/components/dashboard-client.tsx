@@ -38,10 +38,7 @@ import { TeamTab } from "./dashboard/panel-team";
 import { SettingsModal } from "./dashboard/settings-modal";
 import { DashboardContext, type DashboardContextType } from "./dashboard/dashboard-context";
 import { JuiceLoader } from "./dashboard/juice-loader";
-<<<<<<< HEAD
 import { ThinkingFeed } from "@/components/thinking-feed";
-=======
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
 
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
 
@@ -2959,7 +2956,6 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
               initial={{ opacity: 1 }}
               exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
               transition={{ duration: 0.8, ease: "easeInOut" }}
-<<<<<<< HEAD
               className="h-screen w-full bg-[#0a0b0f] flex flex-col items-center justify-center p-8 text-center relative z-[1000] overflow-hidden"
             >
               {/* Ambient Floating Blobs */}
@@ -3034,30 +3030,6 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                 }
               `}</style>
 
-=======
-              className="h-screen w-full bg-[#14161a] flex flex-col items-center justify-center p-8 text-center relative z-[1000]"
-            >
-              <JuiceLoader size="lg" />
-            </motion.div>
-          ) : (
-            <motion.main
-              key="dashboard"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, ease: "easeOut" }}
-              className="h-screen bg-[#050508] text-white flex overflow-hidden font-sans relative selection:bg-[#ccff00]/20"
-            >
-              <style jsx global>{`
-                @keyframes shop-pulse {
-                  0%, 100% { box-shadow: 0 0 10px rgba(204, 255, 0, 0.1); }
-                  50% { box-shadow: 0 0 25px rgba(204, 255, 0, 0.4); }
-                }
-                .animate-shop-pulse {
-                  animation: shop-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-                }
-              `}</style>
-
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
               {/* ━━━ STRIPE SIGNATURE HERO ANIMATED TWISTED WAVE LINES ━━━ */}
               <StripeWave />
 
@@ -3197,7 +3169,6 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                         </div>
                                       </div>
                                     ))}
-<<<<<<< HEAD
                                     {isGenerating && (
                                       <div className="py-4 px-6 rounded-3xl bg-white/[0.02] border border-white/5 shadow-inner space-y-4 max-w-[400px] my-4">
                                         <div className="flex items-center gap-3">
@@ -3213,8 +3184,6 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                         />
                                       </div>
                                     )}
-=======
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                                   </div>
                                 )}
                               </div>

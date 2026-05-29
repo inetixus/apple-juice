@@ -49,7 +49,6 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
       container: "flex flex-col items-center justify-center p-6 text-center",
       glassWidth: 80,
       glassHeight: 100,
-<<<<<<< HEAD
       textStyle: "text-xs font-semibold text-slate-400 mt-6 max-w-[200px] h-4",
       bubbleCount: 12,
     },
@@ -59,17 +58,6 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
       glassHeight: 180,
       textStyle: "text-sm font-bold uppercase tracking-[0.2em] glossy-text-gradient mt-10 max-w-[400px] h-6",
       bubbleCount: 20,
-=======
-      textStyle: "text-xs font-semibold text-slate-400 mt-4 max-w-[200px] h-4",
-      bubbleCount: 8,
-    },
-    lg: {
-      container: "flex flex-col items-center justify-center p-12 text-center",
-      glassWidth: 120,
-      glassHeight: 150,
-      textStyle: "text-sm font-bold uppercase tracking-[0.15em] text-[#ccff00] mt-8 max-w-[320px] h-6 shadow-glow",
-      bubbleCount: 15,
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
     },
   }[size];
 
@@ -85,11 +73,7 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
     }
     @keyframes juice-bubble-rise {
       0% {
-<<<<<<< HEAD
         transform: translateY(110%) scale(0.3);
-=======
-        transform: translateY(100%) scale(0.3);
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         opacity: 0;
       }
       20% {
@@ -99,37 +83,24 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
         opacity: 0.8;
       }
       100% {
-<<<<<<< HEAD
         transform: translateY(-20%) scale(1.2);
-=======
-        transform: translateY(-10%) scale(1.1);
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         opacity: 0;
       }
     }
     @keyframes juice-drip-fall {
       0% {
-<<<<<<< HEAD
         transform: translateY(-30px);
-=======
-        transform: translateY(-25px);
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         opacity: 0;
       }
       10% {
         opacity: 1;
       }
       60% {
-<<<<<<< HEAD
         transform: translateY(135px);
-=======
-        transform: translateY(85px);
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         opacity: 1;
         scale: 1;
       }
       65% {
-<<<<<<< HEAD
         transform: translateY(145px) scaleX(1.8) scaleY(0.3);
         opacity: 0.4;
       }
@@ -139,17 +110,6 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
       }
       100% {
         transform: translateY(150px) scale(0);
-=======
-        transform: translateY(92px) scaleX(1.6) scaleY(0.4);
-        opacity: 0.3;
-      }
-      75% {
-        transform: translateY(95px) scale(0);
-        opacity: 0;
-      }
-      100% {
-        transform: translateY(95px) scale(0);
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         opacity: 0;
       }
     }
@@ -159,7 +119,6 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
         opacity: 0;
       }
       10% {
-<<<<<<< HEAD
         opacity: 0.7;
       }
       80% {
@@ -193,30 +152,6 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
     }
     .animate-liquid-pulse {
       animation: juice-liquid-pulse 3s ease-in-out infinite;
-=======
-        opacity: 0.6;
-      }
-      80% {
-        transform: scale(1.5);
-        opacity: 0;
-      }
-      100% {
-        transform: scale(1.8);
-        opacity: 0;
-      }
-    }
-    .animate-wave-front {
-      animation: juice-wave-front 3s linear infinite;
-    }
-    .animate-wave-back {
-      animation: juice-wave-back 2s linear infinite;
-    }
-    .animate-drip-fall {
-      animation: juice-drip-fall 2.8s cubic-bezier(0.4, 0, 1, 1) infinite;
-    }
-    .animate-splash-ring {
-      animation: juice-splash-ring 2.8s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
     }
   `;
 
@@ -225,7 +160,6 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
       <style dangerouslySetInnerHTML={{ __html: animationStyles }} />
 
       <div className="relative flex items-center justify-center">
-<<<<<<< HEAD
         {/* Deep Neon Glow */}
         {size !== "sm" && (
           <div 
@@ -258,41 +192,11 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
             {/* Droplet */}
             <div
               className="absolute left-[50%] ml-[-4px] top-[24px] w-2 h-3.5 rounded-full bg-[#ccff00] animate-drip-fall shadow-[0_0_8px_rgba(204,255,0,0.6)]"
-=======
-        {/* Neon blur glow behind glass */}
-        {size !== "sm" && (
-          <div className="absolute inset-0 rounded-full bg-[#ccff00]/10 blur-[40px] animate-pulse pointer-events-none" />
-        )}
-
-        {/* Fruit slice dripping juice from above (MD & LG sizes only) */}
-        {size !== "sm" && (
-          <div className="absolute top-[-25px] left-[5%] z-20 flex flex-col items-center pointer-events-none">
-            {/* Orange/Lime Slice */}
-            <svg
-              viewBox="0 0 100 100"
-              className={size === "lg" ? "h-10 w-10" : "h-7 w-7"}
-            >
-              {/* Outer skin */}
-              <circle cx="50" cy="50" r="45" fill="#a4de02" />
-              {/* Inner rind */}
-              <circle cx="50" cy="50" r="41" fill="#cbf103" />
-              {/* Segment dividers */}
-              <circle cx="50" cy="50" r="37" fill="#84ba00" />
-              <path d="M50 13 L50 87 M13 50 L87 50 M24 24 L76 76 M24 76 L76 24" stroke="#cbf103" strokeWidth="3" />
-              {/* Center seed hub */}
-              <circle cx="50" cy="50" r="8" fill="#e4fc18" />
-            </svg>
-
-            {/* Dripping Droplet */}
-            <div
-              className="absolute left-[50%] ml-[-3px] top-[18px] w-1.5 h-2.5 rounded-full bg-[#ccff00] animate-drip-fall"
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
               style={{ transformOrigin: "top center" }}
             />
           </div>
         )}
 
-<<<<<<< HEAD
         {/* The Glass */}
         <div
           className="relative overflow-hidden bg-white/[0.04] backdrop-blur-md border border-white/20 shadow-[inset_0_4px_16px_rgba(255,255,255,0.1),0_24px_48px_rgba(0,0,0,0.5)] flex items-end justify-center"
@@ -330,70 +234,33 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
             {size !== "sm" && (
               <div
                 className="absolute top-0 left-[50%] ml-[-18px] w-9 h-2.5 border border-[#ccff00]/60 rounded-full animate-splash-ring pointer-events-none"
-=======
-        {/* Glass Silhouette */}
-        <div
-          className="relative overflow-hidden rounded-b-[24px] rounded-t-lg bg-white/[0.03] border border-white/10 shadow-[inset_0_4px_12px_rgba(255,255,255,0.05),0_12px_32px_rgba(0,0,0,0.4)] flex items-end justify-center"
-          style={{
-            width: `${dimensions.glassWidth}px`,
-            height: `${dimensions.glassHeight}px`,
-            borderRadius: `0 0 ${dimensions.glassWidth * 0.25}px ${dimensions.glassWidth * 0.25}px`,
-          }}
-        >
-          {/* Glass Rim highlight */}
-          <div className="absolute top-0 inset-x-0 h-1 bg-white/20 blur-[0.5px]" />
-
-          {/* Liquid Container */}
-          <div className="relative w-full h-[65%] overflow-hidden">
-            {/* Splash ring (Synchronized with dripping droplet) */}
-            {size !== "sm" && (
-              <div
-                className="absolute top-0 left-[50%] ml-[-12px] w-6 h-1.5 border border-[#ccff00]/40 rounded-full animate-splash-ring pointer-events-none"
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                 style={{ transformOrigin: "center center" }}
               />
             )}
 
             {/* Back wave layer */}
-<<<<<<< HEAD
             <div className="absolute inset-0 w-[200%] h-full top-[-6px] left-0 overflow-hidden pointer-events-none opacity-60">
               <svg
                 viewBox="0 0 100 20"
                 preserveAspectRatio="none"
                 className="w-full h-8 fill-[#84ba00] animate-wave-back"
-=======
-            <div className="absolute inset-0 w-[200%] h-full top-[-4px] left-0 overflow-hidden pointer-events-none">
-              <svg
-                viewBox="0 0 100 20"
-                preserveAspectRatio="none"
-                className="w-full h-6 fill-[#9fc300]/40 animate-wave-back"
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
               >
                 <path d="M0 10 Q 25 20, 50 10 T 100 10 L 100 20 L 0 20 Z" />
               </svg>
             </div>
 
             {/* Front wave layer */}
-<<<<<<< HEAD
             <div className="absolute inset-0 w-[200%] h-full top-[-4px] left-0 overflow-hidden pointer-events-none">
               <svg
                 viewBox="0 0 100 20"
                 preserveAspectRatio="none"
                 className="w-full h-8 fill-[#ccff00] animate-wave-front"
-=======
-            <div className="absolute inset-0 w-[200%] h-full top-[-2px] left-0 overflow-hidden pointer-events-none">
-              <svg
-                viewBox="0 0 100 20"
-                preserveAspectRatio="none"
-                className="w-full h-6 fill-[#ccff00]/80 animate-wave-front"
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
               >
                 <path d="M0 10 Q 25 0, 50 10 T 100 10 L 100 20 L 0 20 Z" />
               </svg>
             </div>
 
             {/* Liquid solid body */}
-<<<<<<< HEAD
             <div className="absolute inset-x-0 bottom-0 top-[20px] bg-gradient-to-t from-[#6a8a00] via-[#84ba00] to-[#ccff00]" />
 
             {/* Internal Glow */}
@@ -409,23 +276,6 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
                 <div
                   key={i}
                   className="absolute bottom-0 rounded-full bg-white/50 pointer-events-none shadow-[0_0_6px_rgba(255,255,255,0.7)]"
-=======
-            <div className="absolute inset-x-0 bottom-0 top-[14px] bg-gradient-to-t from-[#82a300] to-[#ccff00]/85" />
-
-            {/* Glowing Liquid surface bar */}
-            <div className="absolute top-[8px] inset-x-0 h-1 bg-[#e4fc18] opacity-80 blur-[1px]" />
-
-            {/* Fizzy Bubbles rising inside the juice */}
-            {Array.from({ length: dimensions.bubbleCount }).map((_, i) => {
-              const sizePx = Math.random() * 3.5 + 1.5;
-              const leftPercent = Math.random() * 80 + 10;
-              const delay = Math.random() * 2;
-              const duration = Math.random() * 1.5 + 1.5;
-              return (
-                <div
-                  key={i}
-                  className="absolute bottom-0 rounded-full bg-white/40 pointer-events-none shadow-[0_0_4px_rgba(255,255,255,0.6)]"
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                   style={{
                     width: `${sizePx}px`,
                     height: `${sizePx}px`,
@@ -439,7 +289,6 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
           </div>
         </div>
 
-<<<<<<< HEAD
         {/* Premium Spiraled Straw */}
         {size !== "sm" && (
           <div
@@ -467,45 +316,16 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
       </div>
 
       {/* Loading text with gradient */}
-=======
-        {/* Dynamic decorative straw (MD & LG sizes only) */}
-        {size !== "sm" && (
-          <div
-            className="absolute z-10 bg-gradient-to-r from-red-500 via-white to-red-500 shadow-lg pointer-events-none"
-            style={{
-              width: `${dimensions.glassWidth * 0.08}px`,
-              height: `${dimensions.glassHeight * 1.1}px`,
-              top: `-${dimensions.glassHeight * 0.35}px`,
-              left: "65%",
-              transform: "rotate(20deg)",
-              borderRadius: "4px",
-              boxShadow: "inset 0 0 4px rgba(0,0,0,0.15)",
-              border: "1px solid rgba(0,0,0,0.05)",
-            }}
-          />
-        )}
-      </div>
-
-      {/* Playful cycled loading message text with beautiful entry transitions */}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
       {size !== "sm" ? (
         <div className={dimensions.textStyle}>
           <AnimatePresence mode="wait">
             <motion.p
               key={displayedText}
-<<<<<<< HEAD
               initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
               transition={{ duration: 0.4, ease: "circOut" }}
               className="truncate drop-shadow-sm"
-=======
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              transition={{ duration: 0.3 }}
-              className="truncate"
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
             >
               {displayedText}
             </motion.p>

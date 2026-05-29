@@ -2,10 +2,7 @@
 
 import { Box, Sparkles, ShoppingCart, ChevronDown, Settings, X } from "lucide-react";
 import { signOut } from "next-auth/react";
-<<<<<<< HEAD
 import { AnimatePresence, motion } from "framer-motion";
-=======
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
 import { useDashboard } from "./dashboard-context";
 
 export function DashboardTopbar() {
@@ -112,7 +109,6 @@ export function DashboardTopbar() {
               />
             </button>
 
-<<<<<<< HEAD
             <AnimatePresence>
               {showStyleMenu && (
                 <motion.div
@@ -151,38 +147,6 @@ export function DashboardTopbar() {
                 </motion.div>
               )}
             </AnimatePresence>
-=======
-            {showStyleMenu && (
-              <div className="absolute right-0 top-12 w-44 bg-[#14161a] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[110] animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="px-3 py-2.5 border-b border-white/5 bg-black/20">
-                  <span className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">
-                    Workspace Style
-                  </span>
-                </div>
-                {(["legacy", "ide"] as const).map((style) => (
-                  <button
-                    key={style}
-                    onClick={() => {
-                      setWorkspaceStyle(style);
-                      setShowStyleMenu(false);
-                    }}
-                    className={`w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-3 ${
-                      workspaceStyle === style
-                        ? "bg-[#ccff00]/10 text-[#ccff00]"
-                        : "text-white/40 hover:bg-white/5 hover:text-white"
-                    }`}
-                  >
-                    <div
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        style === "ide" ? "bg-[#ccff00]" : "bg-blue-400"
-                      }`}
-                    />
-                    {style}
-                  </button>
-                ))}
-              </div>
-            )}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
           </div>
         )}
         <div className="w-px h-6 bg-white/5 mx-2" />
@@ -208,7 +172,6 @@ export function DashboardTopbar() {
             />
           </button>
 
-<<<<<<< HEAD
           <AnimatePresence>
             {showProfileMenu && (
               <motion.div
@@ -257,48 +220,6 @@ export function DashboardTopbar() {
               </motion.div>
             )}
           </AnimatePresence>
-=======
-          {showProfileMenu && (
-            <div className="absolute right-0 top-14 w-48 bg-[#1a1c22] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 z-[100]">
-              <div className="px-4 py-3 border-b border-white/5 bg-black/20">
-                <p className="text-[10px] font-black text-white truncate uppercase tracking-widest">
-                  {username}
-                </p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span
-                    className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                      usage.plan === "pure_ultra"
-                        ? "bg-[#ccff00] text-black"
-                        : "bg-white/5 text-white/40"
-                    }`}
-                  >
-                    {usage.plan === "pure_ultra"
-                      ? "Ultra"
-                      : usage.plan === "fresh_pro"
-                      ? "Pro"
-                      : "Free"}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowProfileMenu(false);
-                  setShowSettings(true);
-                }}
-                className="w-full text-left px-4 py-2.5 text-[11px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2 uppercase tracking-widest"
-              >
-                <Settings className="h-3.5 w-3.5" /> Settings
-              </button>
-
-              <button
-                onClick={() => void signOut({ callbackUrl: "/" })}
-                className="w-full text-left px-4 py-2.5 text-[11px] font-bold text-red-400 hover:text-red-300 hover:bg-red-500/5 transition-colors flex items-center gap-2 border-t border-white/5 uppercase tracking-widest"
-              >
-                <X className="h-3.5 w-3.5" /> Log Out
-              </button>
-            </div>
-          )}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         </div>
       </div>
     </div>

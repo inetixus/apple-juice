@@ -325,7 +325,6 @@ export function SettingsModal() {
                 Infinite Juice
               </button>
             </div>
-<<<<<<< HEAD
 
             {/* Apple Juice CLI (aj) Global Setup */}
             <div className="mt-8 pt-8 border-t border-dashed border-white/10 space-y-4">
@@ -364,8 +363,6 @@ export function SettingsModal() {
                 </div>
               </div>
             </div>
-=======
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
           </motion.div>
         </motion.div>
       )}

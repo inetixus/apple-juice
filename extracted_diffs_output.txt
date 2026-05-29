@@ -1,0 +1,889 @@
+=== Line 509, Step 512 (RUN_COMMAND) ===
+Created At: 2026-05-29T11:52:04Z
+Completed At: 2026-05-29T11:52:08Z
+
+				The command failed with exit code: 1
+				Output:
+				
+Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName                                                                                                                                                                                                                  
+-------  ------    -----      -----     ------     --  -- -----------                                                                                                                                                                                                                  
+    211      30    87692      37708       1.38   2648   1 node                                                                                                                                                                                                                         
+    176      40   132788      39444       1.13   6316   1 node                                                                                                                                                                                                                         
+    184      40   132968      39468       1.20  10304   1 node                                                                                                                                                                                                                         
+    211      30    86192      37492       2.88  12508   1 node                                                                                                                                                                                                                         
+
+
+
+
+===========================================
+
+=== Line 511, Step 514 (RUN_COMMAND) ===
+Created At: 2026-05-29T11:52:14Z
+Completed At: 2026-05-29T11:52:14Z
+
+				The command completed successfully.
+				Output:
+				<truncated 1119 lines>
+-
+-            {/* Fizzy Bubbles rising inside the juice */}
+-            {Array.from({ length: dimensions.bubbleCount }).map((_, i) => {
+-              const sizePx = Math.random() * 3.5 + 1.5;
+-              const leftPercent = Math.random() * 80 + 10;
+-              const delay = Math.random() * 2;
+-              const duration = Math.random() * 1.5 + 1.5;
+-              return (
+-                <div
+-                  key={i}
+-                  className="absolute bottom-0 rounded-full bg-white/40 pointer-events-none shadow-[0_0_4px_rgba(255,255,255,0.6)]"
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+                   style={{
+                     width: `${sizePx}px`,
+                     height: `${sizePx}px`,
+@@ -439,7 +289,6 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
+           </div>
+         </div>
+ 
+-<<<<<<< HEAD
+         {/* Premium Spiraled Straw */}
+         {size !== "sm" && (
+           <div
+@@ -467,45 +316,16 @@ export function JuiceLoader({ size = "md", customText }: JuiceLoaderProps) {
+       </div>
+ 
+       {/* Loading text with gradient */}
+-=======
+-        {/* Dynamic decorative straw (MD & LG sizes only) */}
+-        {size !== "sm" && (
+-          <div
+-            className="absolute z-10 bg-gradient-to-r from-red-500 via-white to-red-500 shadow-lg pointer-events-none"
+-            style={{
+-              width: `${dimensions.glassWidth * 0.08}px`,
+-              height: `${dimensions.glassHeight * 1.1}px`,
+-              top: `-${dimensions.glassHeight * 0.35}px`,
+-              left: "65%",
+-              transform: "rotate(20deg)",
+-              borderRadius: "4px",
+-              boxShadow: "inset 0 0 4px rgba(0,0,0,0.15)",
+-              border: "1px solid rgba(0,0,0,0.05)",
+-            }}
+-          />
+-        )}
+-      </div>
+-
+-      {/* Playful cycled loading message text with beautiful entry transitions */}
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+       {size !== "sm" ? (
+         <div className={dimensions.textStyle}>
+           <AnimatePresence mode="wait">
+             <motion.p
+               key={displayedText}
+-<<<<<<< HEAD
+               initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
+               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+               exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
+               transition={{ duration: 0.4, ease: "circOut" }}
+               className="truncate drop-shadow-sm"
+-=======
+-              initial={{ opacity: 0, y: 5 }}
+-              animate={{ opacity: 1, y: 0 }}
+-              exit={{ opacity: 0, y: -5 }}
+-              transition={{ duration: 0.3 }}
+-              className="truncate"
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+             >
+               {displayedText}
+             </motion.p>
+diff --git a/src/components/dashboard/panel-projects.tsx b/src/components/dashboard/panel-projects.tsx
+index e0d3c1c..69fee47 100644
+--- a/src/components/dashboard/panel-projects.tsx
++++ b/src/components/dashboard/panel-projects.tsx
+@@ -14,11 +14,7 @@ import {
+   Image as ImageIcon,
+   AtSign,
+ } from "lucide-react";
+-<<<<<<< HEAD
+ import { SlashCommandInput } from "@/components/slash-command";
+-=======
+-import { Textarea } from "@/components/ui/textarea";
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+ import { useDashboard } from "./dashboard-context";
+ 
+ export function ProjectsTab() {
+@@ -84,7 +80,6 @@ export function ProjectsTab() {
+             </div>
+ 
+             <div className="relative w-full">
+-<<<<<<< HEAD
+               <SlashCommandInput
+                 value={prompt}
+                 onChange={setPrompt}
+@@ -92,19 +87,6 @@ export function ProjectsTab() {
+                 placeholder={placeholderText || "Make shift-to-run with stamina bar UI..."}
+                 disabled={isGenerating || !isPluginConnected}
+                 className="w-full bg-transparent border-none text-base md:text-lg font-bold text-white placeholder:text-white/10 focus-visible:ring-0 resize-none min-h-[100px] md:min-h-[120px] p-0"
+-=======
+-              <Textarea
+-                value={prompt}
+-                onChange={(e) => setPrompt(e.target.value)}
+-                placeholder={placeholderText || "Make shift-to-run with stamina bar UI..."}
+-                className="w-full bg-transparent border-none text-base md:text-lg font-bold text-white placeholder:text-white/10 focus-visible:ring-0 resize-none min-h-[100px] md:min-h-[120px] p-0"
+-                onKeyDown={(e) => {
+-                  if (e.key === "Enter" && !e.shiftKey) {
+-                    e.preventDefault();
+-                    void submitPrompt();
+-                  }
+-                }}
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+               />
+             </div>
+ 
+@@ -120,18 +102,10 @@ export function ProjectsTab() {
+               <button
+                 onClick={() => void submitPrompt()}
+                 disabled={isGenerating || !isPluginConnected}
+-<<<<<<< HEAD
+                 className={`px-6 py-3 rounded-xl border font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${isPluginConnected
+                     ? "bg-[#ccff00] text-black border-[#ccff00] hover:bg-[#d4ff33] shadow-[0_4px_12px_rgba(204,255,0,0.2)]"
+                     : "text-white/10 bg-white/5 border-white/5 cursor-not-allowed"
+                   }`}
+-=======
+-                className={`px-6 py-3 rounded-xl border font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+-                  isPluginConnected
+-                    ? "bg-[#ccff00] text-black border-[#ccff00] hover:bg-[#d4ff33] shadow-[0_4px_12px_rgba(204,255,0,0.2)]"
+-                    : "text-white/10 bg-white/5 border-white/5 cursor-not-allowed"
+-                }`}
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+               >
+                 <span>Inject Live</span>
+                 <ArrowRight className="w-4 h-4" />
+@@ -228,14 +202,8 @@ export function ProjectsTab() {
+                       <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-4">
+                         <div className="flex items-center gap-1.5">
+                           <div
+-<<<<<<< HEAD
+                             className={`w-1.5 h-1.5 rounded-full ${p.sessionKey ? "bg-emerald-500 animate-pulse" : "bg-white/10"
+                               }`}
+-=======
+-                            className={`w-1.5 h-1.5 rounded-full ${
+-                              p.sessionKey ? "bg-emerald-500 animate-pulse" : "bg-white/10"
+-                            }`}
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+                           />
+                           <span className="text-[9px] font-black text-white/30 uppercase tracking-wider">
+                             {p.sessionKey ? "Connected" : "Keyless mode"}
+diff --git a/src/components/dashboard/settings-modal.tsx b/src/components/dashboard/settings-modal.tsx
+index 1dad237..b120f0f 100644
+--- a/src/components/dashboard/settings-modal.tsx
++++ b/src/components/dashboard/settings-modal.tsx
+@@ -325,7 +325,7 @@ export function SettingsModal() {
+                 Infinite Juice
+               </button>
+             </div>
+-<<<<<<< HEAD
++
+ 
+             {/* Apple Juice CLI (aj) Global Setup */}
+             <div className="mt-8 pt-8 border-t border-dashed border-white/10 space-y-4">
+@@ -364,8 +364,7 @@ export function SettingsModal() {
+                 </div>
+               </div>
+             </div>
+-=======
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
++
+           </motion.div>
+         </motion.div>
+       )}
+diff --git a/src/lib/store.ts b/src/lib/store.ts
+index f8b9c7d..f4665f9 100644
+--- a/src/lib/store.ts
++++ b/src/lib/store.ts
+@@ -65,7 +65,12 @@ export const MODEL_MULTIPLIERS: Record<string, number> = {
+   "claude-3-5-sonnet": 6,
+   "claude-3-5-sonnet-20241022": 6,
+   "claude-3-5-haiku": 1.5,
++  "claude-3-5-haiku-20241022": 1.5,
+   "claude-3-opus": 12,
++  "claude-opus-4.6": 4,
++  "claude-opus-4.7": 4,
++  "claude-opus-4.6-fast": 24,
++  "claude-opus-4.7-fast": 24,
+ 
+   // OpenAI Models
+   "gpt-4o": 5,
+
+
+===========================================
+
+=== Line 515, Step 518 (RUN_COMMAND) ===
+Created At: 2026-05-29T11:52:26Z
+Completed At: 2026-05-29T11:52:27Z
+
+				The command completed successfully.
+				Output:
+				diff --git a/src/components/dashboard-client.tsx b/src/components/dashboard-client.tsx
+index b76c668..671cd88 100644
+--- a/src/components/dashboard-client.tsx
++++ b/src/components/dashboard-client.tsx
+@@ -38,10 +38,7 @@ import { TeamTab } from "./dashboard/panel-team";
+ import { SettingsModal } from "./dashboard/settings-modal";
+ import { DashboardContext, type DashboardContextType } from "./dashboard/dashboard-context";
+ import { JuiceLoader } from "./dashboard/juice-loader";
+-<<<<<<< HEAD
+ import { ThinkingFeed } from "@/components/thinking-feed";
+-=======
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+ 
+ const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
+ 
+@@ -2959,7 +2956,6 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
+               initial={{ opacity: 1 }}
+               exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
+               transition={{ duration: 0.8, ease: "easeInOut" }}
+-<<<<<<< HEAD
+               className="h-screen w-full bg-[#0a0b0f] flex flex-col items-center justify-center p-8 text-center relative z-[1000] overflow-hidden"
+             >
+               {/* Ambient Floating Blobs */}
+@@ -3033,31 +3029,6 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
+                   animation: shop-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                 }
+               `}</style>
+-
+-=======
+-              className="h-screen w-full bg-[#14161a] flex flex-col items-center justify-center p-8 text-center relative z-[1000]"
+-            >
+-              <JuiceLoader size="lg" />
+-            </motion.div>
+-          ) : (
+-            <motion.main
+-              key="dashboard"
+-              initial={{ opacity: 0, scale: 0.98 }}
+-              animate={{ opacity: 1, scale: 1 }}
+-              transition={{ duration: 1, ease: "easeOut" }}
+-              className="h-screen bg-[#050508] text-white flex overflow-hidden font-sans relative selection:bg-[#ccff00]/20"
+-            >
+-              <style jsx global>{`
+-                @keyframes shop-pulse {
+-                  0%, 100% { box-shadow: 0 0 10px rgba(204, 255, 0, 0.1); }
+-                  50% { box-shadow: 0 0 25px rgba(204, 255, 0, 0.4); }
+-                }
+-                .animate-shop-pulse {
+-                  animation: shop-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+-                }
+-              `}</style>
+-
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+               {/* ━━━ STRIPE SIGNATURE HERO ANIMATED TWISTED WAVE LINES ━━━ */}
+               <StripeWave />
+ 
+@@ -3197,7 +3168,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
+                                         </div>
+                                       </div>
+                                     ))}
+-<<<<<<< HEAD
++
+                                     {isGenerating && (
+                                       <div className="py-4 px-6 rounded-3xl bg-white/[0.02] border border-white/5 shadow-inner space-y-4 max-w-[400px] my-4">
+                                         <div className="flex items-center gap-3">
+@@ -3213,8 +3184,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
+                                         />
+                                       </div>
+                                     )}
+-=======
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
++
+                                   </div>
+                                 )}
+                               </div>
+
+
+===========================================
+
+=== Line 517, Step 520 (RUN_COMMAND) ===
+Created At: 2026-05-29T11:52:32Z
+Completed At: 2026-05-29T11:52:32Z
+
+				The command completed successfully.
+				Output:
+				<truncated 1 lines>
+   };
+ 
+@@ -1262,11 +1280,15 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
+   function clearSlashListLocal() {
+     if (slashListLines > 0) {
+       const rows = process.stdout.rows || 24;
++      // Draw origin is rows - 3 - slashListLines (just above the hint divider at rows-3)
+       const startRow = rows - 3 - slashListLines;
+       for (let i = 0; i < slashListLines; i++) {
+         process.stdout.write(`\x1b[${startRow + i};1H\x1b[2K`);
+       }
+       slashListLines = 0;
++      // Restore cursor to input line
++      const inputRow = rows - 2;
++      process.stdout.write(`\x1b[${inputRow};1H`);
+     }
+   }
+ 
+@@ -1303,9 +1325,12 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
+       
+       process.stdout.write(`\x1b[${startRow};1H\x1b[2K  ${DIM}No matching commands for "/${query}"${R}`);
+       process.stdout.write(`\x1b[${startRow + 1};1H\x1b[2K  ${DIM}${'─'.repeat(40)}${R}`);
+-      
+-      const col = 4 + query.length;
+-      process.stdout.write(`\x1b[${rows - 1};${col}H`);
++
++      // Restore cursor to input line
++      const pill = getModePill(activeMode);
++      const pillLen = stripAnsi(pill).length;
++      const col = 1 + pillLen + ((globalRl as any).cursor || 0);
++      process.stdout.write(`\x1b[${rows - 2};${col}H`);
+       return;
+     }
+ 
+@@ -1328,14 +1353,18 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
+     lines.push(`  ${DIM}${'─'.repeat(w)}${R}`);
+ 
+     slashListLines = lines.length;
+-    const startRow = rows - 2 - slashListLines;
++    // Draw just above the hint divider line (rows-3); overlay grows upward
++    const startRow = rows - 3 - slashListLines;
+ 
+     for (let i = 0; i < lines.length; i++) {
+       process.stdout.write(`\x1b[${startRow + i};1H\x1b[2K${lines[i]}`);
+     }
+ 
+-    const col = 4 + query.length;
+-    process.stdout.write(`\x1b[${rows - 1};${col}H`);
++    // Restore cursor to the actual input line (rows-2) after the mode pill
++    const pill = getModePill(activeMode);
++    const pillLen = stripAnsi(pill).length;
++    const col = 1 + pillLen + ((globalRl as any).cursor || 0);
++    process.stdout.write(`\x1b[${rows - 2};${col}H`);
+   }
+ 
+   let isCommandRunning = false;
+@@ -1403,13 +1432,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
+ 
+   rl.on('line', async (rawLine: string) => {
+     isCommandRunning = true;
+-    const rows = process.stdout.rows || 24;
+-    if (rows >= 10) {
+-      // Position cursor at bottom of scrolling region and scroll up to fit user message
+-      process.stdout.write(`\x1b[${rows - 4};1H\n\n`);
+-    } else {
+-      process.stdout.write('\n\n');
+-    }
++
+     if (slashActive) {
+       clearSlashListLocal();
+       slashActive = false;
+@@ -1419,12 +1442,20 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
+ 
+     try {
+       let input = rawLine.trim();
++      // Early-return for blank/bare-slash input — no scroll, no extra space
+       if (!input || input === '/') {
+-        process.stdout.write('\x1b[A\x1b[2K');
+         rl.prompt(true);
+         return;
+       }
+ 
++      // Only push the scroll region down once we know there's real content
++      const rows = process.stdout.rows || 24;
++      if (rows >= 10) {
++        process.stdout.write(`\x1b[${rows - 4};1H\n\n`);
++      } else {
++        process.stdout.write('\n\n');
++      }
++
+       // ── Slash commands ──────────────────────────────────────────────────────
+       if (input.startsWith('/') || input === '?') {
+         const allCmds = ['/pair', '/status', '/sync', '/clear', '/key', '/model', '/config', '/help', '/exit'];
+@@ -1554,23 +1585,27 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
+                   'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro',
+                   'claude-3-5-sonnet', 'claude-3-5-haiku', 'claude-3-opus',
+                   'deepseek-chat', 'deepseek-coder', 'deepseek-v3', 'deepseek-r1',
+-                  'anthropic/claude-3.5-sonnet', 'google/gemini-2.5-pro',
+-                  'deepseek/deepseek-r1', 'meta-llama/llama-3.1-405b-instruct',
+-                  'meta-llama/llama-3.3-70b-instruct:free'
++                  'openrouter/anthropic/claude-3.5-sonnet', 'openrouter/google/gemini-2.5-pro',
++                  'openrouter/deepseek/deepseek-r1', 'openrouter/meta-llama/llama-3.1-405b-instruct',
++                  'openrouter/meta-llama/llama-3-8b-instruct:free',
++                  ...localOpenRouterModels.map(x => x.startsWith('openrouter/') ? x : `openrouter/${x}`)
+                 ];
+ 
+               if (state.config.provider === 'openrouter') {
++                if (localOpenRouterModels.length > 0) {
++                  popularModels = localOpenRouterModels.map(x => x.startsWith('openrouter/') ? x : `openrouter/${x}`);
++                }
+                 try {
+                   state.infoMessage = 'Fetching OpenRouter models...';
+                   redrawScreen(state);
+                   const res = await fetch('https://openrouter.ai/api/v1/models');
+                   const data: any = await res.json();
+                   if (data && data.data) {
+-                    popularModels = data.data.map((m: any) => m.id);
++                    popularModels = data.data.map((x: any) => x.id.startsWith('openrouter/') ? x.id : `openrouter/${x.id}`);
+                   }
+                   state.infoMessage = undefined;
+                 } catch (e) {
+-                  // Fallback to default list on error
++                  // Fallback to local list on error
+                   state.infoMessage = undefined;
+                 }
+               }
+@@ -1579,17 +1614,27 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
+               const selected = await showModelSelector(rl, popularModels);
+               state.modalOpen = false;
+               if (selected) {
+-                state.config.model = selected;
++                let finalModel = selected;
++                if (selected.startsWith('openrouter/')) {
++                  finalModel = selected.substring(11);
++                  state.config.provider = 'openrouter';
++                }
++                state.config.model = finalModel;
+                 saveConfig(state.config);
+-                state.infoMessage = `Model → ${selected}`;
++                state.infoMessage = `Model → ${finalModel} (Provider: ${state.config.provider})`;
+               } else {
+                 state.infoMessage = 'Model selection cancelled.';
+               }
+               await new Promise(r => setTimeout(r, 100));
+             } else {
+-              state.config.model = m;
++              let finalModel = m;
++              if (m.startsWith('openrouter/')) {
++                finalModel = m.substring(11);
++                state.config.provider = 'openrouter';
++              }
++              state.config.model = finalModel;
+               saveConfig(state.config);
+-              state.infoMessage = `Model → ${m}`;
++              state.infoMessage = `Model → ${finalModel} (Provider: ${state.config.provider})`;
+             }
+             redrawScreen(state);
+             state.lastError = undefined; state.infoMessage = undefined;
+@@ -1640,11 +1685,11 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
+       process.stdout.write('\n');
+       const thinking = setInterval(() => {
+         const s = SPIN_FRAMES[spinFrame % SPIN_FRAMES.length];
+-        const color = getSpinnerColor(spinFrame);
+         const elapsed = (Date.now() - startTime) / 1000;
+         const elapsedSec = elapsed.toFixed(1);
+         const phase = getReasoningPhase(elapsed);
+-        process.stdout.write(`\r\x1b[K  ${color}${s}${R}  ${BOLD}${WHITE}${phase}${R}  ${DIM}[${elapsedSec}s]${R}`);
++        // Claude style: brand spinner, dimmed reasoning phase text
++        process.stdout.write(`\r\x1b[K  ${BRAND}${s}${R}  ${DIM}${phase} [${elapsedSec}s]${R}`);
+         spinFrame++;
+       }, 80);
+ 
+
+
+===========================================
+
+=== Line 523, Step 528 (RUN_COMMAND) ===
+Created At: 2026-05-29T11:53:31Z
+Completed At: 2026-05-29T11:53:31Z
+
+				The command completed successfully.
+				Output:
+				On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   .aj.json
+	modified:   .gitignore
+	modified:   aj.cmd
+	modified:   cli/aj.ts
+	modified:   cli/help.txt
+	modified:   cli/modellist.txt
+	modified:   cli/utils/ansi.ts
+	modified:   src/components/dashboard-client.tsx
+	modified:   src/components/dashboard/dashboard-context.tsx
+	modified:   src/components/dashboard/dashboard-topbar.tsx
+	modified:   src/components/dashboard/ide-layout.tsx
+	modified:   src/components/dashboard/juice-loader.tsx
+	modified:   src/components/dashboard/panel-projects.tsx
+	modified:   src/components/dashboard/settings-modal.tsx
+	modified:   src/lib/store.ts
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	CDcommands.docx
+	claude-code-main/
+	cli/utils/spinner.ts
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+
+===========================================
+
+=== Line 525, Step 530 (RUN_COMMAND) ===
+Created At: 2026-05-29T11:53:32Z
+Completed At: 2026-05-29T11:53:33Z
+
+				The command completed successfully.
+				Output:
+				commit bdbdb499c128a7a09d511e79da3babda248567c4
+Author: inetixus <inetixus@gmail.com>
+Date:   Thu May 28 16:44:27 2026 +0200
+
+    update83
+
+commit 6113e3e795273e84301c757bca5b75dbf6a6412e
+Author: inetixus <inetixus@gmail.com>
+Date:   Thu May 28 15:33:38 2026 +0200
+
+    update82
+
+
+===========================================
+
+=== Line 527, Step 532 (RUN_COMMAND) ===
+Created At: 2026-05-29T11:53:34Z
+Completed At: 2026-05-29T11:54:13Z
+
+				The command completed successfully.
+				Output:
+				bdbdb49 HEAD@{0}: reset: moving to HEAD
+bdbdb49 HEAD@{1}: commit: update83
+6113e3e HEAD@{2}: Branch: renamed refs/heads/master to refs/heads/main
+6113e3e HEAD@{4}: commit (initial): update82
+
+
+===========================================
+
+=== Line 529, Step 534 (RUN_COMMAND) ===
+Created At: 2026-05-29T11:54:15Z
+Completed At: 2026-05-29T11:54:16Z
+
+				The command completed successfully.
+				Output:
+				diff --git a/src/components/dashboard-client.tsx b/src/components/dashboard-client.tsx
+index b76c668..671cd88 100644
+--- a/src/components/dashboard-client.tsx
++++ b/src/components/dashboard-client.tsx
+@@ -38,10 +38,7 @@ import { TeamTab } from "./dashboard/panel-team";
+ import { SettingsModal } from "./dashboard/settings-modal";
+ import { DashboardContext, type DashboardContextType } from "./dashboard/dashboard-context";
+ import { JuiceLoader } from "./dashboard/juice-loader";
+-<<<<<<< HEAD
+ import { ThinkingFeed } from "@/components/thinking-feed";
+-=======
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+ 
+ const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
+ 
+@@ -2959,7 +2956,6 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
+               initial={{ opacity: 1 }}
+               exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
+               transition={{ duration: 0.8, ease: "easeInOut" }}
+-<<<<<<< HEAD
+               className="h-screen w-full bg-[#0a0b0f] flex flex-col items-center justify-center p-8 text-center relative z-[1000] overflow-hidden"
+             >
+               {/* Ambient Floating Blobs */}
+@@ -3033,31 +3029,6 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
+                   animation: shop-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                 }
+               `}</style>
+-
+-=======
+-              className="h-screen w-full bg-[#14161a] flex flex-col items-center justify-center p-8 text-center relative z-[1000]"
+-            >
+-              <JuiceLoader size="lg" />
+-            </motion.div>
+-          ) : (
+-            <motion.main
+-              key="dashboard"
+-              initial={{ opacity: 0, scale: 0.98 }}
+-              animate={{ opacity: 1, scale: 1 }}
+-              transition={{ duration: 1, ease: "easeOut" }}
+-              className="h-screen bg-[#050508] text-white flex overflow-hidden font-sans relative selection:bg-[#ccff00]/20"
+-            >
+-              <style jsx global>{`
+-                @keyframes shop-pulse {
+-                  0%, 100% { box-shadow: 0 0 10px rgba(204, 255, 0, 0.1); }
+-                  50% { box-shadow: 0 0 25px rgba(204, 255, 0, 0.4); }
+-                }
+-                .animate-shop-pulse {
+-                  animation: shop-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+-                }
+-              `}</style>
+-
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
+               {/* ━━━ STRIPE SIGNATURE HERO ANIMATED TWISTED WAVE LINES ━━━ */}
+               <StripeWave />
+ 
+@@ -3197,7 +3168,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
+                                         </div>
+                                       </div>
+                                     ))}
+-<<<<<<< HEAD
++
+                                     {isGenerating && (
+                                       <div className="py-4 px-6 rounded-3xl bg-white/[0.02] border border-white/5 shadow-inner space-y-4 max-w-[400px] my-4">
+                                         <div className="flex items-center gap-3">
+@@ -3213,8 +3184,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
+                                         />
+                                       </div>
+                                     )}
+-=======
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
++
+                                   </div>
+                                 )}
+                               </div>
+diff --git a/src/components/dashboard/settings-modal.tsx b/src/components/dashboard/settings-modal.tsx
+index 1dad237..b120f0f 100644
+--- a/src/components/dashboard/settings-modal.tsx
++++ b/src/components/dashboard/settings-modal.tsx
+@@ -325,7 +325,7 @@ export function SettingsModal() {
+                 Infinite Juice
+               </button>
+             </div>
+-<<<<<<< HEAD
++
+ 
+             {/* Apple Juice CLI (aj) Global Setup */}
+             <div className="mt-8 pt-8 border-t border-dashed border-white/10 space-y-4">
+@@ -364,8 +364,7 @@ export function SettingsModal() {
+                 </div>
+               </div>
+             </div>
+-=======
+->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
++
+           </motion.div>
+         </motion.div>
+       )}
+
+
+===========================================
+
+=== Line 900, Step 518 (RUN_COMMAND) ===
+Created At: 2026-05-29T12:24:34Z
+Completed At: 2026-05-29T12:24:35Z
+
+				The command completed successfully.
+				Output:
+				On branch main
+Your branch is ahead of 'origin/main' by 4 commits.
+  (use "git push" to publish your local commits)
+
+nothing to commit, working tree clean
+
+
+===========================================
+
+=== Line 906, Step 524 (RUN_COMMAND) ===
+Created At: 2026-05-29T12:24:56Z
+Completed At: 2026-05-29T12:24:56Z
+
+				The command completed successfully.
+				Output:
+				{
+  "sessionKey": "TU2TB8",
+  "apiUrl": "http://localhost:3000",
+  "isFirstRun": false,
+  "cliUserId": "e5c7fe25b8736574",
+  "projectPath": "C:\\Users\\ineti\\OneDrive\\Desktop\\apple-juice-source-files",
+  "provider": "google",
+  "googleKey": "AIzaSyCoJKcB-20sVlixvKPdgztpjumy413xwok",
+  "openrouterKey": "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",
+  "model": "gemini-2.5-flash",
+  "themeColor": "green",
+  "showTokenPricing": false,
+  "chatbarStyle": "minimal",
+  "buddyMuted": false
+}
+
+===========================================
+
+=== Line 908, Step 526 (CODE_ACTION) ===
+Created At: 2026-05-29T12:25:04Z
+Completed At: 2026-05-29T12:25:04Z
+The following changes were made by the replace_file_content tool to: C:\Users\ineti\OneDrive\Desktop\apple-juice-source-files\.aj.json. If relevant, proactively run terminal commands to execute this code for the USER. Don't ask for permission.
+[diff_block_start]
+@@ -1,5 +1,5 @@
+ {
+-  "sessionKey": "04ZFN1",
++  "sessionKey": "TU2TB8",
+   "apiUrl": "http://localhost:3000",
+   "isFirstRun": false,
+   "cliUserId": "e5c7fe25b8736574",
+[diff_block_end]
+
+Please note that the above snippet only shows the MODIFIED lines from the last change. It shows up to 3 lines of unchanged lines before and after the modified lines. The actual file contents may have many more lines not shown.
+===========================================
+
+=== Line 910, Step 528 (RUN_COMMAND) ===
+Created At: 2026-05-29T12:25:10Z
+Completed At: 2026-05-29T12:25:18Z
+
+				The command completed successfully.
+				Output:
+				True
+
+
+===========================================
+
+=== Line 912, Step 530 (RUN_COMMAND) ===
+Created At: 2026-05-29T12:25:22Z
+Completed At: 2026-05-29T12:25:23Z
+
+				The command completed successfully.
+				Output:
+				commit bdbdb499c128a7a09d511e79da3babda248567c4
+Author: inetixus <inetixus@gmail.com>
+Date:   Thu May 28 16:44:27 2026 +0200
+
+    update83
+
+ cli/aj.ts | 307 +++++++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 176 insertions(+), 131 deletions(-)
+
+
+===========================================
+
+=== Line 914, Step 532 (RUN_COMMAND) ===
+Created At: 2026-05-29T12:25:25Z
+Completed At: 2026-05-29T12:25:25Z
+
+				The command completed successfully.
+				Output:
+				<truncated 421 lines>
+ src/app/api/enhance-prompt/route.ts                |   105 +
+ src/app/api/gcloud-test/route.ts                   |    28 +
+ src/app/api/help/route.ts                          |    72 +
+ src/app/api/insert-instance/route.ts               |    33 +
+ src/app/api/logs/route.ts                          |    30 +
+ src/app/api/models/route.ts                        |   137 +
+ src/app/api/pair/authorize/route.ts                |    29 +
+ src/app/api/pair/init/route.ts                     |    53 +
+ src/app/api/pair/keepalive/route.ts                |    26 +
+ src/app/api/pair/route.ts                          |    52 +
+ src/app/api/poll/route.ts                          |    75 +
+ src/app/api/projects/[id]/messages/route.ts        |    62 +
+ src/app/api/projects/route.ts                      |    93 +
+ src/app/api/projects/transfer-chat/route.ts        |    33 +
+ src/app/api/redeem-code/route.ts                   |    41 +
+ src/app/api/report-file/route.ts                   |    25 +
+ src/app/api/request-file/route.ts                  |    26 +
+ src/app/api/revert-code/route.ts                   |    36 +
+ src/app/api/search-assets/route.ts                 |    91 +
+ src/app/api/status/route.ts                        |    80 +
+ src/app/api/tree/route.ts                          |    19 +
+ src/app/api/usage/route.ts                         |    41 +
+ src/app/api/vm-status/route.ts                     |    37 +
+ src/app/api/webhooks/roblox/route.ts               |    92 +
+ src/app/dashboard/[projectId]/page.tsx             |    42 +
+ src/app/dashboard/page.tsx                         |    35 +
+ src/app/eula/page.tsx                              |    53 +
+ src/app/globals.css                                |   301 +
+ src/app/layout.tsx                                 |    32 +
+ src/app/page.tsx                                   |    25 +
+ src/app/privacy/page.tsx                           |   482 +
+ src/app/tos/page.tsx                               |    56 +
+ src/components/AuthButton.tsx                      |    44 +
+ src/components/Providers.tsx                       |    11 +
+ src/components/auth-controls.tsx                   |    56 +
+ src/components/dashboard-client.tsx                |  3329 +++
+ src/components/dashboard-client.tsx.bak            |     1 +
+ src/components/dashboard/dashboard-context.tsx     |   222 +
+ src/components/dashboard/dashboard-sidebar.tsx     |   471 +
+ src/components/dashboard/dashboard-topbar.tsx      |   307 +
+ src/components/dashboard/ide-layout.tsx            |  1549 ++
+ src/components/dashboard/juice-loader.tsx          |   519 +
+ src/components/dashboard/panel-assets.tsx          |   261 +
+ src/components/dashboard/panel-nexus.tsx           |   319 +
+ src/components/dashboard/panel-projects.tsx        |   329 +
+ src/components/dashboard/panel-team.tsx            |   217 +
+ src/components/dashboard/settings-modal.tsx        |   374 +
+ src/components/dashboard/types.ts                  |    92 +
+ src/components/landing-content.tsx                 |  1689 ++
+ src/components/medusae-effect.tsx                  |   502 +
+ src/components/script-card.tsx                     |   389 +
+ src/components/slash-command.tsx                   |   339 +
+ src/components/stripe-wave.tsx                     |   268 +
+ src/components/system-architecture.tsx             |   276 +
+ src/components/thinking-feed.tsx                   |   148 +
+ src/components/ui/badge.tsx                        |    32 +
+ src/components/ui/button.tsx                       |    52 +
+ src/components/ui/card.tsx                         |    52 +
+ src/components/ui/input.tsx                        |    17 +
+ src/components/ui/textarea.tsx                     |    16 +
+ src/components/ui/toast.tsx                        |    88 +
+ src/components/workspace-tree.tsx                  |  1367 ++
+ src/icons/IDE.png                                  |   Bin 0 -> 48605 bytes
+ src/icons/dashboard.png                            |   Bin 0 -> 150006 bytes
+ src/lib/AppleJuiceUI.luau                          |   846 +
+ src/lib/antigravity.ts                             |   656 +
+ src/lib/apple-juice-ui-library.ts                  |    36 +
+ src/lib/auth.ts                                    |   132 +
+ src/lib/cn.ts                                      |     1 +
+ src/lib/competitor-ui-database.ts                  |   624 +
+ src/lib/store.ts                                   |   916 +
+ src/lib/systems/abilities.ts                       |   276 +
+ src/lib/systems/block-building.ts                  |   599 +
+ src/lib/systems/combat.ts                          |   226 +
+ src/lib/systems/crafting.ts                        |   207 +
+ src/lib/systems/daily-rewards.ts                   |   176 +
+ src/lib/systems/economy.ts                         |   186 +
+ src/lib/systems/farming.ts                         |   191 +
+ src/lib/systems/index.ts                           |   113 +
+ src/lib/systems/leaderboard.ts                     |   229 +
+ src/lib/systems/map-voting.ts                      |   490 +
+ src/lib/systems/npc-dialogue.ts                    |   173 +
+ src/lib/systems/pets.ts                            |   311 +
+ src/lib/systems/placement.ts                       |   169 +
+ src/lib/systems/quests.ts                          |   212 +
+ src/lib/systems/rounds.ts                          |   207 +
+ src/lib/systems/trading.ts                         |   163 +
+ src/lib/systems/vehicles.ts                        |   163 +
+ src/lib/systems/weather.ts                         |   188 +
+ src/lib/ui-examples.ts                             |   439 +
+ src/lib/ui-library-deployer.ts                     |   181 +
+ src/lib/utils.ts                                   |     6 +
+ src/lib/wave/wave-fallback-desktop (1).webp        |   Bin 0 -> 33544 bytes
+ src/lib/wave/wave-fallback-desktop.webp            |   Bin 0 -> 93584 bytes
+ src/lib/wave/wave-fallback-mobile (1).webp         |   Bin 0 -> 46248 bytes
+ src/lib/wave/wave-fallback-mobile.webp             |   Bin 0 -> 17926 bytes
+ src/lib/wave/wave-fallback-tablet (1).webp         |   Bin 0 -> 74180 bytes
+ src/lib/wave/wave-fallback-tablet.webp             |   Bin 0 -> 27120 bytes
+ src/main.tsx                                       |    10 +
+ src/styles.css                                     |    31 +
+ src/utils/cn.ts                                    |     6 +
+ start_server.bat                                   |     7 +
+ start_server.vbs                                   |     2 +
+ styles/dracula.txt                                 | 20536 +++++++++++++++++++
+ styles/stud.txt                                    | 20536 +++++++++++++++++++
+ tailwind.config.ts                                 |    58 +
+ temp_fetch.js                                      |    10 +
+ test-deepseek.mjs                                  |    55 +
+ test.log                                           |     1 +
+ test_ai.py                                         |    16 +
+ test_all.mjs                                       |    54 +
+ test_all_v2.mjs                                    |    54 +
+ test_output.txt                                    |     1 +
+ test_r1_nopub.mjs                                  |    51 +
+ test_r1_root.mjs                                   |    54 +
+ test_v3_variations.mjs                             |    52 +
+ todo.txt                                           |    21 +
+ tsconfig.json                                      |    51 +
+ tsconfig.next.json                                 |    50 +
+ tutorial/app/1.png                                 |   Bin 0 -> 1814927 bytes
+ tutorial/app/2.png                                 |   Bin 0 -> 78030 bytes
+ tutorial/app/3.png                                 |   Bin 0 -> 42229 bytes
+ tutorial/app/Ids.txt                               |     3 +
+ tutorial/web/1.png                                 |   Bin 0 -> 1412279 bytes
+ tutorial/web/2.png                                 |   Bin 0 -> 1878956 bytes
+ tutorial/web/Ids.txt                               |     2 +
+ vbs_out.log                                        |    22 +
+ 542 files changed, 92248 insertions(+)
+
+
+===========================================
+

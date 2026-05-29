@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { useRef, useEffect, useState } from "react";
-=======
-import { useRef, useEffect } from "react";
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -32,14 +28,9 @@ import {
 import { useDashboard } from "./dashboard-context";
 import { WorkspaceTree } from "@/components/workspace-tree";
 import { ScriptCard } from "@/components/script-card";
-<<<<<<< HEAD
 import { SlashCommandInput } from "@/components/slash-command";
 import { JuiceLoader } from "./juice-loader";
 import { ThinkingFeed } from "@/components/thinking-feed";
-=======
-import { Textarea } from "@/components/ui/textarea";
-import { JuiceLoader } from "./juice-loader";
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
 
 const findNodeById = (nodes: any[], id: string): any => {
   for (const node of nodes) {
@@ -54,10 +45,7 @@ const findNodeById = (nodes: any[], id: string): any => {
 
 export function IdeLayout() {
   const router = useRouter();
-<<<<<<< HEAD
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
-=======
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
 
   const {
     activeProjectId,
@@ -120,10 +108,7 @@ export function IdeLayout() {
     selectedUIStyle,
     setSelectedUIStyle,
     setShowSettings,
-<<<<<<< HEAD
     thinkingSteps,
-=======
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
   } = useDashboard() as any;
 
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -216,18 +201,10 @@ export function IdeLayout() {
               setIsIdeSidePanelOpen(true);
             }
           }}
-<<<<<<< HEAD
           className={`p-2.5 rounded-lg transition-all ${idePanel === "explorer" && isIdeSidePanelOpen
               ? "text-[#ccff00] bg-white/5 shadow-[0_0_15px_rgba(204,255,0,0.1)]"
               : "text-white/20 hover:text-white/60 hover:bg-white/5"
             }`}
-=======
-          className={`p-2.5 rounded-lg transition-all ${
-            idePanel === "explorer" && isIdeSidePanelOpen
-              ? "text-[#ccff00] bg-white/5 shadow-[0_0_15px_rgba(204,255,0,0.1)]"
-              : "text-white/20 hover:text-white/60 hover:bg-white/5"
-          }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         >
           <FolderTree className="w-5 h-5" />
         </button>
@@ -240,18 +217,10 @@ export function IdeLayout() {
               setIsIdeSidePanelOpen(true);
             }
           }}
-<<<<<<< HEAD
           className={`p-2.5 rounded-lg transition-all ${idePanel === "search" && isIdeSidePanelOpen
               ? "text-[#ccff00] bg-white/5 shadow-[0_0_15px_rgba(204,255,0,0.1)]"
               : "text-white/20 hover:text-white/60 hover:bg-white/5"
             }`}
-=======
-          className={`p-2.5 rounded-lg transition-all ${
-            idePanel === "search" && isIdeSidePanelOpen
-              ? "text-[#ccff00] bg-white/5 shadow-[0_0_15px_rgba(204,255,0,0.1)]"
-              : "text-white/20 hover:text-white/60 hover:bg-white/5"
-          }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         >
           <Search className="w-5 h-5" />
         </button>
@@ -264,18 +233,10 @@ export function IdeLayout() {
               setIsIdeSidePanelOpen(true);
             }
           }}
-<<<<<<< HEAD
           className={`p-2.5 rounded-lg transition-all ${idePanel === "chat" && isIdeSidePanelOpen
               ? "text-[#ccff00] bg-white/5 shadow-[0_0_15px_rgba(204,255,0,0.1)]"
               : "text-white/20 hover:text-white/60 hover:bg-white/5"
             }`}
-=======
-          className={`p-2.5 rounded-lg transition-all ${
-            idePanel === "chat" && isIdeSidePanelOpen
-              ? "text-[#ccff00] bg-white/5 shadow-[0_0_15px_rgba(204,255,0,0.1)]"
-              : "text-white/20 hover:text-white/60 hover:bg-white/5"
-          }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         >
           <MessageSquare className="w-5 h-5" />
         </button>
@@ -291,18 +252,10 @@ export function IdeLayout() {
               setIsIdeSidePanelOpen(true);
             }
           }}
-<<<<<<< HEAD
           className={`p-2.5 rounded-lg transition-all ${idePanel === "settings" && isIdeSidePanelOpen
               ? "text-[#ccff00] bg-white/5 shadow-[0_0_15px_rgba(204,255,0,0.1)]"
               : "text-white/20 hover:text-white/60 hover:bg-white/5"
             }`}
-=======
-          className={`p-2.5 rounded-lg transition-all ${
-            idePanel === "settings" && isIdeSidePanelOpen
-              ? "text-[#ccff00] bg-white/5 shadow-[0_0_15px_rgba(204,255,0,0.1)]"
-              : "text-white/20 hover:text-white/60 hover:bg-white/5"
-          }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         >
           <Settings2 className="w-5 h-5" />
         </button>
@@ -311,14 +264,8 @@ export function IdeLayout() {
 
         {/* Connection Status Icon */}
         <div
-<<<<<<< HEAD
           className={`p-2.5 rounded-lg transition-all ${isPluginConnected ? "text-emerald-500" : "text-red-500/40"
             }`}
-=======
-          className={`p-2.5 rounded-lg transition-all ${
-            isPluginConnected ? "text-emerald-500" : "text-red-500/40"
-          }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
         >
           <Network className="w-5 h-5" />
         </div>
@@ -341,7 +288,6 @@ export function IdeLayout() {
             transition={{ type: "spring", bounce: 0, duration: 0.3 }}
             className="flex-shrink-0 bg-[#101115]/80 backdrop-blur-xl border-r border-white/5 flex flex-col overflow-hidden relative"
           >
-<<<<<<< HEAD
             <div className="h-10 flex flex-shrink-0 items-center justify-between px-4 border-b border-white/5 bg-transparent z-[100]">
               {idePanel === "chat" ? (
                 <div className="relative">
@@ -423,18 +369,6 @@ export function IdeLayout() {
                       : "System Settings"}
                 </span>
               )}
-=======
-            <div className="h-10 flex flex-shrink-0 items-center justify-between px-4 border-b border-white/5 bg-transparent">
-              <span className="text-xs font-semibold text-white/50 tracking-wide">
-                {idePanel === "explorer"
-                  ? "Explorer"
-                  : idePanel === "search"
-                  ? "Global Search"
-                  : idePanel === "chat"
-                  ? "Agent"
-                  : "System Settings"}
-              </span>
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
               <button
                 onClick={() => setIsIdeSidePanelOpen(false)}
                 className="p-1.5 hover:bg-white/10 rounded-md text-white/40 hover:text-white transition-colors"
@@ -443,34 +377,6 @@ export function IdeLayout() {
               </button>
             </div>
 
-<<<<<<< HEAD
-=======
-            {idePanel === "chat" && (
-              <div className="flex-shrink-0 p-3 border-b border-white/5 bg-transparent flex items-center gap-2">
-                <button
-                  onClick={() => setAgentMode("plan")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    agentMode === "plan"
-                      ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                      : "bg-white/5 text-white/40 border border-transparent hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  <Brain className="w-3.5 h-3.5" /> Plan
-                </button>
-                <button
-                  onClick={() => setAgentMode("build")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    agentMode === "build"
-                      ? "bg-[#ccff00]/20 text-[#ccff00] border border-[#ccff00]/30"
-                      : "bg-white/5 text-white/40 border border-transparent hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  <Zap className="w-3.5 h-3.5" /> Build
-                </button>
-              </div>
-            )}
-
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
             <div className="flex-1 overflow-y-auto custom-scrollbar">
               {idePanel === "explorer" && (
                 <div className="p-2">
@@ -528,39 +434,20 @@ export function IdeLayout() {
                         {messages.map((m: any) => (
                           <div
                             key={m.id}
-<<<<<<< HEAD
                             className={`flex flex-col gap-1.5 ${m.role === "user" ? "items-end" : "items-start"
                               }`}
                           >
                             <div
                               className={`text-xs font-medium text-slate-500 ${m.role === "user" ? "text-right" : "text-left"
                                 }`}
-=======
-                            className={`flex flex-col gap-1.5 ${
-                              m.role === "user" ? "items-end" : "items-start"
-                            }`}
-                          >
-                            <div
-                              className={`text-xs font-medium text-slate-500 ${
-                                m.role === "user" ? "text-right" : "text-left"
-                              }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                             >
                               {m.role === "user" ? "You" : "Agent"}
                             </div>
                             <div
-<<<<<<< HEAD
                               className={`p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${m.role === "user"
                                   ? "bg-white/5 text-slate-200 border border-white/10 rounded-br-sm"
                                   : "bg-[#ccff00]/10 border border-[#ccff00]/20 text-slate-100 rounded-bl-sm backdrop-blur-md"
                                 }`}
-=======
-                              className={`p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                                m.role === "user"
-                                  ? "bg-white/5 text-slate-200 border border-white/10 rounded-br-sm"
-                                  : "bg-[#ccff00]/10 border border-[#ccff00]/20 text-slate-100 rounded-bl-sm backdrop-blur-md"
-                              }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                             >
                               {m.content}
                             </div>
@@ -604,7 +491,6 @@ export function IdeLayout() {
                           </div>
                         ))}
                         {isGenerating && (
-<<<<<<< HEAD
                           <div className="py-3 px-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] shadow-inner space-y-3.5 my-2">
                             <div className="flex items-center gap-3">
                               <JuiceLoader size="sm" />
@@ -617,10 +503,6 @@ export function IdeLayout() {
                               steps={thinkingSteps}
                               isDeepSeek={selectedModel.toLowerCase().includes("deepseek")}
                             />
-=======
-                          <div className="py-2.5">
-                            <JuiceLoader size="sm" />
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                           </div>
                         )}
                         <div ref={chatEndRef} />
@@ -635,7 +517,6 @@ export function IdeLayout() {
                       {(attachedFiles.length > 0 ||
                         attachedAsset ||
                         selectedWorkspaceItemId) && (
-<<<<<<< HEAD
                           <div className="flex flex-wrap gap-1.5 mb-1">
                             {selectedWorkspaceItemId && (
                               <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#00a2ff]/10 border border-[#00a2ff]/20">
@@ -692,64 +573,6 @@ export function IdeLayout() {
                             )}
                           </div>
                         )}
-=======
-                        <div className="flex flex-wrap gap-1.5 mb-1">
-                          {selectedWorkspaceItemId && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#00a2ff]/10 border border-[#00a2ff]/20">
-                              <div className="w-1.5 h-1.5 rounded-full bg-[#00a2ff] animate-pulse" />
-                              <span className="text-[8px] font-black text-[#00a2ff] uppercase truncate max-w-[120px]">
-                                Editing:{" "}
-                                {
-                                  findNodeById(
-                                    workspaceEditorData,
-                                    selectedWorkspaceItemId
-                                  )?.name
-                                }
-                              </span>
-                              <button
-                                onClick={() => setSelectedWorkspaceItemId(null)}
-                                className="text-[#00a2ff]/40 hover:text-red-400"
-                              >
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                          )}
-                          {attachedFiles.map((file: any, i: number) => (
-                            <div
-                              key={i}
-                              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/5 border border-white/10"
-                            >
-                              <span className="text-[8px] font-black text-white/40 uppercase truncate max-w-[60px]">
-                                {file.name}
-                              </span>
-                              <button
-                                onClick={() =>
-                                  setAttachedFiles((f: any[]) =>
-                                    f.filter((_, idx) => idx !== i)
-                                  )
-                                }
-                                className="text-white/20 hover:text-red-400"
-                              >
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                          ))}
-                          {attachedAsset && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#ccff00]/10 border border-[#ccff00]/20">
-                              <span className="text-[8px] font-black text-[#ccff00] uppercase truncate max-w-[60px]">
-                                {attachedAsset.name}
-                              </span>
-                              <button
-                                onClick={() => setAttachedAsset(null)}
-                                className="text-[#ccff00]/40 hover:text-red-400"
-                              >
-                                <X className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
 
                       <div className="flex items-center gap-1 mb-1 relative">
                         <button
@@ -777,18 +600,10 @@ export function IdeLayout() {
                           onClick={() =>
                             setIsShowingVaultMenu(!isShowingVaultMenu)
                           }
-<<<<<<< HEAD
                           className={`p-1.5 rounded-lg transition-all ${isShowingVaultMenu
                               ? "text-[#ccff00] bg-[#ccff00]/10"
                               : "text-white/20 hover:text-white/60 hover:bg-white/5"
                             }`}
-=======
-                          className={`p-1.5 rounded-lg transition-all ${
-                            isShowingVaultMenu
-                              ? "text-[#ccff00] bg-[#ccff00]/10"
-                              : "text-white/20 hover:text-white/60 hover:bg-white/5"
-                          }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                           title="Insert from Vault"
                         >
                           <Box className="w-3.5 h-3.5" />
@@ -855,7 +670,6 @@ export function IdeLayout() {
                       </div>
 
                       <div className="relative group">
-<<<<<<< HEAD
                         <SlashCommandInput
                           value={prompt}
                           onChange={setPrompt}
@@ -876,31 +690,12 @@ export function IdeLayout() {
                         />
                         <button
                           onClick={() => submitPrompt()}
-=======
-                        <Textarea
-                          value={prompt}
-                          onChange={(e) => {
-                            setPrompt(e.target.value);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              submitPrompt();
-                            }
-                          }}
-                          placeholder="Type a command..."
-                          className="w-full bg-white/[0.03] border border-white/5 rounded-xl py-3 pl-3 pr-10 text-[11px] text-white focus:outline-none focus:border-[#ccff00]/30 min-h-[44px] max-h-32 custom-scrollbar transition-all"
-                        />
-                        <button
-                          onClick={submitPrompt}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                           disabled={isGenerating || !prompt.trim()}
                           className="absolute right-2 bottom-2 p-1.5 rounded-lg bg-[#ccff00] text-black hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:scale-100"
                         >
                           <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                       </div>
-<<<<<<< HEAD
 
                       {/* Real-time Model & Euro Money Usage Display */}
                       <div className="flex items-center justify-between text-[10px] text-white/40 px-1.5 mt-1 font-medium select-none">
@@ -913,8 +708,6 @@ export function IdeLayout() {
                           <span className="truncate uppercase tracking-wider font-semibold text-white/60 text-[9px]">{selectedModel?.split("/").pop() || "gpt-4o-mini"}</span>
                         </div>
                       </div>
-=======
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                     </div>
                   </div>
                 </div>
@@ -994,14 +787,8 @@ export function IdeLayout() {
                               e.target.value
                             );
                           }}
-<<<<<<< HEAD
                           className={`w-full bg-white/[0.03] border border-white/5 text-white/80 text-[10px] font-bold py-2 px-3 rounded-lg focus:outline-none focus:border-[#ccff00]/30 transition-all cursor-pointer uppercase tracking-tight ${isLoadingModels ? "opacity-50" : ""
                             }`}
-=======
-                          className={`w-full bg-white/[0.03] border border-white/5 text-white/80 text-[10px] font-bold py-2 px-3 rounded-lg focus:outline-none focus:border-[#ccff00]/30 transition-all cursor-pointer uppercase tracking-tight ${
-                            isLoadingModels ? "opacity-50" : ""
-                          }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                         >
                           {availableModels.map((m: string) => (
                             <option
@@ -1035,7 +822,6 @@ export function IdeLayout() {
             openFiles.map((path: string) => (
               <div
                 key={path}
-<<<<<<< HEAD
                 className={`group h-full flex items-center border-r border-white/5 transition-all relative ${activeFile === path ? "bg-[#101115]" : "hover:bg-white/5"
                   }`}
               >
@@ -1047,22 +833,6 @@ export function IdeLayout() {
                   <FileCode
                     className={`w-3.5 h-3.5 ${activeFile === path ? "text-blue-400" : "text-white/10"
                       }`}
-=======
-                className={`group h-full flex items-center border-r border-white/5 transition-all relative ${
-                  activeFile === path ? "bg-[#101115]" : "hover:bg-white/5"
-                }`}
-              >
-                <button
-                  onClick={() => setActiveFile(path)}
-                  className={`flex items-center gap-2.5 px-4 h-full min-w-[140px] text-xs font-medium transition-all ${
-                    activeFile === path ? "text-slate-200" : "text-slate-500"
-                  }`}
-                >
-                  <FileCode
-                    className={`w-3.5 h-3.5 ${
-                      activeFile === path ? "text-blue-400" : "text-white/10"
-                    }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                   />
                   <span className="truncate max-w-[120px]">
                     {path.split(".").pop() || path}
@@ -1077,14 +847,8 @@ export function IdeLayout() {
                       setActiveFile(nextFiles[nextFiles.length - 1] || null);
                     }
                   }}
-<<<<<<< HEAD
                   className={`w-5 h-5 flex items-center justify-center rounded-md hover:bg-white/10 text-white/20 hover:text-white transition-all mr-1 opacity-0 group-hover:opacity-100 ${activeFile === path ? "opacity-100" : ""
                     }`}
-=======
-                  className={`w-5 h-5 flex items-center justify-center rounded-md hover:bg-white/10 text-white/20 hover:text-white transition-all mr-1 opacity-0 group-hover:opacity-100 ${
-                    activeFile === path ? "opacity-100" : ""
-                  }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>
@@ -1200,18 +964,10 @@ export function IdeLayout() {
                     <button
                       key={tab}
                       onClick={() => setActiveBottomPanel(tab as any)}
-<<<<<<< HEAD
                       className={`h-full text-xs font-semibold tracking-wide transition-all relative capitalize ${activeBottomPanel === tab
                           ? "text-slate-200"
                           : "text-slate-500 hover:text-slate-300"
                         }`}
-=======
-                      className={`h-full text-xs font-semibold tracking-wide transition-all relative capitalize ${
-                        activeBottomPanel === tab
-                          ? "text-slate-200"
-                          : "text-slate-500 hover:text-slate-300"
-                      }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                     >
                       {tab}
                       {activeBottomPanel === tab && (
@@ -1233,18 +989,10 @@ export function IdeLayout() {
                       {gameLogs.map((log: string, i: number) => (
                         <div
                           key={i}
-<<<<<<< HEAD
                           className={`flex gap-3 ${log.toLowerCase().includes("error")
                               ? "text-red-400"
                               : "text-white/40"
                             }`}
-=======
-                          className={`flex gap-3 ${
-                            log.toLowerCase().includes("error")
-                              ? "text-red-400"
-                              : "text-white/40"
-                          }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                         >
                           <span className="opacity-20 select-none">
                             [{new Date().toLocaleTimeString()}]
@@ -1293,18 +1041,10 @@ export function IdeLayout() {
                   activeBottomPanel === "terminal" ? "none" : "terminal"
                 )
               }
-<<<<<<< HEAD
               className={`flex items-center gap-1.5 px-2 h-full text-[11px] font-medium transition-colors ${activeBottomPanel === "terminal"
                   ? "bg-white/10 text-slate-200"
                   : "text-slate-400 hover:bg-white/5"
                 }`}
-=======
-              className={`flex items-center gap-1.5 px-2 h-full text-[11px] font-medium transition-colors ${
-                activeBottomPanel === "terminal"
-                  ? "bg-white/10 text-slate-200"
-                  : "text-slate-400 hover:bg-white/5"
-              }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
             >
               <Terminal className="w-3.5 h-3.5" />
               <span>Terminal</span>
@@ -1315,18 +1055,10 @@ export function IdeLayout() {
                   activeBottomPanel === "logs" ? "none" : "logs"
                 )
               }
-<<<<<<< HEAD
               className={`flex items-center gap-1.5 px-2 h-full text-[11px] font-medium transition-colors ${activeBottomPanel === "logs"
                   ? "bg-white/10 text-slate-200"
                   : "text-slate-400 hover:bg-white/5"
                 }`}
-=======
-              className={`flex items-center gap-1.5 px-2 h-full text-[11px] font-medium transition-colors ${
-                activeBottomPanel === "logs"
-                  ? "bg-white/10 text-slate-200"
-                  : "text-slate-400 hover:bg-white/5"
-              }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
             >
               <Activity className="w-3.5 h-3.5" />
               <span>Output</span>
@@ -1351,18 +1083,10 @@ export function IdeLayout() {
                 }}
               />
               <Zap
-<<<<<<< HEAD
                 className={`w-2.5 h-2.5 relative z-10 ${usage.remainingMl < 500
                     ? "text-amber-400 animate-pulse"
                     : "text-[#ccff00]/60"
                   }`}
-=======
-                className={`w-2.5 h-2.5 relative z-10 ${
-                  usage.remainingMl < 500
-                    ? "text-amber-400 animate-pulse"
-                    : "text-[#ccff00]/60"
-                }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
               />
               <span className="text-[9px] font-black text-[#ccff00]/60 relative z-10">
                 {((usage.remainingMl ?? 0) / 1000).toFixed(2)}
@@ -1373,7 +1097,6 @@ export function IdeLayout() {
             <div className="relative group/style-ide h-full">
               <button className="flex items-center gap-1.5 px-2 hover:bg-white/5 h-full transition-all">
                 <div
-<<<<<<< HEAD
                   className={`w-1.5 h-1.5 rounded-full ${selectedUIStyle === "dracula"
                       ? "bg-[#bd93f9]"
                       : selectedUIStyle === "zap"
@@ -1382,15 +1105,6 @@ export function IdeLayout() {
                           ? "bg-[#d77757]"
                           : "bg-blue-400"
                     }`}
-=======
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    selectedUIStyle === "dracula"
-                      ? "bg-[#bd93f9]"
-                      : selectedUIStyle === "zap"
-                      ? "bg-[#ccff00]"
-                      : "bg-blue-400"
-                  }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                 />
                 <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">
                   {selectedUIStyle === "none" ? "Stud" : selectedUIStyle}
@@ -1398,7 +1112,6 @@ export function IdeLayout() {
               </button>
               <div className="absolute bottom-full right-0 pb-1 w-32 opacity-0 translate-y-1 pointer-events-none group-hover/style-ide:opacity-100 group-hover/style-ide:translate-y-0 group-hover/style-ide:pointer-events-auto transition-all z-[200]">
                 <div className="bg-[#14161a] border border-white/10 rounded-lg shadow-2xl overflow-hidden">
-<<<<<<< HEAD
                   {(["zap", "stud", "dracula", "claude"] as const).map((style) => (
                     <button
                       key={style}
@@ -1417,26 +1130,6 @@ export function IdeLayout() {
                                 ? "bg-[#d77757]"
                                 : "bg-blue-400"
                           }`}
-=======
-                  {([ "zap", "stud", "dracula" ] as const).map((style) => (
-                    <button
-                      key={style}
-                      onClick={() => setSelectedUIStyle(style)}
-                      className={`w-full text-left px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${
-                        selectedUIStyle === style
-                          ? "bg-[#ccff00]/10 text-[#ccff00]"
-                          : "text-white/40 hover:bg-white/5 hover:text-white"
-                      }`}
-                    >
-                      <div
-                        className={`w-1 h-1 rounded-full ${
-                          style === "dracula"
-                            ? "bg-[#bd93f9]"
-                            : style === "zap"
-                            ? "bg-[#ccff00]"
-                            : "bg-blue-400"
-                        }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                       />
                       {style}
                     </button>
@@ -1484,18 +1177,10 @@ export function IdeLayout() {
                       <button
                         key={m}
                         onClick={() => setSelectedModel(m)}
-<<<<<<< HEAD
                         className={`w-full text-left px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${selectedModel === m
                             ? "bg-[#ccff00]/10 text-[#ccff00]"
                             : "text-white/40 hover:bg-white/5 hover:text-white"
                           }`}
-=======
-                        className={`w-full text-left px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${
-                          selectedModel === m
-                            ? "bg-[#ccff00]/10 text-[#ccff00]"
-                            : "text-white/40 hover:bg-white/5 hover:text-white"
-                        }`}
->>>>>>> 95c87761ee492ce4549d0998a08e126486cde738
                       >
                         {m.toLowerCase().includes("deepseek") ? (
                           <img

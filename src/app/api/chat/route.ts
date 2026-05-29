@@ -231,6 +231,7 @@ export async function POST(req: Request) {
     scripts?: PluginPayload[];
     edits?: { search: string; replace: string }[];
     thinking?: string;
+    scriptType?: string;
   };
 
   function tryParsePluginPayload(text?: string): PluginPayload | null {
@@ -252,18 +253,18 @@ export async function POST(req: Request) {
         }
 
         // Comprehensive normalization for alternative/capitalized JSON schemas
-        const normAction = rawObj.action ?? rawObj.Action ?? "create";
-        let normSource = rawObj.code ?? rawObj.Source ?? rawObj.content ?? rawObj.Content ?? rawObj.script ?? rawObj.Script;
-        let normParent = rawObj.parent ?? rawObj.Parent;
-        let normName = rawObj.name ?? rawObj.Name;
-        const normType = rawObj.scriptType ?? rawObj.Type ?? rawObj.type ?? rawObj.ClassName ?? rawObj.className;
+        const normAction = obj.action ?? obj.Action ?? "create";
+        let normSource = obj.code ?? obj.Source ?? obj.content ?? obj.Content ?? obj.script ?? obj.Script;
+        let normParent = obj.parent ?? obj.Parent;
+        let normName = obj.name ?? obj.Name;
+        const normType = obj.scriptType ?? obj.Type ?? obj.type ?? obj.ClassName ?? obj.className;
 
         if (normSource === undefined && String(normAction).toLowerCase() === "create") {
           normSource = "";
         }
 
-        if (rawObj.path && normSource !== undefined) {
-          const pathParts = String(rawObj.path).split('/');
+        if (obj.path && normSource !== undefined) {
+          const pathParts = String(obj.path).split('/');
           normName = pathParts[pathParts.length - 1];
           normParent = pathParts.slice(0, -1).join('/') || "ReplicatedStorage";
         }
