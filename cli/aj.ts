@@ -1677,8 +1677,14 @@ async function handleFeedbackSync(rl: any, state: any, feedbackMsg: string): Pro
 async function showInteractiveSettings(rl: any, state: any): Promise<void> {
   return new Promise<void>((resolve) => {
     let selectedIndex = 0;
-    const options = ['themeColor', 'chatbarStyle', 'showTokenPricing'];
-    const optionLabels = ['UI Theme Color', 'Chatbar Prompt Style', 'Show Token Metrics & Cost'];
+    const options = ['themeColor', 'chatbarStyle', 'showTokenPricing', 'enableSoundEffects', 'verboseLogging'];
+    const optionLabels = [
+      'UI Theme Color',
+      'Chatbar Prompt Style',
+      'Show Token Metrics & Cost',
+      'Enable TTY Sound Effects',
+      'Verbose Server Logs'
+    ];
 
     const origTtyWrite = rl._ttyWrite;
     rl._ttyWrite = () => { };
@@ -1691,7 +1697,6 @@ async function showInteractiveSettings(rl: any, state: any): Promise<void> {
       console.clear();
       const w = termWidth();
       const titleText = gradientText('Apple Juice Personal Settings', SUNSET_START, SUNSET_END);
-      const white_shine = '\x1b[38;2;255;255;255m';
 
       process.stdout.write(`\n  ${BOLD}${titleText}${R}\n`);
       process.stdout.write(`  ${DIM}${'─'.repeat(w - 4)}${R}\n\n`);
@@ -1707,6 +1712,10 @@ async function showInteractiveSettings(rl: any, state: any): Promise<void> {
           valDisplay = state.config.chatbarStyle || 'mode';
         } else if (opt === 'showTokenPricing') {
           valDisplay = state.config.showTokenPricing !== false ? 'Enabled' : 'Disabled';
+        } else if (opt === 'enableSoundEffects') {
+          valDisplay = state.config.enableSoundEffects === true ? 'Enabled' : 'Disabled';
+        } else if (opt === 'verboseLogging') {
+          valDisplay = state.config.verboseLogging === true ? 'Enabled' : 'Disabled';
         }
 
         const active = i === selectedIndex;
@@ -1722,6 +1731,13 @@ async function showInteractiveSettings(rl: any, state: any): Promise<void> {
       const G_LINE = '\x1b[38;2;100;100;100m';
       process.stdout.write(`  ${BOLD}${WHITE}Live Preview Panel:${R}\n`);
       process.stdout.write(`  ${G_LINE}┌${'─'.repeat(w - 6)}┐${R}\n`);
+
+      // A helper to write a row inside the preview box that always ends perfectly at the right border without overflowing
+      const writeLine = (content: string) => {
+        const stripped = stripAnsi(content);
+        const pad = Math.max(0, (w - 6) - stripped.length);
+        process.stdout.write(`  ${G_LINE}│${R}${content}${' '.repeat(pad)}${G_LINE}│${R}\n`);
+      };
 
       const currentOpt = options[selectedIndex];
 
@@ -1739,20 +1755,20 @@ async function showInteractiveSettings(rl: any, state: any): Promise<void> {
           return isSelected ? `${cAnsi}${BOLD}\x1b[4m[ ${c} ]\x1b[24m${R}` : `${cAnsi}${c}${R}`;
         }).join('  ');
 
-        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Theme Colors:${R}  ${colorsList}  `.padEnd(w + 35) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Example Conversation Preview:${R}`.padEnd(w + 10) + `${G_LINE}│${R}\n`);
+        writeLine(`  ${BOLD}Theme Colors:${R}  ${colorsList}`);
+        writeLine('');
+        writeLine(`  ${BOLD}Example Conversation Preview:${R}`);
 
         const colUserPrompt = `  ${BRAND}➔${R}  ${WHITE}User:${R} ${DIM}How do I create a script parented to Workspace?${R}`;
         const divLine = `${BRAND_DIM}${'-'.repeat(Math.max(10, w - 12))}${R}`;
         const colAssist1 = `     ${WHITE}Assistant:${R} ${DIM}You can write a script or use ${R}${BRAND_B}/sync${R}${DIM} to${R}`;
         const colAssist2 = `     ${DIM}generate it. Let's create it in ServerScriptService.${R}`;
 
-        process.stdout.write(`  ${G_LINE}│${R}  ${colUserPrompt}`.padEnd(w + 30) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  ${divLine}`.padEnd(w + 10) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  ${colAssist1}`.padEnd(w + 35) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  ${colAssist2}`.padEnd(w + 25) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  ${divLine}`.padEnd(w + 10) + `${G_LINE}│${R}\n`);
+        writeLine(colUserPrompt);
+        writeLine(divLine);
+        writeLine(colAssist1);
+        writeLine(colAssist2);
+        writeLine(divLine);
 
       } else if (currentOpt === 'chatbarStyle') {
         const styles = ['mode', 'minimal', 'model', 'both'];
@@ -1761,52 +1777,81 @@ async function showInteractiveSettings(rl: any, state: any): Promise<void> {
           return isSelected ? `${BRAND}${BOLD}\x1b[4m[ ${s} ]\x1b[24m${R}` : `${DIM}${s}${R}`;
         }).join('  ');
 
-        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Style Options:${R}  ${stylesList}`.padEnd(w + 35) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Live Prompt Preview:${R}`.padEnd(w + 10) + `${G_LINE}│${R}\n`);
+        writeLine(`  ${BOLD}Style Options:${R}  ${stylesList}`);
+        writeLine('');
+        writeLine(`  ${BOLD}Live Prompt Preview:${R}`);
 
         let mockPrompt = '';
         const style = state.config.chatbarStyle || 'mode';
         if (style === 'mode') {
-          mockPrompt = `\x1b[38;2;140;140;140m[ Normal ]\x1b[0m ${BRAND}>\x1b[0m  _`;
+          mockPrompt = `  \x1b[38;2;140;140;140m[ Normal ]\x1b[0m ${BRAND}>\x1b[0m  _`;
         } else if (style === 'minimal') {
-          mockPrompt = `${BRAND}>\x1b[0m  _`;
+          mockPrompt = `  ${BRAND}>\x1b[0m  _`;
         } else if (style === 'model') {
-          mockPrompt = `\x1b[38;2;140;140;140m[ gpt-4o-mini ]\x1b[0m ${BRAND}>\x1b[0m  _`;
+          mockPrompt = `  \x1b[38;2;140;140;140m[ gpt-4o-mini ]\x1b[0m ${BRAND}>\x1b[0m  _`;
         } else if (style === 'both') {
-          mockPrompt = `\x1b[38;2;140;140;140m[ Normal | gpt-4o-mini ]\x1b[0m ${BRAND}>\x1b[0m  _`;
+          mockPrompt = `  \x1b[38;2;140;140;140m[ Normal | gpt-4o-mini ]\x1b[0m ${BRAND}>\x1b[0m  _`;
         }
 
-        process.stdout.write(`  ${G_LINE}│${R}  ${mockPrompt}`.padEnd(w + 40) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        writeLine(mockPrompt);
+        writeLine('');
+        writeLine('');
+        writeLine('');
+        writeLine('');
 
       } else if (currentOpt === 'showTokenPricing') {
         const showPricing = state.config.showTokenPricing !== false;
         const toggleList = `${showPricing ? `${BRAND}${BOLD}\x1b[4m[ Enabled ]\x1b[24m${R}  ${DIM}Disabled${R}` : `${DIM}Enabled${R}  ${BRAND}${BOLD}\x1b[4m[ Disabled ]\x1b[24m${R}`}`;
 
-        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Status Option:${R}  ${toggleList}`.padEnd(w + 35) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  ${BOLD}Status Line Live Preview:${R}`.padEnd(w + 10) + `${G_LINE}│${R}\n`);
+        writeLine(`  ${BOLD}Status Option:${R}  ${toggleList}`);
+        writeLine('');
+        writeLine(`  ${BOLD}Status Line Live Preview:${R}`);
 
-        let bottomLine = '';
-        if (showPricing) {
-          const leftPart = `gpt-4o-mini | 📁 project | 🔀 main | ${BRIGHT_GREEN}● server${R} · ${BRIGHT_GREEN}✓ studio${R}`;
-          const rightPart = `$0.045 / 312 tokens`;
-          bottomLine = drawHorizontalLineWithText(leftPart, rightPart);
+        const modelLabel = state.config.provider === 'google' ? 'Google (128K)' : formatModelName(state.config.model || 'gpt-4o-mini');
+        const contextLabel = showPricing ? `$0.00045 / 312 tokens` : `10% context used`;
+        
+        // Render a preview status line exactly sized for the preview box (w - 6)
+        const labelText = ` ${modelLabel} · ${contextLabel} `;
+        const lineLen = (w - 6) - stripAnsi(labelText).length;
+        const leftDash = Math.floor(lineLen / 2);
+        const rightDash = lineLen - leftDash;
+        
+        const previewStatusLine = `${G_LINE}${'─'.repeat(leftDash)}${R}${BRAND}${labelText}${R}${G_LINE}${'─'.repeat(rightDash)}${R}`;
+
+        writeLine(previewStatusLine);
+        writeLine('');
+        writeLine('');
+        writeLine('');
+        writeLine('');
+      } else if (currentOpt === 'enableSoundEffects') {
+        const soundOn = state.config.enableSoundEffects === true;
+        const toggleList = `${soundOn ? `${BRAND}${BOLD}\x1b[4m[ Enabled ]\x1b[24m${R}  ${DIM}Disabled${R}` : `${DIM}Enabled${R}  ${BRAND}${BOLD}\x1b[4m[ Disabled ]\x1b[24m${R}`}`;
+
+        writeLine(`  ${BOLD}Sound Options:${R}  ${toggleList}`);
+        writeLine('');
+        writeLine(`  ${BOLD}Audio Feedback Preview:${R}`);
+        writeLine('  Play premium retro keyboard click sounds on typing!');
+        writeLine('  Simulated local sound engine via standard MIDI/TTY beep.');
+        writeLine('');
+        writeLine('');
+        writeLine('');
+      } else if (currentOpt === 'verboseLogging') {
+        const verboseOn = state.config.verboseLogging === true;
+        const toggleList = `${verboseOn ? `${BRAND}${BOLD}\x1b[4m[ Enabled ]\x1b[24m${R}  ${DIM}Disabled${R}` : `${DIM}Enabled${R}  ${BRAND}${BOLD}\x1b[4m[ Disabled ]\x1b[24m${R}`}`;
+
+        writeLine(`  ${BOLD}Logging Option:${R}  ${toggleList}`);
+        writeLine('');
+        writeLine(`  ${BOLD}Live Server Sync Logs Preview:${R}`);
+        if (verboseOn) {
+          writeLine(`  ${BRIGHT_GREEN}[INFO]${R} Local server paired successfully.`);
+          writeLine(`  ${BRIGHT_CYAN}[SYNC]${R} Pushing Roblox Luau Module to Studio...`);
+          writeLine(`  ${BRIGHT_GREEN}[OK]${R} Server Script successfully synced to Roblox.`);
         } else {
-          const leftPart = `gpt-4o-mini | 📁 project | 🔀 main | ${BRIGHT_GREEN}● server${R} · ${BRIGHT_GREEN}✓ studio${R}`;
-          const rightPart = getContextBar(state.history);
-          bottomLine = drawHorizontalLineWithText(leftPart, rightPart);
+          writeLine('  Sync logging is currently quiet.');
+          writeLine('  Enable to see live API requests and full Sync packets.');
+          writeLine('');
         }
-
-        process.stdout.write(`  ${G_LINE}│${R}  ${bottomLine}`.padEnd(w + 40) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
-        process.stdout.write(`  ${G_LINE}│${R}  `.padEnd(w - 4) + `${G_LINE}│${R}\n`);
+        writeLine('');
       }
 
       process.stdout.write(`  ${G_LINE}└${'─'.repeat(w - 6)}┘${R}\n`);
@@ -1853,6 +1898,12 @@ async function showInteractiveSettings(rl: any, state: any): Promise<void> {
         } else if (opt === 'showTokenPricing') {
           const current = state.config.showTokenPricing !== false;
           state.config.showTokenPricing = !current;
+        } else if (opt === 'enableSoundEffects') {
+          const current = state.config.enableSoundEffects === true;
+          state.config.enableSoundEffects = !current;
+        } else if (opt === 'verboseLogging') {
+          const current = state.config.verboseLogging === true;
+          state.config.verboseLogging = !current;
         }
 
         draw();
@@ -1966,7 +2017,7 @@ async function showModelSelector(rl: any, models: string[], state?: any): Promis
 
       // Draw Top Border
       const title = ' Select Option ';
-      const borderTop = `${G_LINE}┌─${BRAND}${title}${G_LINE}${'─'.repeat(boxW - 2 - title.length)}┐${R}`;
+      const borderTop = `${G_LINE}┌─${BRAND}${title}${G_LINE}${'─'.repeat(boxW - 1 - title.length)}┐${R}`;
       process.stdout.write(`\x1b[${startRow};1H  ${borderTop}`);
 
       // Draw Search Line
@@ -2691,7 +2742,8 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       const pill = getModePill(activeMode);
       const pillLen = stripAnsi(pill).length;
       const inputRow = rows - 2;
-      process.stdout.write(`\x1b[${inputRow};${Math.max(1, 1 + pillLen)}H`);
+      const cursorPos = (globalRl as any).cursor || 0;
+      process.stdout.write(`\x1b[${inputRow};${Math.max(1, 1 + pillLen + cursorPos)}H`);
     }
   }
 
@@ -2735,7 +2787,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     if (filtered.length === 0) {
       const totalRows = 2;
       slashListLines = totalRows;
-      const startRow = rows - 2 - totalRows;
+      const startRow = rows - 3 - totalRows;
 
       process.stdout.write(`\x1b[${startRow};1H\x1b[2K  ${DIM}No matching commands for "/${query}"${R}`);
       process.stdout.write(`\x1b[${startRow + 1};1H\x1b[2K  ${DIM}${'─'.repeat(40)}${R}`);
