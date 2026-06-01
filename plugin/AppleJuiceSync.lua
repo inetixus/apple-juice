@@ -440,6 +440,9 @@ local function injectSingleScript(scriptData)
 
 	local parentInstance = resolvePath(parentPath)
 	if not parentInstance then
+		if currentSessionKey then
+			reportLog(currentSessionKey, "✖ [Roblox Studio] Parent path '" .. tostring(parentPath) .. "' not found.")
+		end
 		return false, "Parent path '" .. tostring(parentPath) .. "' not found. Make sure you create the parent first.", nil
 	end
 
@@ -448,6 +451,9 @@ local function injectSingleScript(scriptData)
 	if action == "delete" then
 		local target = parentInstance:FindFirstChild(scriptName)
 		if target then
+			if currentSessionKey then
+				reportLog(currentSessionKey, "🛠️ [Roblox Studio] Deleting script " .. scriptName .. " in " .. parentPath)
+			end
 			local oldParent = target.Parent
 			local oldName = target.Name
 			local oldClass = target.ClassName
@@ -463,8 +469,14 @@ local function injectSingleScript(scriptData)
 			end
 			
 			target:Destroy()
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully deleted " .. scriptName)
+			end
 			return true, "Deleted " .. scriptName, undoFn
 		else
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✖ [Roblox Studio] Delete failed: " .. scriptName .. " not found")
+			end
 			return false, "Delete failed: " .. scriptName, nil
 		end
 	end
@@ -478,6 +490,9 @@ local function injectSingleScript(scriptData)
 	if action == "create_instance" then
 		local className = scriptData.className or "Part"
 		local instanceName = scriptData.instanceName or className
+		if currentSessionKey then
+			reportLog(currentSessionKey, "🛠️ [Roblox Studio] Creating instance " .. className .. " [" .. instanceName .. "] in " .. parentPath)
+		end
 		local ok, newInst = pcall(function()
 			return Instance.new(className)
 		end)
@@ -489,13 +504,22 @@ local function injectSingleScript(scriptData)
 				if newInst and newInst.Parent then newInst:Destroy() end
 			end
 			
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully created " .. className .. " [" .. instanceName .. "]")
+			end
 			return true, "Created " .. className .. " [" .. instanceName .. "] in " .. parentPath, undoFn
 		else
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✖ [Roblox Studio] Failed to create instance " .. className .. ": " .. tostring(newInst))
+			end
 			return false, "Failed to create " .. className .. ": " .. tostring(newInst), nil
 		end
 	end
 
 	if action == "run_playtest" then
+		if currentSessionKey then
+			reportLog(currentSessionKey, "🛠️ [Roblox Studio] Starting playtest verification...")
+		end
 		task.spawn(function()
 			task.wait(0.2)
 			if currentSessionKey then
@@ -519,15 +543,24 @@ local function injectSingleScript(scriptData)
 		local oldPath = scriptData.oldPath
 		local newName = scriptData.newName
 		print("[AppleJuice] Renaming " .. tostring(oldPath) .. " to " .. tostring(newName))
+		if currentSessionKey then
+			reportLog(currentSessionKey, "🛠️ [Roblox Studio] Renaming " .. tostring(oldPath) .. " to " .. tostring(newName))
+		end
 		local target = resolvePath(oldPath)
 		if target then
 			local oldName = target.Name
 			undoFn = function() if target and target.Parent then target.Name = oldName end end
 			target.Name = newName
 			print("[AppleJuice] Successfully renamed to " .. newName)
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully renamed to " .. newName)
+			end
 			return true, "Renamed " .. oldName .. " to " .. newName, undoFn
 		else
 			warn("[AppleJuice] Rename failed: Could not find target at " .. tostring(oldPath))
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✖ [Roblox Studio] Rename failed: Could not find target at " .. tostring(oldPath))
+			end
 			return false, "Rename failed: Could not find " .. tostring(oldPath), nil
 		end
 	end
@@ -535,19 +568,31 @@ local function injectSingleScript(scriptData)
 	if action == "move_instance" then
 		local oldPath = scriptData.oldPath
 		local newParentPath = scriptData.newParentPath
+		if currentSessionKey then
+			reportLog(currentSessionKey, "🛠️ [Roblox Studio] Moving " .. tostring(oldPath) .. " to " .. tostring(newParentPath))
+		end
 		local target = resolvePath(oldPath)
 		local newParent = resolvePath(newParentPath)
 		if target and newParent then
 			local oldParent = target.Parent
 			undoFn = function() if target and target.Parent then target.Parent = oldParent end end
 			target.Parent = newParent
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully moved " .. target.Name .. " to " .. newParentPath)
+			end
 			return true, "Moved " .. target.Name .. " to " .. newParentPath, undoFn
 		else
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✖ [Roblox Studio] Move failed: Could not find target or new parent")
+			end
 			return false, "Move failed: Could not find target or new parent", nil
 		end
 	end
 
 	if action == "edit_script" then
+		if currentSessionKey then
+			reportLog(currentSessionKey, "🛠️ [Roblox Studio] Modifying script " .. scriptName .. " in " .. parentPath)
+		end
 		local target = nil
 		if scriptData.parent and scriptData.parent ~= "" then
 			local parentInst = resolvePath(parentPath)
@@ -589,16 +634,28 @@ local function injectSingleScript(scriptData)
 			if successCount > 0 then
 				target.Source = newSource
 				undoFn = function() target.Source = oldSource end
+				if currentSessionKey then
+					reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully modified " .. scriptName .. " (" .. successCount .. " replacements)")
+				end
 				return true, "Edited " .. scriptName .. " (" .. successCount .. " replacements)", undoFn
 			else
+				if currentSessionKey then
+					reportLog(currentSessionKey, "✖ [Roblox Studio] Modification failed: search blocks not found in " .. scriptName)
+				end
 				return false, "Edit failed: search blocks not found in " .. scriptName, nil
 			end
 		else
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✖ [Roblox Studio] Modification failed: could not find script " .. scriptName)
+			end
 			return false, "Edit failed: could not find script " .. scriptName, nil
 		end
 	end
 
 	if action == "read_script" then
+		if currentSessionKey then
+			reportLog(currentSessionKey, "📖 [Roblox Studio] Reading file " .. scriptName)
+		end
 		return true, "Requested read for " .. scriptName, nil
 	end
 
@@ -647,6 +704,10 @@ local function injectSingleScript(scriptData)
 		oldSource = target:IsA("LuaSourceContainer") and target.Source or ""
 		target:Destroy()
 		target = nil
+	end
+
+	if currentSessionKey then
+		reportLog(currentSessionKey, "🛠️ [Roblox Studio] Syncing script " .. scriptClass .. " [" .. scriptName .. "] to " .. parentPath)
 	end
 
 	if not target then
@@ -724,8 +785,14 @@ local function injectSingleScript(scriptData)
 					end
 				end)
 			end
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully synced script " .. scriptClass .. " [" .. scriptName .. "]")
+			end
 			return true, "Synced " .. scriptClass .. " [" .. scriptName .. "] → " .. parentPath, undoFn
 		else 
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✖ [Roblox Studio] Failed to sync " .. scriptClass .. " [" .. scriptName .. "]: " .. tostring(err))
+			end
 			return false, "ScriptEditor Error: " .. tostring(err), nil 
 		end
 	else
@@ -743,6 +810,9 @@ local function injectSingleScript(scriptData)
 					end
 				end
 			end)
+		end
+		if currentSessionKey then
+			reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully synced " .. scriptClass .. " [" .. scriptName .. "]")
 		end
 		return true, "Created " .. scriptClass .. " [" .. scriptName .. "] → " .. parentPath, undoFn
 	end
@@ -958,6 +1028,9 @@ local function pollLoop(sessionKey)
 
 		if data.requestedFile then
 			local fileName = data.requestedFile
+			if sessionKey then
+				reportLog(sessionKey, "📖 [Roblox Studio] Reading file " .. fileName)
+			end
 			-- Try to find the script in common locations
 			local target = nil
 			local locations = { 

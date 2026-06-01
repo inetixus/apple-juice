@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { LANDING_PERF } from "@/lib/landing-perf";
 import * as THREE from "three";
 
 export interface MedusaeConfig {
@@ -23,6 +24,8 @@ export interface MedusaeConfig {
     scaleY?: number;
   };
   particles?: {
+    countX?: number;
+    countY?: number;
     baseSize?: number;
     activeSize?: number;
     blobScaleX?: number;
@@ -68,8 +71,10 @@ const MEDUSAE_DEFAULTS = {
     scaleY: 1,
   },
   particles: {
-    baseSize: 0.016,
-    activeSize: 0.044,
+    countX: LANDING_PERF.medusae.countX,
+    countY: LANDING_PERF.medusae.countY,
+    baseSize: 0.032,
+    activeSize: 0.088,
     blobScaleX: 1,
     blobScaleY: 0.6,
     rotationSpeed: 0.1,
@@ -98,8 +103,8 @@ const Particles = ({ config }: { config?: MedusaeConfig }) => {
   const { viewport } = useThree();
   const merged = useMemo(() => mergeConfig(config), [config]);
 
-  const countX = 100;
-  const countY = 55;
+  const countX = merged.particles.countX ?? 50;
+  const countY = merged.particles.countY ?? 28;
   const count = countX * countY;
 
   const geometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
@@ -472,9 +477,27 @@ const Particles = ({ config }: { config?: MedusaeConfig }) => {
 
 export function Medusae({ className, config, style }: MedusaeProps) {
   const merged = useMemo(() => mergeConfig(config), [config]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(true);
+  const bgColor = merged.background.color ?? "#050508";
+  const isTransparent = bgColor === "transparent";
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      { rootMargin: "300px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div
+      ref={containerRef}
       className={className ? `medusae-root ${className}` : "medusae-root"}
       style={{
         width: "100%",
@@ -483,18 +506,33 @@ export function Medusae({ className, config, style }: MedusaeProps) {
         ...style,
       }}
     >
-      <Canvas
-        className="medusae-canvas"
-        camera={{ position: [0, 0, 5] }}
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "block",
-        }}
-      >
-        <color attach="background" args={[merged.background.color]} />
-        <Particles config={config} />
-      </Canvas>
+      {isVisible && (
+        <Canvas
+          className="medusae-canvas"
+          camera={{ position: [0, 0, 5] }}
+          dpr={LANDING_PERF.medusaeDpr}
+          gl={{
+            antialias: false,
+            alpha: isTransparent,
+            powerPreference: "high-performance",
+          }}
+          onCreated={({ gl }) => {
+            if (isTransparent) {
+              gl.setClearColor(0, 0);
+            } else {
+              gl.setClearColor(bgColor, 1);
+            }
+          }}
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "block",
+          }}
+        >
+          {!isTransparent && <color attach="background" args={[bgColor]} />}
+          <Particles config={config} />
+        </Canvas>
+      )}
     </div>
   );
 }

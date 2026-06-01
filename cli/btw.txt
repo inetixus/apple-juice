@@ -1,0 +1,308 @@
+# Executive Summary  
+Modern AI agents like Anthropic’s **Claude Code** CLI and OpenAI’s **Codex CLI** provide unprecedented transparency into model reasoning. They reveal token-level outputs, internal chain-of-thought, tool calls, and execution traces through API parameters and interactive flags. For example, Claude supports an *extended thinking* mode that emits internal “thought blocks” in the API response【15†L249-L257】【52†L42-L50】, and its CLI allows toggling verbose output (showing step-by-step reasoning) and a transcript viewer for tool calls【17†L12-L15】【52†L42-L50】. Likewise, OpenAI’s Codex models use *reasoning tokens* (visible as usage metrics) and can log assistant “commentary” and tool execution in session transcripts【36†L947-L956】【48†L293-L300】. Both CLIs write detailed session logs (JSONL) on disk, capturing every turn, tool invocation, and even hidden-chain‐of‐thought (where available)【50†L91-L100】【48†L293-L300】.  
+
+Implementing similar visibility in arbitrary models requires instrumenting the inference pipeline at multiple points: capturing logits and attention during generation, intercepting “thinking” or reasoning steps, hooking tool-call functions, and appending provenance metadata. Architecturally this often means wrapping the model’s forward pass with logging middleware or forward hooks, streaming tokens as they are produced, and writing them to a replayable transcript (see diagrams below). We will discuss code patterns (e.g. Hugging Face’s `model.generate(output_scores=True, output_attentions=True)`) and pseudocode for token-by-token logging, activation hooks, and tool-call wrappers.  
+
+Key trade-offs include performance overhead of logging (extra compute and I/O), privacy risks (storing sensitive prompts or model internals), and security (e.g. exposing hidden “thoughts” could aid adversaries). We outline mitigations (like zero-data-retention for sensitive chains【15†L197-L204】, encryption, or on-device processing) and best practices. An integration checklist and comparison table detail steps to retrofit an arbitrary LLM with visibility: from enabling model hooks and streaming outputs, to adding middleware for transcripts. We survey open-source libraries (Langfuse for observability, HF Transformers utilities, Captum for interpretability, etc.) and note that introspective outputs can be unreliable or hallucinated (models “confabulate” explanations【57†L128-L137】). Limitations and ethical considerations are discussed, e.g. faithfulness of “revealed reasoning”【52†L68-L77】【57†L128-L137】 and compliance implications of detailed logging.  
+
+ 
+
+## 1. Visibility Features in Claude Code and Codex  
+
+**Step-by-step reasoning (chain-of-thought):** Anthropic’s *extended thinking* exposes Claude’s internal chain-of-thought. Setting the `thinking: {type: "enabled"}` flag in the API causes Claude to output intermediate “thinking” content blocks before the final answer【15†L249-L257】. In these blocks, Claude writes its internal reasoning (“Let me analyze this step by step…”) as plain text alongside a cryptographic-like signature field【15†L258-L267】. The CLI offers similar functionality via a toggle (Alt+T/Ctrl+T) – in interactive mode, enabling *Extended Thinking* causes Claude to reveal hidden reasoning traces in real time【52†L42-L50】【16†L1-L4】. By default the CLI hides these thought tokens (for brevity and safety), but verbose mode or the transcript viewer can show them. OpenAI Codex models also use **reasoning tokens** (sometimes called *thinking tokens*). The `reasoning.effort` parameter (e.g. “low”, “medium”, “high”) tells the model how many reasoning tokens to generate【36†L891-L900】. Though these internal tokens are *not* directly returned by the API (only usage counts)【36†L947-L956】【36†L969-L977】, the Codex CLI records assistant “commentary” and intermediate updates in its session transcripts. In practice, Codex developers surface reasoning by logging the model’s step-by-step plan or comments (e.g. “Step 1: read the instructions…”) as part of the conversation thread【48†L293-L300】【57†L128-L137】.  
+
+**Token-level logits and confidence:** Neither CLI normally prints raw logits, but the concept of logging token probabilities is known. OpenAI APIs (and similarly, frameworks like Hugging Face) can return *logprobs* for each generated token (see [42]). For example, setting `max_tokens=1` on an OpenAI call yields a `logprobs` dictionary of each token’s probability【42†L55-L63】. In custom deployments, one can hook into the model’s output layer to capture the softmax logits for every token. This lets engineers audit why a model chose a word (comparing log‐probabilities of top candidates【42†L64-L73】). Capturing token-level confidence can help spot hallucinations. Neither Claude Code nor Codex CLI outputs these directly to the user, but transcripts may record token counts and similar metrics. (The Codex transcript viewer even shows **token usage counters** per turn【48†L297-L300】.)  
+
+**Attention visualizations and activations:** The CLIs themselves do not provide live attention heatmaps, but internal tools could. In principle, one can hook into Transformer layers to extract attention weights. For example, Hugging Face’s `.generate()` supports `output_attentions=True` to get per-layer attention matrices for each generated token【44†L175-L183】. These can be visualized offline (via tools like [0] *e.g. the TeaLeaves pipeline*). Claude Code doesn’t expose attention by default, but Anthropic’s *AI Biology* (Circuits) work investigates neuron/attention behaviors, suggesting possibilities for introspection. In an arbitrary model, one would implement forward hooks in PyTorch on modules like `layer.attn` to log or export attention scores per head at each step.  
+
+**Intermediate representations:** Similar to attention, one can log hidden states or intermediate embeddings. Hugging Face `generate()` can return `hidden_states` for each generation step with `output_hidden_states=True`【44†L175-L183】. By storing these, developers can analyze how the model’s internal state evolves token by token. Claude and Codex do not publish hidden states, but in an own implementation these could be captured by model hooks (see examples below).  
+
+**Tool calls and execution traces:** Both systems support external tools and log their use. Claude Code lets users invoke system commands (e.g. via a built-in shell) or custom functions. The *transcript viewer* in Claude CLI shows every tool invocation and its result: it notes commands run and output, and even summarizes repeated calls (“Called slack 3 times” by default)【17†L12-L15】. OpenAI’s Codex CLI provides a rich agents framework: it can call Python code, run shell commands, etc., via a defined tool interface. These tool calls are logged in the JSONL session transcripts. For example, the Langfuse demo screenshots highlight “Tool calls” with their arguments and outputs【48†L293-L300】. The CLI “app-server” can also sandbox and record actions. In custom systems, one would wrap all tool-invoking functions with logging: e.g. a decorator that logs the command, inputs, and outputs whenever a tool is used.  
+
+**Execution logs and provenance:** The transcripts themselves act as detailed execution logs. Claude Code automatically writes each session to disk in JSONL format【50†L91-L100】. Each line is a structured JSON object recording the role (user/assistant), timestamp, content, any tool calls, etc【50†L99-L104】. This provides full provenance: one can replay or search any conversation. Likewise, Codex CLI stores sessions under `~/.codex/sessions/` as JSONL; a community tool even generates browsable HTML from these logs【48†L279-L288】. Both CLIs include metadata like timestamps and unique turn IDs. (Claude’s API also shows a `signature` field on thought blocks【15†L258-L267】, presumably to verify block integrity or provenance.) In our own models, we should tag every logged item with context (user ID, request ID, time, model version, any plugin/tool used) to build a complete audit trail.  
+
+**API endpoints and CLI features:** Anthropic provides specific API fields (like `thinking: {type, budget, display}`) to enable these features【15†L249-L257】【15†L278-L287】. The Claude Code CLI adds flags (`--verbose`, `--debug`, view modes) and key bindings (Alt+T for thinking, Ctrl+O for transcript) as documented in their help pages【17†L12-L15】【16†L1-L4】. OpenAI’s Codex CLI is open-source and extensible (written in Rust), with commands for launching an app-server, controlling plugins, and saving session transcripts【21†L1302-L1386】. For other models, one can mimic these by building a CLI or Web UI around the model’s API, exposing toggles for streaming vs batch mode, and options to dump internal state.  
+
+In summary, Claude Code and Codex achieve visibility through **explicit design**: special API parameters (`thinking`, `reasoning`), CLI toggles and transcript logging, and structured session storage【15†L249-L257】【48†L288-L297】. The end result is that developers see *exactly* what the AI model is doing at each step: the chosen tokens, intermediate reasoning text, tool calls with args/results, and final outputs【50†L91-L100】【48†L293-L300】.  
+
+## 2. Architecture & Data Flow  
+
+To provide such visibility, one typically inserts logging and instrumentation around the model inference pipeline. The high-level architecture (Figure 1) is: 
+
+```mermaid
+flowchart LR
+  User[User Input] --> CLI
+  CLI --> Model
+  CLI --> Tools[Tool Executor]
+  Model -->|Generates| TokenStream[Token Stream]
+  TokenStream --> CLI
+  Model -->|Hidden States / Attention| Logger
+  CLI --> Tools
+  Tools --> CLI
+  CLI --> Logs[Logging/Database]
+  CLI --> Response[User Output]
+  Logs -.-> Storage[(Long-term Log Storage)]
+```
+
+**Figure 1:** Architecture for an LLM-based agent with logging. The user input is sent to the CLI/agent, which calls the LLM. The model emits tokens (which may include thinking/analysis tokens). Simultaneously, hidden activations (logits, attentions) can be tapped by a logging component. The CLI handles external tool calls and merges the results. All events (tokens generated, tools called, outputs) are logged to a transcript or observability system, while the final answer is returned to the user.  
+
+A typical **data flow** for one turn (Figure 2) is:  
+
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant A as Agent/CLI
+  participant M as Model
+  participant T as Tool(s)
+  participant L as Logger
+
+  U->>A: Prompt (text, metadata)
+  A->>M: Invoke model.generate(streaming=True)
+  Note right of M: Produces token n (with **logits**, **attention**)
+  M-->>A: (emitted token n)
+  loop token-by-token
+    A->>L: Log(token, logits, step_id, any tool call)
+    alt Token is call to Tool
+      A->>T: Execute(tool_name, args)
+      T-->>A: Return tool result
+      A->>L: Log(tool_name, result, metadata)
+      A->>M: (if tool result fed back into model) Continue generation
+    end
+  end
+  A->>L: Log(final answer)
+  A-->>U: Display answer (and optionally reasoning transcript)
+```
+
+**Figure 2:** Sequence of operations during one user query. Each generated token (including reasoning tokens) is streamed and logged. If the token is a tool invocation, the agent executes it and logs the input/output. Finally, the complete answer (and chain-of-thought) is logged and returned.  
+
+Key components enabling visibility:  
+- **Model hooks and instrumentation:** At each forward pass, hooks (e.g. PyTorch `register_forward_hook`) capture intermediate outputs. For example, logging the `input_ids`, output `logits`, or attention weights as each token is generated.  
+- **Streaming and callbacks:** Using streaming generation (token-by-token output) allows real-time logging. Each token triggers a callback to the logger. For example, Hugging Face’s `generate()` with `streaming` support can call a custom function on each new token.  
+- **Transcript logging / replayable sessions:** Both CLIs write an append-only session log. This can be implemented by having the agent write a JSON/JSONL record for every event: user prompt, model token, tool call, agent response. Each record includes provenance metadata (timestamp, unique IDs). One can maintain these logs in flat files or push them to a database/observability service. The Langfuse plugin for Claude, for instance, reads the session transcript every turn and emits structured traces【54†L281-L288】.  
+- **Middleware / runtime wrappers:** Often a wrapper around the model API or subprocess handles logging. For example, a Python wrapper could intercept calls to `model.generate`, record inputs/outputs, and forward the call. Similarly, a subprocess running the model could have its stdout/stderr piped to a logger.  
+- **Token streaming and event emission:** Emitting events for every sub-action (token emission, tool invocation) makes sessions replayable. The agent might use an event-stream protocol: e.g. each log line starts with a type (`"user"`, `"assistant"`, `"tool"`, `"thinking"`) so a viewer can reconstruct the conversation tree.  
+- **Data storage:** Logged data is often serialized to disk (JSONL) or sent to a tracing system. In Claude Code, session logs are simply written under `~/.claude/projects/…/*.jsonl`【50†L91-L100】. An alternative is to stream logs to a service like Langfuse, which stores them (e.g. in ClickHouse) and provides a UI.
+
+The net effect is **full traceability**: every model decision (via logits or token choice), reasoning step (internal thought text), and action (tool call) is captured. Engineers can then “replay” a session, inspect attention/activations per token, and debug or visualize the process (see example viewers【48†L288-L297】).  
+
+## 3. Implementation Patterns and Code Examples  
+
+Below we sketch code patterns (language-agnostic, with PyTorch/Hugging Face examples) for key visibility features.
+
+- **Token-level logging:** Hook into the generation loop to record each token and its probability. In Python/HF:  
+
+  ```python
+  from transformers import AutoModelForCausalLM, AutoTokenizer
+  tokenizer = AutoTokenizer.from_pretrained("gpt2")
+  model = AutoModelForCausalLM.from_pretrained("gpt2")
+  inputs = tokenizer("Explain quantum entanglement.", return_tensors="pt")
+
+  # Use 'generate' with output_scores=True to get logits for each token
+  output = model.generate(
+      **inputs, max_new_tokens=50, 
+      return_dict_in_generate=True, output_scores=True
+  )
+  # 'scores' is a tuple of logits (before softmax) for each generated token
+  logits_per_step = output.scores  # tuple of tensors
+  
+  # Convert logits to probabilities for analysis (optional)
+  import torch.nn.functional as F
+  for step, logits in enumerate(logits_per_step):
+      probs = F.softmax(logits, dim=-1)
+      token_id = output.sequences[0, inputs["input_ids"].shape[-1] + step].item()
+      print(f"Step {step}: token {tokenizer.decode(token_id)}")
+      # Example: log top-5 tokens/probabilities
+      topk = torch.topk(probs[0], 5)
+      for logit, idx in zip(topk.values, topk.indices):
+          print(f"   {tokenizer.decode(idx.item())}: prob={float(logit):.3e}")
+  ```
+
+  This captures every token’s distribution. In a live system, one would log `token_id`, `logits` (or probabilities), timestamp, and the source context.  
+
+- **Attention and activation capture:** Use model hooks or built-in outputs. In HF, enable `output_attentions`/`output_hidden_states` in generation.  
+
+  ```python
+  model = AutoModelForCausalLM.from_pretrained("gpt2", output_attentions=True, output_hidden_states=True)
+  output = model.generate(
+      **inputs, max_new_tokens=30,
+      return_dict_in_generate=True, output_scores=True,
+      output_attentions=True, output_hidden_states=True
+  )
+  # Attentions: tuple of (layers, heads, steps, context_length)
+  attentions = output.attentions  # e.g., tuple of length num_layers, each [steps, heads, seq, seq]
+  hidden_states = output.hidden_states  # tuple of hidden layers per step
+  
+  # Pseudocode: Hook example with PyTorch forward hook
+  activations = []
+  def save_activation(module, input, output):
+      activations.append(output.detach().cpu())
+  handle = model.transformer.h[0].attn.register_forward_hook(save_activation)
+  _ = model(**inputs)  # one forward pass
+  handle.remove()
+  print("Captured activations for layer 0 attention:", activations[0].shape)
+  ```
+
+  One can visualize attention with e.g. [transformer-lens](https://github.com/neelnanda-io/transformer-lens) or custom heatmaps. The key is capturing `output.attentions` and hooking any module output in PyTorch to log values.  
+
+- **Chain-of-thought capture:** If the model supports explicit reasoning tokens (like Claude’s extended thinking), enable them via the API or prompt. For a custom model, one can encourage chain-of-thought by prompting (e.g. “*Let’s think step by step…*”). In code:
+
+  ```python
+  # Example with a reasoning API (pseudocode)
+  response = client.chat_complete(
+      messages=[{"role":"user","content":"Solve X..."}],
+      reasoning={"type": "enabled", "budget_tokens": 1000}
+  )
+  # The API response will have blocks: one with type "thinking", then type "text"
+  for block in response["content"]:
+      if block["type"] == "thinking":
+          print("Interim reasoning:", block["thinking"])
+      elif block["type"] == "text":
+          print("Final answer:", block["text"])
+  ```
+  
+  In a model without built-in reasoning mode, one can simulate it by forcing an intermediate decode. For example, have the model generate to a special “`<analyze>`” token, then read off the partial output as reasoning and continue. The idea is to separate *analysis* tokens from *answer* tokens in the logs.  
+
+- **Tool-call interception:** Wrap any tool invocation in a logging layer. In an agent loop, you might have something like:  
+
+  ```python
+  import subprocess, json, time
+
+  def run_tool(command, args):
+      start = time.time()
+      result = subprocess.run([command]+args, capture_output=True, text=True)
+      duration = time.time() - start
+      # Log the tool call and output
+      log_entry = {
+          "type": "tool_call",
+          "command": command,
+          "args": args,
+          "output": result.stdout.strip(),
+          "error": result.stderr.strip(),
+          "return_code": result.returncode,
+          "duration": duration,
+          "timestamp": time.time(),
+      }
+      write_to_log(log_entry)
+      return result.stdout
+
+  # Agent workflow pseudocode
+  user_input = "Read file example.txt"
+  log_entry = {"type": "user", "content": user_input, "time": time.time()}
+  write_to_log(log_entry)
+  if user_input.startswith("read_file"):
+      file_path = user_input.split(" ",1)[1]
+      content = run_tool("cat", [file_path])
+      agent_response = f"File contents:\n{content}"
+  ```
+
+  Every time `run_tool` is called, we record the command, arguments, and its result. The transcript JSON would have entries like `{"role":"assistant", "content":"…"}`, `{"type":"tool_call", ...}`. The LANGFUSE plugin example even nests tool calls as child spans【54†L281-L288】.  
+
+- **Provenance tagging:** Attach metadata (timestamps, user ID, model version) to each log. For example:  
+
+  ```python
+  def write_to_log(entry):
+      entry["session_id"] = current_session_id
+      entry["model_version"] = model_version
+      entry["user_id"] = user_id  # if known
+      # ... include request_id, etc.
+      with open(f"session-{current_session_id}.jsonl", "a") as f:
+          f.write(json.dumps(entry) + "\n")
+  ```
+
+  The result is a detailed, append-only session file. Claude Code does exactly this: *“Each line is a JSON object — role, timestamp, content, tool calls, everything”*【50†L99-L104】.  
+
+- **Secure storage/visualization:** Logs should be stored securely (e.g. encrypted at rest). For sensitive deployments, one might stream logs into a secure logging system (e.g. an internal database with access controls). Visualizations (like the HTML viewer above【48†L288-L297】 or Langfuse UI【54†L281-L288】) should respect user privacy (e.g. mask PII). Code example is out of scope, but the idea is: write logs locally or to an internal server, then use a separate tool to render them. Ensure logs are scrubbed or protected as needed for compliance.  
+
+- **Frameworks/Patterns:** You can generalize this with middleware. For instance, in Hugging Face’s [generate utilities](https://huggingface.co/docs/transformers/en/internal/generation_utils#utilities-for-generation), callbacks can be attached on generation steps. Or using LangChain’s `CallbackHandler` classes to capture events from a chain of tools and LLM calls. The core pattern is always: *before and after each model or tool invocation, emit a log event with context and result*.  
+
+## 4. Performance, Privacy, Security & Compliance Trade-offs  
+
+Adding transparency has costs and risks:
+
+- **Performance overhead:** Logging, especially token-by-token, adds latency. Capturing logits or attentions requires extra memory/computation. For example, Hugging Face warns that `output_attentions=True` roughly doubles memory usage【44†L175-L183】. Real-time streaming of every token means no batching, further slowing response. Mitigation: make logging configurable (e.g. verbose vs normal mode) and do it asynchronously if possible. For production systems, one might sacrifice fidelity for speed by sampling only key steps or only final answers, not every token. Langfuse mitigates impact by writing logs on turn completion (a “Stop hook”) rather than mid-generation【54†L281-L288】.  
+
+- **Privacy & Data Retention:** Recording full prompts and reasoning may capture sensitive info. Anthropic mitigates this via *Zero Data Retention* (ZDR) options: for instance, extended thinking can be enabled with ZDR so the service doesn’t store input/output after reply【15†L197-L205】. In general, logs should be treated as confidential. Encrypt logs at rest and in transit, use access controls, and comply with data retention policies (e.g. GDPR deletion rights). Where possible, anonymize or redact PII in logs (though this may limit debuggability).  
+
+- **Security risks:** Detailed logs (especially of “thinking” chains) can inadvertently reveal model weaknesses. As Anthropic notes, *visible thought processes* could help attackers craft better jailbreaks【52†L78-L87】. Also, if logs are accessible, they could leak proprietary model parameters or user secrets. Mitigations include: storing logs in secure enclaves, rotating keys, restricting who can view internal logs, and potentially sanitizing outputs (e.g. filtering credentials from tool logs).  
+
+- **Compliance:** Some industries forbid storing certain data. For example, storing medical or legal advice context might violate regulations. Design the logging system to allow disabling or redacting parts of output (e.g. as Anthropic advises, “text less personal-sounding than usual because it skips char training”【52†L58-L66】). Also, maintain audit logs of who accessed the model logs (itself a compliance requirement).  
+
+- **Cost:** More computation and storage means higher cloud or hardware costs. This must be weighed against the value of explainability. Using on-device models or lighter-weight embeddings (for logging) can help reduce costs.  
+
+In short, visibility is invaluable for trust and debugging, but it requires careful engineering: performance budgets, encryption, and clear policies. Where possible, allow toggling the verbosity and retention level so that transparency can be dialed back for sensitive deployments (as Claude’s `display: "omitted"` option does【15†L247-L257】).  
+
+## 5. Integration Checklist & Approach Comparison  
+
+**Step-by-step plan to add visibility to any model:**
+
+1. **Enable Output Logging:** Configure the model or framework to emit the desired data (logits, attentions, hidden states). For example, set `output_scores=True`, `output_attentions=True` in HF.  
+2. **Wrap Inference Calls:** Create a wrapper around the model’s generation function that captures inputs and outputs. For streaming APIs, handle chunked responses.  
+3. **Implement Callbacks/Hooks:** Attach hooks in the model layers to extract intermediate activations (e.g. attach `register_forward_hook` to layers you care about).  
+4. **Intercept Tool Interactions:** If your agent calls external functions, ensure those calls go through a logging layer (as shown above in `run_tool`).  
+5. **Collect Chain-of-Thought:** If using a reasoning-capable model, set the reasoning flag or instruct the model to “think out loud.” If not, consider a two-phase approach (analysis then answer) and log the intermediate result as reasoning.  
+6. **Record Metadata:** Tag every log entry with context – user ID, session ID, timestamp, model version, input prompt, etc.  
+7. **Choose Storage:** Decide where to write logs: local file (for CLI) or remote system. Use structured JSON or a tracing format. For example, Langfuse can ingest spans via its SDK【55†L442-L450】【54†L281-L288】.  
+8. **Build Visualization:** Set up a viewer for the logs. It could be as simple as reformatting the JSONL to HTML (like [48]) or using an LLM observability tool. Provide features like search, filtering by event type, timeline view, etc.  
+9. **Test & Optimize:** Run end-to-end tests to ensure each token and event is logged correctly. Monitor latency and memory. Optimize by sampling or conditional logging if needed.  
+10. **Secure & Comply:** Audit the logged content for sensitive data. Encrypt the logs, implement access controls, and document retention policies.  
+
+**Comparison of approaches:** Key dimensions include **Ease**, **Fidelity**, **Performance Cost**, **Security Risk**. (See Table 1 below.) We compare three broad strategies:
+
+| Approach                            | Ease of Implementation | Fidelity of Visibility | Performance Impact | Security/Privacy Risk         |
+|-------------------------------------|-----------------------|-----------------------|--------------------|-------------------------------|
+| **Full Instrumentation** (hooks in model, logging all tokens, attentions) | Hard (requires low-level code hooks) | Very High (raw logits, hidden states, etc) | Very High (CPU/GPU overhead, memory) | High (detailed internal state & data captured) |
+| **Frontend Agent Logging** (log prompts, final outputs, tool calls only)   | Easy (simply log API calls)         | Low–Medium (no internals, only I/O)  | Low (minimal overhead)  | Low (fewer details, but may log user data) |
+| **Configurable Logging/Verbose Mode** (toggleable, e.g. debug flags)       | Medium (must build toggles)        | Configurable (on demand)           | Variable (only when on) | Medium (can restrict in prod) |
+
+**Table 1:** Approaches to instrumenting an AI model with visibility. *Full instrumentation* (token logits, attentions) gives the richest insight but is expensive and risky. *Frontend logging* (what Claude Code does by default) is easy but misses hidden reasoning. A **configurable mix** is best: verbose/debug mode for dev environments, minimal logging for sensitive production scenarios.  
+
+Use this checklist to plan each step: e.g., *Are we capturing token probabilities?* If yes, prepare hooks; *Are we storing logs?* Decide DB or file; *Do we allow toggling?* Implement command-line flags.  
+
+
+## 6. Open-Source Tools & Libraries  
+
+Several existing projects can be leveraged:  
+
+- **Langfuse (Open Source)**: A platform for LLM observability【55†L432-L440】. It offers Python/JS SDKs to instrument applications (via OpenTelemetry style) and a web UI to view traces, prompt revisions, and metrics【55†L442-L451】【55†L518-L519】. For example, the *Langfuse Claude Plugin* hooks into Claude Code sessions and streams every turn/tool call to a trace【54†L281-L288】. You can self-host Langfuse or use their cloud. It handles storage and provides filtering/search.  
+
+- **Hugging Face Transformers**: Includes utilities for generation with logging. The `generate()` method supports `output_scores`, `output_attentions`, and returning a `GenerateOutput` with fields for all intermediate data【44†L175-L183】. Use its callback and pipeline APIs for custom instrumentation.  
+
+- **Captum / IntegratedGradients**: If you need interpretability, PyTorch’s Captum library can attribute importance to inputs. Not directly for runtime logging, but useful for post-hoc analysis of stored activations.  
+
+- **Weigths & Biases / TensorBoard**: Logging frameworks where you can push metrics or images (like attention maps) during inference. For example, at each step you could log a token’s attention map to TensorBoard for later viewing.  
+
+- **Huggingface `Trainer` and Callbacks**: Even if not training, the callback system (via `Seq2SeqTrainer` or similar) can be used to capture metrics or outputs.  
+
+- **LangChain / LlamaIndex Tracers**: If using these agent libraries, they often have built-in tracing. (E.g. LangChain’s `TracerSession`, LlamaIndex’s debug tools.)  
+
+- **LLM Observation Tools**: Tools like [CircuitsVis/TransformerLens](https://github.com/neelnanda-io/transformer-lens) (for model analysis) or **AI Transparency** frameworks. Not CLI-level, but helpful for analyzing saved logs.  
+
+- **CLI Transcript Viewers**: The [codex-transcript-viewer](https://github.com/masonc15/codex-transcript-viewer) is an example that turns JSONL logs into an HTML UI【48†L252-L261】. You could build a similar lightweight viewer for any model’s logs (perhaps as a Streamlit app).  
+
+- **OpenAI Evals**: For compliance and failure-mode tests, OpenAI Evals repo provides examples. While not for real-time logging, it can test model behaviors and chain-of-thought functions.  
+
+- **Security/Privacy Libraries**: For log redaction, tools like Google DLP API or custom regex filters can scan for secrets in logs before storage.  
+
+Integration of these tools depends on your stack (Python vs JS, cloud vs on-prem). Many are MIT/Apache-licensed (Langfuse is open source, as is Codex CLI). Always review licenses.  
+
+
+## 7. Limitations, Failure Modes & Ethical Considerations  
+
+**Faithfulness of Revealed Reasoning:** As Anthropic warns, visible “thoughts” may **not reflect true model reasoning**【52†L68-L77】. Models often *confabulate* explanations. The Transformer Circuits study found that models can sometimes self-report internal states, but these reports are *highly unreliable*【57†L128-L137】. In other words, just because the model writes out a “step-by-step analysis” doesn’t guarantee it used that analysis to answer. Engineers must treat such traces as heuristic aids, not ground truth.  
+
+**Bias and Misinformation:** Exposing internal reasoning can inadvertently expose biases or unfiltered data. For example, if the model internally latches onto a spurious pattern, revealing that token stream might shock users or be misinterpreted. There’s also a risk that revealing how the model “thinks” normalizes negative behavior it might otherwise filter out.  
+
+**Security exploits:** Adversaries could use introspective outputs to find vulnerabilities. As Anthropic notes, the model’s reasoning log might reveal exactly *how* it decides to refuse a prompt, enabling better jailbreak strategies【52†L78-L87】. Therefore, introspection should be disabled in untrusted settings, or made read-only for auditors.  
+
+**Performance failures:** Logging itself can fail. For instance, if disk space runs out, the agent might crash mid-session. Or if the logging hook is buggy, it could raise exceptions that abort the model call. Always sandbox or catch errors in logging code.  
+
+**Privacy leaks:** Detailed logs could inadvertently log end-user data (e.g. personal info in a prompt). This raises issues under privacy laws. The system should allow masking or discarding sensitive user identifiers. In the corporate setting, logs should be considered as sensitive as the data itself.  
+
+**Ethical considerations:** There is an inherent tension between transparency and privacy. While showing an AI’s reasoning can build trust, it also entitles onlookers to potentially private chain-of-thought content. Consent and confidentiality rules may apply. Also, exposing “inner workings” only helps if they are somewhat interpretable by humans. Complex high-dimensional activations may not yield to intuitive understanding, possibly giving false confidence in the “insights” they appear to offer.  
+
+Finally, note practical constraints: not all models or deployments allow hooking (closed APIs vs open-source models). We assumed an environment where we control inference. If using a remote API, you are limited to whatever the service exposes (e.g. OpenAI currently does not expose token logits or attention via API, only reasoning usage stats【36†L960-L969】). In such cases, you rely on what the service provides (e.g. OpenAI’s `output_tokens_details`).  
+
+In conclusion, implementing Claude/Codex-like visibility requires careful engineering across the model’s runtime: inserting hooks for token logits and attentions, capturing chain-of-thought, wrapping tool calls, and logging everything with metadata. The benefits for debugging, trust, and auditing can be enormous, but must be weighed against overhead and risk. By following the patterns above and using established tools (Table 1 and references), a developer can endow any LLM with rich introspection, while remaining mindful of the limitations highlighted in the literature【52†L42-L50】【57†L128-L137】.  
+
+**Sources:** Official documentation and announcements (Anthropic, OpenAI) and open-source projects were used to compile this analysis【15†L249-L257】【52†L42-L50】【36†L947-L956】【50†L91-L100】【48†L288-L297】【54†L281-L288】【57†L128-L137】. The reader is encouraged to consult these primary sources for implementation details.  
+

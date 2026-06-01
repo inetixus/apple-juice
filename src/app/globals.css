@@ -1,4 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -7,11 +9,19 @@
   color-scheme: light;
 }
 
+html,
 body {
-  background-color: #f3f4f6;
-  color: #111827;
+  width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
+}
+
+body {
+  background-color: #101015;
+  background: linear-gradient(to bottom, #050508 0%, #08080d 30%, #101015 100%);
+  background-attachment: fixed;
+  color: #111827;
   font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -274,6 +284,29 @@ body {
 }
 
 /* Animated Stripe-like ambient glow grids */
+/* Subtle scanlines on CLI terminal card only */
+.cli-scanlines {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+}
+
+.cli-premium-terminal {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 24px 64px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.cli-success-glow {
+  text-shadow: 0 0 8px rgba(167, 243, 208, 0.35);
+}
+
 .stripe-grid {
   position: absolute;
   inset: 0;
@@ -298,4 +331,157 @@ body {
   border-radius: 4px;
   padding: 1px 4.5px;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Landing spine — liquid glass dots & panels */
+@keyframes liquidGlassShimmer {
+  0% {
+    transform: translateX(-120%) skewX(-12deg);
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.85;
+  }
+  55% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(220%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+@keyframes liquidGlassBlob {
+  0%,
+  100% {
+    transform: translate(-30%, -20%) scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(20%, 15%) scale(1.15);
+    opacity: 0.65;
+  }
+}
+
+.liquid-glass-dot {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0.06) 45%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    0 8px 28px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.liquid-glass-dot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 65%
+  );
+  animation: liquidGlassShimmer 3.8s ease-in-out infinite;
+}
+
+.liquid-glass-dot--user {
+  background: linear-gradient(
+    145deg,
+    rgba(204, 255, 0, 0.5) 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  border-color: rgba(204, 255, 0, 0.65);
+  box-shadow:
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.6),
+    0 0 16px rgba(204, 255, 0, 0.35),
+    0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.liquid-glass-dot__blob {
+  position: absolute;
+  inset: -40%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.5),
+    transparent 55%
+  );
+  animation: liquidGlassBlob 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.liquid-glass-bridge {
+  will-change: transform, height;
+  transform: translate3d(0, 0, 0);
+  background: linear-gradient(
+    to bottom,
+    rgba(204, 255, 0, 0.05),
+    rgba(255, 255, 255, 0.35),
+    rgba(204, 255, 0, 0.05)
+  );
+  box-shadow: 0 0 18px rgba(204, 255, 0, 0.25);
+}
+
+.liquid-glass-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid-glass-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    125deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 60%
+  );
+  animation: liquidGlassShimmer 6s ease-in-out infinite;
+}
+
+.glass-parallax-panel {
+  transform-style: preserve-3d;
+  transform: perspective(900px) rotateX(var(--glass-tilt-y, 0deg))
+    rotateY(var(--glass-tilt-x, 0deg));
+  transition: transform 0.35s ease-out;
+}
+
+.spine-node-active {
+  box-shadow:
+    0 0 22px rgba(204, 255, 0, 0.55),
+    inset 0 0 8px rgba(255, 255, 255, 0.35);
+  border-color: rgba(204, 255, 0, 0.55) !important;
+}
+
+.spine-energy-trail {
+  mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass-dot::before,
+  .liquid-glass-dot__blob,
+  .liquid-glass-panel::before {
+    animation: none;
+  }
+
+  .glass-parallax-panel {
+    transform: none;
+  }
+
+  .spine-energy-trail {
+    display: none;
+  }
 }
