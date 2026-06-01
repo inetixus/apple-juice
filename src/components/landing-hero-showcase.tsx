@@ -32,6 +32,7 @@ type Step =
   | "PROMPT"
   | "FOLDER"
   | "LOADING"
+  | "INJECTION"
   | "PROGRESS"
   | "DASHBOARD"
   | "TASKS";
@@ -118,6 +119,8 @@ function cameraForStep(step: Step): CameraFrame {
       return { scale: 1.08, x: 0, y: -6 };
     case "LOADING":
       return { scale: 1.1, x: 0, y: 0 };
+    case "INJECTION":
+      return { scale: 1.2, x: 0, y: 0 };
     case "PROGRESS":
       return { scale: 1.14, x: 0, y: 0 };
     case "DASHBOARD":
@@ -346,7 +349,7 @@ export function LandingHeroShowcase() {
 
   const shellContent = shellContentFor(step);
   const isShell = shellContent !== null;
-  const isCardPhase = step === "PROGRESS" || step === "DASHBOARD" || step === "TASKS";
+  const isCardPhase = step === "INJECTION" || step === "PROGRESS" || step === "DASHBOARD" || step === "TASKS";
   const isLoading = step === "LOADING";
 
   useEffect(() => {
@@ -498,6 +501,12 @@ export function LandingHeroShowcase() {
       setFlashActive(true);
 
       await sleep(220); // wait for peak zoom and peak brightness
+      if (gone()) return;
+
+      setStep("INJECTION");
+      setCaption("Injecting synthesized Luau bytecode directly into Studio instances...");
+      
+      await sleep(1800);
       if (gone()) return;
 
       setStep("PROGRESS");
@@ -836,10 +845,68 @@ export function LandingHeroShowcase() {
                 width: cardDims.width,
                 height: cardDims.height,
                 borderRadius: cardDims.borderRadius,
-                position: step === "PROGRESS" ? "relative" : undefined,
+                position: (step === "PROGRESS" || step === "INJECTION") ? "relative" : undefined,
               }}
             >
-              {step === "PROGRESS" ? (
+              {step === "INJECTION" ? (
+                <div className="flex-1 flex flex-col items-center justify-center bg-[#050508] relative overflow-hidden p-6 text-center">
+                  <div className="absolute inset-0 bg-gradient-to-b from-[#ccff00]/5 to-transparent pointer-events-none" />
+                  
+                  {/* Floating code fragments */}
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ x: -100, y: Math.random() * 300, opacity: 0, scale: 0.8 }}
+                        animate={{ 
+                          x: 600, 
+                          y: Math.random() * 300, 
+                          opacity: [0, 1, 1, 0],
+                          scale: [0.8, 1.2, 0.8] 
+                        }}
+                        transition={{ 
+                          duration: 0.8, 
+                          repeat: Infinity, 
+                          delay: i * 0.15,
+                          ease: "linear"
+                        }}
+                        className="absolute whitespace-nowrap font-mono text-[10px] text-[#ccff00]/40"
+                      >
+                        {i % 2 === 0 ? "local player = game.Players.LocalPlayer" : "Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)"}
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="relative z-10 flex flex-col items-center gap-4"
+                  >
+                    <div className="h-16 w-16 rounded-2xl bg-[#ccff00]/10 border border-[#ccff00]/30 flex items-center justify-center mb-2 shadow-[0_0_30px_rgba(204,255,0,0.15)]">
+                      <FileCode className="h-8 w-8 text-[#ccff00]" />
+                    </div>
+                    <h3 className="text-xl font-black text-white tracking-tight uppercase">
+                      Syncing Engine
+                    </h3>
+                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                      <div className="h-1.5 w-1.5 rounded-full bg-[#ccff00] animate-pulse" />
+                      <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest font-mono">
+                        Direct Bytecode Stream
+                      </span>
+                    </div>
+                  </motion.div>
+
+                  {/* Progress bar at bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/5">
+                    <motion.div 
+                      initial={{ width: "0%" }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: 1.8, ease: "easeInOut" }}
+                      className="h-full bg-[#ccff00] shadow-[0_0_15px_rgba(204,255,0,0.5)]"
+                    />
+                  </div>
+                </div>
+              ) : step === "PROGRESS" ? (
                 <>
                   <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08]">
                     <span className="text-sm font-semibold text-white/90">Progress</span>
