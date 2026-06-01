@@ -36,7 +36,7 @@ export function FaqItemPremium({ question, answer }: { question: string; answer:
 
     setPhase("thinking");
     setTypedLen(0);
-    setThinkingSteps(THINKING_STEPS.map((s, i) => ({ ...s, done: false })));
+    setThinkingSteps(THINKING_STEPS.map((s) => ({ ...s, done: false })));
 
     const timers: number[] = [];
     THINKING_STEPS.forEach((_, i) => {
