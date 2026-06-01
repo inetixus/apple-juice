@@ -7,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 import { getLandingPerfConfig } from "@/lib/landing-perf";
 import { sleep } from "@/lib/human-cursor-motion";
@@ -25,7 +26,7 @@ import {
   Loader2,
   Sparkles,
 } from "lucide-react";
-type Step =
+export type HeroDemoStep =
   | "INITIAL"
   | "TOGGLE"
   | "MENU"
@@ -36,6 +37,25 @@ type Step =
   | "PROGRESS"
   | "DASHBOARD"
   | "TASKS";
+
+type Step = HeroDemoStep;
+
+export type LandingHeroShowcaseProps = {
+  loop?: boolean;
+  active?: boolean;
+  runKey?: number;
+  layoutGroupId?: string;
+  layoutCardId?: string;
+  showCaptions?: boolean;
+  /** Rendered inside the stage (e.g. ad copy), not over the outer frame. */
+  stageOverlay?: ReactNode;
+  onStepChange?: (step: HeroDemoStep) => void;
+  onComplete?: () => void;
+  className?: string;
+  stageClassName?: string;
+  /** Square frame (no rounded corners) — used by product film. */
+  sharpFrame?: boolean;
+};
 
 type Target =
   | "chat-pill"
@@ -302,7 +322,20 @@ function DashboardPanes() {
   );
 }
 
-export function LandingHeroShowcase() {
+export function LandingHeroShowcase({
+  loop = true,
+  active = true,
+  runKey = 0,
+  layoutGroupId = "hero-demo",
+  layoutCardId = "hero-card",
+  showCaptions = true,
+  stageOverlay,
+  onStepChange,
+  onComplete,
+  className = "",
+  stageClassName = "",
+  sharpFrame = false,
+}: LandingHeroShowcaseProps = {}) {
   const stageRef = useRef<HTMLDivElement>(null);
   const cameraLayerRef = useRef<HTMLDivElement>(null);
   const targets = useRef<Partial<Record<HeroCursorTarget, HTMLElement>>>({});
@@ -387,7 +420,11 @@ export function LandingHeroShowcase() {
   }, [placeCursor]);
 
   useEffect(() => {
-    if (!isInView) {
+    onStepChange?.(step);
+  }, [onStepChange, step]);
+
+  useEffect(() => {
+    if (!isInView || !active) {
       runRef.current += 1;
       setCursorOn(false);
       return;
@@ -542,7 +579,13 @@ export function LandingHeroShowcase() {
 
       setCursorOn(false);
       await sleep(360);
-      if (!gone()) play();
+      if (gone()) return;
+
+      if (loop) {
+        play();
+      } else {
+        onComplete?.();
+      }
     }
 
     play();
@@ -550,7 +593,18 @@ export function LandingHeroShowcase() {
       dead = true;
       runRef.current += 1;
     };
-  }, [isInView, moveAndClick, placeCursor, reset, clearHighlight, heroAutoplay]);
+  }, [
+    active,
+    isInView,
+    loop,
+    moveAndClick,
+    onComplete,
+    placeCursor,
+    reset,
+    clearHighlight,
+    heroAutoplay,
+    runKey,
+  ]);
 
   const ring = (id: Target) =>
     highlight === id ? "ring-2 ring-white/35 ring-offset-2 ring-offset-black shadow-[0_0_28px_rgba(255,255,255,0.1)]" : "";
@@ -576,12 +630,12 @@ export function LandingHeroShowcase() {
         }}
         transition={{ duration: 0.75, ease: CAMERA_EASE }}
       >
-        <LayoutGroup id="hero-demo">
+        <LayoutGroup id={layoutGroupId}>
           {/* ── Morphing shell (single layout element, no inner unmount) ── */}
           {isShell && shellContent && dims && (
             <motion.div
               layout
-              layoutId="hero-card"
+              layoutId={layoutCardId}
               transition={MORPH_SPRING}
               className={`relative bg-[#050508] text-white/90 overflow-hidden flex flex-col z-10 max-w-[calc(100%-1rem)] border border-white/10 ${CARD_SHADOW}`}
               style={{
@@ -763,7 +817,7 @@ export function LandingHeroShowcase() {
           {isLoading && (
             <motion.div
               layout
-              layoutId="hero-card"
+              layoutId={layoutCardId}
               transition={MORPH_SPRING}
               className="relative z-10 overflow-hidden max-w-[calc(100%-1rem)] rounded-3xl border border-white/[0.12] bg-[#050508] shadow-[0_0_80px_rgba(204,107,73,0.15)] flex items-center justify-center"
               style={{ width: 560, height: 380, borderRadius: 28 }}
@@ -834,7 +888,7 @@ export function LandingHeroShowcase() {
           {isCardPhase && cardDims && (
             <motion.div
               layout
-              layoutId="hero-card"
+              layoutId={layoutCardId}
               transition={MORPH_SPRING}
               className={`overflow-hidden z-20 flex flex-col ${
                 step === "PROGRESS"
@@ -1014,14 +1068,15 @@ export function LandingHeroShowcase() {
   );
 
   return (
-    <div ref={rootRef} className="relative w-full max-w-[940px] mx-auto px-2">
+    <div ref={rootRef} className={`relative w-full max-w-[940px] mx-auto px-2 ${className}`}>
       <div
-        className="relative overflow-hidden rounded-[1.75rem] border border-white/[0.06] shadow-[0_48px_120px_rgba(0,0,0,0.65)] bg-black"
+        className={`relative overflow-hidden border border-white/[0.06] shadow-[0_48px_120px_rgba(0,0,0,0.65)] bg-black ${sharpFrame ? "rounded-none" : "rounded-[1.75rem]"} ${stageClassName}`}
         style={{ height: "min(520px, 72vw)" }}
       >
         {stageInner}
+        {stageOverlay}
         <AnimatePresence>
-          {caption ? <StoryCaption text={caption} /> : null}
+          {showCaptions && caption ? <StoryCaption text={caption} /> : null}
         </AnimatePresence>
       </div>
     </div>

@@ -10,8 +10,14 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Apple Juice",
-  description: "The Open-Source AI Code Tool for Roblox.",
+  title: "Apple Juice - Open-Source AI Code Tool for Roblox Studio",
+  description: "Accelerate your game development with Apple Juice, the free open-source AI coding assistant built specifically for Roblox Studio.",
+  alternates: {
+    canonical: "https://apple-juice.online/",
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

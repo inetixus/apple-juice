@@ -17,6 +17,9 @@ import {
 import dynamic from "next/dynamic";
 import { LandingCliSection } from "./landing-cli-section";
 import { LandingHeroShowcase } from "./landing-hero-showcase";
+import { LandingAdShowcase } from "./landing-ad-showcase";
+import { LandingDocsSection } from "./landing-docs-section";
+
 import { LandingWebIdeSection } from "./landing-web-ide-section";
 import { SpineSection } from "./landing-spine";
 import { MagneticButton } from "./magnetic-button";
@@ -335,6 +338,25 @@ export function LandingContent({
         />
       </section>
 
+      {/* ━━━ PRODUCT FILM (looping ad — same demo as hero, narrated) ━━━ */}
+      <section
+        id="film"
+        className="relative py-20 md:py-28 px-6 md:px-12 z-10"
+      >
+        <div className="max-w-[1100px] mx-auto text-center mb-10 md:mb-14">
+          <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#ccff00] mb-4">
+            Product film
+          </p>
+          <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight mb-4">
+            See the full story
+          </h2>
+          <p className="text-white/50 text-base md:text-lg font-medium max-w-2xl mx-auto leading-relaxed">
+            Same cursor, clicks, warp loader, and Studio sync as the hero — with in-video captions that walk through every feature on loop.
+          </p>
+        </div>
+        <LandingAdShowcase />
+      </section>
+
       {/* Seamless light bleed into Web IDE — overlaps hero boundary */}
       <div
         className="relative h-0 z-[5] pointer-events-none"
@@ -443,6 +465,8 @@ export function LandingContent({
         </div>
         </div>
       </SpineSection>
+
+      <LandingDocsSection />
 
       <div className="relative">
 

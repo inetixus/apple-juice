@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Rounded Background Box -->
+  <rect width="512" height="512" rx="128" fill="#ccff00"/>
+  
+  <!-- Logo Icon Container (Centered) -->
+  <g transform="translate(100, 100) scale(13)">
+    <path d="M5.2 6.5L7.5 3H16.5L18.8 6.5H5.2Z" fill="black" fill-opacity="0.8"/>
+    <path d="M5 8V20C5 21.1 5.9 22 7 22H17C18.1 22 19 21.1 19 20V8H5Z" fill="black"/>
+    <path d="M15 3V1.5C15 0.67 14.33 0 13.5 0H12" stroke="black" stroke-width="2" stroke-linecap="round"/>
+    <!-- Detail Sparkle/Highlight -->
+    <path d="M14.5 14.5C14.5 16 13.5 17 12 17C10.5 17 9.5 16 9.5 14.5C9.5 13 10.5 12 12 12C12.3 12 12.7 12.1 13 12.2C12.7 12.6 12.7 13.2 13 13.6C13.3 14 13.9 14 14.3 13.7C14.4 13.9 14.5 14.2 14.5 14.5ZM12.5 11C12.5 10 11.7 9.5 11 9.5C11 10.5 11.8 11 12.5 11Z" fill="#ccff00"/>
+  </g>
+</svg>
