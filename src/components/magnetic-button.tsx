@@ -16,8 +16,8 @@ type MagneticButtonProps = {
   children: ReactNode;
   className?: string;
   as?: "button" | "a";
-} & ButtonHTMLAttributes<HTMLButtonElement> &
-  AnchorHTMLAttributes<HTMLAnchorElement>;
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onAnimationStart" | "onDrag" | "onDragStart" | "onDragEnd"> &
+  Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "onAnimationStart" | "onDrag" | "onDragStart" | "onDragEnd">;
 
 export const MagneticButton = forwardRef<HTMLButtonElement | HTMLAnchorElement, MagneticButtonProps>(
   function MagneticButton({ children, className = "", as = "button", ...rest }, ref) {
@@ -62,7 +62,14 @@ export const MagneticButton = forwardRef<HTMLButtonElement | HTMLAnchorElement, 
     };
 
     if (as === "a") {
-      const { type: _t, ...anchorRest } = rest as AnchorHTMLAttributes<HTMLAnchorElement>;
+      const {
+        type: _t,
+        onAnimationStart: _oas,
+        onDrag: _od,
+        onDragStart: _ods,
+        onDragEnd: _ode,
+        ...anchorRest
+      } = rest as AnchorHTMLAttributes<HTMLAnchorElement>;
       return (
         <motion.a ref={ref as React.Ref<HTMLAnchorElement>} {...motionProps} {...anchorRest}>
           {children}
@@ -70,8 +77,15 @@ export const MagneticButton = forwardRef<HTMLButtonElement | HTMLAnchorElement, 
       );
     }
 
+    const {
+      onAnimationStart: _oas,
+      onDrag: _od,
+      onDragStart: _ods,
+      onDragEnd: _ode,
+      ...buttonRest
+    } = rest as ButtonHTMLAttributes<HTMLButtonElement>;
     return (
-      <motion.button ref={ref as React.Ref<HTMLButtonElement>} {...motionProps} {...rest}>
+      <motion.button ref={ref as React.Ref<HTMLButtonElement>} {...motionProps} {...buttonRest}>
         {children}
       </motion.button>
     );
