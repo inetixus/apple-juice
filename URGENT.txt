@@ -1,2 +1,86 @@
-An AI code tool for Roblox called Apple Juice is an incredibly cool niche. Looking closely at your audit report, your core technical foundation is actually in great shape—your server response time is effectively instant (0.0s), your page weight is remarkably light (0.41MB), and your SSL configuration is solid.The main reason your site is getting flagged is simply that you are missing basic SEO table stakes and newer AI search signals (Generative Engine Optimization).1. The High-Impact Meta FixesRight now, search engines are flying blind because your title and descriptions are too short. You need to expand them to include your primary keywords (Roblox, Studio, AI, Code, Free).Tag ElementCurrent StateTarget LengthOptimized Copy-Paste ReplacementTitle Tag"Apple Juice" (11 chars)50–60 chars<title>Apple Juice - Open-Source AI Code Tool for Roblox Studio</title>Meta Description"The Open-Source AI Code Tool for Roblox." (40 chars)120–160 chars<meta name="description" content="Accelerate your game development with Apple Juice, the free open-source AI coding assistant built specifically for Roblox Studio.">Add a Self-Referencing Canonical TagThe audit shows you are missing a canonical tag. This tells engines like Google exactly which URL is the master version, preventing duplicate content issues. Paste this inside your <head> block:HTML<link rel="canonical" href="https://apple-juice.online/" />
-2. Generative Engine Optimization (GEO) & LLMsBecause you run an AI tool, you want other AI search engines (like Perplexity, Gemini, and ChatGPT) to recommend Apple Juice when users ask things like "What is a good free AI scripter for Roblox?"Create a llms.txt file: The audit flags this as missing. Create a simple text file named llms.txt and place it in your root directory (apple-juice.online/llms.txt). This serves as a lightweight markdown map specifically designed for LLMs to read and understand your project setup instantly.Fix the JavaScript / Render Blocks: Your scripts take 6.9 seconds to fully finish running, resulting in a 0% initial rendering metric for crawlers. If your site relies entirely on client-side JavaScript to show text, basic scrapers see an empty page. Ensure your core product explanation text is hardcoded straight into the HTML rather than injected via heavy scripts.3. Server, Security, and Core Code CleanupsActivate HTTP/2+ on CloudflareThe audit shows you are running on an outdated HTTP protocol, but your DNS is handled by Cloudflare.Log into your Cloudflare Dashboard.Go to Network settings.Toggle on HTTP/2 and HTTP/3 (with QUIC). This will drastically speed up how quickly those 11 different JavaScript files on your page load for users.Add a DMARC Record for Your EmailYou successfully set up your SPF record for Zoho Mail, but without a DMARC record, emails sent from your domain run a high risk of landing in user spam folders. Go to your domain registrar's DNS settings and add this new record:Type: TXTHost/Name: _dmarcValue: v=DMARC1; p=none; rua=mailto:your-email@apple-juice.onlineSquash JavaScript Errors & Inline StylesOpen your website in a browser, right-click, select Inspect, and look at the Console tab. You have unhandled errors breaking during load. These errors stop browsers from executing subsequent code and can cause search crawlers to abandon indexing your page. While you are fixing those, move any styles written directly inside HTML tags (e.g., style="...") into a central CSS file to clean up your code structure.4. Expanding Content and Building LinksFix the "Thin Content" Warning (751 words): For an AI tool, the easiest way to add valuable text content is to build a basic Documentation / Getting Started section directly on the homepage or a sub-page. Write out 3 to 4 clear text examples of prompts a developer can feed into Apple Juice, along with the expected Luau code output.Drop in a Favicon: You are missing a site icon. Ensure you have a favicon.ico uploaded to your root folder so browser tabs display your custom logo rather than a generic blank document icon.Link Building Strategy: With only one external backlink, your site has low domain authority. Don't pay for shady link packages. Instead, share your tool where Roblox developers hang out: post an announcement on the Roblox DevForum (under Community Resources), share open-source updates on GitHub, and showcase short code-generation videos on X (Twitter) and TikTok.
+Going from a **D- to a B-** in one session is a massive jump. Your On-Page SEO went from "could be better" to **"very good!"**—the title tag, meta description, word count expansion (1,176 words looks great), canonical link, sitemap, and DMARC record are all perfectly locked in now.
+
+To push this into the **A range**, you need to tackle the structural data (Schema) and clean up the client-side JavaScript execution that is weighing down your mobile performance.
+
+Here is the exact technical roadmap to cross the finish line.
+
+---
+
+## 1. Add Schema Markup (Medium Priority)
+
+The lack of Schema.org structured data is the biggest remaining blocker on your On-Page/GEO checklist. Because Apple Juice is an open-source development tool, a `SoftwareApplication` schema is perfect.
+
+Paste this exact script anywhere inside your `<head>` tags:
+
+```html
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Apple Juice",
+  "operatingSystem": "Windows, macOS, Linux",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "AI Code Editor / Roblox Studio Plugin",
+  "offers": {
+    "@type": "Offer",
+    "price": "0.00",
+    "priceCurrency": "USD"
+  },
+  "description": "An open-source AI code tool and CLI agent for Roblox Studio that automates Luau scripting and game development.",
+  "softwareVersion": "1.0",
+  "license": "https://github.com/your-repo-path/blob/main/LICENSE"
+}
+</script>
+
+```
+
+---
+
+## 2. Add Social Cards (Low Priority)
+
+When people share `apple-juice.online` on X or Discord, it currently won't show a pretty preview card. Drop these meta tags right into your `<head>` to fix the missing Open Graph and X Card warnings:
+
+```html
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://apple-juice.online/">
+<meta property="og:title" content="Apple Juice - Open-Source AI Code Tool for Roblox Studio">
+<meta property="og:description" content="Accelerate your game development with Apple Juice, the free open-source AI coding assistant built specifically for Roblox Studio.">
+<meta property="og:image" content="https://apple-juice.online/og-image.png">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://apple-juice.online/">
+<meta name="twitter:title" content="Apple Juice - Open-Source AI Code Tool for Roblox Studio">
+<meta name="twitter:description" content="Accelerate your game development with Apple Juice, the free open-source AI coding assistant built specifically for Roblox Studio.">
+<meta name="twitter:image" content="https://apple-juice.online/og-image.png">
+
+```
+
+*(Note: Create a quick `og-image.png` banner image later and upload it to your root folder so the previews display your branding).*
+
+---
+
+## 3. Fix the Mobile PageSpeed & JS Bottlenecks
+
+Your desktop load speed is solid, but your mobile performance is struggling (Largest Contentful Paint is taking 6.3 seconds). The audit highlights two main culprits:
+
+### Fix the JavaScript Load Errors
+
+Your page is loading **11 different JavaScript files**, and some are throwing unhandled runtime errors on boot. This stops the browser from rendering the page efficiently.
+
+* **Action:** Open your site in Chrome or Edge, right-click anywhere, hit **Inspect**, and click the **Console** tab. Look for the red error messages. If you are bundling with Next.js/Tailwind, make sure you aren't accidentally importing heavy desktop libraries or node modules that are failing or running unnecessary scripts on the client side.
+
+### Eliminate Multiple Page Redirects
+
+The audit noted a `0.63s` delay caused by redirects. This usually happens when a user requests `http://apple-juice.online` and gets shuffled around sequentially: `http` $\rightarrow$ `https` $\rightarrow$ `https://www`.
+
+* **Action:** In your Cloudflare dashboard, go to **Rules** -> **Redirect Rules** (or Page Rules) and ensure you have a single rule that instantly catches all traffic and forces it to your primary root domain cleanly in a single step. Make sure the DNS records for both `@` and `www` are actively proxied (the orange cloud icon should be turned on).
+
+---
+
+## 4. Why is Cloudflare Flagging HTTP/2?
+
+Even though Cloudflare shows `HTTP/3` under your technology list, the audit scanner is complaining about an outdated protocol. This happens if the crawler hits an asset hosted on an external server or a non-proxied subdomain.
+
+* **Action:** Go to your Cloudflare dashboard under **Network**, double-check that **HTTP/2** and **gRPC** are toggled on, and verify that any asset links (like images or external code snippets) are hosted locally on your domain rather than being pulled from a raw un-proxied server.
+
+What specific error messages pop up in your browser's Developer Console when you load the page?

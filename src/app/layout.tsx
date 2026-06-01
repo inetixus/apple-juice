@@ -18,6 +18,28 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
+  openGraph: {
+    title: "Apple Juice - Open-Source AI Code Tool for Roblox Studio",
+    description: "Accelerate your game development with Apple Juice, the free open-source AI coding assistant built specifically for Roblox Studio.",
+    url: "https://apple-juice.online/",
+    siteName: "Apple Juice",
+    images: [
+      {
+        url: "/apple_juice_logo.png",
+        width: 512,
+        height: 512,
+        alt: "Apple Juice - Open-Source AI Code Tool for Roblox Studio",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Apple Juice - Open-Source AI Code Tool for Roblox Studio",
+    description: "Accelerate your game development with Apple Juice, the free open-source AI coding assistant built specifically for Roblox Studio.",
+    images: ["/apple_juice_logo.png"],
+  },
 };
 
 export default function RootLayout({
