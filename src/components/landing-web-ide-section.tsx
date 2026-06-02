@@ -1,10 +1,8 @@
 "use client";
 
-import Image, { type StaticImageData } from "next/image";
-import dashboardImg from "@/icons/dashboard.png";
-import ideImg from "@/icons/IDE.png";
 import { SpineAnchor } from "./landing-spine";
 import { GlassParallaxPanel } from "./glass-parallax-panel";
+import { DashboardMockup, IdeMockup } from "./landing-product-mockups";
 
 function CopyBlock({
   label,
@@ -32,37 +30,24 @@ function CopyBlock({
   );
 }
 
-function ProductFrame({ children }: { children: React.ReactNode }) {
+function ProductFrame({
+  children,
+  align = "left",
+}: {
+  children: React.ReactNode;
+  align?: "left" | "right";
+}) {
+  // Offset to one side so the central spine line stays visible in the gutter.
+  const side =
+    align === "left"
+      ? "md:mr-auto md:ml-0"
+      : "md:ml-auto md:mr-0";
   return (
-    <GlassParallaxPanel className="w-full max-w-[1100px] mx-auto">
+    <GlassParallaxPanel className={`w-full md:w-[48%] md:max-w-[600px] mx-auto ${side}`}>
       <div className="liquid-glass-panel w-full rounded-2xl md:rounded-3xl border border-white/15 bg-white/[0.04] backdrop-blur-md overflow-hidden shadow-[0_32px_90px_rgba(0,0,0,0.45)]">
         {children}
       </div>
     </GlassParallaxPanel>
-  );
-}
-
-function ProductImage({
-  src,
-  alt,
-  priority = false,
-}: {
-  src: StaticImageData;
-  alt: string;
-  priority?: boolean;
-}) {
-  return (
-    <Image
-      src={src}
-      alt={alt}
-      width={src.width}
-      height={src.height}
-      className="w-full h-auto block relative z-[1]"
-      quality={90}
-      sizes="(max-width: 1200px) 100vw, 1100px"
-      priority={priority}
-      placeholder="blur"
-    />
   );
 }
 
@@ -111,12 +96,8 @@ export function LandingWebIdeSection() {
           title="One place for every place file"
           body="Open a project, pick your model, and continue where you left off. The dashboard stays out of the way so you can move from idea to Studio session without hunting through tabs."
         />
-        <ProductFrame>
-          <ProductImage
-            src={dashboardImg}
-            alt="Apple Juice creator lobby with projects, juice tank, and quick prompts"
-            priority
-          />
+        <ProductFrame align="left">
+          <DashboardMockup />
         </ProductFrame>
       </SpineAnchor>
 
@@ -134,11 +115,8 @@ export function LandingWebIdeSection() {
           title="Production-minded editing, not a toy demo"
           body="Syntax highlighting, file navigation, and pairing status live in the same view as the conversation—so you always know what the agent changed and what Studio will receive."
         />
-        <ProductFrame>
-          <ProductImage
-            src={ideImg}
-            alt="Apple Juice web IDE editor and agent chat"
-          />
+        <ProductFrame align="right">
+          <IdeMockup />
         </ProductFrame>
       </SpineAnchor>
     </div>

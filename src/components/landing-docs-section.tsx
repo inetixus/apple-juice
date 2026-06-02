@@ -268,6 +268,7 @@ end`
 export function LandingDocsSection() {
   const [activeTab, setActiveTab] = useState<string>("datastore");
   const [copied, setCopied] = useState<boolean>(false);
+  const [expanded, setExpanded] = useState<boolean>(false);
 
   const activeExample = EXAMPLES.find((ex) => ex.id === activeTab) || EXAMPLES[0];
 
@@ -275,6 +276,11 @@ export function LandingDocsSection() {
     navigator.clipboard.writeText(activeExample.code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleTabChange = (id: string) => {
+    setActiveTab(id);
+    setExpanded(false);
   };
 
   return (
@@ -286,7 +292,7 @@ export function LandingDocsSection() {
       <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[450px] h-[450px] bg-[#ccff00]/[0.02] blur-[140px] pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-[350px] h-[350px] bg-blue-500/[0.02] blur-[120px] pointer-events-none" />
 
-      <div className="max-w-[1240px] mx-auto relative z-10">
+      <div className="max-w-[960px] mx-auto relative z-10">
         
         {/* Header Block */}
         <div className="text-center mb-16 md:mb-20">
@@ -310,7 +316,7 @@ export function LandingDocsSection() {
             return (
               <button
                 key={ex.id}
-                onClick={() => setActiveTab(ex.id)}
+                onClick={() => handleTabChange(ex.id)}
                 className={`flex items-center gap-2.5 px-5 py-3 rounded-full text-xs font-black uppercase tracking-wider border transition-all duration-300 ${
                   isActive
                     ? "bg-[#ccff00] text-black border-[#ccff00] shadow-[0_0_24px_rgba(204,255,0,0.18)]"
@@ -325,10 +331,10 @@ export function LandingDocsSection() {
         </div>
 
         {/* Interactive Layout Content Container */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="flex flex-col gap-8 items-start">
           
-          {/* Column 1: AI Logic & Instructions (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col gap-6 h-full justify-between">
+          {/* Prompt + Reasoning (compact horizontal cards) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full">
             
             {/* Prompt Card */}
             <div className="bg-[#07080a]/60 border border-white/5 rounded-3xl p-6 md:p-8 backdrop-blur-md shadow-2xl">
@@ -379,65 +385,61 @@ export function LandingDocsSection() {
 
           </div>
 
-          {/* Column 2: Code Editor Tab & Output View (7 cols) */}
-          <div className="lg:col-span-7">
-            <div className="bg-[#06070a] border border-white/[0.08] rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.65)] flex flex-col relative">
+          {/* Code Editor (compact — expandable) */}
+          <div className="w-full">
+            <div className="bg-[#06070a] border border-white/[0.08] rounded-2xl overflow-hidden shadow-[0_16px_48px_rgba(0,0,0,0.5)] flex flex-col relative">
               
               {/* Studio Window Bar */}
-              <div className="flex items-center justify-between border-b border-white/[0.06] bg-[#090b10] px-6 py-4">
-                <div className="flex items-center gap-3">
-                  {/* File System Path Details */}
-                  <div className="flex items-center gap-2 text-white/40 text-xs font-bold font-mono">
-                    <span className="text-[#ff8c00]">✦</span>
-                    <span>{activeExample.filePath}</span>
-                  </div>
+              <div className="flex items-center justify-between border-b border-white/[0.06] bg-[#090b10] px-4 py-3">
+                <div className="flex items-center gap-2 text-white/40 text-[11px] font-bold font-mono">
+                  <span className="text-[#ff8c00]">✦</span>
+                  <span>{activeExample.filePath}</span>
                 </div>
-
-                <div className="flex items-center gap-2.5">
-                  {/* Copy Button with responsive text */}
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white/70 hover:text-white transition-all text-xs font-bold uppercase tracking-wider"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-[#ccff00]" />
-                        <span className="text-[#ccff00]">Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copy Code</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white/70 hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3 h-3 text-[#ccff00]" />
+                      <span className="text-[#ccff00]">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* Code Tab Strip */}
-              <div className="flex items-center bg-[#07090d] px-6 border-b border-white/[0.03]">
-                <div className="flex items-center gap-2 border-b-2 border-[#ccff00] text-[#ccff00] px-3 py-2.5 text-xs font-black uppercase tracking-wider font-mono">
+              <div className="flex items-center bg-[#07090d] px-4 border-b border-white/[0.03]">
+                <div className="flex items-center gap-1.5 border-b-2 border-[#ccff00] text-[#ccff00] px-2.5 py-2 text-[10px] font-black uppercase tracking-wider font-mono">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#ccff00]" />
                   {activeExample.fileName}
                 </div>
-                <div className="text-white/20 px-3 py-2.5 text-xs font-bold font-mono hover:text-white/40 cursor-not-allowed">
-                  WorkspaceDocs.md
+              </div>
+
+              {/* Code Panel — compact with fade-out mask */}
+              <div className="relative">
+                <div className={`overflow-y-auto p-4 text-left font-mono text-[11px] sm:text-[12px] leading-relaxed text-white/80 bg-black/40 transition-all duration-300 ${expanded ? "max-h-[600px]" : "max-h-[200px]"}`}>
+                  <pre className="whitespace-pre overflow-x-auto selection:bg-[#ccff00]/20 selection:text-[#ccff00]">
+                    <code>{activeExample.code}</code>
+                  </pre>
                 </div>
+                {!expanded && (
+                  <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-[#06070a] to-transparent pointer-events-none" />
+                )}
               </div>
 
-              {/* Code Panel */}
-              <div className="overflow-y-auto max-h-[460px] p-6 text-left relative font-mono text-xs sm:text-[13px] leading-relaxed text-white/80 bg-black/40">
-                <pre className="whitespace-pre overflow-x-auto selection:bg-[#ccff00]/20 selection:text-[#ccff00]">
-                  <code>{activeExample.code}</code>
-                </pre>
-              </div>
-
-              {/* Code Footer */}
-              <div className="border-t border-white/[0.04] bg-[#08090d] px-6 py-3.5 flex items-center justify-between text-[11px] font-bold text-white/40 font-mono">
-                <span>UTF-8 · Luau Engine</span>
-                <span className="text-[#ccff00]">Apple Juice Compiler v1.4</span>
-              </div>
-
+              {/* Expand / collapse toggle */}
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="w-full px-4 py-2.5 bg-[#08090d] border-t border-white/[0.04] text-[10px] font-bold uppercase tracking-wider text-white/45 hover:text-white/70 transition-colors flex items-center justify-center gap-1.5"
+              >
+                {expanded ? "Show less" : "Show full code"}
+              </button>
             </div>
           </div>
 

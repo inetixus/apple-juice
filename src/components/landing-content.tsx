@@ -18,12 +18,12 @@ import dynamic from "next/dynamic";
 import { LandingCliSection } from "./landing-cli-section";
 import { LandingHeroShowcase } from "./landing-hero-showcase";
 import { LandingAdShowcase } from "./landing-ad-showcase";
-import { LandingDocsSection } from "./landing-docs-section";
 
 import { LandingWebIdeSection } from "./landing-web-ide-section";
 import { SpineSection } from "./landing-spine";
 import { MagneticButton } from "./magnetic-button";
 import { FaqItemPremium } from "./faq-item-premium";
+import { NavLiquidTabs } from "./nav-liquid-tabs";
 import { signIn } from "next-auth/react";
 import { motion } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
@@ -187,32 +187,7 @@ export function LandingContent({
             </span>
           </div>
 
-          <div className="hidden md:flex items-center gap-10">
-            <a
-              href="#explore"
-              className="text-[11px] font-bold uppercase tracking-wider text-white/40 hover:text-white transition-colors duration-200"
-            >
-              Web IDE
-            </a>
-            <a
-              href="#cli"
-              className="text-[11px] font-bold uppercase tracking-wider text-[#ffb347] hover:text-[#ffd700] transition-colors duration-200"
-            >
-              CLI
-            </a>
-            <a
-              href="#pricing"
-              className="text-[11px] font-bold uppercase tracking-wider text-white/40 hover:text-white transition-colors duration-200"
-            >
-              Pricing
-            </a>
-            <a
-              href="#faq"
-              className="text-[11px] font-bold uppercase tracking-wider text-white/40 hover:text-white transition-colors duration-200"
-            >
-              FAQ
-            </a>
-          </div>
+          <NavLiquidTabs scrolled={scrolled} />
 
           <button
             onClick={() =>
@@ -351,10 +326,16 @@ export function LandingContent({
             See the full story
           </h2>
           <p className="text-white/50 text-base md:text-lg font-medium max-w-2xl mx-auto leading-relaxed">
-            Same cursor, clicks, warp loader, and Studio sync as the hero — with in-video captions that walk through every feature on loop.
+            A 25-second cut from prompt to playtest — describe a mechanic, watch the Luau get written, and see it sync straight into Roblox Studio.
           </p>
         </div>
-        <LandingAdShowcase />
+        <LandingAdShowcase
+          onCta={() =>
+            session
+              ? (window.location.href = "/dashboard")
+              : setShowAuthGuide(true)
+          }
+        />
       </section>
 
       {/* Seamless light bleed into Web IDE — overlaps hero boundary */}
@@ -465,8 +446,6 @@ export function LandingContent({
         </div>
         </div>
       </SpineSection>
-
-      <LandingDocsSection />
 
       <div className="relative">
 
