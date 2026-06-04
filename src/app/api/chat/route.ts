@@ -98,7 +98,7 @@ type ChatBody = {
   fileContents?: { name: string; content: string }[];
   autoSync?: boolean;
   tree?: string;
-  uiStyle?: "none" | "lemonade" | "dracula" | "zap" | "claude";
+  uiStyle?: "none" | "lemonade" | "dracula" | "zap";
   /** Web client opts into token-by-token SSE streaming. Other consumers
    *  (e.g. the CLI's buffered JSON reader) omit this and get a JSON response. */
   stream?: boolean;

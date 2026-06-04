@@ -26,6 +26,7 @@ import {
 
 import { WorkspaceTree } from "@/components/workspace-tree";
 import { StripeWave } from "@/components/stripe-wave";
+import { SlashCommandInput } from "@/components/slash-command";
 
 type DashboardClientProps = {
   username: string;
@@ -155,8 +156,8 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   }, [autoPlaytest]);
 
   const [selectedUIStyle, setSelectedUIStyle] = useState<
-    "none" | "stud" | "dracula" | "zap" | "claude"
-  >("claude");
+    "none" | "stud" | "dracula" | "zap"
+  >("zap");
   const missedPollsRef = useRef<number>(0);
   // Feature: Asset search
   const [assetQuery, setAssetQuery] = useState("");
@@ -3404,6 +3405,28 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                     )}
                                   </div>
                                 )}
+                              </div>
+                              
+                              {/* LEGACY CHAT INPUT */}
+                              <div className="w-full max-w-4xl p-6 flex-shrink-0 mt-auto">
+                                <div className="relative">
+                                  <SlashCommandInput
+                                    value={prompt}
+                                    onChange={setPrompt}
+                                    onSubmit={() => submitPrompt()}
+                                    placeholder="Type a command or press / for commands..."
+                                    disabled={isGenerating}
+                                    className="w-full bg-white/[0.03] border border-white/5 rounded-2xl py-4 pl-4 pr-12 text-[13px] text-white focus:outline-none focus:border-[#ccff00]/30 min-h-[56px] max-h-48 custom-scrollbar transition-all"
+                                    extraCommands={[]}
+                                  />
+                                  <button
+                                    onClick={() => submitPrompt()}
+                                    disabled={isGenerating || !prompt.trim()}
+                                    className="absolute right-3 bottom-3 p-2 rounded-xl bg-[#ccff00] text-black hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:scale-100"
+                                  >
+                                    <ArrowRight className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>

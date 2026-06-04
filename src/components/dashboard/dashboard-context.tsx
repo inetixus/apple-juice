@@ -77,8 +77,8 @@ export interface DashboardContextType {
   setAutoRetry: Dispatch<SetStateAction<boolean>>;
   autoPlaytest: boolean;
   setAutoPlaytest: Dispatch<SetStateAction<boolean>>;
-  selectedUIStyle: "none" | "stud" | "dracula" | "zap" | "claude";
-  setSelectedUIStyle: Dispatch<SetStateAction<"none" | "stud" | "dracula" | "zap" | "claude">>;
+  selectedUIStyle: "none" | "stud" | "dracula" | "zap";
+  setSelectedUIStyle: Dispatch<SetStateAction<"none" | "stud" | "dracula" | "zap">>;
   assetQuery: string;
   setAssetQuery: Dispatch<SetStateAction<string>>;
   assetResults: any[];

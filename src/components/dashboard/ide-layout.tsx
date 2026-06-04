@@ -1102,9 +1102,7 @@ export function IdeLayout() {
                       ? "bg-[#bd93f9]"
                       : selectedUIStyle === "zap"
                         ? "bg-[#ccff00]"
-                        : selectedUIStyle === "claude"
-                          ? "bg-[#d77757]"
-                          : "bg-blue-400"
+                        : "bg-blue-400"
                     }`}
                 />
                 <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">
@@ -1113,12 +1111,15 @@ export function IdeLayout() {
               </button>
               <div className="absolute bottom-full right-0 pb-1 w-32 opacity-0 translate-y-1 pointer-events-none group-hover/style-ide:opacity-100 group-hover/style-ide:translate-y-0 group-hover/style-ide:pointer-events-auto transition-all z-[200]">
                 <div className="bg-[#14161a] border border-white/10 rounded-lg shadow-2xl overflow-hidden">
-                  {(["zap", "stud", "dracula", "claude"] as const).map((style) => (
+                  {(["zap", "stud", "dracula"] as const).map((style) => (
                     <button
                       key={style}
-                      onClick={() => setSelectedUIStyle(style)}
+                      onClick={() => {
+                        setSelectedUIStyle(style);
+                        window.localStorage.setItem("apple-juice-style", style);
+                      }}
                       className={`w-full text-left px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${selectedUIStyle === style
-                          ? "bg-[#d77757]/10 text-[#d77757]"
+                          ? "bg-[#ccff00]/10 text-[#ccff00]"
                           : "text-white/40 hover:bg-white/5 hover:text-white"
                         }`}
                     >
@@ -1127,9 +1128,7 @@ export function IdeLayout() {
                             ? "bg-[#bd93f9]"
                             : style === "zap"
                               ? "bg-[#ccff00]"
-                              : style === "claude"
-                                ? "bg-[#d77757]"
-                                : "bg-blue-400"
+                              : "bg-blue-400"
                           }`}
                       />
                       {style}
@@ -1177,7 +1176,10 @@ export function IdeLayout() {
                     {availableModels.map((m: string) => (
                       <button
                         key={m}
-                        onClick={() => setSelectedModel(m)}
+                        onClick={() => {
+                          setSelectedModel(m);
+                          window.localStorage.setItem("apple-juice-model", m);
+                        }}
                         className={`w-full text-left px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${selectedModel === m
                             ? "bg-[#ccff00]/10 text-[#ccff00]"
                             : "text-white/40 hover:bg-white/5 hover:text-white"
