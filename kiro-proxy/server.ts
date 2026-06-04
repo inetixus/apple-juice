@@ -67,6 +67,7 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
       .replace(/^>\s*/, '');
 
     if (chunk) {
+      console.log('AI Chunk:', chunk); // Log to Render dashboard
       fullResponse += chunk;
       
       if (stream) {
