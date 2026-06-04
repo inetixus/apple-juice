@@ -27,7 +27,7 @@ import {
   type KiroPlan,
 } from "@/lib/kiro-models";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Translate a Gemini `streamGenerateContent?alt=sse` byte stream into the

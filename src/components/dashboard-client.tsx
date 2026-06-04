@@ -2418,6 +2418,11 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
               }
             }
           }
+        } catch (streamErr) {
+          // Stream was interrupted (e.g. Vercel timeout, network drop).
+          // Proceed gracefully with whatever we accumulated so far.
+          console.warn("[AppleJuice] Stream interrupted:", streamErr);
+        }
 
           // Mark steps as done only after stream completes
           setThinkingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
