@@ -23,6 +23,7 @@ import { validateGeneration } from "@/lib/validate-generation";
 import {
   isKiroModelAvailable,
   bestKiroModelForPlan,
+  resolveKiroModelId,
   type KiroPlan,
 } from "@/lib/kiro-models";
 
@@ -1181,6 +1182,7 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
     // Streams token-by-token when the web client asks for it.
     if (effectiveProvider === "kiro") {
       const kiroKey = process.env.KIRO_API_KEY || "";
+      const kiroUrl = process.env.KIRO_API_URL || "https://api.kiro.dev/v1";
       if (!kiroKey) {
         return Response.json(
           { error: "Kiro is not configured", detail: "KIRO_API_KEY is missing from the server environment." },
@@ -1188,84 +1190,83 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
         );
       }
 
-      const { spawn } = await import("child_process");
       modelUsed = effectiveModel;
+      
+      const strictPrompt = prompt ? prompt + "\n\nCRITICAL INSTRUCTION: You MUST format your ENTIRE response as a single valid JSON object containing 'message', 'thinking' (optional), and 'scripts' (array of {name, type, parent, code}). DO NOT include any conversational text outside the JSON block. Start your response with {.\n\nWARNING: You DO NOT have the ability to read files dynamically or wait for user confirmation. You MUST generate the complete, finalized scripts immediately in this single response." : "";
 
-      // Extract the last user message as the prompt
-      let chatPrompt = prompt || "";
-      if (!chatPrompt && body.messages && body.messages.length > 0) {
-        const lastUser = body.messages.filter((m: any) => m.role === "user").pop();
-        if (lastUser) chatPrompt = lastUser.content;
-      }
-
-      if (wantsStream) {
-        let totalBytes = 0;
-        const stream = new ReadableStream({
-          start(controller) {
-            const child = spawn("kiro-cli", ["chat", "--no-interactive", chatPrompt], {
-              env: { ...process.env, KIRO_API_KEY: kiroKey }
-            });
-
-            child.stdout.on("data", (chunk) => {
-              const text = chunk.toString();
-              totalBytes += text.length;
-              const payload = JSON.stringify({ choices: [{ delta: { content: text } }] });
-              controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
-            });
-
-            child.stderr.on("data", (chunk) => {
-              console.error("[Kiro CLI Error]:", chunk.toString());
-            });
-
-            child.on("error", (err: any) => {
-              if (err.code === 'ENOENT') {
-                const errMsg = "Kiro CLI is not installed on this server. You must deploy using the Dockerfile (e.g. Railway/Render) to use Kiro natively.";
-                const payload = JSON.stringify({ choices: [{ delta: { content: `\n[Kiro Error: ${errMsg}]` } }] });
-                controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
-              } else {
-                const payload = JSON.stringify({ choices: [{ delta: { content: `\n[Kiro Error: ${err.message}]` } }] });
-                controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
-              }
-            });
-
-            child.on("close", async () => {
-              controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`));
-              controller.close();
-              if (!isUsingCustomKey && ownerUserId) {
-                const inputTk = Math.ceil((chatPrompt?.length || 0) / 4);
-                const outputTk = Math.ceil(totalBytes / 4);
-                await trackMlUsage(ownerUserId, calculateMlUsed(inputTk, outputTk, effectiveModel));
-              }
-            });
+      const msgs: any[] = [{ role: "system", content: SYSTEM_PROMPT }];
+      if (body.messages && body.messages.length > 0) {
+        const ms = body.messages.map((m, idx) => {
+          if (idx === body.messages!.length - 1 && m.role === "user" && strictPrompt) {
+            return { ...m, content: strictPrompt };
           }
+          return m;
         });
-
-        return new Response(stream, {
-          headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            Connection: "keep-alive",
-          },
-        });
+        msgs.push(...ms);
+      } else {
+        msgs.push({ role: "user", content: strictPrompt });
       }
 
-      // Buffered fallback
+      const targetModel = resolveKiroModelId(effectiveModel);
+
       try {
-        const text = await new Promise<string>((resolve, reject) => {
-          const child = spawn("kiro-cli", ["chat", "--no-interactive", chatPrompt], {
-            env: { ...process.env, KIRO_API_KEY: kiroKey }
-          });
-          let out = "";
-          child.stdout.on("data", d => out += d.toString());
-          child.stderr.on("data", d => console.error(d.toString()));
-          child.on("error", reject);
-          child.on("close", (code) => {
-            if (code !== 0) reject(new Error(`Kiro CLI exited with code ${code}`));
-            else resolve(out);
-          });
+        const res = await fetch(`${kiroUrl.replace(/\/$/, "")}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${kiroKey}`,
+            "HTTP-Referer": "https://applejuice.ai",
+            "X-Title": "Apple Juice"
+          },
+          body: JSON.stringify({
+            model: targetModel,
+            messages: msgs,
+            temperature: mode === "thinking" ? 0.4 : 0.2,
+            max_tokens: Math.min(dynamicMaxOutputTokens, 8192),
+            stream: wantsStream
+          })
         });
 
-        tokensUsed = Math.ceil(text.length / 4);
+        if (!res.ok) {
+          const bodyText = await res.text();
+          return Response.json(
+            { error: "Kiro API Error", detail: bodyText },
+            { status: res.status }
+          );
+        }
+
+        if (wantsStream && res.body) {
+          let totalBytes = 0;
+          const originalStream = res.body;
+          const transformStream = new TransformStream({
+            transform(chunk, controller) {
+              totalBytes += chunk.length;
+              controller.enqueue(chunk);
+            },
+            async flush() {
+              if (!isUsingCustomKey && ownerUserId) {
+                const inputTk = Math.ceil((strictPrompt?.length || 0) / 4);
+                const outputTk = Math.ceil(totalBytes / 4);
+                const mlUsed = calculateMlUsed(inputTk, outputTk, effectiveModel);
+                await trackMlUsage(ownerUserId, mlUsed);
+              }
+            }
+          });
+
+          return new Response(originalStream.pipeThrough(transformStream), {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              Connection: "keep-alive",
+            },
+          });
+        }
+
+        // Buffered fallback
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content || "";
+        tokensUsed = data.usage?.completion_tokens || Math.ceil(text.length / 4);
+
         const content = extractContent(text);
         const result = processResponse(content, text);
         code = result.code;
@@ -1276,10 +1277,7 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
           return Response.json({ error: "Kiro returned empty output", detail: text }, { status: 502 });
         }
       } catch (e: any) {
-        if (e.code === 'ENOENT') {
-           return Response.json({ error: "Kiro CLI is missing", detail: "You must deploy using Docker to embed the Kiro CLI binary natively." }, { status: 502 });
-        }
-        return Response.json({ error: "Kiro execution failed", detail: e.message, model: effectiveModel }, { status: 502 });
+        return Response.json({ error: "Kiro fetch failed", detail: e.message, model: effectiveModel }, { status: 502 });
       }
 
       // ── Apple Juice AI Provider Path ──────────────────────────────────────────
