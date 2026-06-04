@@ -9,12 +9,37 @@ local TOOLBAR_NAME = "Apple Juice AI Sync"
 local WIDGET_TITLE = "Apple Juice AI Sync"
 local VERSION = "v1.1.0"
 
-local BASE_URL = "http://localhost:3000"
+local defaultServerUrl = "https://apple-juice.online"
+local BASE_URL = defaultServerUrl
 local CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
 local POLL_ENDPOINT = BASE_URL .. "/api/poll"
 local LOGS_ENDPOINT = BASE_URL .. "/api/logs"
 local TREE_ENDPOINT = BASE_URL .. "/api/tree"
 local REPORT_FILE_ENDPOINT = BASE_URL .. "/api/report-file"
+
+local function updateEndpoints(newUrl)
+	newUrl = newUrl:gsub("%s+", "")
+	if newUrl == "" then
+		newUrl = defaultServerUrl
+	end
+	-- Strip trailing slash if present
+	if newUrl:sub(-1) == "/" then
+		newUrl = newUrl:sub(1, -2)
+	end
+	BASE_URL = newUrl
+	CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
+	POLL_ENDPOINT = BASE_URL .. "/api/poll"
+	LOGS_ENDPOINT = BASE_URL .. "/api/logs"
+	TREE_ENDPOINT = BASE_URL .. "/api/tree"
+	REPORT_FILE_ENDPOINT = BASE_URL .. "/api/report-file"
+end
+
+pcall(function()
+	local savedUrl = plugin:GetSetting("ServerUrl")
+	if savedUrl and savedUrl ~= "" then
+		updateEndpoints(savedUrl)
+	end
+end)
 local POLL_INTERVAL = 0.2
 
 local toolbar = plugin:CreateToolbar(TOOLBAR_NAME)
@@ -75,6 +100,29 @@ spacer.BackgroundTransparency = 1
 spacer.LayoutOrder = 3
 spacer.Parent = root
 
+local serverUrlInput = Instance.new("TextBox")
+serverUrlInput.Name = "ServerUrlInput"
+serverUrlInput.Size = UDim2.new(1, 0, 0, 32)
+serverUrlInput.BackgroundColor3 = Color3.fromRGB(35, 38, 45)
+serverUrlInput.TextColor3 = Color3.fromRGB(240, 240, 245)
+serverUrlInput.Font = Enum.Font.GothamMedium
+serverUrlInput.TextSize = 13
+serverUrlInput.PlaceholderText = "Server URL (e.g. https://apple-juice.online)"
+serverUrlInput.Text = BASE_URL
+serverUrlInput.ClearTextOnFocus = false
+serverUrlInput.BorderSizePixel = 0
+serverUrlInput.LayoutOrder = 3.2
+serverUrlInput.Parent = root
+
+local serverUrlCorner = Instance.new("UICorner")
+serverUrlCorner.CornerRadius = UDim.new(0, 6)
+serverUrlCorner.Parent = serverUrlInput
+
+local serverUrlPadding = Instance.new("UIPadding")
+serverUrlPadding.PaddingLeft = UDim.new(0, 8)
+serverUrlPadding.PaddingRight = UDim.new(0, 8)
+serverUrlPadding.Parent = serverUrlInput
+
 local manualInput = Instance.new("TextBox")
 manualInput.Name = "ManualInput"
 manualInput.Size = UDim2.new(1, 0, 0, 32)
@@ -92,6 +140,20 @@ manualInput.Parent = root
 local manualCorner = Instance.new("UICorner")
 manualCorner.CornerRadius = UDim.new(0, 6)
 manualCorner.Parent = manualInput
+
+local manualPadding = Instance.new("UIPadding")
+manualPadding.PaddingLeft = UDim.new(0, 8)
+manualPadding.PaddingRight = UDim.new(0, 8)
+manualPadding.Parent = manualInput
+
+serverUrlInput.FocusLost:Connect(function(enterPressed)
+	local url = serverUrlInput.Text:gsub("%s+", "")
+	updateEndpoints(url)
+	serverUrlInput.Text = BASE_URL
+	pcall(function()
+		plugin:SetSetting("ServerUrl", BASE_URL)
+	end)
+end)
 
 local connectButton = Instance.new("TextButton")
 connectButton.Name = "ConnectButton"
@@ -1168,6 +1230,13 @@ connectButton.MouseButton1Click:Connect(function()
 	end
 
 	task.spawn(function()
+		local url = serverUrlInput.Text:gsub("%s+", "")
+		updateEndpoints(url)
+		serverUrlInput.Text = BASE_URL
+		pcall(function()
+			plugin:SetSetting("ServerUrl", BASE_URL)
+		end)
+
 		local manualKey = manualInput.Text:gsub("%s+", ""):upper()
 		local sessionKey, err
 		
