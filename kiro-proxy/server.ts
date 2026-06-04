@@ -58,7 +58,7 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
   let fullResponse = '';
   let errorOutput = '';
 
-  child.stdout.on('data', (data) => {
+  child.stdout.on('data', (data: any) => {
     let chunk = data.toString();
     
     // Strip ANSI codes and leading >
@@ -79,11 +79,11 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
     }
   });
 
-  child.stderr.on('data', (data) => {
+  child.stderr.on('data', (data: any) => {
     errorOutput += data.toString();
   });
 
-  child.on('close', (code) => {
+  child.on('close', (code: number | null) => {
     if (code !== 0) {
       console.error('Execution error code:', code);
       console.error('stderr:', errorOutput);
