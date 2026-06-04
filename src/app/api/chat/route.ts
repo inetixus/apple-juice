@@ -1209,8 +1209,6 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
 
       const targetModel = resolveKiroModelId(effectiveModel);
 
-      // On Vercel Hobby plan, streaming through Vercel times out at 60s.
-      // Instead, return the proxy URL + payload so the browser streams directly.
       if (wantsStream) {
         // Track usage estimate upfront (best-effort)
         if (!isUsingCustomKey && ownerUserId) {
@@ -1219,21 +1217,81 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
           await trackMlUsage(ownerUserId, mlUsed);
         }
 
-        return Response.json({
-          directStream: true,
-          url: `${kiroUrl.replace(/\/$/, "")}/chat/completions`,
-          payload: {
-            model: targetModel,
-            messages: msgs,
-            temperature: mode === "thinking" ? 0.4 : 0.2,
-            max_tokens: Math.min(dynamicMaxOutputTokens, 8192),
-            stream: true
-          },
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${kiroKey}`,
+        // Stream directly through Vercel — maxDuration=300 covers even long
+        // generations. The directStream bypass was leaking the API key to the
+        // browser and failing with CORS errors from the external origin.
+        try {
+          const res = await fetch(`${kiroUrl.replace(/\/$/, "")}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${kiroKey}`,
+              "HTTP-Referer": "https://applejuice.ai",
+              "X-Title": "Apple Juice",
+            },
+            body: JSON.stringify({
+              model: targetModel,
+              messages: msgs,
+              temperature: mode === "thinking" ? 0.4 : 0.2,
+              max_tokens: Math.min(dynamicMaxOutputTokens, 8192),
+              stream: true,
+            }),
+          });
+
+          if (!res.ok) {
+            const bodyText = await res.text();
+            const payload = JSON.stringify({ choices: [{ delta: { content: `\n[Kiro API Error ${res.status}]: ${bodyText}` } }] });
+            const stream = new ReadableStream({
+              start(controller) {
+                controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
+                controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`));
+                controller.close();
+              },
+            });
+            return new Response(stream, {
+              headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+            });
           }
-        });
+
+          if (res.body) {
+            let totalBytes = 0;
+            const originalStream = res.body;
+            const transformStream = new TransformStream({
+              transform(chunk, controller) {
+                totalBytes += chunk.length;
+                controller.enqueue(chunk);
+              },
+              async flush() {
+                if (!isUsingCustomKey && ownerUserId) {
+                  const inputTk = Math.ceil((strictPrompt?.length || 0) / 4);
+                  const outputTk = Math.ceil(totalBytes / 4);
+                  const mlUsed = calculateMlUsed(inputTk, outputTk, effectiveModel);
+                  await trackMlUsage(ownerUserId, mlUsed);
+                }
+              },
+            });
+            return new Response(originalStream.pipeThrough(transformStream), {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                Connection: "keep-alive",
+              },
+            });
+          }
+        } catch (e: any) {
+          const errMsg = e.message || "Failed to connect to Kiro API.";
+          const payload = JSON.stringify({ choices: [{ delta: { content: `\n[Kiro Connection Error]: ${errMsg}` } }] });
+          const stream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
+              controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`));
+              controller.close();
+            },
+          });
+          return new Response(stream, {
+            headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+          });
+        }
       }
 
       try {

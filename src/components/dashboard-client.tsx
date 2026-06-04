@@ -2182,23 +2182,14 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
         signal: abortControllerRef.current.signal,
       });
 
-      // Handle directStream: Vercel returns the proxy URL so we stream directly
-      // from Render, bypassing Vercel's 60s Hobby plan timeout.
+      // If server returned JSON (non-stream response or error), handle it.
       let streamResponse = response;
       if (response.headers.get("Content-Type")?.includes("application/json")) {
         const json = await response.json();
-        if (json.directStream) {
-          streamResponse = await fetch(json.url, {
-            method: "POST",
-            headers: json.headers,
-            body: JSON.stringify(json.payload),
-            signal: abortControllerRef.current.signal,
-          });
-        } else if (json.error) {
+        if (json.error) {
           throw new Error(json.detail || json.error || "API Error");
         } else {
-          // Non-streaming JSON response — handle as normal payload
-          // (fall through to the non-stream path below)
+          // Non-streaming JSON response — fall through to the non-stream path below
           streamResponse = new Response(JSON.stringify(json), {
             headers: { "Content-Type": "application/json" },
           });
@@ -2237,6 +2228,9 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
         }
 
         let buffer = "";
+        // Track script count incrementally to avoid O(n²) matchAll on the full accumulated string
+        let lastKnownScriptCount = 0;
+        let lastKnownScriptName = "";
         try {
           while (true) {
             const { done, value } = await reader.read();
@@ -2357,26 +2351,30 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                             displayContent = messageText;
                           }
 
-                          const matches = [
-                            ...cleanAccumulated.matchAll(
-                              /"name"\s*:\s*"([^"]+)"/g,
-                            ),
-                          ];
-                          const scriptCount = matches.length;
-                          
+                          // Count scripts incrementally — avoid O(n²) matchAll over the full accumulated string.
+                          // Scan only the tail of the string (last chunk + small overlap).
+                          const scanStart = Math.max(0, cleanAccumulated.length - delta.length - 30);
+                          const newChunk = cleanAccumulated.substring(scanStart);
+                          const newNameMatches = [...newChunk.matchAll(/"name"\s*:\s*"([^"]+)"/g)];
+                          if (newNameMatches.length > 0) {
+                            lastKnownScriptCount += newNameMatches.length;
+                            lastKnownScriptName = newNameMatches[newNameMatches.length - 1][1];
+                          }
+                          const scriptCount = lastKnownScriptCount;
+
                           if (scriptCount > 0) {
-                            const latestScript = matches[matches.length - 1][1];
+                            const latestScript = lastKnownScriptName;
+                            // Cap code preview at 500 chars to avoid unbounded string growth in UI state.
                             let codeSnippet = "";
                             const codeIdx = cleanAccumulated.lastIndexOf('"code"');
-                            
                             if (codeIdx !== -1) {
                               const colonIdx = cleanAccumulated.indexOf(':', codeIdx);
                               if (colonIdx !== -1) {
                                 const quoteIdx = cleanAccumulated.indexOf('"', colonIdx);
                                 if (quoteIdx !== -1) {
-                                  let rawCode = cleanAccumulated.substring(quoteIdx + 1);
-                                  rawCode = rawCode.replace(/("(\s*})?\s*]?\s*}?\s*)$/, '');
+                                  const rawCode = cleanAccumulated.substring(quoteIdx + 1, quoteIdx + 600);
                                   codeSnippet = rawCode
+                                    .replace(/("(\s*})?\s*]?\s*}?\s*)$/, '')
                                     .replace(/\\n/g, "\n")
                                     .replace(/\\"/g, '"')
                                     .replace(/\\\\/g, "\\")
