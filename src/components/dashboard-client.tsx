@@ -2424,196 +2424,193 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
           console.warn("[AppleJuice] Stream interrupted:", streamErr);
         }
 
-          // Mark steps as done only after stream completes
-          setThinkingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
+        // Mark steps as done only after stream completes
+        setThinkingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
 
-          // Process the finalized content for scripts
-          const result = parseChatResponse(accumulated);
-          const payloadFiles = [...attachedFiles];
-          setAttachedFiles([]);
-          setAttachedAsset(null);
+        // Process the finalized content for scripts
+        const result = parseChatResponse(accumulated);
+        const payloadFiles = [...attachedFiles];
+        setAttachedFiles([]);
+        setAttachedAsset(null);
 
-          const isTruncated =
-            accumulated.trim().endsWith("...") ||
-            (accumulated.match(/\{/g) || []).length >
-            (accumulated.match(/\}/g) || []).length ||
-            (accumulated.match(/\[/g) || []).length >
-            (accumulated.match(/\]/g) || []).length;
+        const isTruncated =
+          accumulated.trim().endsWith("...") ||
+          (accumulated.match(/\{/g) || []).length >
+          (accumulated.match(/\}/g) || []).length ||
+          (accumulated.match(/\[/g) || []).length >
+          (accumulated.match(/\]/g) || []).length;
 
-          setMessages((prev) => {
-            const index = prev.findIndex((m) => m.id === assistantMsgId);
-            if (index !== -1) {
-              const last = prev[index];
-              const structured = buildAssistantMessage(
-                result,
-                payloadFiles,
-                true,
+        setMessages((prev) => {
+          const index = prev.findIndex((m) => m.id === assistantMsgId);
+          if (index !== -1) {
+            const last = prev[index];
+            const structured = buildAssistantMessage(
+              result,
+              payloadFiles,
+              true,
+            );
+
+            let mergedScripts = structured.scripts || [];
+            let mergedContent =
+              structured.content || (structured.script ? "" : accumulated);
+
+            if (continuationRef.current > 0 && last.content) {
+              // Merge scripts
+              const existingScripts =
+                last.scripts || (last.script ? [last.script] : []);
+              const existingNames = new Set(
+                existingScripts.map((s) => s.name || ""),
               );
+              const newScripts = (structured.scripts || []).filter(
+                (s) => !existingNames.has(s.name || ""),
+              );
+              mergedScripts = [...existingScripts, ...newScripts];
 
-              let mergedScripts = structured.scripts || [];
-              let mergedContent =
-                structured.content || (structured.script ? "" : accumulated);
-
-              if (continuationRef.current > 0 && last.content) {
-                // Merge scripts
-                const existingScripts =
-                  last.scripts || (last.script ? [last.script] : []);
-                const existingNames = new Set(
-                  existingScripts.map((s) => s.name || ""),
-                );
-                const newScripts = (structured.scripts || []).filter(
-                  (s) => !existingNames.has(s.name || ""),
-                );
-                mergedScripts = [...existingScripts, ...newScripts];
-
-                // Merge content/message
-                if (
-                  structured.content &&
-                  !last.content.includes(structured.content)
-                ) {
-                  mergedContent = last.content + "\n\n" + structured.content;
-                } else {
-                  mergedContent = last.content;
-                }
+              // Merge content/message
+              if (
+                structured.content &&
+                !last.content.includes(structured.content)
+              ) {
+                mergedContent = last.content + "\n\n" + structured.content;
               } else {
-                mergedContent =
-                  structured.content ||
-                  (structured.scripts?.length
+                mergedContent = last.content;
+              }
+            } else {
+              mergedContent =
+                structured.content ||
+                (structured.scripts?.length
+                  ? ""
+                  : structured.script
                     ? ""
-                    : structured.script
-                      ? ""
-                      : accumulated);
-              }
-
-              let finalScriptsToSync: any[] = [];
-              const newMsgs = [...prev];
-              newMsgs[index] = {
-                ...last,
-                ...structured,
-                scripts: mergedScripts,
-                content: mergedContent,
-              };
-              finalScriptsToSync = mergedScripts;
-
-              // Streamed responses bypass the server's quality pass, so apply
-              // the same deterministic validation client-side: dependency
-              // ordering, print headers, dedupe, single trailing playtest.
-              if (finalScriptsToSync.length > 0) {
-                try {
-                  const report = validateGeneration(finalScriptsToSync as any, {
-                    ensurePlaytest: autoPlaytestRef.current || isAutoFixingRef.current,
-                  });
-                  if (report.scripts.length > 0) {
-                    finalScriptsToSync = report.scripts as any[];
-                    newMsgs[index] = {
-                      ...newMsgs[index],
-                      scripts: finalScriptsToSync,
-                    };
-                  }
-                } catch {
-                  /* validation is best-effort; fall back to raw scripts */
-                }
-              }
-
-              // Update ref for auto-fix context
-              if (finalScriptsToSync.length > 0) {
-                lastGeneratedScriptsRef.current = finalScriptsToSync.map(
-                  (s: any) => ({
-                    ...s,
-                    code: s.code || "",
-                  }),
-                );
-              }
-
-              return newMsgs;
+                    : accumulated);
             }
-            return prev;
-          });
 
-          // Automatic Continuation Logic
-          if (isTruncated && continuationRef.current < 3) {
-            continuationRef.current += 1;
-            console.log(
-              `[AppleJuice] Auto-continuing (Attempt ${continuationRef.current}/4)...`,
-            );
+            let finalScriptsToSync: any[] = [];
+            const newMsgs = [...prev];
+            newMsgs[index] = {
+              ...last,
+              ...structured,
+              scripts: mergedScripts,
+              content: mergedContent,
+            };
+            finalScriptsToSync = mergedScripts;
 
-            showToast(
-              `Continuing generation of large system (Part ${continuationRef.current + 1}/4)...`,
-              "info",
-            );
+            // Streamed responses bypass the server's quality pass, so apply
+            // the same deterministic validation client-side: dependency
+            // ordering, print headers, dedupe, single trailing playtest.
+            if (finalScriptsToSync.length > 0) {
+              try {
+                const report = validateGeneration(finalScriptsToSync as any, {
+                  ensurePlaytest: autoPlaytestRef.current || isAutoFixingRef.current,
+                });
+                if (report.scripts.length > 0) {
+                  finalScriptsToSync = report.scripts as any[];
+                  newMsgs[index] = {
+                    ...newMsgs[index],
+                    scripts: finalScriptsToSync,
+                  };
+                }
+              } catch {
+                /* validation is best-effort; fall back to raw scripts */
+              }
+            }
 
+            // Update ref for auto-fix context
+            if (finalScriptsToSync.length > 0) {
+              lastGeneratedScriptsRef.current = finalScriptsToSync.map(
+                (s: any) => ({
+                  ...s,
+                  code: s.code || "",
+                }),
+              );
+            }
 
-            setTimeout(() => {
-              void submitPrompt("Continue generating", true);
-            }, 1000);
+            return newMsgs;
+          }
+          return prev;
+        });
+
+        // Automatic Continuation Logic
+        if (isTruncated && continuationRef.current < 3) {
+          continuationRef.current += 1;
+          console.log(
+            `[AppleJuice] Auto-continuing (Attempt ${continuationRef.current}/4)...`,
+          );
+
+          showToast(
+            `Continuing generation of large system (Part ${continuationRef.current + 1}/4)...`,
+            "info",
+          );
+
+          setTimeout(() => {
+            void submitPrompt("Continue generating", true);
+          }, 1000);
+        } else {
+          continuationRef.current = 0;
+
+          const readScriptAction = lastGeneratedScriptsRef.current.find(
+            (s: any) => s.action === "read_script",
+          );
+
+          if (readScriptAction && readScriptAction.name) {
+            // Trigger read script flow
+            fetch("/api/request-file", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                key: sessionKey,
+                fileName: readScriptAction.name,
+              }),
+            });
+
+            waitingForFileRef.current = readScriptAction.name;
           } else {
-            continuationRef.current = 0;
+            // Auto-sync logic: sync if Autonomous Mode is on, OR if this is an auto-fix response
+            const shouldAutoSync = autoPlaytest || isAutoFixingRef.current;
+            if (
+              shouldAutoSync &&
+              lastGeneratedScriptsRef.current.length > 0
+            ) {
+              const statusMsg = isAutoFixingRef.current
+                ? "Syncing auto-fix to Studio..."
+                : "Auto-syncing and starting playtest...";
+              showToast(statusMsg, "info");
 
-            const readScriptAction = lastGeneratedScriptsRef.current.find(
-              (s: any) => s.action === "read_script",
-            );
-
-            if (readScriptAction && readScriptAction.name) {
-              // Trigger read script flow
-              fetch("/api/request-file", {
+              const endpoint = "/api/revert-code";
+              const body = {
+                sessionKey,
+                scripts: lastGeneratedScriptsRef.current,
+              };
+              fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  key: sessionKey,
-                  fileName: readScriptAction.name,
-                }),
-              });
-
-              waitingForFileRef.current = readScriptAction.name;
-            } else {
-              // Auto-sync logic: sync if Autonomous Mode is on, OR if this is an auto-fix response
-              const shouldAutoSync = autoPlaytest || isAutoFixingRef.current;
-              if (
-                shouldAutoSync &&
-                lastGeneratedScriptsRef.current.length > 0
-              ) {
-                const statusMsg = isAutoFixingRef.current
-                  ? "Syncing auto-fix to Studio..."
-                  : "Auto-syncing and starting playtest...";
-                showToast(statusMsg, "info");
-
-                const endpoint = "/api/revert-code";
-                const body = {
-                  sessionKey,
-                  scripts: lastGeneratedScriptsRef.current,
-                };
-                fetch(endpoint, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(body),
+                body: JSON.stringify(body),
+              })
+                .then((res) => {
+                  if (res.ok) {
+                    setMessages((msgs) =>
+                      msgs.map((m) =>
+                        m.id === assistantMsgId
+                          ? { ...m, pendingSync: false }
+                          : m,
+                      ),
+                    );
+                  }
                 })
-                  .then((res) => {
-                    if (res.ok) {
-                      setMessages((msgs) =>
-                        msgs.map((m) =>
-                          m.id === assistantMsgId
-                            ? { ...m, pendingSync: false }
-                            : m,
-                        ),
-                      );
-                    }
-                  })
-                  .finally(() => {
-                    // Clear auto-fix flag after sync completes
-                    isAutoFixingRef.current = false;
-                  });
-              } else {
-                isAutoFixingRef.current = false;
-              }
+                .finally(() => {
+                  // Clear auto-fix flag after sync completes
+                  isAutoFixingRef.current = false;
+                });
+            } else {
+              isAutoFixingRef.current = false;
             }
           }
-        } finally {
-          setIsGenerating(false);
-          isGeneratingRef.current = false;
-          playSound("success");
-          setThinkingSteps([]);
-          void fetchUsage();
         }
+        setIsGenerating(false);
+        isGeneratingRef.current = false;
+        playSound("success");
+        setThinkingSteps([]);
+        void fetchUsage();
         return;
       }
 
