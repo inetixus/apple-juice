@@ -1177,10 +1177,19 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
       }
     }
 
-    // ── Kiro Provider Path (Fake CLI running in Vercel via Gemini) ───────────
-    // This acts as the "Kiro API system" but directly routes requests to Gemini
-    // using the server's GOOGLE_API_KEY.
+    // ── Kiro Provider Path (shared-credit inference) ──────────────────────────
+    // OpenAI-compatible Chat Completions via the platform's Kiro API key.
+    // Streams token-by-token when the web client asks for it.
     if (effectiveProvider === "kiro") {
+      const kiroKey = process.env.KIRO_API_KEY || "";
+      const kiroUrl = process.env.KIRO_API_URL || "https://api.kiro.dev/v1";
+      if (!kiroKey) {
+        return Response.json(
+          { error: "Kiro is not configured", detail: "KIRO_API_KEY is missing from the server environment." },
+          { status: 503 },
+        );
+      }
+
       modelUsed = effectiveModel;
       
       const strictPrompt = prompt ? prompt + "\n\nCRITICAL INSTRUCTION: You MUST format your ENTIRE response as a single valid JSON object containing 'message', 'thinking' (optional), and 'scripts' (array of {name, type, parent, code}). DO NOT include any conversational text outside the JSON block. Start your response with {.\n\nWARNING: You DO NOT have the ability to read files dynamically or wait for user confirmation. You MUST generate the complete, finalized scripts immediately in this single response." : "";
@@ -1198,63 +1207,30 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
         msgs.push({ role: "user", content: strictPrompt });
       }
 
-      const kiroId = resolveKiroModelId(effectiveModel);
-      
-      // Map fake Kiro models to Gemini models
-      const geminiModel = kiroId.includes("opus") || kiroId.includes("sonnet") || kiroId.includes("glm") 
-         ? "gemini-2.5-pro" 
-         : "gemini-2.5-flash";
-
-      const googleKey = process.env.GOOGLE_API_KEY || "";
-      if (!googleKey) {
-        return Response.json({ error: "Missing GOOGLE_API_KEY", detail: "Server is missing GOOGLE_API_KEY" }, { status: 503 });
-      }
-
-      const finalUrl = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:streamGenerateContent?alt=sse&key=${googleKey}`;
-
-      const systemParts: string[] = [];
-      const contents: { role: string; parts: { text: string }[] }[] = [];
-
-      for (const msg of msgs) {
-        if (msg.role === "system") {
-          systemParts.push(msg.content);
-        } else {
-          contents.push({
-            role: msg.role === "assistant" ? "model" : "user",
-            parts: [{ text: msg.content }],
-          });
-        }
-      }
-
-      if (contents.length === 0) {
-        contents.push({ role: "user", parts: [{ text: "Hello" }] });
-      }
-
-      const geminiBody: Record<string, unknown> = {
-        contents,
-        generationConfig: {
-          temperature: mode === "thinking" ? 0.4 : 0.2,
-          maxOutputTokens: Math.min(dynamicMaxOutputTokens, 8192),
-        },
-      };
-
-      if (systemParts.length > 0) {
-        geminiBody.systemInstruction = {
-          parts: [{ text: systemParts.join("\n\n") }],
-        };
-      }
+      const targetModel = resolveKiroModelId(effectiveModel);
 
       try {
-        const res = await fetch(finalUrl, {
+        const res = await fetch(`${kiroUrl.replace(/\/$/, "")}/chat/completions`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(geminiBody)
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${kiroKey}`,
+            "HTTP-Referer": "https://applejuice.ai",
+            "X-Title": "Apple Juice"
+          },
+          body: JSON.stringify({
+            model: targetModel,
+            messages: msgs,
+            temperature: mode === "thinking" ? 0.4 : 0.2,
+            max_tokens: Math.min(dynamicMaxOutputTokens, 8192),
+            stream: wantsStream
+          })
         });
 
         if (!res.ok) {
           const bodyText = await res.text();
           if (wantsStream) {
-            const payload = JSON.stringify({ choices: [{ delta: { content: `\n[Kiro Internal Error ${res.status}]: ${bodyText}` } }] });
+            const payload = JSON.stringify({ choices: [{ delta: { content: `\n[Kiro API Error ${res.status}]: ${bodyText}` } }] });
             const stream = new ReadableStream({
               start(controller) {
                 controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
@@ -1262,55 +1238,25 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                 controller.close();
               }
             });
-            return new Response(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" } });
+            return new Response(stream, {
+              headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" }
+            });
           }
-          return Response.json({ error: "Kiro Internal Error", detail: bodyText }, { status: res.status });
+          return Response.json(
+            { error: "Kiro API Error", detail: bodyText },
+            { status: res.status }
+          );
         }
 
         if (wantsStream && res.body) {
           let totalBytes = 0;
-          let buffer = "";
+          const originalStream = res.body;
           const transformStream = new TransformStream({
             transform(chunk, controller) {
-              const text = new TextDecoder().decode(chunk);
-              buffer += text;
-              
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-              
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  try {
-                    const dataStr = line.slice(6).trim();
-                    if (dataStr === "[DONE]") continue; // Ignore Gemini's [DONE] if any
-                    const data = JSON.parse(dataStr);
-                    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                    if (content) {
-                      totalBytes += content.length;
-                      const payload = JSON.stringify({ choices: [{ delta: { content } }] });
-                      controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
-                    }
-                  } catch (e) {}
-                }
-              }
+              totalBytes += chunk.length;
+              controller.enqueue(chunk);
             },
-            async flush(controller) {
-              if (buffer.startsWith("data: ")) {
-                try {
-                  const dataStr = buffer.slice(6).trim();
-                  if (dataStr !== "[DONE]") {
-                    const data = JSON.parse(dataStr);
-                    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                    if (content) {
-                      totalBytes += content.length;
-                      const payload = JSON.stringify({ choices: [{ delta: { content } }] });
-                      controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
-                    }
-                  }
-                } catch (e) {}
-              }
-              controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`));
-              
+            async flush() {
               if (!isUsingCustomKey && ownerUserId) {
                 const inputTk = Math.ceil((strictPrompt?.length || 0) / 4);
                 const outputTk = Math.ceil(totalBytes / 4);
@@ -1320,7 +1266,7 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
             }
           });
 
-          return new Response(res.body.pipeThrough(transformStream), {
+          return new Response(originalStream.pipeThrough(transformStream), {
             headers: {
               "Content-Type": "text/event-stream",
               "Cache-Control": "no-cache",
@@ -1331,22 +1277,22 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
 
         // Buffered fallback
         const data = await res.json();
-        const candidateText = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
-        tokensUsed = Math.ceil(candidateText.length / 4);
+        const text = data.choices?.[0]?.message?.content || "";
+        tokensUsed = data.usage?.completion_tokens || Math.ceil(text.length / 4);
 
-        const content = extractContent(candidateText);
-        const result = processResponse(content, candidateText);
+        const content = extractContent(text);
+        const result = processResponse(content, text);
         code = result.code;
         raw = result.raw;
         preambleReasoning = result.preamble;
 
         if (!code && !raw) {
-          return Response.json({ error: "Kiro returned empty output", detail: candidateText }, { status: 502 });
+          return Response.json({ error: "Kiro returned empty output", detail: text }, { status: 502 });
         }
       } catch (e: any) {
         if (wantsStream) {
-          const errMsg = e.message || "Failed to route Kiro to Gemini backend.";
-          const payload = JSON.stringify({ choices: [{ delta: { content: `\n[Kiro Internal Error]: ${errMsg}` } }] });
+          const errMsg = e.message || "Failed to connect to KIRO_API_URL. Make sure your tunnel or proxy is running.";
+          const payload = JSON.stringify({ choices: [{ delta: { content: `\n[Kiro Connection Error]: ${errMsg}` } }] });
           const stream = new ReadableStream({
             start(controller) {
               controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
@@ -1354,9 +1300,11 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
               controller.close();
             }
           });
-          return new Response(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" } });
+          return new Response(stream, {
+            headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" }
+          });
         }
-        return Response.json({ error: "Kiro mapping failed", detail: e.message, model: effectiveModel }, { status: 502 });
+        return Response.json({ error: "Kiro fetch failed", detail: e.message, model: effectiveModel }, { status: 502 });
       }
 
       // ── Apple Juice AI Provider Path ──────────────────────────────────────────
