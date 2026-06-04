@@ -1984,6 +1984,16 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
       thinking: thinking || undefined,
       tokensUsed,
     });
+  } catch (err: any) {
+    console.error("API Chat route error:", err);
+    return Response.json(
+      {
+        error: "Internal Server Error",
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      },
+      { status: 500 }
+    );
   } finally {
     if (!isUsingCustomKey) {
       await decrementActiveGenerations();
