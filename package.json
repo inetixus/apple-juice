@@ -7,6 +7,7 @@
     "aj": "./dist/aj.cjs"
   },
   "scripts": {
+    "kiro-bridge": "node scripts/kiro-bridge.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -52,6 +53,7 @@
     "@types/node": "22.19.17",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
+    "localtunnel": "^2.0.2",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
     "vitest": "^2.1.9"
