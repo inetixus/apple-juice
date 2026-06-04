@@ -52,6 +52,11 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders(); // Instantly send headers to Vercel
+
+    // Send an immediate empty chunk to bypass Vercel's Time-To-First-Byte timeout
+    const dummyPayload = JSON.stringify({ choices: [{ delta: { content: "" } }] });
+    res.write(`data: ${dummyPayload}\n\n`);
   }
 
   let fullResponse = '';
