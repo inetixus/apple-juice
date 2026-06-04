@@ -22,6 +22,7 @@ export function DashboardTopbar() {
     avatarUrl,
     usage,
     setShowSettings,
+    sessionKey,
   } = useDashboard();
 
   return (
@@ -60,6 +61,11 @@ export function DashboardTopbar() {
               <span className="text-[9px] font-black text-red-400 uppercase tracking-widest">
                 Studio Disconnected
               </span>
+              {sessionKey && (
+                <span className="text-[9px] font-black text-white/50 uppercase tracking-widest ml-1 pl-2 border-l border-white/10 select-all cursor-text">
+                  Key: {sessionKey}
+                </span>
+              )}
             </div>
           ))}
       </div>
