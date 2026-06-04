@@ -284,7 +284,7 @@ export function IdeLayout() {
         {isIdeSidePanelOpen && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 280, opacity: 1 }}
+            animate={{ width: 420, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: "spring", bounce: 0, duration: 0.3 }}
             className="flex-shrink-0 bg-[#101115]/80 backdrop-blur-xl border-r border-white/5 flex flex-col overflow-hidden relative"
@@ -1109,7 +1109,7 @@ export function IdeLayout() {
                   {selectedUIStyle === "none" ? "Stud" : selectedUIStyle}
                 </span>
               </button>
-              <div className="absolute bottom-full right-0 pb-1 w-32 opacity-0 translate-y-1 pointer-events-none group-hover/style-ide:opacity-100 group-hover/style-ide:translate-y-0 group-hover/style-ide:pointer-events-auto transition-all z-[200]">
+              <div className="absolute bottom-full right-0 pb-1 w-32 opacity-0 translate-y-1 invisible group-hover/style-ide:opacity-100 group-hover/style-ide:translate-y-0 group-hover/style-ide:visible transition-all z-[200]">
                 <div className="bg-[#14161a] border border-white/10 rounded-lg shadow-2xl overflow-hidden">
                   {(["zap", "stud", "dracula"] as const).map((style) => (
                     <button
@@ -1170,7 +1170,7 @@ export function IdeLayout() {
                     .replace("gemini-", "Gemini ")}
                 </span>
               </button>
-              <div className="absolute bottom-full right-0 pb-1 w-56 opacity-0 translate-y-1 pointer-events-none group-hover/model-ide:opacity-100 group-hover/model-ide:translate-y-0 group-hover/model-ide:pointer-events-auto transition-all z-[200]">
+              <div className="absolute bottom-full right-0 pb-1 w-56 opacity-0 translate-y-1 invisible group-hover/model-ide:opacity-100 group-hover/model-ide:translate-y-0 group-hover/model-ide:visible transition-all z-[200]">
                 <div className="bg-[#14161a] border border-white/10 rounded-lg shadow-2xl overflow-hidden">
                   <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
                     {availableModels.map((m: string) => (

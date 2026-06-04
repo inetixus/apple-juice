@@ -3409,6 +3409,21 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                               
                               {/* LEGACY CHAT INPUT */}
                               <div className="w-full max-w-4xl p-6 flex-shrink-0 mt-auto">
+                                <div className="flex items-center justify-between px-2 mb-2">
+                                  <div className="text-[10px] text-white/40 uppercase tracking-widest font-black">
+                                    Current Model: <span className="text-[#ccff00]">{selectedModel}</span>
+                                  </div>
+                                  <select 
+                                    className="bg-white/5 border border-white/10 text-white/60 text-[10px] uppercase font-bold tracking-widest px-2 py-1 rounded outline-none cursor-pointer"
+                                    value={selectedModel}
+                                    onChange={(e) => {
+                                      setSelectedModel(e.target.value);
+                                      window.localStorage.setItem("apple-juice-model", e.target.value);
+                                    }}
+                                  >
+                                    {availableModels.map((m: string) => <option key={m} value={m} className="bg-[#14161a]">{m}</option>)}
+                                  </select>
+                                </div>
                                 <div className="relative">
                                   <SlashCommandInput
                                     value={prompt}
