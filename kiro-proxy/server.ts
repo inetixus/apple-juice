@@ -39,52 +39,70 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
   const lastMessage = messages[messages.length - 1];
   const prompt = lastMessage.content;
 
-  console.log(`Received request for model ${model}. Generating...`);
+  console.log(`Received request for model ${model}. Generating with spawn...`);
 
-  execFile(
-    'kiro-cli',
-    ['chat', '--no-interactive', prompt],
-    {
-      env: {
-        ...process.env,
-        KIRO_API_KEY: kiroApiKey
-      },
-      maxBuffer: 1024 * 1024 * 10 // 10MB max buffer for large outputs
-    },
-    (error, stdout, stderr) => {
-      if (error) {
-        console.error('Execution error:', error);
-        console.error('stderr:', stderr);
-        return res.status(500).json({
-          error: 'An error occurred while communicating with the CLI',
-          detail: stderr || error.message
-        });
-      }
+  const { spawn } = require('child_process');
+  const child = spawn('kiro-cli', ['chat', '--no-interactive', prompt], {
+    env: {
+      ...process.env,
+      KIRO_API_KEY: kiroApiKey
+    }
+  });
 
-      // Strip ANSI escape codes (terminal colors) and leading prompt characters
-      const cleanText = stdout
-        .replace(/\x1B\[\d+(;\d+)*m/g, '') // remove colors
-        .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '') // comprehensive ANSI strip
-        .replace(/^>\s*/, '') // remove leading "> "
-        .trim();
+  if (stream) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+  }
 
-      const generatedText = cleanText;
+  let fullResponse = '';
+  let errorOutput = '';
 
+  child.stdout.on('data', (data) => {
+    let chunk = data.toString();
+    
+    // Strip ANSI codes and leading >
+    chunk = chunk
+      .replace(/\x1B\[\d+(;\d+)*m/g, '') 
+      .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '')
+      .replace(/^>\s*/, '');
+
+    if (chunk) {
+      fullResponse += chunk;
+      
       if (stream) {
-        // Return SSE stream matching OpenAI format
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        
         const payload = JSON.stringify({
-          choices: [{ delta: { content: generatedText } }]
+          choices: [{ delta: { content: chunk } }]
         });
         res.write(`data: ${payload}\n\n`);
-        res.write(`data: [DONE]\n\n`);
-        return res.end();
       }
+    }
+  });
 
-      // Return buffered OpenAI format
+  child.stderr.on('data', (data) => {
+    errorOutput += data.toString();
+  });
+
+  child.on('close', (code) => {
+    if (code !== 0) {
+      console.error('Execution error code:', code);
+      console.error('stderr:', errorOutput);
+      
+      if (!stream) {
+        return res.status(500).json({
+          error: 'An error occurred while communicating with the CLI',
+          detail: errorOutput
+        });
+      } else {
+        const payload = JSON.stringify({ choices: [{ delta: { content: `\n\n[CLI Error]: ${errorOutput}` } }] });
+        res.write(`data: ${payload}\n\n`);
+      }
+    }
+
+    if (stream) {
+      res.write(`data: [DONE]\n\n`);
+      return res.end();
+    } else {
       return res.status(200).json({
         id: 'chatcmpl-' + Math.random().toString(36).substring(2),
         object: 'chat.completion',
@@ -95,7 +113,7 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
             index: 0,
             message: {
               role: 'assistant',
-              content: generatedText
+              content: fullResponse.trim()
             },
             finish_reason: 'stop'
           }
@@ -107,7 +125,7 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
         }
       });
     }
-  );
+  });
 });
 
 app.listen(port, () => {
