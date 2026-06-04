@@ -55,7 +55,13 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
     res.flushHeaders(); // Instantly send headers to Vercel
 
     // Send an immediate empty chunk to bypass Vercel's Time-To-First-Byte timeout
-    const dummyPayload = JSON.stringify({ choices: [{ delta: { content: "" } }] });
+    const dummyPayload = JSON.stringify({ 
+      id: 'chatcmpl-kiro',
+      object: 'chat.completion.chunk',
+      created: Math.floor(Date.now() / 1000),
+      model: 'kiro-model',
+      choices: [{ index: 0, delta: { content: "" } }] 
+    });
     res.write(`data: ${dummyPayload}\n\n`);
   }
 
@@ -77,7 +83,11 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
       
       if (stream) {
         const payload = JSON.stringify({
-          choices: [{ delta: { content: chunk } }]
+          id: 'chatcmpl-kiro',
+          object: 'chat.completion.chunk',
+          created: Math.floor(Date.now() / 1000),
+          model: model || 'kiro-model',
+          choices: [{ index: 0, delta: { content: chunk } }]
         });
         res.write(`data: ${payload}\n\n`);
       }
