@@ -3,6 +3,8 @@ type ModelsBody = {
   provider?: string;
 };
 
+import { KIRO_MODEL_LABELS } from "@/lib/kiro-models";
+
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
 const GOOGLE_FALLBACK_MODELS = [
   "models/gemini-3.1-pro",
@@ -13,20 +15,8 @@ const GOOGLE_FALLBACK_MODELS = [
   "models/text-bison-001",
 ];
 
-const ANTIGRAVITY_MODELS = [
-  "Gemini 3.1 Pro",
-  "Gemini 3.1 Flash",
-  "Gemini 3.1 Flash-Lite",
-  "Gemini 3 Pro",
-  "Gemini 3 Flash",
-  "Gemini 2.5 Pro",
-  "Gemini 2.5 Flash",
-  "DeepSeek V4 Flash",
-  "DeepSeek V3",
-  "DeepSeek R1",
-  "GPT oss 120b",
-  "Nemotron 3 Super 120b",
-];
+// Shared-credit pool runs on the Kiro lineup.
+const KIRO_MODELS_LIST = KIRO_MODEL_LABELS;
 
 const OPENCODE_MODELS = [
   "big-pickle",
@@ -50,8 +40,8 @@ export async function POST(request: Request) {
       : process.env.OPENAI_API_KEY) ||
     "";
 
-  if (provider === "apple_juice_ai") {
-    return Response.json({ models: ANTIGRAVITY_MODELS });
+  if (provider === "apple_juice_ai" || provider === "kiro") {
+    return Response.json({ models: KIRO_MODELS_LIST });
   }
 
   if (provider === "opencode") {

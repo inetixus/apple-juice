@@ -78,7 +78,7 @@ const FAQ_ITEMS = [
   {
     question: "Which AI models are supported?",
     answer:
-      "We support the world's most advanced reasoning models including DeepSeek R1, OpenAI o1, GPT-4o, Claude 3.5 Sonnet, and Google Gemini 2.0/1.5. You can switch between them at any time in your dashboard settings.",
+      "We route through Kiro's frontier and open-weight lineup: Claude Opus 4.8/4.7/4.6/4.5, Claude Sonnet 4.6/4.5/4.0, Claude Haiku 4.5, plus open-weight models like GLM-5, MiniMax M2.5/M2.1, DeepSeek 3.2 and Qwen3 Coder Next. An Auto router picks the best model per task, or you can choose one yourself in the dashboard.",
   },
 ];
 
@@ -507,7 +507,7 @@ export function LandingContent({
                   <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
                     <Plus className="w-3.5 h-3.5 text-white/60" />
                   </div>
-                  <span>Gemini Flash & GPT-4o-mini</span>
+                  <span>Auto router & Haiku 4.5</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
@@ -552,7 +552,7 @@ export function LandingContent({
                   <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
                     <Plus className="w-3.5 h-3.5 text-white/60" />
                   </div>
-                  <span>DeepSeek V3 & Gemini Pro</span>
+                  <span>Claude Sonnet 4.6 & GLM-5</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
@@ -601,7 +601,7 @@ export function LandingContent({
                   <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
                     <Plus className="w-3.5 h-3.5 text-white/60" />
                   </div>
-                  <span>DeepSeek R1 & OpenAI o1</span>
+                  <span>Claude Opus 4.8 & 4.7</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
@@ -652,19 +652,19 @@ export function LandingContent({
               <tbody className="text-white/80 font-medium">
                 <tr className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                   <td className="py-5 px-4 text-white font-bold">Free</td>
-                  <td className="py-5 px-4">DeepSeek V3 / Gemini Flash</td>
+                  <td className="py-5 px-4">Haiku 4.5 / Qwen3 Coder</td>
                   <td className="py-5 px-4 text-white/40">Standard (128k)</td>
                   <td className="py-5 px-4 text-[#ccff00] font-black uppercase text-xs tracking-wider">Lightning</td>
                 </tr>
                 <tr className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                   <td className="py-5 px-4 text-[#ccff00] font-black">Pro</td>
-                  <td className="py-5 px-4">GPT-4o / Claude 3.5 Sonnet</td>
+                  <td className="py-5 px-4">Sonnet 4.6 / GLM-5</td>
                   <td className="py-5 px-4 text-white/40">Enhanced (200k)</td>
                   <td className="py-5 px-4 text-emerald-400 font-bold uppercase text-xs tracking-wider">Instant</td>
                 </tr>
                 <tr className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-5 px-4 text-[#00f0ff] font-bold">Ultra</td>
-                  <td className="py-5 px-4">DeepSeek R1 / OpenAI o1</td>
+                  <td className="py-5 px-4">Claude Opus 4.8 / 4.7</td>
                   <td className="py-5 px-4 text-white/40">Deep Window (1M+)</td>
                   <td className="py-5 px-4 text-blue-400 font-bold uppercase text-xs tracking-wider">Priority Queue</td>
                 </tr>
@@ -812,9 +812,23 @@ export function LandingContent({
 
             <div className="flex flex-col gap-3.5">
               <span className="text-[10px] uppercase font-bold text-white/40 font-mono tracking-wider">Connect</span>
-              <a href="#" className="text-xs font-semibold text-white/60 hover:text-white transition-colors">GitHub</a>
-              <a href="#" className="text-xs font-semibold text-white/60 hover:text-white transition-colors">Discord</a>
-              <a href="#" className="text-xs font-semibold text-white/60 hover:text-white transition-colors">Support</a>
+              <a
+                href="https://github.com/inetixus/apple-juice"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-white/60 hover:text-white transition-colors"
+              >
+                GitHub
+              </a>
+              <a
+                href="https://discord.gg/EV5QSefDKc"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold text-white/60 hover:text-white transition-colors"
+              >
+                Discord
+              </a>
+              <a href="/support" className="text-xs font-semibold text-white/60 hover:text-white transition-colors">Support</a>
             </div>
           </div>
         </div>
@@ -842,6 +856,13 @@ export function LandingContent({
           <div className="flex flex-wrap items-center justify-center gap-8 text-[11px] text-white/40 font-semibold">
             <a href="/tos" className="hover:text-white transition-colors">Terms of Service</a>
             <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
+            <a
+              href="/dashboard?tester=1"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 text-white/35 hover:text-white hover:border-white/25 transition-colors"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-[#ccff00]/70" />
+              Tester access
+            </a>
             <span className="text-[10px] text-white/30 font-medium">Not affiliated with Roblox Corporation.</span>
           </div>
         </div>

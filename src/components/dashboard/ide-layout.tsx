@@ -109,6 +109,7 @@ export function IdeLayout() {
     setSelectedUIStyle,
     setShowSettings,
     thinkingSteps,
+    isTester,
   } = useDashboard() as any;
 
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -183,7 +184,7 @@ export function IdeLayout() {
           onClick={() => {
             setActiveProjectId(null);
             setWorkspaceStyle("legacy");
-            router.push("/dashboard");
+            router.push(isTester ? "/dashboard?tester=1" : "/dashboard");
           }}
           className="w-8 h-8 rounded-lg bg-[#ccff00] flex items-center justify-center hover:scale-110 transition-transform mb-4 shadow-sm"
         >

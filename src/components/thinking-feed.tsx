@@ -1,14 +1,50 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Eye, Cpu, Brain, Zap, Check } from "lucide-react";
+import {
+  Sparkles,
+  Eye,
+  Cpu,
+  Brain,
+  Zap,
+  Check,
+  FilePlus2,
+  FileCode,
+  Pencil,
+  Trash2,
+  FolderInput,
+  PlayCircle,
+} from "lucide-react";
 
+/**
+ * Legacy step shape (kept for backward compatibility with older callers).
+ */
 export type ThinkingStep = {
   icon: "thinking" | "looking" | "generating" | "reasoning" | "optimizing";
   label: string;
   done: boolean;
 };
 
-const stepIcons = {
+/**
+ * Richer activity step — what the agent is actually doing, with optional
+ * detail (e.g. the destination path).
+ */
+export type ActivityStep = {
+  kind:
+    | "thinking"
+    | "reading"
+    | "writing"
+    | "creating"
+    | "editing"
+    | "deleting"
+    | "moving"
+    | "playtesting"
+    | "done";
+  label: string;
+  detail?: string;
+  done: boolean;
+};
+
+const legacyIcons = {
   thinking: Sparkles,
   looking: Eye,
   generating: Cpu,
@@ -16,11 +52,29 @@ const stepIcons = {
   optimizing: Zap,
 };
 
+const activityIcons = {
+  thinking: Brain,
+  reading: Eye,
+  writing: FileCode,
+  creating: FilePlus2,
+  editing: Pencil,
+  deleting: Trash2,
+  moving: FolderInput,
+  playtesting: PlayCircle,
+  done: Check,
+};
+
+type AnyStep = ThinkingStep | ActivityStep;
+
+function isActivityStep(s: AnyStep): s is ActivityStep {
+  return "kind" in s;
+}
+
 export function ThinkingFeed({
   steps,
   isDeepSeek,
 }: {
-  steps: ThinkingStep[];
+  steps: AnyStep[];
   isDeepSeek?: boolean;
 }) {
   if (steps.length === 0) return null;
@@ -51,11 +105,14 @@ export function ThinkingFeed({
 
       <AnimatePresence initial={false}>
         {steps.map((step, i) => {
-          const Icon = stepIcons[step.icon];
+          const Icon = isActivityStep(step)
+            ? activityIcons[step.kind]
+            : legacyIcons[step.icon];
           const isCurrent = !step.done && (i === steps.length - 1 || steps[i + 1]?.done);
           const accentColor = isDeepSeek ? "text-blue-400" : "text-[#ccff00]";
           const accentBg = isDeepSeek ? "bg-blue-500/10" : "bg-[#ccff00]/10";
           const glowColor = isDeepSeek ? "shadow-[0_0_12px_rgba(59,130,246,0.4)]" : "shadow-[0_0_12px_rgba(204,255,0,0.4)]";
+          const detail = isActivityStep(step) ? step.detail : undefined;
 
           return (
             <motion.div
@@ -104,18 +161,25 @@ export function ThinkingFeed({
 
               {/* Text details */}
               <div className="flex-1 min-w-0 flex flex-col gap-0.5 mt-0.5">
-                <motion.span
-                  layout
-                  className={`font-semibold transition-colors truncate tracking-wide ${
-                    step.done
-                      ? "text-white/30 line-through"
-                      : isCurrent
-                      ? "text-white font-bold"
-                      : "text-white/50"
-                  }`}
-                >
-                  {step.label}
-                </motion.span>
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <motion.span
+                    layout
+                    className={`font-semibold transition-colors truncate tracking-wide ${
+                      step.done
+                        ? "text-white/30 line-through"
+                        : isCurrent
+                        ? "text-white font-bold"
+                        : "text-white/50"
+                    }`}
+                  >
+                    {step.label}
+                  </motion.span>
+                  {detail && (
+                    <span className="text-[10px] font-mono text-white/30 truncate flex-shrink min-w-0">
+                      {detail}
+                    </span>
+                  )}
+                </div>
 
                 {/* Subtext description / shimmer progress bar for the active step */}
                 {isCurrent && (

@@ -10,6 +10,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint",
     "aj": "node --experimental-strip-types cli/aj.ts",
     "build:cli": "(taskkill /IM aj.exe /F >nul 2>&1 || echo No running aj.exe) && (taskkill /IM aj-bg.exe /F >nul 2>&1 || echo No running aj-bg.exe) && npx esbuild cli/aj.ts --bundle --platform=node --format=cjs --outfile=dist/aj.cjs --external:enquirer && node -e \"const fs=require('fs');if(fs.existsSync('package.json'))fs.renameSync('package.json','package.json.bak');\" && npx pkg dist/aj.cjs --targets node18-win-x64 --output dist/aj.exe && node -e \"const fs=require('fs');if(fs.existsSync('package.json.bak'))fs.renameSync('package.json.bak','package.json');fs.mkdirSync('public',{recursive:true});if(fs.existsSync('dist/aj-bg.exe'))fs.unlinkSync('dist/aj-bg.exe');fs.copyFileSync('dist/aj.exe','dist/aj-bg.exe');if(fs.existsSync('public/aj.exe'))fs.unlinkSync('public/aj.exe');fs.copyFileSync('dist/aj.exe','public/aj.exe');if(fs.existsSync('public/aj-bg.exe'))fs.unlinkSync('public/aj-bg.exe');fs.copyFileSync('dist/aj.exe','public/aj-bg.exe');fs.copyFileSync('install_aj.ps1','public/install.ps1');\" && npm run build:installer",
     "build:installer": "npx esbuild cli/install.ts --bundle --platform=node --format=cjs --outfile=dist/install.cjs && node -e \"const fs=require('fs');fs.copyFileSync('dist/aj.exe','dist/aj.bin');if(fs.existsSync('package.json'))fs.renameSync('package.json','package.json.bak');\" && npx pkg -c cli/pkg-config.json dist/install.cjs --targets node18-win-x64 --output dist/install.exe && node -e \"const fs=require('fs');if(fs.existsSync('package.json.bak'))fs.renameSync('package.json.bak','package.json');fs.mkdirSync('public',{recursive:true});if(fs.existsSync('public/install.exe'))fs.unlinkSync('public/install.exe');fs.copyFileSync('dist/install.exe','public/install.exe');\""
@@ -49,7 +53,8 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "tailwindcss": "4.1.17",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "^2.1.9"
   },
   "pkg": {
     "assets": [

@@ -44,6 +44,8 @@ coverage/
 .vercel
 .env*.local
 *.mp3
+# …but the ad's background music ships with the site
+!public/ad-music.mp3
 
 # Python virtual environments
 .venv/
@@ -67,3 +69,7 @@ claude-code-main/
 public/*.exe
 public/*.bin
 public/*.mp4
+
+# Secrets / credential files
+KIROTOKEN.json
+*.token.json

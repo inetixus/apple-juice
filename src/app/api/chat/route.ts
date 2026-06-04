@@ -18,8 +18,71 @@ import { buildUIExamplesBlock } from "@/lib/ui-examples";
 import { getAppleJuiceUISource, isUIRelatedPrompt } from "@/lib/apple-juice-ui-library";
 import { buildLibraryDeploymentPrompt, getUILibraryDeploymentScripts } from "@/lib/ui-library-deployer";
 import { buildSystemsContextBlock } from "@/lib/systems";
+import { validateGeneration } from "@/lib/validate-generation";
+import {
+  isKiroModelAvailable,
+  bestKiroModelForPlan,
+  resolveKiroModelId,
+  type KiroPlan,
+} from "@/lib/kiro-models";
 
 export const maxDuration = 60;
+
+/**
+ * Translate a Gemini `streamGenerateContent?alt=sse` byte stream into the
+ * OpenAI-style SSE shape the dashboard client already consumes
+ * (`data: {"choices":[{"delta":{"content":"..."}}]}`). Lets the Gemini path
+ * stream token-by-token without changing the client. `onBytes` accumulates the
+ * emitted text length for usage tracking.
+ */
+function geminiToOpenAISSE(
+  upstream: ReadableStream<Uint8Array>,
+  onText: (chunk: string) => void,
+): ReadableStream<Uint8Array> {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = "";
+
+  const emit = (controller: TransformStreamDefaultController, text: string) => {
+    if (!text) return;
+    onText(text);
+    const payload = JSON.stringify({ choices: [{ delta: { content: text } }] });
+    controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+  };
+
+  const handleLine = (line: string, controller: TransformStreamDefaultController) => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) return;
+    const json = trimmed.replace(/^data:\s*/, "");
+    if (json === "[DONE]") return;
+    try {
+      const obj = JSON.parse(json);
+      const parts = obj?.candidates?.[0]?.content?.parts;
+      if (Array.isArray(parts)) {
+        for (const p of parts) {
+          if (typeof p?.text === "string") emit(controller, p.text);
+        }
+      }
+    } catch {
+      /* partial JSON across chunks — ignored; SSE framing realigns us */
+    }
+  };
+
+  const transform = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      buffer += decoder.decode(chunk, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) handleLine(line, controller);
+    },
+    flush(controller) {
+      if (buffer.trim()) handleLine(buffer, controller);
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+    },
+  });
+
+  return upstream.pipeThrough(transform);
+}
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -36,6 +99,9 @@ type ChatBody = {
   autoSync?: boolean;
   tree?: string;
   uiStyle?: "none" | "lemonade" | "dracula" | "zap" | "claude";
+  /** Web client opts into token-by-token SSE streaming. Other consumers
+   *  (e.g. the CLI's buffered JSON reader) omit this and get a JSON response. */
+  stream?: boolean;
 };
 
 export async function POST(req: Request) {
@@ -59,6 +125,7 @@ export async function POST(req: Request) {
   const prompt = body.prompt?.trim() ?? "";
   const fileContents = body.fileContents ?? [];
   const autoSync = body.autoSync ?? true;
+  const wantsStream = body.stream === true;
 
   // Synced settings fallback chain: Body -> Session Pair (synced from dashboard) -> Standard Defaults
   const provider = (body.provider?.trim() || pair?.provider || "openai").toString();
@@ -96,26 +163,14 @@ export async function POST(req: Request) {
     effectiveProvider = 'openrouter';
   }
 
-  // ── Antigravity provider auto-detection ──
-  // If the user explicitly chose "antigravity", or if they have a linked
-  // Antigravity account and aren't using a custom key, route through Antigravity.
   const userEmail =
     (session?.user as { email?: string } | undefined)?.email || "";
-  const isAntigravityExplicit = provider === "apple_juice_ai";
 
-  if (!isUsingCustomKey && !isAntigravityExplicit) {
-    if (effectiveModel.toLowerCase().includes("deepseek")) {
-      effectiveProvider = "apple_juice_ai";
-    } else {
-      effectiveProvider = "google";
-      if (effectiveModel.toLowerCase().startsWith("gpt-")) {
-        effectiveModel = "gemini-3-flash";
-      }
-    }
-  }
-
-  if (isAntigravityExplicit) {
-    effectiveProvider = "apple_juice_ai";
+  // ── Kiro shared-credit routing ──
+  // When the user isn't supplying their own provider key, all inference goes
+  // through the Kiro API (OpenAI-compatible) using the platform's KIRO_API_KEY.
+  if (!isUsingCustomKey) {
+    effectiveProvider = "kiro";
   }
 
   const finalGoogleKey =
@@ -139,40 +194,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── Rank-Based Model Restrictions ──
-    const plan = userUsage.plan || "free";
-    const requested = effectiveModel;
-
-    const freeModels = [
-      "Gemini 2.5 Flash",
-      "Gemini 3.1 Flash-Lite",
-      "gemini-1.5-flash",
-      "gpt-4o-mini",
-      "GPT oss 120b",
-    ];
-    const proModels = [
-      ...freeModels,
-      "Gemini 3.1 Flash",
-      "DeepSeek V3",
-      "Gemini 3 Pro",
-      "Gemini 3 Flash",
-      "gemini-1.5-pro",
-      "gpt-4o",
-    ];
-
-    const isAvailable = (m: string, p: string) => {
-      if (p === "pure_ultra") return true;
-      if (p === "fresh_pro") return proModels.includes(m);
-      return freeModels.includes(m);
-    };
-
-    if (!isAvailable(requested, plan)) {
-      // Force fallback to the best available model for their tier
-      if (plan === "free") {
-        effectiveModel = "Gemini 2.5 Flash";
-      } else if (plan === "fresh_pro") {
-        effectiveModel = "DeepSeek V3";
-      }
+    // ── Plan-based model gating (Kiro lineup) ──
+    const plan = (userUsage.plan || "free") as KiroPlan;
+    if (!isKiroModelAvailable(effectiveModel, plan)) {
+      // Fall back to the best model this tier can use.
+      effectiveModel = bestKiroModelForPlan(plan);
     }
   }
 
@@ -788,6 +814,59 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
     return { ok: res.ok, text, tokens };
   }
 
+  // Streaming variant — returns the raw OpenAI-style SSE stream so the client
+  // can render tokens as they arrive. Tools are NOT enabled here (tool-call
+  // deltas don't render as text); the client parses the streamed JSON instead.
+  async function callOpenAIStream(
+    key: string,
+    modelName: string,
+    endpointUrl: string,
+  ): Promise<{ ok: boolean; stream: ReadableStream<Uint8Array> | null; errorText?: string }> {
+    const apiMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+    ];
+    if (body.messages && body.messages.length > 0) {
+      const msgs = body.messages.map((m, idx) => {
+        if (idx === body.messages!.length - 1 && m.role === "user" && prompt) {
+          return { ...m, content: prompt };
+        }
+        return m;
+      });
+      apiMessages.push(...msgs);
+      const summary = buildContextSummary(msgs);
+      if (summary) apiMessages.splice(1, 0, { role: "system", content: summary });
+    } else {
+      apiMessages.push({ role: "user", content: prompt });
+    }
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    };
+    if (endpointUrl.includes("openrouter.ai")) {
+      headers["HTTP-Referer"] = "https://github.com/inetixus/apple-juice";
+      headers["X-Title"] = "Apple Juice Roblox Sync";
+    }
+
+    const res = await fetch(endpointUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: modelName,
+        temperature: mode === "thinking" ? 0.4 : 0.2,
+        messages: apiMessages,
+        max_tokens: dynamicMaxOutputTokens,
+        stream: true,
+      }),
+    });
+
+    if (!res.ok || !res.body) {
+      const errorText = await res.text().catch(() => "");
+      return { ok: false, stream: null, errorText };
+    }
+    return { ok: true, stream: res.body };
+  }
+
   function extractContent(rawResponse: string, isGoogle = false): string {
     try {
       const parsed = JSON.parse(rawResponse);
@@ -1097,8 +1176,78 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
       }
     }
 
-    // ── Apple Juice AI Provider Path ──────────────────────────────────────────
-    if (effectiveProvider === "apple_juice_ai") {
+    // ── Kiro Provider Path (shared-credit inference) ──────────────────────────
+    // OpenAI-compatible Chat Completions via the platform's Kiro API key.
+    // Streams token-by-token when the web client asks for it.
+    if (effectiveProvider === "kiro") {
+      const kiroKey = process.env.KIRO_API_KEY || "";
+      const kiroUrlBase = (process.env.KIRO_API_URL || "https://api.kiro.dev/v1").replace(/\/$/, "");
+      const kiroEndpoint = `${kiroUrlBase}/chat/completions`;
+
+      if (!kiroKey) {
+        return Response.json(
+          {
+            error: "Kiro is not configured",
+            detail: "KIRO_API_KEY is missing from the server environment.",
+          },
+          { status: 503 },
+        );
+      }
+
+      const kiroModelId = resolveKiroModelId(effectiveModel);
+      modelUsed = effectiveModel;
+
+      if (wantsStream) {
+        const streamRes = await callOpenAIStream(kiroKey, kiroModelId, kiroEndpoint);
+        if (streamRes.ok && streamRes.stream) {
+          let totalBytes = 0;
+          const passthrough = new TransformStream<Uint8Array, Uint8Array>({
+            transform(chunk, controller) {
+              totalBytes += chunk.length;
+              controller.enqueue(chunk);
+            },
+            async flush() {
+              if (!isUsingCustomKey && ownerUserId) {
+                const inputTk = Math.ceil((prompt?.length || 0) / 4);
+                const outputTk = Math.ceil(totalBytes / 4);
+                await trackMlUsage(ownerUserId, calculateMlUsed(inputTk, outputTk, effectiveModel));
+              }
+            },
+          });
+          return new Response(streamRes.stream.pipeThrough(passthrough), {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              Connection: "keep-alive",
+            },
+          });
+        }
+        // streaming failed to open — fall through to buffered request
+      }
+
+      const { ok, text, tokens } = await callOpenAI(kiroKey, kiroModelId, kiroEndpoint);
+      if (!ok) {
+        return Response.json(
+          { error: "Kiro request failed", detail: text, model: effectiveModel },
+          { status: 502 },
+        );
+      }
+      tokensUsed = tokens;
+      const content = extractContent(text);
+      const result = processResponse(content, text);
+      code = result.code;
+      raw = result.raw;
+      preambleReasoning = result.preamble;
+
+      if (!code && !raw) {
+        return Response.json(
+          { error: "Kiro returned empty output", detail: text },
+          { status: 502 },
+        );
+      }
+
+      // ── Apple Juice AI Provider Path ──────────────────────────────────────────
+    } else if (effectiveProvider === "apple_juice_ai") {
       // 1. Look up identity mapping
       const agMapping = userEmail
         ? await getAntigravityMapping(userEmail)
@@ -1241,6 +1390,35 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
 
       const requestKey = isUsingCustomKey ? clientKey : (effectiveProvider === "openai" ? systemOpenAIKey : "");
 
+      // Stream token-by-token so the client renders generation live.
+      const streamRes = wantsStream
+        ? await callOpenAIStream(requestKey, effectiveModel, endpointUrl)
+        : { ok: false as const, stream: null };
+      if (wantsStream && streamRes.ok && streamRes.stream) {
+        let totalBytes = 0;
+        const passthrough = new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            totalBytes += chunk.length;
+            controller.enqueue(chunk);
+          },
+          async flush() {
+            if (!isUsingCustomKey && ownerUserId) {
+              const inputTk = Math.ceil((prompt?.length || 0) / 4);
+              const outputTk = Math.ceil(totalBytes / 4);
+              await trackMlUsage(ownerUserId, calculateMlUsed(inputTk, outputTk, effectiveModel));
+            }
+          },
+        });
+        return new Response(streamRes.stream.pipeThrough(passthrough), {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        });
+      }
+
+      // Fallback to buffered request if streaming failed to open.
       const { ok, text, tokens } = await callOpenAI(
         requestKey,
         effectiveModel,
@@ -1409,6 +1587,55 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
               // Removed responseMimeType: "application/json" because function calling models might reject this constraint depending on the exact Gemini version, and we have a fallback anyway.
             },
           };
+        }
+
+        // ── Gemini streaming branch (token-by-token) ──
+        // Non-Claude Gemini supports SSE via :streamGenerateContent?alt=sse.
+        // We drop tools here so the model emits text JSON (which we can stream
+        // and the client parses) instead of a non-streamable functionCall part.
+        if (wantsStream && !isClaude && url.includes(":generateContent")) {
+          const streamUrl = url.replace(":generateContent", ":streamGenerateContent") +
+            (url.includes("?") ? "&alt=sse" : "?alt=sse");
+          const streamPayload = {
+            systemInstruction: payload.systemInstruction,
+            contents: payload.contents,
+            generationConfig: payload.generationConfig,
+          };
+          try {
+            const gemStream = await fetch(streamUrl, {
+              method: "POST",
+              headers,
+              body: JSON.stringify(streamPayload),
+            });
+            if (gemStream.ok && gemStream.body) {
+              let totalText = 0;
+              const sse = geminiToOpenAISSE(gemStream.body, (t) => {
+                totalText += t.length;
+              });
+              const passthrough = new TransformStream<Uint8Array, Uint8Array>({
+                transform(chunk, controller) {
+                  controller.enqueue(chunk);
+                },
+                async flush() {
+                  if (!isUsingCustomKey && ownerUserId) {
+                    const inputTk = Math.ceil((prompt?.length || 0) / 4);
+                    const outputTk = Math.ceil(totalText / 4);
+                    await trackMlUsage(ownerUserId, calculateMlUsed(inputTk, outputTk, effectiveModel));
+                  }
+                },
+              });
+              return new Response(sse.pipeThrough(passthrough), {
+                headers: {
+                  "Content-Type": "text/event-stream",
+                  "Cache-Control": "no-cache",
+                  Connection: "keep-alive",
+                },
+              });
+            }
+            // If streaming didn't open, fall through to the buffered request below.
+          } catch {
+            // network hiccup opening the stream — fall through to buffered path.
+          }
         }
 
         const llmRes = await fetch(url, {
@@ -1650,6 +1877,17 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
             instanceName: ls.instanceName,
           }));
           scripts = [...libEntries, ...scripts];
+        }
+      }
+
+      // ── DETERMINISTIC QUALITY PASS ──
+      // Order by dependency (instances → modules → scripts → playtest),
+      // guarantee print headers, dedupe repeated targets, and ensure a single
+      // trailing run_playtest. Runs regardless of which model produced the output.
+      {
+        const report = validateGeneration(scripts as any, { ensurePlaytest: true });
+        if (report.scripts.length > 0) {
+          scripts = report.scripts as typeof scripts;
         }
       }
 

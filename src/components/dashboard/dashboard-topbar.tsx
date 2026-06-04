@@ -28,7 +28,7 @@ export function DashboardTopbar() {
     <div
       className={`${
         workspaceStyle === "ide" ? "h-11" : "h-16"
-      } border-b border-white/[0.05] flex items-center justify-between px-8 bg-[#0b0f19]/60 backdrop-blur-md z-[100]`}
+      } border-b border-white/[0.06] flex items-center justify-between px-8 bg-white/[0.02] backdrop-blur-xl z-[100]`}
     >
       <div className="flex items-center gap-4">
         {activeProjectId ? (

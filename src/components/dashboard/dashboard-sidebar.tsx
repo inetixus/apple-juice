@@ -61,7 +61,11 @@ export function DashboardSidebar() {
     setPrompt,
     submitPrompt,
     isMobileMenuOpen,
+    isTester,
   } = useDashboard();
+
+  // Preserve tester access across in-app navigation.
+  const dashboardHref = isTester ? "/dashboard?tester=1" : "/dashboard";
 
   return (
     <div
@@ -80,7 +84,7 @@ export function DashboardSidebar() {
           <div
             onClick={() => {
               setActiveProjectId(null);
-              router.push("/dashboard");
+              router.push(dashboardHref);
             }}
             className="flex flex-col items-center gap-2 cursor-pointer group mb-8"
           >
@@ -258,24 +262,24 @@ export function DashboardSidebar() {
               </svg>
             </div>
             <div className="flex flex-col">
-              <span className="font-black text-white tracking-tighter text-2xl leading-none uppercase">
+              <span className="font-bold text-white tracking-tight text-xl leading-none">
                 Apple Juice
               </span>
-              <span className="text-[9px] text-white/20 mt-1 uppercase font-black tracking-[0.2em]">
+              <span className="text-[10px] text-white/40 mt-1 font-semibold tracking-wide">
                 AI Game Studio
               </span>
             </div>
           </div>
 
           {/* Sidebar Rail Icons (Lobby) */}
-          <div className="flex flex-col gap-6 mb-10">
-            <div className="flex items-center gap-1.5 px-1 mb-2">
-              <LayoutDashboard className="w-3.5 h-3.5 text-white/20" />
-              <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.3em]">
+          <div className="flex flex-col gap-3 mb-10">
+            <div className="flex items-center gap-1.5 px-1 mb-1">
+              <LayoutDashboard className="w-3.5 h-3.5 text-white/40" />
+              <span className="text-[10px] font-bold text-white/40 uppercase tracking-[0.15em]">
                 Workspace
               </span>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               {[
                 { id: "projects", icon: LayoutGrid, label: "Projects" },
                 { id: "assets", icon: Package, label: "Assets" },
@@ -289,26 +293,26 @@ export function DashboardSidebar() {
                   onClick={() => {
                     setActiveTab(item.id as any);
                     setActiveProjectId(null);
-                    router.push("/dashboard");
+                    router.push(dashboardHref);
                   }}
-                  className={`group relative flex items-center gap-4 p-3 rounded-2xl transition-all duration-300 ${
+                  className={`group relative flex items-center gap-3.5 p-2.5 rounded-2xl transition-all duration-300 ${
                     activeTab === item.id
-                      ? "bg-white/5 text-white shadow-[0_0_20px_rgba(255,255,255,0.05)]"
-                      : "text-white/30 hover:text-white hover:bg-white/5"
+                      ? "bg-white/[0.06] text-white"
+                      : "text-white/50 hover:text-white hover:bg-white/[0.04]"
                   }`}
                 >
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                       activeTab === item.id
                         ? "bg-[#ccff00] text-black shadow-[0_0_20px_rgba(204,255,0,0.3)]"
-                        : "bg-white/5"
+                        : "bg-white/[0.06]"
                     }`}
                   >
                     <item.icon className="w-5 h-5" />
                   </div>
                   <span
-                    className={`text-[11px] font-black uppercase tracking-widest transition-all ${
-                      activeTab === item.id ? "text-white" : "text-white/20"
+                    className={`text-[12px] font-bold tracking-tight transition-all ${
+                      activeTab === item.id ? "text-white" : "text-white/55"
                     }`}
                   >
                     {item.label}

@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Play, RotateCcw, ArrowRight, Check } from "lucide-react";
+import { Play, RotateCcw, ArrowRight, Check, Volume2, VolumeX } from "lucide-react";
 import { useInView } from "@/hooks/use-in-view";
 import { getLandingPerfConfig } from "@/lib/landing-perf";
 import { MagneticButton } from "./magnetic-button";
@@ -19,6 +19,7 @@ import {
   useHumanDemoCursor,
 } from "@/hooks/use-human-demo-cursor";
 import { sleep } from "@/lib/human-cursor-motion";
+import { AdAudio } from "@/lib/ad-audio";
 
 /* ─────────────────────────────────────────────────────────────
    Self-contained cinematic ad — its own script, not a replay of
@@ -50,6 +51,28 @@ const SCENES = SCENE_DEFS.reduce<(Scene & { start: number })[]>((acc, s) => {
   return acc;
 }, []);
 const TOTAL = SCENES.reduce((sum, s) => sum + s.duration, 0);
+
+const sceneStart = (id: string) => SCENES.find((s) => s.id === id)?.start ?? 0;
+
+/**
+ * Timeline-synced one-shot sound effects (absolute time in seconds).
+ * `kind` maps to a method on the AdAudio engine. Each fires once per play.
+ */
+type SfxCue = { id: string; at: number; kind: "whoosh" | "sting" | "chime" | "finale" | "pop" };
+const SFX_CUES: SfxCue[] = [
+  // Scene-cut whooshes at each transition (skip the very first).
+  ...SCENES.slice(1).map((s) => ({ id: `cut-${s.id}`, at: s.start, kind: "whoosh" as const })),
+  // Brand reveal impact.
+  { id: "brand-sting", at: sceneStart("brand") + 0.15, kind: "sting" },
+  // Sync "landed in Studio" success chime (matches landed > 0.72 of the scene).
+  { id: "sync-chime", at: sceneStart("sync") + 0.72 * 3.8, kind: "chime" },
+  // Proof stat pops.
+  { id: "proof-pop-1", at: sceneStart("proof") + 0.4, kind: "pop" },
+  { id: "proof-pop-2", at: sceneStart("proof") + 0.7, kind: "pop" },
+  { id: "proof-pop-3", at: sceneStart("proof") + 1.0, kind: "pop" },
+  // CTA finale.
+  { id: "cta-finale", at: sceneStart("cta") + 0.2, kind: "finale" },
+];
 
 /* ─── math helpers ─── */
 const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
@@ -611,8 +634,47 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
   const [ended, setEnded] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [clickAt, setClickAt] = useState(-10);
+  const [muted, setMuted] = useState(true);
   const elapsedRef = useRef(0);
   const seqRef = useRef(0);
+
+  // Live music energy (audio-reactive visuals). Kept in a ref to avoid a
+  // setState per frame; a smoothed mirror in state drives the re-render.
+  const [pulse, setPulse] = useState(0); // smoothed loudness for glows/bloom
+  const pulseRef = useRef(0);
+  const [beatZoom, setBeatZoom] = useState(0); // crisp per-beat zoom impulse
+  const beatZoomRef = useRef(0);
+
+  // ─── Procedural audio (synthesized; no asset files) ───
+  const audioRef = useRef<AdAudio | null>(null);
+  if (audioRef.current === null && typeof window !== "undefined") {
+    audioRef.current = new AdAudio();
+  }
+  // Tracks which timeline-synced SFX have already fired this playthrough.
+  const firedSfxRef = useRef<Set<string>>(new Set());
+  // Tracks how many characters have been "typed" (for keystroke tick SFX).
+  const lastTypedRef = useRef(0);
+  // Tracks how many code lines have played their blip (generate scene).
+  const lastCodeLineRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.dispose();
+      audioRef.current = null;
+    };
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const next = !muted;
+    setMuted(next);
+    audio.setMuted(next);
+    if (!next) {
+      void audio.resume();
+      if (started && !ended) audio.startMusic();
+    }
+  }, [muted, started, ended]);
 
   // Hero cursor system — curved arcs, speed-based deform, click-image swap.
   const {
@@ -654,6 +716,18 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
     setElapsed(0);
     setEnded(false);
     setStarted(true);
+    firedSfxRef.current.clear();
+    lastTypedRef.current = 0;
+    lastCodeLineRef.current = 0;
+    pulseRef.current = 0;
+    setPulse(0);
+    beatZoomRef.current = 0;
+    setBeatZoom(0);
+    const audio = audioRef.current;
+    if (audio && !audio.isMuted) {
+      void audio.resume();
+      audio.startMusic();
+    }
   }, []);
 
   // autoplay once in view
@@ -663,7 +737,9 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
     return () => window.clearTimeout(t);
   }, [motionOn, started, isInView, start]);
 
-  // master clock
+  // master clock — locks to the music playhead when sound is on so the
+  // animation never drifts from the track; falls back to a free-running
+  // accumulator when muted or audio is unavailable.
   useEffect(() => {
     if (!playing) return;
     let raf = 0;
@@ -671,21 +747,115 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
     const tick = (now: number) => {
       const dt = (now - last) / 1000;
       last = now;
-      let next = elapsedRef.current + dt;
+      const audio = audioRef.current;
+
+      let next: number;
+      if (audio && audio.isMusicActive()) {
+        // Drive the timeline directly from the audio element's clock.
+        next = audio.getMusicTime();
+      } else {
+        // Free-run when there's no audio clock to follow.
+        next = elapsedRef.current + dt;
+      }
+
       if (next >= TOTAL) {
         next = TOTAL;
         elapsedRef.current = next;
         setElapsed(next);
+        fireSfxUpTo(next);
         setEnded(true);
         return;
       }
       elapsedRef.current = next;
       setElapsed(next);
+      fireSfxUpTo(next);
+
+      // Sample live music energy and smooth it for the reactive visuals.
+      if (audio) {
+        const e = audio.getEnergy();
+        // Loudness-driven pulse (slow breathing) for glows / bloom / frame.
+        const target = Math.max(e.beat, e.level * 0.6);
+        const prev = pulseRef.current;
+        const smoothed = target > prev ? prev + (target - prev) * 0.6 : prev + (target - prev) * 0.12;
+        pulseRef.current = smoothed;
+        setPulse(smoothed);
+
+        // Dedicated beat zoom: snap UP hard on a detected beat, then decay fast
+        // so the picture punches in on the hit and eases back before the next.
+        const bz = beatZoomRef.current;
+        const beatHit = e.beat; // 0..1, spikes on bass transients
+        const nextBz = beatHit > bz ? beatHit : bz * 0.82; // fast attack, ~quick release
+        beatZoomRef.current = nextBz;
+        setBeatZoom(nextBz);
+      }
+
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing]);
+
+  // Stop the music bed when playback ends or the section scrolls away.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (ended || !playing) {
+      // small delay so the finale chime can ring out before the pad stops
+      const t = window.setTimeout(() => audio.stopMusic(), ended ? 900 : 0);
+      return () => window.clearTimeout(t);
+    }
+  }, [ended, playing]);
+
+  // Fire any timeline-synced SFX whose cue time has been crossed.
+  const fireSfxUpTo = useCallback((t: number) => {
+    const audio = audioRef.current;
+    if (!audio || audio.isMuted) return;
+    const fired = firedSfxRef.current;
+    for (const cue of SFX_CUES) {
+      if (t >= cue.at && !fired.has(cue.id)) {
+        fired.add(cue.id);
+        audio[cue.kind]();
+      }
+    }
+    // Typing keystroke ticks during the "describe" scene.
+    const dStart = sceneStart("describe");
+    const dp = (t - dStart) / 4.4; // describe scene is 4.4s
+    if (dp > 0.2 && dp < 0.9) {
+      const full = 31; // "Build a double jump for my obby"
+      const typed = Math.floor(full * clamp01((dp - 0.2) * 1.5));
+      const prev = lastTypedRef.current;
+      if (typed > prev) {
+        lastTypedRef.current = typed;
+        audio.tick();
+      }
+    } else if (dp >= 0.9) {
+      lastTypedRef.current = 31;
+    }
+
+    // Code-line blips during the "generate" scene — each line that appears
+    // gets its own rising note so the editor literally plays the music.
+    const gStart = sceneStart("generate");
+    const gp = (t - gStart) / 4.0; // generate scene is 4.0s
+    if (gp >= 0 && gp <= 1) {
+      const lines = 7; // CODE_LINES.length
+      const visible = Math.floor(lines * clamp01((gp - 0.12) * 1.6));
+      if (visible > lastCodeLineRef.current) {
+        for (let i = lastCodeLineRef.current; i < visible; i++) audio.codeLine(i);
+        lastCodeLineRef.current = visible;
+      }
+    } else if (gp > 1) {
+      lastCodeLineRef.current = 7;
+    }
+
+    // File-travel sweep during the "sync" scene (fires once as it launches).
+    const syStart = sceneStart("sync");
+    const syp = (t - syStart) / 3.8;
+    if (syp > 0.22 && !fired.has("sync-travel")) {
+      fired.add("sync-travel");
+      audio.travel();
+    }
+  }, []);
 
   // cursor choreography — runs per interactive scene using the hero cursor
   useEffect(() => {
@@ -709,6 +879,7 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
       await moveToTarget("describe-go", { dwell: true, style: "arc" });
       if (gone()) return;
       setClickAt(elapsedRef.current);
+      audioRef.current?.click();
       await clickTarget("describe-go");
     }
 
@@ -720,6 +891,7 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
       await moveToTarget("cta-start", { dwell: true, style: "arc" });
       if (gone()) return;
       setClickAt(elapsedRef.current);
+      audioRef.current?.click();
       await clickTarget("cta-start");
     }
 
@@ -743,6 +915,22 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
     setElapsed(t);
     setEnded(false);
     setStarted(true);
+    // Re-arm SFX cues: anything before the seek point counts as already played,
+    // anything after will fire as the clock reaches it.
+    const fired = firedSfxRef.current;
+    fired.clear();
+    for (const cue of SFX_CUES) {
+      if (cue.at < t) fired.add(cue.id);
+    }
+    lastTypedRef.current = t > sceneStart("describe") + 4.4 ? 31 : 0;
+    lastCodeLineRef.current = t > sceneStart("generate") + 4.0 ? 7 : 0;
+    const audio = audioRef.current;
+    if (audio && !audio.isMuted) {
+      void audio.resume();
+      audio.startMusic(); // no-op if already playing
+      // Keep the track locked to the scrubbed position.
+      audio.seekMusic(t);
+    }
   }, []);
 
   const onScrubClick = useCallback(
@@ -757,28 +945,49 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
   const showChrome = started;
   const wash = SCENE_WASH[scene.id] ?? SCENE_WASH["cold-open"];
 
-  // camera + click "kick" punch-zoom
+  // camera + click "kick" punch-zoom + music beat pulse
   const base = cameraFor(scene.id, sceneP, motionOn);
   const sinceClick = elapsed - clickAt;
   const kick = motionOn && sinceClick >= 0 && sinceClick < 0.6 ? 0.05 * Math.exp(-Math.pow(sinceClick / 0.12, 2)) : 0;
-  const cam = { scale: base.scale + kick, x: base.x, y: base.y };
+  // Slight zoom-in punched on each beat (crisp attack, fast decay), plus a tiny
+  // loudness bob so the picture moves *with* the music, not just on cuts.
+  const beatZoomAmt = beatZoom * 0.05;
+  const beatBob = pulse * -3;
+  const cam = { scale: base.scale + kick + beatZoomAmt, x: base.x, y: base.y + beatBob };
 
   return (
     <div ref={wrapRef} className="relative w-full max-w-[1100px] mx-auto">
       <div
-        className="group relative overflow-hidden rounded-[1.25rem] border border-white/[0.08] bg-[#030304] shadow-[0_40px_120px_rgba(0,0,0,0.6)] ring-1 ring-white/5"
-        style={{ minHeight: STAGE_HEIGHT }}
+        className="group relative overflow-hidden rounded-[1.25rem] border bg-[#030304] shadow-[0_40px_120px_rgba(0,0,0,0.6)] ring-1 ring-white/5"
+        style={{
+          minHeight: STAGE_HEIGHT,
+          // Frame edge glows on strong beats — ties the picture to the track.
+          borderColor: `rgba(204,255,0,${0.08 + pulse * 0.4})`,
+          boxShadow: `0 40px 120px rgba(0,0,0,0.6), 0 0 ${30 + pulse * 90}px rgba(204,255,0,${pulse * 0.22})`,
+        }}
       >
-        {/* color-graded wash */}
+        {/* color-graded wash — brightens with the music level */}
         <motion.div
           key={`wash-${scene.id}`}
           aria-hidden
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          animate={{ opacity: 1 + pulse * 0.5 }}
           transition={{ duration: 0.8 }}
           className="absolute inset-0 z-[2] pointer-events-none"
           style={{ background: wash }}
         />
+
+        {/* beat bloom — a soft radial flash that pulses on the bass */}
+        {showChrome && motionOn && (
+          <div
+            aria-hidden
+            className="absolute inset-0 z-[4] pointer-events-none mix-blend-screen"
+            style={{
+              opacity: pulse * 0.5,
+              background: `radial-gradient(ellipse 70% 60% at 50% 50%, ${SCENE_FLASH[scene.id]}, transparent 70%)`,
+            }}
+          />
+        )}
 
         {/* light sweep */}
         {showChrome && motionOn && (
@@ -893,12 +1102,22 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="absolute top-3 right-4 z-[40] flex items-center gap-2 pointer-events-none"
+                className="absolute top-3 right-4 z-[40] flex items-center gap-3"
               >
-                <AppleJuiceLogo className="h-3.5 w-3.5 opacity-70" />
-                <span className="font-mono text-[10px] font-semibold text-white/45 tabular-nums">
-                  {formatTC(elapsed)} / {formatTC(TOTAL)}
-                </span>
+                <button
+                  type="button"
+                  onClick={toggleMute}
+                  aria-label={muted ? "Unmute film audio" : "Mute film audio"}
+                  className="pointer-events-auto flex items-center justify-center h-6 w-6 rounded-full bg-black/40 border border-white/10 text-white/55 hover:text-white hover:border-white/30 backdrop-blur-sm transition-all"
+                >
+                  {muted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                </button>
+                <div className="flex items-center gap-2 pointer-events-none">
+                  <AppleJuiceLogo className="h-3.5 w-3.5 opacity-70" />
+                  <span className="font-mono text-[10px] font-semibold text-white/45 tabular-nums">
+                    {formatTC(elapsed)} / {formatTC(TOTAL)}
+                  </span>
+                </div>
               </motion.div>
             </>
           )}
@@ -917,7 +1136,16 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
               <div aria-hidden className="absolute inset-0" style={{ background: SCENE_WASH.brand }} />
               <MagneticButton
                 type="button"
-                onClick={start}
+                onClick={() => {
+                  // Explicit gesture — enable sound by default on first play.
+                  const audio = audioRef.current;
+                  if (audio && muted) {
+                    setMuted(false);
+                    audio.setMuted(false);
+                    void audio.resume();
+                  }
+                  start();
+                }}
                 className="relative flex flex-col items-center gap-5 group/play pointer-events-auto"
               >
                 <span className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-[#ccff00] text-black shadow-[0_0_50px_rgba(204,255,0,0.45)] group-hover/play:scale-105 transition-transform duration-300">
@@ -955,7 +1183,10 @@ export function LandingAdShowcase({ onCta }: { onCta?: () => void } = {}) {
             onClick={onScrubClick}
             className="absolute bottom-0 left-0 right-0 z-[42] h-4 flex items-end cursor-pointer group/scrub"
           >
-            <div className="relative w-full h-[3px] group-hover/scrub:h-[5px] transition-all bg-white/[0.08]">
+            <div
+              className="relative w-full h-[3px] group-hover/scrub:h-[5px] transition-all bg-white/[0.08]"
+              style={{ boxShadow: pulse > 0.05 ? `0 0 ${pulse * 10}px rgba(204,255,0,${pulse * 0.7})` : undefined }}
+            >
               <motion.div
                 className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#ccff00] via-[#faa582] to-white/90"
                 animate={{ width: `${progress * 100}%` }}

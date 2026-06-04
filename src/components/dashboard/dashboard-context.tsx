@@ -7,13 +7,14 @@ import {
   TeamMember,
   SavedAsset,
 } from "./types";
-import { ThinkingStep } from "@/components/thinking-feed";
+import { ThinkingStep, ActivityStep } from "@/components/thinking-feed";
 
 export interface DashboardContextType {
   // Properties passed from component props
   username: string;
   avatarUrl?: string;
   isDemoMode: "lobby" | "ide" | false;
+  isTester: boolean;
 
   // React states
   projects: Project[];
@@ -62,8 +63,8 @@ export interface DashboardContextType {
   setActiveChatIndex: Dispatch<SetStateAction<number>>;
   transferingChat: { sourceProjectId: string; sourceChatIndex: number } | null;
   setTransferingChat: Dispatch<SetStateAction<{ sourceProjectId: string; sourceChatIndex: number } | null>>;
-  thinkingSteps: ThinkingStep[];
-  setThinkingSteps: Dispatch<SetStateAction<ThinkingStep[]>>;
+  thinkingSteps: (ThinkingStep | ActivityStep)[];
+  setThinkingSteps: Dispatch<SetStateAction<(ThinkingStep | ActivityStep)[]>>;
   gameLogs: string[];
   setGameLogs: Dispatch<SetStateAction<string[]>>;
   attachedFiles: { name: string; content?: string; type?: string }[];

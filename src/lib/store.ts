@@ -54,51 +54,34 @@ export const PLAN_LIMITS = {
 } as const;
 
 export const MODEL_MULTIPLIERS: Record<string, number> = {
-  // Gemini Models (Standard)
+  // ── Kiro lineup (primary) — keyed by both display label and api id ──
+  "Claude Opus 4.8": 2.2, "claude-opus-4.8": 2.2,
+  "Claude Opus 4.7": 2.2, "claude-opus-4.7": 2.2,
+  "Claude Opus 4.6": 2.2, "claude-opus-4.6": 2.2,
+  "Claude Opus 4.5": 2.2, "claude-opus-4.5": 2.2,
+  "Auto": 1.0, "auto": 1.0,
+  "Claude Sonnet 4.6": 1.3, "claude-sonnet-4.6": 1.3,
+  "Claude Sonnet 4.5": 1.3, "claude-sonnet-4.5": 1.3,
+  "Claude Sonnet 4.0": 1.3, "claude-sonnet-4.0": 1.3,
+  "GLM-5": 0.5, "glm-5": 0.5,
+  "Claude Haiku 4.5": 0.4, "claude-haiku-4.5": 0.4,
+  "MiniMax M2.5": 0.25, "minimax-m2.5": 0.25,
+  "DeepSeek 3.2": 0.25, "deepseek-3.2": 0.25,
+  "MiniMax M2.1": 0.15, "minimax-m2.1": 0.15,
+  "Qwen3 Coder Next": 0.05, "qwen3-coder-next": 0.05,
+
+  // ── Legacy provider models (kept for custom-key users) ──
   "gemini-2.5-flash": 1,
-  "gemini-2.5-flash-8b": 0.5,
   "gemini-2.0-flash": 1,
   "gemini-1.5-flash": 1,
-  "gemini-1.5-flash-8b": 0.5,
-
-  // Gemini Pro (Premium)
   "gemini-2.5-pro": 4,
   "gemini-1.5-pro": 4,
-  "gemini-3.1-pro-preview": 4,
-
-  // Claude Models
-  "claude-3-5-sonnet": 6,
-  "claude-3-5-sonnet-20241022": 6,
-  "claude-3-5-haiku": 1.5,
-  "claude-3-5-haiku-20241022": 1.5,
-  "claude-3-opus": 12,
-  "claude-opus-4.6": 4,
-  "claude-opus-4.7": 4,
-  "claude-opus-4.6-fast": 24,
-  "claude-opus-4.7-fast": 24,
-
-  // OpenAI Models
   "gpt-4o": 5,
-  "gpt-4o-2024-08-06": 5,
   "gpt-4o-mini": 1,
   "o1-preview": 15,
   "o1-mini": 4,
-
-  // DeepSeek Models (Efficient)
-  "deepseek-v3.2": 1,
   "deepseek-v3": 1,
   "deepseek-r1": 2,
-  "DeepSeek V3": 1,
-  "DeepSeek R1": 2,
-  "Gemini 3.1 Pro": 5,
-  "Gemini 3.1 Flash": 1,
-  "Gemini 3.1 Flash-Lite": 0.5,
-  "Gemini 3 Pro": 4,
-  "Gemini 3 Flash": 1,
-  "Gemini 2.5 Pro": 4,
-  "Gemini 2.5 Flash": 1,
-  "Gemini 1.5 Pro": 4,
-  "Gemini 1.5 Flash": 1,
 };
 
 export type UserPlan = keyof typeof PLAN_LIMITS;
@@ -923,4 +906,77 @@ export async function transferProjectChat(
   await redis.expire(transferKey, 86400); // 1 day
 
   return { ok: true };
+}
+
+// ─── Security: rate limiting & one-time redemption ────────────────────────────
+
+const RATE_PREFIX = "apple-juice:rate:";
+const REDEEM_PREFIX = "apple-juice:redeemed:";
+
+export type RateLimitResult = {
+  allowed: boolean;
+  remaining: number;
+  limit: number;
+};
+
+/**
+ * Fixed-window rate limiter backed by Redis INCR + EXPIRE.
+ *
+ * @param bucket   Logical bucket name (e.g. "redeem", "insert").
+ * @param id       Per-caller identifier (IP, sessionKey, or userId).
+ * @param limit    Max allowed actions within the window.
+ * @param windowSec Window length in seconds.
+ *
+ * Fails OPEN (allows the request) if Redis is unavailable, matching the
+ * resilience posture of the rest of the store, but never throws.
+ */
+export async function checkRateLimit(
+  bucket: string,
+  id: string,
+  limit: number,
+  windowSec: number,
+): Promise<RateLimitResult> {
+  const safeId = (id || "unknown").replace(/\s+/g, "_").slice(0, 120);
+  const windowStart = Math.floor(Date.now() / 1000 / windowSec);
+  const key = `${RATE_PREFIX}${bucket}:${safeId}:${windowStart}`;
+  try {
+    const redis = getRedis();
+    const count = await redis.incr(key);
+    // Only set the TTL on first hit in this window.
+    if (count === 1) {
+      await redis.expire(key, windowSec);
+    }
+    const remaining = Math.max(0, limit - count);
+    return { allowed: count <= limit, remaining, limit };
+  } catch {
+    // Redis down / not configured — don't block legitimate traffic.
+    return { allowed: true, remaining: limit, limit };
+  }
+}
+
+/**
+ * Returns true if this user has already redeemed the given code (replay guard).
+ */
+export async function hasRedeemed(userId: string, code: string): Promise<boolean> {
+  const key = `${REDEEM_PREFIX}${userId}:${code.trim().toLowerCase()}`;
+  try {
+    const v = await getRedis().get(key);
+    return v != null;
+  } catch {
+    // If we can't verify, treat as not-yet-redeemed (fail open for usability),
+    // but redemption itself is still gated by the code check.
+    return false;
+  }
+}
+
+/**
+ * Marks a code as redeemed for a user so it can't be farmed repeatedly.
+ */
+export async function markRedeemed(userId: string, code: string): Promise<void> {
+  const key = `${REDEEM_PREFIX}${userId}:${code.trim().toLowerCase()}`;
+  try {
+    await getRedis().set(key, Date.now());
+  } catch {
+    /* best-effort */
+  }
 }

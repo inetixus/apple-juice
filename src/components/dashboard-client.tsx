@@ -8,11 +8,21 @@ import {
   X,
   Sparkles,
   Menu,
+  Check,
+  ArrowRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { ToastContainer, useToasts } from "@/components/ui/toast";
 import { type ThinkingStep } from "@/components/thinking-feed";
+import { buildActivityFeed, type ActivityStep } from "@/lib/activity-feed";
+import { validateGeneration } from "@/lib/validate-generation";
+import {
+  KIRO_DEFAULT_MODEL,
+  KIRO_MODEL_LABELS,
+  kiroModelsForPlan,
+  type KiroPlan,
+} from "@/lib/kiro-models";
 
 import { WorkspaceTree } from "@/components/workspace-tree";
 import { StripeWave } from "@/components/stripe-wave";
@@ -22,6 +32,7 @@ type DashboardClientProps = {
   avatarUrl?: string;
   initialProjectId?: string | null;
   isDemoMode?: "lobby" | "ide" | false;
+  isTester?: boolean;
 };
 
 import {
@@ -40,7 +51,7 @@ import { DashboardContext, type DashboardContextType } from "./dashboard/dashboa
 import { JuiceLoader } from "./dashboard/juice-loader";
 import { ThinkingFeed } from "@/components/thinking-feed";
 
-const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
+const FALLBACK_MODELS = KIRO_MODEL_LABELS;
 
 // --- NEW: Coming Soon View ---
 
@@ -56,7 +67,7 @@ const findNodeById = (nodes: any[], id: string): any => {
   return null;
 };
 
-export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoMode }: DashboardClientProps) {
+export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoMode, isTester = false }: DashboardClientProps) {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(initialProjectId || null);
@@ -70,7 +81,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   );
   const [openaiKey, setOpenaiKey] = useState("");
   const [googleKey, setGoogleKey] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
+  const [selectedModel, setSelectedModel] = useState(KIRO_DEFAULT_MODEL);
   const [availableModels, setAvailableModels] =
     useState<string[]>(FALLBACK_MODELS);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -99,7 +110,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
 
 
-  const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([]);
+  const [thinkingSteps, setThinkingSteps] = useState<(ThinkingStep | ActivityStep)[]>([]);
   const [gameLogs, setGameLogs] = useState<string[]>([]);
   const mode: "fast" | "thinking" = "fast";
   const [attachedFiles, setAttachedFiles] = useState<
@@ -136,6 +147,12 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   const autoEnhance = false;
   const [autoRetry, setAutoRetry] = useState(false);
   const [autoPlaytest, setAutoPlaytest] = useState(false);
+  // Mirror autoPlaytest in a ref so the long-lived status-poll closure always
+  // reads the current value (avoids a stale-closure bug in the fix loop).
+  const autoPlaytestRef = useRef(false);
+  useEffect(() => {
+    autoPlaytestRef.current = autoPlaytest;
+  }, [autoPlaytest]);
 
   const [selectedUIStyle, setSelectedUIStyle] = useState<
     "none" | "stud" | "dracula" | "zap" | "claude"
@@ -553,7 +570,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                   autoFixRetriesRef.current = 0;
                 }
 
-                // Test failed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â  show error to user but do NOT auto-fix
+                // Test failed — auto-fix if autonomous mode is on (bounded retries)
                 if (log.includes("[APPLE_JUICE_TEST_FAIL]")) {
                   let testResult: any = null;
                   let rawErrorText = "";
@@ -578,12 +595,36 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                       .join("\n")
                     : rawErrorText;
 
-                  lastReportedErrorRef.current = displayError;
+                  // De-dupe: don't react to the same failure twice.
+                  if (displayError && displayError !== lastReportedErrorRef.current) {
+                    lastReportedErrorRef.current = displayError;
 
-                  showToast(
-                    `Playtest failed with ${errorCount} error(s)`,
-                    "error",
-                  );
+                    const MAX_AUTO_FIX = 3;
+                    if (
+                      autoPlaytestRef.current &&
+                      !isGeneratingRef.current &&
+                      autoFixRetriesRef.current < MAX_AUTO_FIX
+                    ) {
+                      autoFixRetriesRef.current += 1;
+                      const attempt = autoFixRetriesRef.current;
+                      isAutoFixingRef.current = true;
+                      showToast(
+                        `Playtest failed — auto-fixing (attempt ${attempt}/${MAX_AUTO_FIX})…`,
+                        "info",
+                      );
+                      void submitPrompt(buildAutoFixPrompt(displayError, attempt), true);
+                    } else if (autoPlaytestRef.current && autoFixRetriesRef.current >= MAX_AUTO_FIX) {
+                      showToast(
+                        `Auto-fix gave up after ${MAX_AUTO_FIX} attempts. Here's the error so you can guide it.`,
+                        "error",
+                      );
+                    } else {
+                      showToast(
+                        `Playtest failed with ${errorCount} error(s)`,
+                        "error",
+                      );
+                    }
+                  }
                 }
 
                 // Test skipped (already in run mode)
@@ -646,8 +687,21 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   }, [initialProjectId, projects]);
 
   useEffect(() => {
-    // create pairing session on the server (returns pairing code + token)
-    void createPairOnServer();
+    // Tester mode: skip server pairing, grant a generous local quota.
+    if (isTester) {
+      setUsage({
+        isLoaded: true,
+        usedMl: 0,
+        dailyMl: 30000,
+        totalMl: 30000,
+        remainingMl: 30000,
+        bonusMl: 0,
+        plan: "pure_ultra",
+      });
+    } else {
+      // create pairing session on the server (returns pairing code + token)
+      void createPairOnServer();
+    }
 
     const savedProvider = (window.localStorage.getItem(
       "apple-juice-provider",
@@ -669,7 +723,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     setApiKey(effectiveKey);
 
     const savedModel =
-      window.localStorage.getItem("apple-juice-model") ?? "gpt-4o-mini";
+      window.localStorage.getItem("apple-juice-model") ?? KIRO_DEFAULT_MODEL;
     setSelectedModel(savedModel);
 
     void loadProjects();
@@ -690,6 +744,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
 
   async function fetchUsage() {
+    if (isTester) return; // tester mode uses a fixed local quota
     try {
       const res = await fetch("/api/usage");
       if (res.ok) {
@@ -752,6 +807,29 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
   async function loadProjects() {
     setIsProjectsLoading(true);
+
+    // Tester mode: no backend session — start with an empty local lobby.
+    if (isTester) {
+      try {
+        const raw = window.localStorage.getItem("aj-tester-projects");
+        const local: Project[] = raw ? JSON.parse(raw) : [];
+        setProjects(local);
+        if (initialProjectId) {
+          const p = local.find((p) => p.id === initialProjectId);
+          if (p) void switchProject(p);
+          else setActiveProjectId(null);
+        } else {
+          setActiveProjectId(null);
+        }
+      } catch {
+        setProjects([]);
+        setActiveProjectId(null);
+      } finally {
+        setIsProjectsLoading(false);
+      }
+      return;
+    }
+
     try {
       const res = await fetch("/api/projects");
       if (res.ok) {
@@ -777,9 +855,39 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     }
   }
 
+  // Persist tester projects to localStorage so they survive reloads.
+  function persistTesterProjects(list: Project[]) {
+    try {
+      window.localStorage.setItem("aj-tester-projects", JSON.stringify(list));
+    } catch {
+      /* ignore quota errors */
+    }
+  }
+
   async function createNewProject(name: string) {
     const activeCount = projects.filter(p => p.status !== "archived").length;
     const limit = usage.plan === "pure_ultra" ? 8 : usage.plan === "fresh_pro" ? 3 : 2;
+
+    // Tester mode: unlimited local projects, no API call.
+    if (isTester) {
+      const now = Date.now();
+      const newProj: Project = {
+        id: `tester-${now}-${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        ownerUserId: "tester",
+        createdAt: now,
+        lastActiveAt: now,
+        status: "active",
+      };
+      setProjects((prev) => {
+        const next = [newProj, ...prev];
+        persistTesterProjects(next);
+        return next;
+      });
+      await switchProject(newProj);
+      showToast(`Created "${name}"`, "success");
+      return;
+    }
 
     if (activeCount >= limit) {
       showToast(`You've reached your ${limit} game limit. Archive old games to create more!`, "error");
@@ -804,6 +912,15 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   }
 
   async function archiveProject(id: string, archive: boolean = true) {
+    if (isTester) {
+      setProjects((prev) => {
+        const next = prev.map((p) => (p.id === id ? { ...p, status: (archive ? "archived" : "active") as "active" | "archived" } : p));
+        persistTesterProjects(next);
+        return next;
+      });
+      showToast(archive ? "Game archived" : "Game restored", "success");
+      return;
+    }
     try {
       const res = await fetch("/api/projects", {
         method: "PATCH",
@@ -823,6 +940,14 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
   async function renameProject(id: string, newName: string) {
     if (!newName.trim()) return;
+    if (isTester) {
+      setProjects((prev) => {
+        const next = prev.map((p) => (p.id === id ? { ...p, name: newName } : p));
+        persistTesterProjects(next);
+        return next;
+      });
+      return;
+    }
     try {
       const res = await fetch("/api/projects", {
         method: "PATCH",
@@ -844,6 +969,23 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       "Are you sure you want to delete this game? This cannot be undone.",
     );
     if (!confirm) return;
+
+    if (isTester) {
+      const updated = projects.filter((p) => p.id !== id);
+      setProjects(updated);
+      persistTesterProjects(updated);
+      if (activeProjectId === id) {
+        if (updated.length > 0) {
+          await switchProject(updated[0]);
+        } else {
+          setActiveProjectId("");
+          router.push("/dashboard?tester=1");
+          setMessages([]);
+        }
+      }
+      showToast("Game deleted", "success");
+      return;
+    }
 
     try {
       const res = await fetch("/api/projects", {
@@ -961,11 +1103,15 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
   async function switchProject(project: Project) {
     setActiveProjectId(project.id);
-    
-    // Only push to router if the path is different to avoid redundant reloads
-    const targetPath = `/dashboard/${project.id}`;
-    if (typeof window !== "undefined" && window.location.pathname !== targetPath) {
-      router.push(targetPath);
+
+    // Tester mode keeps everything client-side (local projects aren't in the DB,
+    // and the dynamic route would bounce to login). Just switch state in place.
+    if (!isTester) {
+      // Only push to router if the path is different to avoid redundant reloads
+      const targetPath = `/dashboard/${project.id}`;
+      if (typeof window !== "undefined" && window.location.pathname !== targetPath) {
+        router.push(targetPath);
+      }
     }
 
     setIsPluginConnected(false);
@@ -1181,24 +1327,10 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
           ? payload.models
           : FALLBACK_MODELS;
 
-      // Filter Antigravity models by plan
-      if (actualProvider === "apple_juice_ai") {
-        const plan = usage?.plan || "free";
-        const freeModels = ["Gemini 2.5 Flash", "Gemini 3.1 Flash-Lite", "GPT oss 120b", "DeepSeek V4 Flash", "Nemotron 3 Super 120b"];
-        const proModels = [
-          ...freeModels,
-          "Gemini 3.1 Flash",
-          "DeepSeek V3",
-          "Gemini 3 Pro",
-          "Gemini 3 Flash",
-        ]; // Added Gemini 3 Flash as it's often a variant
-
-        if (plan === "free") {
-          nextModels = nextModels.filter((m) => freeModels.includes(m));
-        } else if (plan === "fresh_pro") {
-          nextModels = nextModels.filter((m) => proModels.includes(m));
-        }
-        // Ultra gets everything
+      // Filter shared-credit (Kiro) models by plan tier.
+      if (actualProvider === "apple_juice_ai" || actualProvider === "kiro") {
+        const plan = (usage?.plan || "free") as KiroPlan;
+        nextModels = kiroModelsForPlan(plan);
       }
 
       setAvailableModels(nextModels);
@@ -1208,8 +1340,14 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
         setSelectedModel(targetModel);
       } else {
         const fallbackDefault =
-          usedProvider === "google" ? "gemini-3-flash" : "gpt-4o-mini";
-        const first = nextModels[0] || fallbackDefault;
+          actualProvider === "apple_juice_ai" || actualProvider === "kiro"
+            ? KIRO_DEFAULT_MODEL
+            : usedProvider === "google"
+              ? "gemini-3-flash"
+              : "gpt-4o-mini";
+        const first = nextModels.includes(KIRO_DEFAULT_MODEL)
+          ? KIRO_DEFAULT_MODEL
+          : nextModels[0] || fallbackDefault;
         setSelectedModel(first);
         window.localStorage.setItem("apple-juice-model", first);
       }
@@ -1253,6 +1391,62 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     setApiKey(inputValue);
     void loadModels(inputValue, undefined, finalProvider);
     setShowSettings(false);
+  }
+
+  // Replace the placeholder "thinking…" steps with the REAL activity timeline
+  // derived from the AI's actual plan, then tick each step done in sequence so
+  // the user watches it read → write → create → playtest in real time.
+  function playRealActivityFeed(payload: { thinking?: string; scripts?: any[] }) {
+    const feed = buildActivityFeed(payload);
+    if (feed.length === 0) {
+      setThinkingSteps([]);
+      return;
+    }
+    setThinkingSteps(feed);
+    // Stagger completion so it reads as live progress (capped so it never lags).
+    const per = Math.min(450, Math.max(180, 1600 / feed.length));
+    feed.forEach((_, i) => {
+      const t = setTimeout(() => {
+        setThinkingSteps((prev) => {
+          if (prev.length !== feed.length) return prev; // a newer run replaced us
+          return prev.map((s, idx) => (idx <= i ? { ...s, done: true } : s));
+        });
+        if (i === feed.length - 1) {
+          const clr = setTimeout(() => {
+            setThinkingSteps((prev) => (prev.length === feed.length ? [] : prev));
+          }, 900);
+          stepTimeoutsRef.current.push(clr);
+        }
+      }, (i + 1) * per);
+      stepTimeoutsRef.current.push(t);
+    });
+  }
+
+  // Build a focused, self-contained prompt for the auto-fix loop. It hands the
+  // model the exact runtime error(s) plus the current source of the scripts it
+  // just generated, so it repairs in place instead of regenerating blind.
+  function buildAutoFixPrompt(errorText: string, attempt: number): string {
+    const scripts = lastGeneratedScriptsRef.current || [];
+    let codeBlock = "";
+    for (const s of scripts) {
+      if (!s.code) continue;
+      codeBlock += `\n--- ${s.type || "Script"}: ${s.parent}.${s.name} ---\n${s.code}\n`;
+    }
+    return [
+      `[AUTO-FIX attempt ${attempt}] The playtest you just ran FAILED with the following runtime error(s):`,
+      "",
+      errorText,
+      "",
+      "Here is the current source of the scripts involved:",
+      codeBlock || "(source unavailable — infer from the error)",
+      "",
+      "Diagnose the ROOT CAUSE of the error above and fix it. Rules:",
+      "- Only change what is necessary to resolve the error; do not rewrite working logic or rename things.",
+      "- Output the COMPLETE corrected script(s) via the create action (full file, no snippets).",
+      "- If the error is a nil/index error, add the missing guard or WaitForChild with a timeout.",
+      "- If it's a missing instance/remote, create it before it's referenced.",
+      "- End with run_playtest so the fix is verified automatically.",
+    ].join("\n");
   }
 
   const handleRedeemCode = async () => {
@@ -1982,6 +2176,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
           autoSync: true,
           tree: projectTree.join("\n"),
           uiStyle: selectedUIStyle,
+          stream: true,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -2044,7 +2239,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                   if (reasoning) {
                     setThinkingSteps((prev) => {
                       const index = prev.findIndex(
-                        (s) => s.icon === "reasoning",
+                        (s) => "icon" in s && s.icon === "reasoning",
                       );
                       if (index !== -1) {
                         const newSteps = [...prev];
@@ -2178,7 +2373,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                       if (extractedThinking) {
                         setThinkingSteps((prev) => {
                           const index = prev.findIndex(
-                            (s) => s.icon === "reasoning",
+                            (s) => "icon" in s && s.icon === "reasoning",
                           );
                           const snippet =
                             extractedThinking.length > 50
@@ -2293,6 +2488,26 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                 content: mergedContent,
               };
               finalScriptsToSync = mergedScripts;
+
+              // Streamed responses bypass the server's quality pass, so apply
+              // the same deterministic validation client-side: dependency
+              // ordering, print headers, dedupe, single trailing playtest.
+              if (finalScriptsToSync.length > 0) {
+                try {
+                  const report = validateGeneration(finalScriptsToSync as any, {
+                    ensurePlaytest: autoPlaytestRef.current || isAutoFixingRef.current,
+                  });
+                  if (report.scripts.length > 0) {
+                    finalScriptsToSync = report.scripts as any[];
+                    newMsgs[index] = {
+                      ...newMsgs[index],
+                      scripts: finalScriptsToSync,
+                    };
+                  }
+                } catch {
+                  /* validation is best-effort; fall back to raw scripts */
+                }
+              }
 
               // Update ref for auto-fix context
               if (finalScriptsToSync.length > 0) {
@@ -2495,7 +2710,9 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       isGeneratingRef.current = false;
       playSound("success");
 
-      setThinkingSteps([]);
+      // Show the real activity timeline (read/write/create/playtest) from the
+      // actual plan instead of the fabricated placeholder steps.
+      playRealActivityFeed(payload);
       // Store the generated scripts for auto-fix context
       if (payload.scripts && Array.isArray(payload.scripts)) {
         lastGeneratedScriptsRef.current = payload.scripts.map((s: any) => ({
@@ -2755,6 +2972,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     username,
     avatarUrl,
     isDemoMode: isDemoMode ?? false,
+    isTester,
 
     projects,
     setProjects,
@@ -2956,7 +3174,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
               initial={{ opacity: 1 }}
               exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
               transition={{ duration: 0.8, ease: "easeInOut" }}
-              className="h-screen w-full bg-[#0a0b0f] flex flex-col items-center justify-center p-8 text-center relative z-[1000] overflow-hidden"
+              className="h-screen w-full bg-gradient-to-br from-[#14161f] via-[#101219] to-[#0c0e14] flex flex-col items-center justify-center p-8 text-center relative z-[1000] overflow-hidden"
             >
               {/* Ambient Floating Blobs */}
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -3018,7 +3236,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1, ease: "easeOut" }}
-              className="h-screen bg-[#050508] text-white flex overflow-hidden font-sans relative selection:bg-[#ccff00]/20"
+              className="h-screen bg-gradient-to-br from-[#14161f] via-[#101219] to-[#0c0e14] text-white flex overflow-hidden font-sans relative selection:bg-[#ccff00]/20"
             >
               <style jsx global>{`
                 @keyframes shop-pulse {
@@ -3034,10 +3252,10 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
               <StripeWave />
 
               {/* Stripe animated grid pattern & ambient neon highlights */}
-              <div className="fixed inset-0 stripe-grid pointer-events-none z-0 opacity-40" />
-              <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(204,255,0,0.08),transparent_70%)] pointer-events-none z-0" />
-              <div className="fixed inset-0 bg-[radial-gradient(circle_at_20%_40%,rgba(59,130,246,0.05),transparent_60%)] pointer-events-none z-0" />
-              <div className="fixed inset-0 bg-[radial-gradient(circle_at_80%_60%,rgba(139,92,246,0.05),transparent_60%)] pointer-events-none z-0" />
+              <div className="fixed inset-0 stripe-grid pointer-events-none z-0 opacity-20" />
+              <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(204,255,0,0.10),transparent_70%)] pointer-events-none z-0" />
+              <div className="fixed inset-0 bg-[radial-gradient(circle_at_15%_25%,rgba(59,130,246,0.07),transparent_55%)] pointer-events-none z-0" />
+              <div className="fixed inset-0 bg-[radial-gradient(circle_at_85%_70%,rgba(139,92,246,0.07),transparent_55%)] pointer-events-none z-0" />
 
               {/* Mobile Header */}
               <div className="md:hidden absolute top-0 left-0 right-0 h-14 bg-[#1e2028] border-b border-black/[0.04] flex items-center justify-between px-4 z-[50]">
@@ -3097,7 +3315,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                 <DashboardTopbar />
 
                 {/* MAIN WORKSPACE WRAPPER */}
-                <div className="flex-1 flex min-h-0 relative z-10 w-full overflow-hidden bg-[#0c0d10]">
+                <div className="flex-1 flex min-h-0 relative z-10 w-full overflow-hidden bg-transparent">
                   {activeProjectId && workspaceStyle === 'ide' ? (
                     /* ============================================================ */
                     /* IDE MODE LAYOUT */
@@ -3207,84 +3425,116 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 p-4 overflow-y-auto"
+              className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 overflow-y-auto"
               onClick={(e) => e.target === e.currentTarget && setShowPricing(false)}
             >
               <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-[#14161a] border border-white/10 w-full max-w-5xl rounded-[3rem] p-8 md:p-12 relative shadow-2xl overflow-hidden"
+                initial={{ scale: 0.96, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.96, opacity: 0, y: 20 }}
+                transition={{ type: "spring", stiffness: 280, damping: 28 }}
+                className="bg-gradient-to-b from-[#16181f] to-[#0e0f15] border border-white/10 w-full max-w-5xl rounded-[2rem] relative shadow-[0_40px_120px_rgba(0,0,0,0.6)] overflow-hidden my-auto"
               >
+                {/* Ambient glow */}
+                <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[#ccff00]/[0.07] blur-[120px] pointer-events-none" />
+                <div className="absolute -bottom-32 -right-20 w-[400px] h-[400px] bg-violet-500/[0.06] blur-[120px] pointer-events-none" />
+
                 {/* Close Button */}
                 <button
                   onClick={() => setShowPricing(false)}
-                  className="absolute top-6 right-6 p-3 rounded-full hover:bg-white/5 transition-all text-white/40 hover:text-white"
+                  className="absolute top-5 right-5 z-20 p-2.5 rounded-full bg-white/[0.04] hover:bg-white/10 transition-all text-white/50 hover:text-white"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
 
-                <div className="text-center max-w-2xl mx-auto mb-12">
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#ccff00]/10 border border-[#ccff00]/20 mb-4 animate-shop-pulse">
-                    <Sparkles className="w-3.5 h-3.5 text-[#ccff00]" />
-                    <span className="text-[9px] font-black text-[#ccff00] uppercase tracking-widest">Premium Plans</span>
-                  </div>
-                  <h2 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight italic leading-none">
-                    Select Your <span className="text-[#ccff00]">Juice Limit</span>
-                  </h2>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-8">
-                  {/* Free Plan */}
-                  <div className="bg-[#1a1c22] border border-white/5 rounded-[2rem] p-8 relative flex flex-col justify-between group hover:border-white/10 transition-all">
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-white/40">Free Plan</h3>
-                      <div className="flex items-baseline gap-1 my-6">
-                        <span className="text-4xl font-black text-white italic">$0</span>
-                        <span className="text-xs text-white/20 font-bold uppercase tracking-widest">/month</span>
-                      </div>
-                      <ul className="space-y-4 text-xs font-bold text-white/60">
-                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#ccff00]" /> 2.0 Credits / Daily</li>
-                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#ccff00]" /> Standard Roblox Assistant</li>
-                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#ccff00]" /> Basic Autocomplete</li>
-                      </ul>
+                <div className="relative z-10 p-8 md:p-10">
+                  {/* Header */}
+                  <div className="text-center max-w-2xl mx-auto mb-10">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#ccff00]/10 border border-[#ccff00]/20 mb-4">
+                      <Sparkles className="w-3.5 h-3.5 text-[#ccff00]" />
+                      <span className="text-[10px] font-bold text-[#ccff00] uppercase tracking-[0.2em]">Apple Juice Shop</span>
                     </div>
-                    <button className="w-full py-4 rounded-xl bg-white/5 hover:bg-white/10 text-white font-black text-[10px] uppercase tracking-widest mt-8 transition-all">Current Plan</button>
+                    <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight leading-tight">
+                      Top up your <span className="text-[#ccff00]">juice</span>
+                    </h2>
+                    <p className="text-sm text-white/45 mt-2.5 font-medium">
+                      More credits, smarter models, and priority processing. Cancel anytime.
+                    </p>
                   </div>
 
-                  {/* Pro Plan */}
-                  <div className="bg-[#1a1c22] border-2 border-[#ccff00] rounded-[2rem] p-8 relative flex flex-col justify-between shadow-[0_0_40px_rgba(204,255,0,0.15)]">
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-[#ccff00] text-black font-black text-[9px] uppercase tracking-widest rounded-full">Most Popular</div>
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-[#ccff00]">Pro Plan</h3>
-                      <div className="flex items-baseline gap-1 my-6">
-                        <span className="text-4xl font-black text-white italic">$19</span>
-                        <span className="text-xs text-white/20 font-bold uppercase tracking-widest">/month</span>
+                  {/* Plans */}
+                  <div className="grid md:grid-cols-3 gap-5">
+                    {/* Free */}
+                    <div className="group relative bg-white/[0.03] border border-white/[0.08] rounded-3xl p-7 flex flex-col hover:border-white/15 transition-all duration-300">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-sm font-bold text-white">Free</h3>
                       </div>
-                      <ul className="space-y-4 text-xs font-bold text-white/60">
-                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#ccff00]" /> 10.0 Credits / Daily</li>
-                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#ccff00]" /> Full Codebase Context</li>
-                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[#ccff00]" /> Multi-Script AI Refactoring</li>
+                      <p className="text-xs text-white/40 font-medium mb-5">For trying things out</p>
+                      <div className="flex items-baseline gap-1 mb-6">
+                        <span className="text-4xl font-bold text-white tracking-tight">$0</span>
+                        <span className="text-xs text-white/30 font-medium">/mo</span>
+                      </div>
+                      <ul className="space-y-3 text-[13px] font-medium text-white/65 mb-8">
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> 2.0 credits daily</li>
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> Auto router, Haiku 4.5 &amp; Qwen3 Coder</li>
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> DeepSeek 3.2 &amp; MiniMax M2.1</li>
                       </ul>
+                      <button className="mt-auto w-full py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/70 font-bold text-xs transition-all">
+                        Current plan
+                      </button>
                     </div>
-                    <button className="w-full py-4 rounded-xl bg-[#ccff00] text-black font-black text-[10px] uppercase tracking-widest mt-8 hover:opacity-90 transition-all shadow-[0_0_20px_rgba(204,255,0,0.3)]">Upgrade Now</button>
+
+                    {/* Pro (featured) */}
+                    <div className="group relative bg-gradient-to-b from-[#ccff00]/[0.08] to-transparent border-2 border-[#ccff00]/60 rounded-3xl p-7 flex flex-col shadow-[0_0_40px_rgba(204,255,0,0.12)] md:-translate-y-3">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#ccff00] text-black font-bold text-[10px] uppercase tracking-wider rounded-full shadow-lg">
+                        Most popular
+                      </div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-sm font-bold text-[#ccff00]">Pro</h3>
+                      </div>
+                      <p className="text-xs text-white/45 font-medium mb-5">For serious builders</p>
+                      <div className="flex items-baseline gap-1 mb-6">
+                        <span className="text-4xl font-bold text-white tracking-tight">$19</span>
+                        <span className="text-xs text-white/30 font-medium">/mo</span>
+                      </div>
+                      <ul className="space-y-3 text-[13px] font-medium text-white/75 mb-8">
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> 10.0 credits daily</li>
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> Claude Sonnet 4.6, 4.5 &amp; 4.0</li>
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> GLM-5 &amp; MiniMax M2.5</li>
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> Priority queue</li>
+                      </ul>
+                      <button className="mt-auto w-full py-3 rounded-xl bg-[#ccff00] text-black font-bold text-xs hover:bg-[#d4ff33] transition-all shadow-[0_4px_20px_rgba(204,255,0,0.3)] flex items-center justify-center gap-1.5">
+                        Upgrade to Pro <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Ultra */}
+                    <div className="group relative bg-white/[0.03] border border-white/[0.08] rounded-3xl p-7 flex flex-col hover:border-violet-500/30 transition-all duration-300">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-sm font-bold text-violet-300">Ultra</h3>
+                      </div>
+                      <p className="text-xs text-white/40 font-medium mb-5">Maximum firepower</p>
+                      <div className="flex items-baseline gap-1 mb-6">
+                        <span className="text-4xl font-bold text-white tracking-tight">$49</span>
+                        <span className="text-xs text-white/30 font-medium">/mo</span>
+                      </div>
+                      <ul className="space-y-3 text-[13px] font-medium text-white/65 mb-8">
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> 30.0 credits daily</li>
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> Claude Opus 4.8, 4.7, 4.6 &amp; 4.5</li>
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> Every Sonnet, Haiku &amp; open-weight model</li>
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> Priority processing</li>
+                      </ul>
+                      <button className="mt-auto w-full py-3 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-bold text-xs transition-all">
+                        Go Ultra
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Ultra Plan */}
-                  <div className="bg-[#1a1c22] border border-white/5 rounded-[2rem] p-8 relative flex flex-col justify-between group hover:border-violet-500/20 transition-all">
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-violet-400">Ultra Plan</h3>
-                      <div className="flex items-baseline gap-1 my-6">
-                        <span className="text-4xl font-black text-white italic">$49</span>
-                        <span className="text-xs text-white/20 font-bold uppercase tracking-widest">/month</span>
-                      </div>
-                      <ul className="space-y-4 text-xs font-bold text-white/60">
-                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-violet-400" /> 30.0 Credits / Daily</li>
-                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-violet-400" /> Priority Server Processing</li>
-                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-violet-400" /> Dedicated Enterprise GPU</li>
-                      </ul>
-                    </div>
-                    <button className="w-full py-4 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-black text-[10px] uppercase tracking-widest mt-8 transition-all">Go Ultra</button>
+                  {/* Footer reassurance */}
+                  <div className="flex items-center justify-center gap-6 mt-8 text-[11px] text-white/35 font-medium">
+                    <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-[#ccff00]" /> Secure checkout</span>
+                    <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-[#ccff00]" /> Cancel anytime</span>
+                    <span className="flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-[#ccff00]" /> Instant activation</span>
                   </div>
                 </div>
               </motion.div>

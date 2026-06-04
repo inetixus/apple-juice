@@ -3,15 +3,22 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { DashboardClient } from "@/components/dashboard-client";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tester?: string }>;
+}) {
   const session = await getServerSession(authOptions);
+  const params = await searchParams;
+  const isTester = params?.tester === "1";
 
-  if (!session) {
+  // Tester bypass: allow viewing the dashboard without an account.
+  if (!session && !isTester) {
     redirect("/");
   }
 
   let avatarUrl = "";
-  if ((session.user as any)?.id) {
+  if (session && (session.user as any)?.id) {
     try {
       const res = await fetch(
         `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${(session.user as any).id}&size=420x420&format=Png&isCircular=false`,
@@ -28,8 +35,9 @@ export default async function DashboardPage() {
 
   return (
     <DashboardClient
-      username={session.user?.name ?? "Roblox User"}
+      username={session?.user?.name ?? (isTester ? "Tester" : "Roblox User")}
       avatarUrl={avatarUrl}
+      isTester={!session && isTester}
     />
   );
 }

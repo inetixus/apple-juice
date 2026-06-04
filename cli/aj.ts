@@ -621,31 +621,159 @@ function getReasoningPhase(elapsed: number): string {
   return STATUS_VERBS[seed] + '...';
 }
 
+/**
+ * Describe what one plan action is doing, in present tense, for the live feed.
+ */
+function describeAction(s: any): { verb: string; label: string } | null {
+  const action = String(s.action || 'create').toLowerCase();
+  const t = s.type || s.scriptType || 'Script';
+  switch (action) {
+    case 'read_script':
+      return { verb: 'Reading', label: `${s.name || 'script'}` };
+    case 'create':
+      return { verb: 'Writing', label: `${t} ${s.name || ''} → ${s.parent || 'ServerScriptService'}`.trim() };
+    case 'edit_script':
+      return { verb: 'Editing', label: `${s.name || 'script'}` };
+    case 'create_instance':
+      return { verb: 'Creating', label: `${s.className || 'Instance'} ${s.instanceName || ''} → ${s.parent || ''}`.trim() };
+    case 'delete':
+      return { verb: 'Deleting', label: `${s.name || 'instance'}` };
+    case 'rename_instance':
+      return { verb: 'Renaming', label: `${s.oldPath || ''} → ${s.newName || ''}` };
+    case 'move_instance':
+      return { verb: 'Moving', label: `${s.oldPath || ''} → ${s.newParentPath || ''}` };
+    case 'run_playtest':
+      return { verb: 'Playtesting', label: 'verifying in Studio' };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Print a live, ticking activity feed for the agent's real plan — each line
+ * shows a spinner while "in progress", then flips to a green check. Gives the
+ * CLI the same agentic "watch it work" feel as the web app.
+ */
+async function printActivityFeed(scripts: any[], thinking?: string): Promise<void> {
+  const steps: { verb: string; label: string }[] = [];
+  if (thinking && thinking.trim()) steps.push({ verb: 'Thinking', label: 'reasoning about the request' });
+  for (const s of scripts || []) {
+    const d = describeAction(s);
+    if (d) steps.push(d);
+  }
+  if (steps.length === 0) return;
+
+  process.stdout.write('\n');
+  for (const step of steps) {
+    // In-progress line with a brief spinner sweep.
+    const frames = ['✦', '✧', '★', '✶'];
+    for (let f = 0; f < 4; f++) {
+      const icon = frames[f % frames.length];
+      process.stdout.write(`\r  ${BRAND}${icon}${R}  ${BOLD}${WHITE}${step.verb}${R} ${DIM}${step.label}${R}   `);
+      await new Promise(r => setTimeout(r, 60));
+    }
+    // Completed line.
+    process.stdout.write(`\r  ${BRIGHT_GREEN}✓${R}  ${DIM}${step.verb}${R} ${DIM}${step.label}${R}   \n`);
+  }
+}
+
 function formatArtifactsBox(scripts: any[]): string {
+  if (!scripts || scripts.length === 0) return '';
+
+  const w = termWidth() - 1;
+  const boxW = Math.min(72, Math.max(48, w - 4));
+  const G = '\x1b[38;2;90;90;95m';        // border grey
+  const inner = boxW - 2;                  // usable content width inside │ … │
+
+  // Pad a pre-colored string to a fixed *visible* width.
+  const pad = (s: string, width: number) => s + ' '.repeat(Math.max(0, width - stripAnsi(s).length));
+  const row = (content: string) => `  ${G}│${R} ${pad(content, inner - 1)}${G}│${R}`;
+  const rule = (left: string, right: string) =>
+    `  ${G}${left}${'─'.repeat(boxW - 2)}${right}${R}`;
+
+  // Tally actions for the header summary.
+  let created = 0, modified = 0, deleted = 0, other = 0;
+  for (const s of scripts) {
+    const a = String(s.action || 'create').toLowerCase();
+    if (a === 'create' || a === 'create_instance') created++;
+    else if (a === 'delete') deleted++;
+    else if (a === 'run_playtest' || a === 'rename_instance' || a === 'move_instance') other++;
+    else modified++;
+  }
+  const summaryParts: string[] = [];
+  if (created) summaryParts.push(`${BRIGHT_GREEN}+${created} new${R}`);
+  if (modified) summaryParts.push(`${BRIGHT_YELLOW}~${modified} edit${modified > 1 ? 's' : ''}${R}`);
+  if (deleted) summaryParts.push(`${BRIGHT_RED}-${deleted} del${R}`);
+  if (other) summaryParts.push(`${DIM}${other} action${other > 1 ? 's' : ''}${R}`);
+  const summary = summaryParts.join(`${DIM} · ${R}`);
+
   const lines: string[] = [''];
 
-  for (const s of scripts) {
+  // Header
+  const title = ` ${BRAND}✦${R} ${BOLD}Implementation Plan${R}`;
+  const headRight = summary;
+  const headGap = Math.max(1, inner - 1 - stripAnsi(title).length - stripAnsi(headRight).length);
+  lines.push(rule('╭', '╮'));
+  lines.push(row(`${title}${' '.repeat(headGap)}${headRight}`));
+  lines.push(rule('├', '┤'));
+
+  // One block per script
+  let totalLines = 0, totalBytes = 0;
+  scripts.forEach((s, idx) => {
     const action = String(s.action || 'create').toLowerCase();
-    let typeLabel = s.type || s.scriptType || s.className || 'Instance';
-    let nameLabel = s.name || s.instanceName || 'Unnamed';
-    let pathLabel = s.parent || s.newParentPath || '';
+    const typeLabel = s.type || s.scriptType || s.className || 'Instance';
+    const nameLabel = s.name || s.instanceName || 'Unnamed';
+    const pathLabel = s.parent || s.newParentPath || '';
+
+    let badge: string;
+    let detail: string;
 
     if (action === 'delete') {
-      lines.push(`  ${DIM}🛠️  Deleted ${nameLabel} from ${pathLabel}${R}`);
+      badge = `${BRIGHT_RED}✗ DELETE${R}`;
+      detail = `${WHITE}${nameLabel}${R} ${DIM}in ${pathLabel}${R}`;
     } else if (action === 'run_playtest') {
-      lines.push(`  ${DIM}▶  Running Roblox Studio Playtest...${R}`);
-    } else if (action === 'rename_instance' || action === 'move_instance') {
-      lines.push(`  ${DIM}📦 Moved ${s.oldPath || ''} ➔ ${s.newParentPath || s.newName || ''}${R}`);
+      badge = `${BRIGHT_CYAN}▶ TEST${R}`;
+      detail = `${DIM}Run a Studio playtest to verify${R}`;
+    } else if (action === 'rename_instance') {
+      badge = `${BRIGHT_YELLOW}✎ RENAME${R}`;
+      detail = `${DIM}${s.oldPath || ''} → ${s.newName || ''}${R}`;
+    } else if (action === 'move_instance') {
+      badge = `${BRIGHT_YELLOW}⇄ MOVE${R}`;
+      detail = `${DIM}${s.oldPath || ''} → ${s.newParentPath || ''}${R}`;
+    } else if (action === 'create_instance') {
+      badge = `${BRIGHT_GREEN}+ NEW${R}`;
+      detail = `${BRAND}${typeLabel}${R} ${BOLD}${WHITE}${nameLabel}${R} ${DIM}in ${pathLabel}${R}`;
     } else {
-      let sizeStr = '';
-      if (s.code) {
-        const sizeBytes = s.code.length;
-        sizeStr = sizeBytes > 1024 ? `${(sizeBytes / 1024).toFixed(1)} KB` : `${sizeBytes} B`;
-        sizeStr = ` ${DIM}(${s.code.split('\n').length} lines, ${sizeStr})${R}`;
-      }
-      lines.push(`  ${BRIGHT_GREEN}✓${R} ${DIM}Created${R} ${WHITE}${typeLabel}:${nameLabel}${R} ${DIM}in ${pathLabel}${R}${sizeStr}`);
+      const isModify = action !== 'create';
+      badge = isModify ? `${BRIGHT_YELLOW}~ EDIT${R}` : `${BRIGHT_GREEN}+ NEW${R}`;
+      detail = `${BRAND}${typeLabel}${R} ${BOLD}${WHITE}${nameLabel}${R} ${DIM}in ${pathLabel}${R}`;
     }
-  }
+
+    // Tree connector
+    const connector = idx === scripts.length - 1 ? '└' : '├';
+    lines.push(row(`${DIM}${connector}─${R} ${badge}  ${detail}`));
+
+    // Size meta for code-bearing scripts
+    if (s.code && typeof s.code === 'string') {
+      const ln = s.code.split('\n').length;
+      const by = s.code.length;
+      totalLines += ln;
+      totalBytes += by;
+      const sizeStr = by > 1024 ? `${(by / 1024).toFixed(1)} KB` : `${by} B`;
+      lines.push(row(`${DIM}│  ${ln} lines · ${sizeStr}${R}`));
+    }
+  });
+
+  // Footer with totals + next-step hint
+  lines.push(rule('├', '┤'));
+  const totalStr = totalLines > 0
+    ? `${DIM}${totalLines} lines across ${scripts.length} file${scripts.length > 1 ? 's' : ''}${R}`
+    : `${DIM}${scripts.length} action${scripts.length > 1 ? 's' : ''}${R}`;
+  const hint = `${BRAND}/artifact${R}${DIM} to review${R}`;
+  const footGap = Math.max(1, inner - 1 - stripAnsi(totalStr).length - stripAnsi(hint).length);
+  lines.push(row(`${totalStr}${' '.repeat(footGap)}${hint}`));
+  lines.push(rule('╰', '╯'));
+
   return lines.join('\n') + '\n';
 }
 
@@ -2356,46 +2484,44 @@ async function showModelSelector(rl: any, models: string[], state?: any): Promis
     const rows = process.stdout.rows || 24;
     const w = termWidth() - 1;
 
-    // Temporarily shrink chatbox scrolling region and redraw to make space for the longer dropbox
-    if (state && rows >= 19) {
-      process.stdout.write(`\x1b[4;${rows - 17}r`);
+    // Compact popover anchored just above the chatbox (not a full-screen takeover).
+    const MAX_VISIBLE = 5;
+    const boxHeight = MAX_VISIBLE + 2; // top border + items + bottom border
+    const compact = rows >= 16;
+    const startRow = compact ? (rows - 3 - boxHeight) : Math.max(4, rows - 1 - boxHeight);
+
+    // Only carve out the popover's own height from the scroll region, keeping
+    // the chat history visible above it.
+    if (state && compact) {
+      process.stdout.write(`\x1b[4;${startRow - 1}r`);
       redrawScreen(state);
     }
 
     function draw() {
       process.stdout.write('\x1b[s'); // Save cursor position
-      
-      const startRow = rows >= 19 ? rows - 16 : 1;
+
       const G_LINE = '\x1b[38;2;100;100;100m';
-      const boxW = Math.min(68, w - 4);
-      
-      // Clear the popup area first (12 lines total)
-      for (let r = 0; r < 12; r++) {
+      const boxW = Math.min(60, w - 4);
+
+      // Clear the popover area first
+      for (let r = 0; r < boxHeight; r++) {
         process.stdout.write(`\x1b[${startRow + r};1H\x1b[2K`);
       }
 
-      // Draw Top Border
-      const title = ' Select Option ';
-      const borderTop = `${G_LINE}┌─${BRAND}${title}${G_LINE}${'─'.repeat(boxW - 1 - title.length)}┐${R}`;
+      // Top border carries the live search query inline, so no separate row.
+      const label = ' Model ';
+      const queryStr = query ? ` ${query}` : ' type to filter';
+      const queryDisplay = query ? `${WHITE}${queryStr}${R}` : `${DIM}${queryStr}${R}`;
+      const usedLen = label.length + stripAnsi(queryStr).length + 3; // ─ + space pads
+      const fillLen = Math.max(0, boxW - usedLen);
+      const borderTop = `${G_LINE}╭─${BRAND}${label}${G_LINE}┄${queryDisplay}${G_LINE}${'─'.repeat(fillLen)}╮${R}`;
       process.stdout.write(`\x1b[${startRow};1H  ${borderTop}`);
 
-      // Draw Search Line
-      const searchStr = ` Search: ${query}`;
-      const searchLine = `${G_LINE}│${R}${searchStr}${' '.repeat(Math.max(0, boxW - stripAnsi(searchStr).length))}${G_LINE}│${R}`;
-      process.stdout.write(`\x1b[${startRow + 1};1H  ${searchLine}`);
-
-      // Draw Mid Separator
-      const sep = `${G_LINE}├${'─'.repeat(boxW)}┤${R}`;
-      process.stdout.write(`\x1b[${startRow + 2};1H  ${sep}`);
-
-      // Draw visible options (compact 8 items list)
-      const MAX_VISIBLE = 8;
+      // Visible options window
       let startIdx = 0;
-      let endIdx = filtered.length;
-
       if (filtered.length > MAX_VISIBLE) {
         startIdx = Math.max(0, selectedIndex - Math.floor(MAX_VISIBLE / 2));
-        endIdx = startIdx + MAX_VISIBLE;
+        let endIdx = startIdx + MAX_VISIBLE;
         if (endIdx > filtered.length) {
           endIdx = filtered.length;
           startIdx = Math.max(0, endIdx - MAX_VISIBLE);
@@ -2404,11 +2530,14 @@ async function showModelSelector(rl: any, models: string[], state?: any): Promis
 
       for (let idx = 0; idx < MAX_VISIBLE; idx++) {
         const itemIdx = startIdx + idx;
-        const lineRow = startRow + 3 + idx;
+        const lineRow = startRow + 1 + idx;
         if (itemIdx < filtered.length) {
           const item = filtered[itemIdx];
           const isSelected = itemIdx === selectedIndex;
-          const itemText = isSelected ? ` > \x1b[36m${item}\x1b[0m` : `   ${item}`;
+          const pretty = formatModelName(item);
+          const itemText = isSelected
+            ? ` ${BRAND}❯${R} ${BRIGHT_CYAN}${pretty}${R}`
+            : `   ${DIM}${pretty}${R}`;
           const finalLine = `${G_LINE}│${R}${itemText}${' '.repeat(Math.max(0, boxW - stripAnsi(itemText).length))}${G_LINE}│${R}`;
           process.stdout.write(`\x1b[${lineRow};1H  ${finalLine}`);
         } else {
@@ -2417,11 +2546,14 @@ async function showModelSelector(rl: any, models: string[], state?: any): Promis
         }
       }
 
-      // Draw Bottom Help Line / Border
-      const helpText = ` ↑/↓ select · Enter confirm · Esc close `;
-      const borderBot = `${G_LINE}└${'─'.repeat(Math.floor((boxW - helpText.length) / 2))}${DIM}${helpText}${R}${G_LINE}${'─'.repeat(boxW - helpText.length - Math.floor((boxW - helpText.length) / 2))}┘${R}`;
-      process.stdout.write(`\x1b[${startRow + 11};1H  ${borderBot}`);
-      
+      // Bottom border with counter + hint
+      const counter = filtered.length > 0 ? ` ${selectedIndex + 1}/${filtered.length} ` : ' no matches ';
+      const hint = ` ↑↓ ⏎ esc `;
+      const botUsed = counter.length + hint.length + 2;
+      const botFill = Math.max(0, boxW - botUsed);
+      const borderBot = `${G_LINE}╰${DIM}${counter}${G_LINE}${'─'.repeat(botFill)}${DIM}${hint}${G_LINE}╯${R}`;
+      process.stdout.write(`\x1b[${startRow + boxHeight - 1};1H  ${borderBot}`);
+
       process.stdout.write('\x1b[u'); // Restore cursor position
     }
 
@@ -2476,15 +2608,14 @@ async function showModelSelector(rl: any, models: string[], state?: any): Promis
     function cleanup() {
       process.stdin.removeListener('keypress', onKeypress);
       rl._ttyWrite = origTtyWrite;
-      
-      // Clear the popover area lines from screen (12 lines total)
-      const startRow = rows >= 19 ? rows - 16 : 1;
-      for (let r = 0; r < 12; r++) {
+
+      // Clear the popover area lines from screen
+      for (let r = 0; r < boxHeight; r++) {
         process.stdout.write(`\x1b[${startRow + r};1H\x1b[2K`);
       }
-      
+
       // Restore standard scrolling region and redraw full-screen TUI
-      if (state && rows >= 19) {
+      if (state && compact) {
         process.stdout.write(`\x1b[4;${rows - 4}r`);
         redrawScreen(state);
       }
@@ -4857,6 +4988,10 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
             if (Array.isArray(d.scripts)) {
               const textReply = typeof d.message === 'string' && d.message.trim() ? d.message : '';
+              // Show the live activity feed (read/write/create/playtest) before the plan box.
+              if (d.scripts.length > 0) {
+                await printActivityFeed(d.scripts, d.thinking);
+              }
               const artifactsBox = d.scripts.length > 0 ? formatArtifactsBox(d.scripts) : '';
               reply = textReply + artifactsBox;
 
@@ -5335,7 +5470,9 @@ An "artifact" in Apple Juice is a cohesive **Implementation Plan**! It is a comb
 When a user asks you to "create an artifact" or "propose a plan", you MUST generate a structured Implementation Plan using this JSON format, explaining your changes in the "message" field and providing the proposed script files/changes in the "scripts" field. Do NOT simply write scripts directly in Roblox Studio; you propose them as a cohesive plan (artifact) for the user to review, accept, or steer first!
 
 ## WORKFLOW & ACTIONS
-If generating or modifying multiple files, add JSON objects to the "scripts" array. The plugin executes each entry live in Studio.
+If generating or modifying multiple files, add JSON objects to the "scripts" array. The plugin executes each entry live in Studio, in array order.
+**Ordering matters**: list dependencies first. Create Folders, RemoteEvents and RemoteFunctions (via "create_instance") BEFORE the Scripts that require them. Put shared ModuleScripts before the scripts that require them. If a playtest is useful, make "run_playtest" the LAST entry.
+Keep the "message" field tight and useful: 1–3 sentences on the approach, then a short bullet list of the files and what each one does. No fluff, no restating the request.
 Supported Actions in the "scripts" array:
 1. "create" — Create or replace a script.
    Usage: {"action": "create", "scriptType": "Script" | "LocalScript" | "ModuleScript", "parent": "ServerScriptService", "name": "MyScript", "code": "-- entire code"}
@@ -5360,18 +5497,22 @@ Supported Actions in the "scripts" array:
 - **Replication**: Server is authoritative. Clients communicate via RemoteEvents (fire-and-forget) and RemoteFunctions (request-response). NEVER trust the client; validate all Remote inputs on the server.
 
 ## ROBLOX LUAU STYLE, SAFETY, & BEST PRACTICES (STRICT)
-- **Production-Ready & Fully Implemented**: You MUST write complete, bulletproof, and production-ready code. ZERO TOLERANCE for placeholders, "TODO" comments, or leaving logic for the user to implement. Write the exact code needed.
-- **Strong Typing**: Use Luau type annotations rigorously everywhere (e.g., 'local speed: number = 100', 'function calculate(val: number): boolean').
-- **Error Handling**: Use 'pcall' for all DataStores, HTTP requests, and any operation that could yield an error. Handle failures gracefully without breaking the script.
-- **Event Validation & Security**: On the server, ALWAYS validate arguments from RemoteEvents (types, ranges, limits, ownership). NEVER trust the client. If a client requests to buy an item, the server MUST check their balance.
-- **Scoping & State**: ALWAYS use 'local' for variables/functions. Never use globals. Keep state in clean tables/dictionaries.
+- **Production-Ready & Fully Implemented**: You MUST write complete, bulletproof, and production-ready code. ZERO TOLERANCE for placeholders, "TODO" comments, stubs, or leaving logic for the user to implement. Write the exact code needed, end to end.
+- **Plan before code**: For any non-trivial request, briefly think through the architecture (which scripts, where they live, how they communicate) and reflect that in the "message" field as a short, skimmable plan — then deliver every file in "scripts". The plan and the files MUST match exactly: every file you describe must appear in "scripts", and every script in "scripts" must be referenced in the plan.
+- **Module-first architecture**: Prefer small, focused ModuleScripts with a single responsibility over one giant script. Share logic via ModuleScripts in ReplicatedStorage (client-safe) or ServerStorage (server-only). A typical feature = a server Script + a ModuleScript + (if UI) a LocalScript, not one monolith.
+- **Self-documenting**: Open every file with a short header comment block: what it does, where it goes, and how it connects to the other files in the plan. Add concise inline comments only where intent isn't obvious. Never over-comment trivial lines.
+- **Strong Typing**: Use Luau type annotations rigorously everywhere (e.g., 'local speed: number = 100', 'function calculate(val: number): boolean'). Define 'type' aliases for complex tables. Consider '--!strict' at the top of ModuleScripts.
+- **Error Handling**: Use 'pcall' for all DataStores, HTTP requests, MarketplaceService, and any operation that could yield or error. Handle failures gracefully, log with 'warn', and degrade without breaking the experience. Add bounded retries (e.g. 3 attempts with backoff) for DataStore reads/writes.
+- **Event Validation & Security**: On the server, ALWAYS validate arguments from RemoteEvents/RemoteFunctions (existence, types, ranges, limits, ownership, rate limits). NEVER trust the client. If a client requests to buy an item, the server MUST re-check their balance and inventory.
+- **Scoping & State**: ALWAYS use 'local' for variables/functions. Never use globals. Keep state in clean, well-named tables/dictionaries keyed by player or instance.
 - **Service Access**: ALWAYS use 'game:GetService("ServiceName")' defined at the top of the script. Never use 'game.ServiceName'.
-- **Instance & Yield Safety**: Use 'WaitForChild("Name", 10)' on clients to prevent infinite yield warnings. Handle cases where the instance doesn't exist. NEVER use 'WaitForChild' without a timeout.
+- **Instance & Yield Safety**: Use 'WaitForChild("Name", 10)' on clients to prevent infinite yield warnings. Handle the case where the instance doesn't exist. NEVER use 'WaitForChild' without a timeout.
 - **Task Library**: STRICTLY use 'task.spawn', 'task.defer', 'task.delay', and 'task.wait'. DO NOT use legacy 'spawn', 'delay', or 'wait'.
-- **Memory Management & Clean Up**: Always disconnect connections, destroy unused instances, and clear tables to prevent memory leaks. Use Maid/Janitor patterns if applicable.
+- **Memory Management & Clean Up**: Always disconnect connections, destroy unused instances, and clear tables to prevent memory leaks. Clean up per-player state on 'Players.PlayerRemoving'. Use a Maid/Janitor pattern for anything with multiple connections.
+- **Performance**: Cache service and instance lookups, avoid per-frame allocations in 'RunService' loops, debounce 'Touched' handlers, and prefer event-driven code over polling.
 - Every script MUST start with a print statement: 'print("[AppleJuice] Running ScriptName...")'
 - DO NOT spawn Parts or any 3D objects in the Workspace unless explicitly requested.
-- Architecture: Place Server scripts in ServerScriptService. Place LocalScripts in StarterPlayerScripts or StarterGui. Shared modules go in ReplicatedStorage.
+- Architecture: Place Server scripts in ServerScriptService. Place LocalScripts in StarterPlayerScripts or StarterGui. Shared modules go in ReplicatedStorage. Create any required RemoteEvents/RemoteFolders with "create_instance" BEFORE the scripts that reference them.
 
 ## UI GENERATION — USE AppleJuiceUI LIBRARY
 When creating ANY UI, you MUST require and use the AppleJuiceUI component library located in ReplicatedStorage:
