@@ -61,7 +61,14 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
         });
       }
 
-      const generatedText = stdout.trim();
+      // Strip ANSI escape codes (terminal colors) and leading prompt characters
+      const cleanText = stdout
+        .replace(/\x1B\[\d+(;\d+)*m/g, '') // remove colors
+        .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, '') // comprehensive ANSI strip
+        .replace(/^>\s*/, '') // remove leading "> "
+        .trim();
+
+      const generatedText = cleanText;
 
       if (stream) {
         // Return SSE stream matching OpenAI format
