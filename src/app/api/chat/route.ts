@@ -1229,6 +1229,19 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
 
         if (!res.ok) {
           const bodyText = await res.text();
+          if (wantsStream) {
+            const payload = JSON.stringify({ choices: [{ delta: { content: `\n[Kiro API Error ${res.status}]: ${bodyText}` } }] });
+            const stream = new ReadableStream({
+              start(controller) {
+                controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
+                controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`));
+                controller.close();
+              }
+            });
+            return new Response(stream, {
+              headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" }
+            });
+          }
           return Response.json(
             { error: "Kiro API Error", detail: bodyText },
             { status: res.status }
@@ -1277,6 +1290,20 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
           return Response.json({ error: "Kiro returned empty output", detail: text }, { status: 502 });
         }
       } catch (e: any) {
+        if (wantsStream) {
+          const errMsg = e.message || "Failed to connect to KIRO_API_URL. Make sure your tunnel or proxy is running.";
+          const payload = JSON.stringify({ choices: [{ delta: { content: `\n[Kiro Connection Error]: ${errMsg}` } }] });
+          const stream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
+              controller.enqueue(new TextEncoder().encode(`data: [DONE]\n\n`));
+              controller.close();
+            }
+          });
+          return new Response(stream, {
+            headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" }
+          });
+        }
         return Response.json({ error: "Kiro fetch failed", detail: e.message, model: effectiveModel }, { status: 502 });
       }
 
