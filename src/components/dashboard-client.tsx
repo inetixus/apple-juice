@@ -1670,25 +1670,38 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
               }
 
               searchIndex = blockEnd + 1;
+            } else {
+              // No block could be derived; advance past this name to avoid an infinite loop.
+              searchIndex = absoluteIndex + nameMatch[0].length;
             }
-
-            const recoveredObj = {
-              message: (
-                messageMatch ||
-                "The response was truncated, but I've recovered the scripts generated so far."
-              )
-                .replace(/\\n/g, "\n")
-                .replace(/\\"/g, '"'),
-              thinking: (thinkingMatch || "")
-                .replace(/\\n/g, "\n")
-                .replace(/\\"/g, '"'),
-              scripts: scripts.length > 0 ? scripts : undefined,
-              suggestions: ["Continue generating"],
-            };
-            return recoveredObj;
           }
+
+          // Build the recovered object AFTER scanning all blocks so multiple
+          // scripts are collected. Always returns a valid object (never undefined),
+          // which is critical: buildAssistantMessage() dereferences this result
+          // and an undefined here previously crashed the whole app at end-of-stream.
+          return {
+            message: (
+              messageMatch ||
+              "The response was truncated, but I've recovered the scripts generated so far."
+            )
+              .replace(/\\n/g, "\n")
+              .replace(/\\"/g, '"'),
+            thinking: (thinkingMatch || "")
+              .replace(/\\n/g, "\n")
+              .replace(/\\"/g, '"'),
+            scripts: scripts.length > 0 ? scripts : undefined,
+            suggestions: ["Continue generating"],
+          };
         }
       }
+
+      // Absolute fallback: never return undefined. Treat the raw text as a
+      // plain assistant message so the UI can render it without crashing.
+      return {
+        message: typeof text === "string" ? text : "",
+        suggestions: [],
+      };
     }
 
     function buildAssistantMessage(
@@ -1697,6 +1710,12 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       pendingSync: boolean,
       isHidden: boolean = false,
     ): ChatMessage {
+      // Defensive: parseChatResponse should always return an object, but guard
+      // against null/undefined/non-object so a malformed response can never
+      // throw inside a setMessages updater and tear down the whole app.
+      if (!p || typeof p !== "object") {
+        p = { message: typeof p === "string" ? p : "" };
+      }
       let rawScripts = p.scripts;
       if (!rawScripts && (p.action || p.scriptName)) {
         rawScripts = [p];
