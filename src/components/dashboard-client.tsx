@@ -2182,8 +2182,31 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
         signal: abortControllerRef.current.signal,
       });
 
-      if (response.headers.get("Content-Type")?.includes("text/event-stream")) {
-        const reader = response.body?.getReader();
+      // Handle directStream: Vercel returns the proxy URL so we stream directly
+      // from Render, bypassing Vercel's 60s Hobby plan timeout.
+      let streamResponse = response;
+      if (response.headers.get("Content-Type")?.includes("application/json")) {
+        const json = await response.json();
+        if (json.directStream) {
+          streamResponse = await fetch(json.url, {
+            method: "POST",
+            headers: json.headers,
+            body: JSON.stringify(json.payload),
+            signal: abortControllerRef.current.signal,
+          });
+        } else if (json.error) {
+          throw new Error(json.detail || json.error || "API Error");
+        } else {
+          // Non-streaming JSON response — handle as normal payload
+          // (fall through to the non-stream path below)
+          streamResponse = new Response(JSON.stringify(json), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      if (streamResponse.headers.get("Content-Type")?.includes("text/event-stream")) {
+        const reader = streamResponse.body?.getReader();
         if (!reader) throw new Error("Failed to read stream body");
         const decoder = new TextDecoder();
         let accumulated = "";
@@ -2614,10 +2637,10 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
         return;
       }
 
-      if (!response.ok) {
-        let errText = response.statusText;
+      if (!streamResponse.ok) {
+        let errText = streamResponse.statusText;
         try {
-          const errPayload = await response.json();
+          const errPayload = await streamResponse.json();
           errText = errPayload?.detail || errPayload?.error || errText;
         } catch (err: any) {
           console.error("AI Error:", err);
@@ -2627,7 +2650,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
         throw new Error(errText || "Failed to generate code");
       }
 
-      const payload = (await response.json()) as {
+      const payload = (await streamResponse.json()) as {
         code?: string;
         error?: string;
         detail?: string;

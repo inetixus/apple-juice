@@ -1209,6 +1209,33 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
 
       const targetModel = resolveKiroModelId(effectiveModel);
 
+      // On Vercel Hobby plan, streaming through Vercel times out at 60s.
+      // Instead, return the proxy URL + payload so the browser streams directly.
+      if (wantsStream) {
+        // Track usage estimate upfront (best-effort)
+        if (!isUsingCustomKey && ownerUserId) {
+          const inputTk = Math.ceil((strictPrompt?.length || 0) / 4);
+          const mlUsed = calculateMlUsed(inputTk, 500, effectiveModel);
+          await trackMlUsage(ownerUserId, mlUsed);
+        }
+
+        return Response.json({
+          directStream: true,
+          url: `${kiroUrl.replace(/\/$/, "")}/chat/completions`,
+          payload: {
+            model: targetModel,
+            messages: msgs,
+            temperature: mode === "thinking" ? 0.4 : 0.2,
+            max_tokens: Math.min(dynamicMaxOutputTokens, 8192),
+            stream: true
+          },
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${kiroKey}`,
+          }
+        });
+      }
+
       try {
         const res = await fetch(`${kiroUrl.replace(/\/$/, "")}/chat/completions`, {
           method: "POST",
@@ -1223,7 +1250,7 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
             messages: msgs,
             temperature: mode === "thinking" ? 0.4 : 0.2,
             max_tokens: Math.min(dynamicMaxOutputTokens, 8192),
-            stream: wantsStream
+            stream: false
           })
         });
 

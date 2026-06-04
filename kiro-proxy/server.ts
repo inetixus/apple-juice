@@ -6,6 +6,17 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '50mb' }));
 
+// Enable CORS for direct browser requests (bypasses Vercel 60s timeout)
+app.use((_req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (_req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
+
 // Health check endpoint for Render
 app.get('/', (_req, res) => {
   res.status(200).send('Kiro Proxy is running');
