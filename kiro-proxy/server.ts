@@ -8,7 +8,7 @@ const port = process.env.PORT || 3000;
 app.use(express.json({ limit: '50mb' }));
 
 // Health check endpoint for Render
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   res.status(200).send('Kiro Proxy is running');
 });
 
