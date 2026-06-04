@@ -1,6 +1,5 @@
 import express from 'express';
 import type { Request, Response } from 'express';
-import { execFile } from 'child_process';
 
 const app = express();
 const port = process.env.PORT || 3000;
