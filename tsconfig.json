@@ -45,7 +45,9 @@
   "exclude": [
     "node_modules",
     "claude-code-main",
-    "cli"
+    "cli",
+    "kiro-proxy",
+    "kiro-proxy-temp"
   ]
 }
 
