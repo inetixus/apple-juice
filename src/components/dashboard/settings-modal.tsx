@@ -1,8 +1,86 @@
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { useState } from "react";
+import { X, ChevronDown, Sparkles, Check } from "lucide-react";
 import { useDashboard } from "./dashboard-context";
+import { kiroModelLogo } from "@/lib/kiro-models";
 import { Input } from "@/components/ui/input";
+
+/** Model picker with brand logos (replaces the plain <select>). */
+function ModelPicker({
+  models,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  models: string[];
+  selected: string;
+  disabled?: boolean;
+  onSelect: (m: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedLogo = kiroModelLogo(selected);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        className={`w-full flex items-center gap-2.5 bg-black/20 border border-white/[0.1] text-white/80 text-[13px] py-2.5 px-3 rounded focus:outline-none focus:border-[#ccff00] transition-all ${
+          disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-white/20"
+        }`}
+      >
+        {selectedLogo ? (
+          <img src={selectedLogo} alt="" className="w-4 h-4 object-contain rounded-sm" />
+        ) : (
+          <Sparkles className="w-4 h-4 text-[#ccff00]" />
+        )}
+        <span className="flex-1 text-left font-medium">{selected}</span>
+        <ChevronDown className={`w-4 h-4 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      <AnimatePresence>
+        {open && !disabled && (
+          <>
+            <div className="fixed inset-0 z-[210]" onClick={() => setOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.12 }}
+              className="absolute left-0 right-0 mt-1.5 z-[220] bg-[#1a1c22] border border-white/10 rounded-lg shadow-2xl overflow-hidden max-h-[280px] overflow-y-auto custom-scrollbar"
+            >
+              {models.map((m) => {
+                const logo = kiroModelLogo(m);
+                const isSel = m === selected;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      onSelect(m);
+                      setOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-left transition-colors ${
+                      isSel ? "bg-[#ccff00]/10 text-[#ccff00]" : "text-white/70 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    {logo ? (
+                      <img src={logo} alt="" className="w-4 h-4 object-contain rounded-sm" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 opacity-40" />
+                    )}
+                    <span className="flex-1 font-medium">{m}</span>
+                    {isSel && <Check className="w-3.5 h-3.5" />}
+                  </button>
+                );
+              })}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export function SettingsModal() {
   const {
@@ -115,27 +193,15 @@ export function SettingsModal() {
                   </span>
                 )}
               </label>
-              <select
-                id="model-select"
-                value={selectedModel}
+              <ModelPicker
+                models={availableModels}
+                selected={selectedModel}
                 disabled={isLoadingModels}
-                onChange={(e) => {
-                  setSelectedModel(e.target.value);
-                  window.localStorage.setItem(
-                    "apple-juice-model",
-                    e.target.value
-                  );
+                onSelect={(m) => {
+                  setSelectedModel(m);
+                  window.localStorage.setItem("apple-juice-model", m);
                 }}
-                className={`w-full bg-black/20 border border-white/[0.1] text-white/80 text-[13px] py-2 px-3 rounded focus:outline-none focus:border-[#ccff00] transition-all cursor-pointer ${
-                  isLoadingModels ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              >
-                {availableModels.map((m: string) => (
-                  <option key={m} value={m} className="bg-[#1a1c22] text-white">
-                    {m}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <label

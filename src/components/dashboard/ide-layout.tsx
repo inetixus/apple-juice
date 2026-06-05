@@ -26,6 +26,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useDashboard } from "./dashboard-context";
+import { kiroModelLogo } from "@/lib/kiro-models";
 import { WorkspaceTree } from "@/components/workspace-tree";
 import { ScriptCard } from "@/components/script-card";
 import { SlashCommandInput } from "@/components/slash-command";
@@ -1159,33 +1160,20 @@ export function IdeLayout() {
             {/* Model Selector */}
             <div className="relative group/model-ide h-full">
               <button className="flex items-center gap-1.5 px-2 hover:bg-white/5 h-full transition-all">
-                {selectedModel.toLowerCase().includes("deepseek") ? (
-                  <img
-                    src="/icons/deepseek.png"
-                    className="w-3 h-3 rounded-full grayscale group-hover/model-ide:grayscale-0 transition-all"
-                    alt=""
-                  />
-                ) : selectedModel.toLowerCase().includes("gemini") ? (
-                  <img
-                    src="/icons/google.webp"
-                    className="w-3 h-3 rounded-full"
-                    alt=""
-                  />
-                ) : selectedModel.toLowerCase().includes("gpt") ? (
-                  <img
-                    src="/icons/chatgpt.png"
-                    className="w-3 h-3 rounded-full"
-                    alt=""
-                  />
-                ) : (
-                  <Sparkles className="w-2.5 h-2.5 text-white/20" />
-                )}
+                {(() => {
+                  const logo = kiroModelLogo(selectedModel);
+                  return logo ? (
+                    <img
+                      src={logo}
+                      className="w-3 h-3 rounded-full grayscale group-hover/model-ide:grayscale-0 transition-all"
+                      alt=""
+                    />
+                  ) : (
+                    <Sparkles className="w-2.5 h-2.5 text-white/20" />
+                  );
+                })()}
                 <span className="text-[9px] font-black text-white/40 uppercase tracking-widest truncate max-w-[80px]">
-                  {selectedModel
-                    .split("/")
-                    .pop()
-                    ?.replace("-flash", "")
-                    .replace("gemini-", "Gemini ")}
+                  {selectedModel}
                 </span>
               </button>
               <div className="absolute bottom-full right-0 pb-1 w-56 opacity-0 translate-y-1 invisible group-hover/model-ide:opacity-100 group-hover/model-ide:translate-y-0 group-hover/model-ide:visible transition-all z-[200]">
@@ -1203,28 +1191,19 @@ export function IdeLayout() {
                             : "text-white/40 hover:bg-white/5 hover:text-white"
                           }`}
                       >
-                        {m.toLowerCase().includes("deepseek") ? (
-                          <img
-                            src="/icons/deepseek.png"
-                            className="w-2.5 h-2.5 rounded-full"
-                            alt=""
-                          />
-                        ) : m.toLowerCase().includes("gemini") ? (
-                          <img
-                            src="/icons/google.webp"
-                            className="w-2.5 h-2.5 rounded-full"
-                            alt=""
-                          />
-                        ) : m.toLowerCase().includes("gpt") ? (
-                          <img
-                            src="/icons/chatgpt.png"
-                            className="w-2.5 h-2.5 rounded-full"
-                            alt=""
-                          />
-                        ) : (
-                          <Sparkles className="w-2 h-2 opacity-20" />
-                        )}
-                        {m.split("/").pop()}
+                        {(() => {
+                          const logo = kiroModelLogo(m);
+                          return logo ? (
+                            <img
+                              src={logo}
+                              className="w-2.5 h-2.5 rounded-full"
+                              alt=""
+                            />
+                          ) : (
+                            <Sparkles className="w-2 h-2 opacity-20" />
+                          );
+                        })()}
+                        {m}
                       </button>
                     ))}
                   </div>

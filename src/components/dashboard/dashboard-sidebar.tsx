@@ -40,6 +40,7 @@ export function DashboardSidebar() {
     switchChat,
     setTransferingChat,
     getProjectColor,
+    switchProject,
     setShowHelpWindow,
     showHelpWindow,
     setShowSettings,
@@ -187,8 +188,7 @@ export function DashboardSidebar() {
               <button
                 key={p.id}
                 onClick={() => {
-                  const switchProjectFunc = useDashboard().switchProject;
-                  void switchProjectFunc(p);
+                  void switchProject(p);
                 }}
                 className="group relative flex items-center justify-center w-full"
               >
@@ -354,8 +354,7 @@ export function DashboardSidebar() {
                     <div
                       key={p.id}
                       onClick={() => {
-                        const switchProjectFunc = useDashboard().switchProject;
-                        void switchProjectFunc(p);
+                        void switchProject(p);
                       }}
                       className="group relative py-4 px-5 md:py-3 md:px-4 rounded-2xl transition-all cursor-pointer flex items-center gap-4 text-white/40 hover:bg-white/[0.03] hover:text-white/80"
                     >

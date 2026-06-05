@@ -101,3 +101,21 @@ export function bestKiroModelForPlan(plan: KiroPlan): string {
 
 /** All display labels (used as the global fallback list). */
 export const KIRO_MODEL_LABELS = KIRO_MODELS.map((m) => m.label);
+
+/**
+ * Map a model name/id to a brand logo served from /public/icons.
+ * Returns null when no specific brand logo applies (e.g. "Auto").
+ */
+export function kiroModelLogo(nameOrId: string): string | null {
+  const n = (nameOrId || "").toLowerCase();
+  if (n.includes("claude") || n.includes("opus") || n.includes("sonnet") || n.includes("haiku") || n.includes("anthropic")) {
+    return "/icons/anthropic.png";
+  }
+  if (n.includes("deepseek")) return "/icons/deepseek.png";
+  if (n.includes("minimax")) return "/icons/minimax.png";
+  if (n.includes("qwen")) return "/icons/qwen.png";
+  if (n.includes("glm") || n.includes("z-ai") || n.includes("zai")) return "/icons/z-ai.png";
+  if (n.includes("gpt") || n.includes("openai")) return "/icons/chatgpt.png";
+  if (n.includes("gemini") || n.includes("google")) return "/icons/google.webp";
+  return null; // Auto / unknown — caller shows a generic mark
+}

@@ -10,6 +10,7 @@ import {
   Menu,
   Check,
   ArrowRight,
+  ChevronDown,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -21,6 +22,7 @@ import {
   KIRO_DEFAULT_MODEL,
   KIRO_MODEL_LABELS,
   kiroModelsForPlan,
+  kiroModelLogo,
   type KiroPlan,
 } from "@/lib/kiro-models";
 
@@ -3439,31 +3441,50 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                               {/* ORIGINAL CHAT VIEW */}
                               <div className="w-full max-w-4xl px-6 py-12 flex flex-col gap-6">
                                 {messages.length === 0 ? (
-                                  <div className="flex-1" />
+                                  <div className="flex-1 flex flex-col items-center justify-center py-24 text-center select-none">
+                                    <div className="w-14 h-14 rounded-2xl bg-[#ccff00]/10 border border-[#ccff00]/20 flex items-center justify-center mb-5">
+                                      <Sparkles className="w-6 h-6 text-[#ccff00]" />
+                                    </div>
+                                    <h2 className="text-lg font-bold text-white tracking-tight">Start building</h2>
+                                    <p className="text-sm text-white/40 mt-1.5 max-w-sm">
+                                      Describe a system, a script, or a UI and Apple Juice will generate it straight into Studio.
+                                    </p>
+                                  </div>
                                 ) : (
-                                  <div className="space-y-8 pb-32">
-                                    {messages.map((message) => (
-                                      <div key={message.id} className={`flex w-full ${message.role == "user" ? "justify-end" : "justify-start"} mb-6`}>
-                                        <div className={`flex items-start gap-3 md:gap-4 max-w-full md:max-w-[90%] ${message.role == "user" ? "flex-row-reverse" : "flex-row"}`}>
-                                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border ${message.role !== "user" ? "bg-emerald-500/10 border-emerald-500/20" : "bg-white/10"}`}>
-                                            {message.role !== "user" ? (
-                                              <svg viewBox="0 0 24 24" className="h-4 w-4 text-emerald-400" fill="currentColor">
-                                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.78l1.24-1.25c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z" />
-                                              </svg>
+                                  <div className="space-y-6 pb-32">
+                                    {messages.map((message) => {
+                                      const isUser = message.role === "user";
+                                      const logo = !isUser ? kiroModelLogo(selectedModel) : null;
+                                      return (
+                                      <div key={message.id} className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}>
+                                        <div className={`flex items-start gap-3 max-w-full md:max-w-[85%] ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+                                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border overflow-hidden ${!isUser ? "bg-[#ccff00]/10 border-[#ccff00]/20" : "bg-white/10 border-white/10"}`}>
+                                            {!isUser ? (
+                                              logo ? (
+                                                <img src={logo} alt="" className="w-4.5 h-4.5 object-contain" />
+                                              ) : (
+                                                <Sparkles className="h-4 w-4 text-[#ccff00]" />
+                                              )
                                             ) : (
-                                              <span className="text-[10px] font-black uppercase text-white/50">{username[0]}</span>
+                                              <span className="text-[10px] font-black uppercase text-white/60">{username[0]}</span>
                                             )}
                                           </div>
-                                          <div className="flex flex-col gap-2 min-w-0">
-                                            <div className={`rounded-3xl px-6 py-4 text-[13px] leading-relaxed shadow-xl border ${message.role == "user" ? "bg-white/[0.04] text-white border-white/5" : "bg-black/40 text-white/90 border-white/[0.03] backdrop-blur-md"}`}>
+                                          <div className="flex flex-col gap-1 min-w-0">
+                                            {!isUser && (
+                                              <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-1">
+                                                {selectedModel}
+                                              </span>
+                                            )}
+                                            <div className={`rounded-2xl px-5 py-3.5 text-[13px] leading-relaxed border whitespace-pre-wrap break-words ${isUser ? "bg-white/[0.06] text-white border-white/10 rounded-tr-sm" : "bg-black/30 text-white/90 border-white/[0.06] backdrop-blur-md rounded-tl-sm"}`}>
                                               {message.content}
                                             </div>
                                           </div>
                                         </div>
                                       </div>
-                                    ))}
+                                      );
+                                    })}
                                     {isGenerating && (
-                                      <div className="py-4 px-6 rounded-3xl bg-white/[0.02] border border-white/5 shadow-inner space-y-4 max-w-[400px] my-4">
+                                      <div className="py-4 px-6 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner space-y-4 max-w-[400px]">
                                         <div className="flex items-center gap-3">
                                           <JuiceLoader size="sm" />
                                           <span className="text-[10px] font-black uppercase text-[#ccff00] tracking-widest animate-pulse">
@@ -3477,26 +3498,44 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                         />
                                       </div>
                                     )}
+                                    <div ref={chatEndRef} />
                                   </div>
                                 )}
                               </div>
                               
                               {/* LEGACY CHAT INPUT */}
                               <div className="w-full max-w-4xl p-6 flex-shrink-0 mt-auto">
-                                <div className="flex items-center justify-between px-2 mb-2">
-                                  <div className="text-[10px] text-white/40 uppercase tracking-widest font-black">
-                                    Current Model: <span className="text-[#ccff00]">{selectedModel}</span>
+                                <div className="flex items-center justify-between px-2 mb-2.5">
+                                  <div className="flex items-center gap-2">
+                                    {(() => {
+                                      const logo = kiroModelLogo(selectedModel);
+                                      return logo ? (
+                                        <img src={logo} alt="" className="w-4 h-4 object-contain rounded-sm" />
+                                      ) : (
+                                        <Sparkles className="w-3.5 h-3.5 text-[#ccff00]" />
+                                      );
+                                    })()}
+                                    <span className="text-[11px] font-bold text-white/70 tracking-tight">{selectedModel}</span>
                                   </div>
-                                  <select 
-                                    className="bg-white/5 border border-white/10 text-white/60 text-[10px] uppercase font-bold tracking-widest px-2 py-1 rounded outline-none cursor-pointer"
-                                    value={selectedModel}
-                                    onChange={(e) => {
-                                      setSelectedModel(e.target.value);
-                                      window.localStorage.setItem("apple-juice-model", e.target.value);
-                                    }}
-                                  >
-                                    {availableModels.map((m: string) => <option key={m} value={m} className="bg-[#14161a]">{m}</option>)}
-                                  </select>
+                                  <div className="relative flex items-center gap-1.5 bg-white/[0.04] border border-white/10 rounded-lg pl-2 pr-1 py-1 hover:bg-white/[0.07] transition-colors">
+                                    {(() => {
+                                      const logo = kiroModelLogo(selectedModel);
+                                      return logo ? (
+                                        <img src={logo} alt="" className="w-3.5 h-3.5 object-contain rounded-sm pointer-events-none" />
+                                      ) : null;
+                                    })()}
+                                    <select
+                                      className="bg-transparent text-white/70 text-[11px] font-semibold tracking-tight outline-none cursor-pointer appearance-none pr-4"
+                                      value={selectedModel}
+                                      onChange={(e) => {
+                                        setSelectedModel(e.target.value);
+                                        window.localStorage.setItem("apple-juice-model", e.target.value);
+                                      }}
+                                    >
+                                      {availableModels.map((m: string) => <option key={m} value={m} className="bg-[#14161a]">{m}</option>)}
+                                    </select>
+                                    <ChevronDown className="w-3 h-3 text-white/40 absolute right-1.5 pointer-events-none" />
+                                  </div>
                                 </div>
                                 <div className="relative">
                                   <SlashCommandInput
