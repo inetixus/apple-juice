@@ -8,6 +8,7 @@ import {
   diffToRevert,
   readManifest,
   diffManifest,
+  sanityCheckLuau,
   runAgent,
   type SnapshotEntry,
 } from './agent';
@@ -16,7 +17,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Build tag so we can verify which code is actually running (GET /version).
-const BUILD_TAG = 'kiro-proxy-v6-hardened';
+const BUILD_TAG = 'kiro-proxy-v8-validate';
 
 // Where per-session project files are materialized.
 const SESSIONS_ROOT = process.env.KIRO_SESSIONS_ROOT || '/tmp/kiro-sessions';
@@ -274,11 +275,12 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Server configuration error' });
   }
 
-  const { sessionKey, prompt, snapshot, model } = req.body as {
+  const { sessionKey, prompt, snapshot, model, uiContext } = req.body as {
     sessionKey?: string;
     prompt?: string;
     snapshot?: SnapshotEntry[];
     model?: string;
+    uiContext?: string;
   };
 
   if (!prompt || typeof prompt !== 'string') {
@@ -316,6 +318,7 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
       apiKey: kiroApiKey,
       model,
       timeoutMs: 240000,
+      uiContext,
       onProgress: (text) => sse('progress', { text }),
     });
 
@@ -334,6 +337,17 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
 
     const changed = scriptActions.length + instanceActions.length;
 
+    // Sanity-check generated Luau so we can surface warnings (non-blocking).
+    const warnings: string[] = [];
+    for (const a of scriptActions) {
+      if (a.action === 'create' && a.code) {
+        warnings.push(...sanityCheckLuau(`${a.parent}.${a.name}`, a.code));
+      }
+    }
+    if (warnings.length) {
+      console.warn('[agent] Luau sanity warnings:', warnings);
+    }
+
     const message =
       stripChrome(result.stdout) ||
       (changed > 0
@@ -346,6 +360,7 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
       revert,
       message,
       changed,
+      warnings,
       exitCode: result.code,
     });
     res.write('event: done\ndata: {}\n\n');

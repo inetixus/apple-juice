@@ -1505,14 +1505,15 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       "",
       errorText,
       "",
-      "Here is the current source of the scripts involved:",
-      codeBlock || "(source unavailable — infer from the error)",
+      "The current project (including the scripts you just wrote) is available to you — read the relevant files to see their up-to-date source before editing.",
+      "Here is the source of the scripts involved for quick reference:",
+      codeBlock || "(source unavailable — read the files to inspect)",
       "",
       "Diagnose the ROOT CAUSE of the error above and fix it. Rules:",
-      "- Only change what is necessary to resolve the error; do not rewrite working logic or rename things.",
-      "- Output the COMPLETE corrected script(s) via the create action (full file, no snippets).",
+      "- Read the actual file(s) first; only change what is necessary to resolve the error. Do not rewrite working logic or rename things.",
+      "- Output/write the COMPLETE corrected script(s) (full file, no snippets).",
       "- If the error is a nil/index error, add the missing guard or WaitForChild with a timeout.",
-      "- If it's a missing instance/remote, create it before it's referenced.",
+      "- If it's a missing instance/remote, create it (add to the data model) before it's referenced.",
       "- End with run_playtest so the fix is verified automatically.",
     ].join("\n");
   }
@@ -1964,6 +1965,13 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       const selectedNode = selectedWorkspaceItemId ? findNodeById(workspaceEditorData, selectedWorkspaceItemId) : null;
       if (selectedNode) {
         finalPromptText = `[Context: User has selected ${selectedNode.className} "${selectedNode.name}" in the Explorer] ${trimmed}`;
+      }
+
+      // Explorer multi-select (Shift-click): tell the AI exactly which
+      // instances the user highlighted so it can target them specifically.
+      if (selectedTreePaths.length > 0) {
+        const list = selectedTreePaths.slice(0, 50).join(", ");
+        finalPromptText = `[Context: The user has highlighted these items in the Explorer to focus on: ${list}. Prioritize these when fulfilling the request.] ${finalPromptText}`;
       }
 
       if (autoEnhance && !overridePrompt && !isAsset) {

@@ -1,36 +1,41 @@
-# 🧃 Apple Juice — Hardening & Completion Tasks
+# 🧃 Apple Juice — AI Generation Improvement Tasks
 
-Worked top to bottom. [x] = done, [ ] = pending. One task at a time.
+Ordered by recommended sequence (visible impact first, then the deep agentic upgrade).
+[x] = done, [ ] = pending. One task at a time; tick + report before moving on.
 
-## 1. Data layer correctness
-[x] 1a. Fix "opening an existing project does nothing" — root cause was illegal useDashboard() hook calls inside sidebar onClick handlers; fixed by destructuring switchProject at component top.
-[x] 1b. Verify Turso migration works — wrote scripts/verify-turso.mjs; 7/7 checks pass (get/set/del, TTL filtering, atomic incr, session consume round-trip, cleanup).
-[x] 1c. Upstash -> Turso migration script — wrote scripts/migrate-upstash-to-turso.mjs (dry-run by default, --commit to write, idempotent upsert, preserves TTL). Syntax verified; run with both cred sets to migrate live data.
+## ── HIGH IMPACT ──
 
-## 2. Stage 2 agent — security & robustness
-[x] 2a. Locked agent to --trust-tools=fs_read,fs_write (no shell). Also pre-create standard Roblox service dirs in materialize() so fs_write works without shell mkdir. (Re-test on VPS after deploy.)
-[x] 2b. Added per-session dir cleanup — sweepOldSessions() removes dirs untouched > 1h (configurable via KIRO_SESSION_TTL_MS), runs at boot + every 30min. Bumped build tag to v6-hardened.
-[x] 2c. Hardened materialize() — safeSegment() sanitizes each path segment, isInside() traversal guard rejects out-of-bounds writes, plus caps: 400KB/file, 8MB total, 2000 files. Round-trip + traversal verified (4/4).
-[x] 2d. Upgraded agent system prompt with full Roblox conventions: Rojo naming, explore-first workflow, placement rules, Luau style/safety (task.*, timed WaitForChild, server authority, print headers), and zero-placeholder completeness mandate.
+[x] 5. UI library context for the agent — app passes uiContext (libraryDeploymentPrompt + uiExamplesBlock) to /v1/agent when isUIRelatedPrompt; proxy injects it into the agent instructions under a "UI LIBRARY" section. Build tag -> v7-uicontext.
 
-## 3. Stage 2 agent — capability gaps
-[x] 3a. Non-script instances via data_model.json manifest — materialize writes it, agent edits it to add/remove RemoteEvents/GUIs/Folders/Parts; readManifest + diffManifest + agent instructions added.
-[x] 3b. Wired manifest diff into /v1/agent — instance creates run before scripts, deletes after; emits create_instance/delete with both name+instanceName (validator + plugin compatible). Proxy tsc clean.
+[x] 1. Agentic playtest feedback loop — the existing auto-fix loop now closes for the agent path: agent writes -> syncs -> playtest -> [APPLE_JUICE_TEST_FAIL] -> auto-fix turn re-runs the agent. Made the agent always pull a FRESH snapshot each run (so the fix turn sees the just-synced broken code), and rewrote buildAutoFixPrompt to tell the filesystem agent to read the live files first. Bounded to MAX_AUTO_FIX retries.
 
-## 4. UX polish
-[x] 4a. Added "Apply to Studio" button — applyToStudio() pushes a message's scripts via /api/revert-code; shown on assistant messages with scripts in both IDE and legacy chat (works without autonomous mode). Legacy chat also got the revert button.
-[x] 4b. Stream agent progress — proxy /v1/agent now streams SSE (progress/result/error events); runAgent emits onProgress per stdout chunk; app relays progress as reasoning deltas so the thinking feed shows live agent activity, then emits the final scripts payload.
+[x] 3. Validate generated Luau — validateGeneration already runs on the agent path (client finalization). Added a dependency-free sanityCheckLuau() in the proxy (balanced brackets/strings, block-end heuristic) that returns non-blocking warnings in the result; logged server-side. Tested 5/5 (no false positives on strings). Build tag -> v8-validate. (Full luau-analyze can be added later for deep checks.)
 
-## 5. Verification
-[x] 5a. End-to-end logic test passed (9/9): materialize -> simulated agent edits -> diff produced correct script actions, instance create_instance from manifest, and accurate revert patch.
-[x] 5b. Final verification — both tsc projects clean, 53/53 unit tests pass, next build succeeds (33 pages), temp/debug artifacts removed. Kept scripts/verify-turso.mjs + scripts/migrate-upstash-to-turso.mjs as tools.
+[ ] 2. On-demand live source reads
+    When the snapshot truncated a file (400KB/8MB caps), let the agent request the
+    full source of a specific script mid-run via the existing request-file flow,
+    for accurate edits on large projects.
 
-═══════════════════════════════════════════════
-ALL TASKS COMPLETE
-═══════════════════════════════════════════════
-Deployment reminders:
-  - Re-copy kiro-proxy (agent.ts + server.ts) to VPS, pm2 restart, verify /version = v6-hardened
-  - Re-install updated plugin (AppleJuiceSync.lua) in Studio
-  - Set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN in Vercel; run migrate script with --commit
-  - Set KIRO_AGENT_URL=http://130.110.14.224:3000/v1 in Vercel to enable Stage 2
-  - Re-run the agent test on the VPS to confirm fs_read,fs_write works without shell
+## ── MEDIUM IMPACT ──
+
+[ ] 4. Persist session dir across prompts in a chat
+    Keep the materialized dir warm between prompts (re-sync only changed files)
+    so follow-up prompts ("now add X to that") are faster and more coherent.
+
+[ ] 6. Model routing by task complexity
+    Route trivial edits (rename, tweak) to a cheap/fast model; reserve Opus/Sonnet
+    for architecture. Saves credits, faster, no quality loss on simple tasks.
+
+## ── POLISH ──
+
+[ ] 7. Trim final chat message
+    Agent narration is already streamed as progress; the final chat bubble should
+    show only the agent's summary, not the "Reading file..." chrome.
+
+[ ] 8. Diff-aware / targeted editing
+    Encourage targeted edits over full-file rewrites for small changes to large
+    files (more reliable, less token waste).
+
+[ ] 9. Instance-aware revert
+    Extend diffToRevert to inverse the manifest diff too, so reverting also undoes
+    instance creates (RemoteEvents, GUIs), not just scripts.

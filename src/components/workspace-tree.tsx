@@ -661,6 +661,7 @@ function TreeItem({
   setRenamingPath,
   onSelect,
   onFileClick,
+  isShiftHeld,
 }: {
   node: TreeNode;
   onInsert: (parentPath: string, className: string, name: string) => void;
@@ -674,6 +675,7 @@ function TreeItem({
   setRenamingPath: (path: string | null) => void;
   onSelect: (path: string, isShift: boolean, isCtrl: boolean) => void;
   onFileClick?: (path: string) => void;
+  isShiftHeld: boolean;
 }) {
   const [open, setOpen] = useState(node.depth < 1);
   const [showInsertMenu, setShowInsertMenu] = useState(false);
@@ -777,7 +779,14 @@ function TreeItem({
           outlineOffset: "-1px",
         }}
         onClick={(e) => {
-          onSelect(node.fullPath, e.shiftKey, e.ctrlKey || e.metaKey);
+          // Shift-click = toggle this item into the AI selection set (additive).
+          // Plain click = normal single-select + open/navigate.
+          if (e.shiftKey) {
+            e.preventDefault();
+            onSelect(node.fullPath, true, false);
+            return;
+          }
+          onSelect(node.fullPath, false, e.ctrlKey || e.metaKey);
           // Only expand on double click if not renaming
           if (e.detail === 2 && isExpandable && !isRenaming) setOpen(!open);
           
@@ -848,8 +857,8 @@ function TreeItem({
           )}
         </div>
 
-        {/* Checkbox for selection */}
-        {(hovered || isSelected) && (
+        {/* Selection checkbox — only while Shift is held, or already selected */}
+        {(isShiftHeld || isSelected) && (
           <input
             type="checkbox"
             checked={isSelected}
@@ -1085,6 +1094,7 @@ function TreeItem({
                 setRenamingPath={setRenamingPath}
                 onSelect={onSelect}
                 onFileClick={onFileClick}
+                isShiftHeld={isShiftHeld}
               />
             ))}
           </motion.div>
@@ -1122,39 +1132,33 @@ export function WorkspaceTree({
   );
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const lastSelectedPathRef = useRef<string | null>(null);
-
-  const flatPaths = useMemo(() => {
-    const result: string[] = [];
-    const flatten = (nodes: TreeNode[]) => {
-      for (const node of nodes) {
-        result.push(node.fullPath);
-        flatten(node.children);
-      }
+  // Track live Shift key state so the selection checkbox only appears while
+  // Shift is held (Shift-click = "specify this for the AI").
+  const [isShiftHeld, setIsShiftHeld] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => setIsShiftHeld(e.shiftKey);
+    const onBlur = () => setIsShiftHeld(false);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+      window.removeEventListener("blur", onBlur);
     };
-    flatten(tree);
-    return result;
-  }, [tree]);
+  }, []);
 
   const currentSelectedPaths = selectedPaths ?? internalSelectedPaths;
 
   const handleSelect = useCallback(
     (path: string, isShift: boolean, isCtrl: boolean) => {
       let next: string[] = [];
-      if (isShift && lastSelectedPathRef.current) {
-        const startIdx = flatPaths.indexOf(lastSelectedPathRef.current);
-        const endIdx = flatPaths.indexOf(path);
-        if (startIdx !== -1 && endIdx !== -1) {
-          const min = Math.min(startIdx, endIdx);
-          const max = Math.max(startIdx, endIdx);
-          const range = flatPaths.slice(min, max + 1);
-          if (isCtrl) {
-            next = Array.from(new Set([...currentSelectedPaths, ...range]));
-          } else {
-            next = range;
-          }
-        } else {
-          next = [path];
-        }
+      if (isShift) {
+        // Shift = "specify for the AI": toggle this item into the selection set
+        // (multi-select by holding Shift and clicking each item).
+        next = currentSelectedPaths.includes(path)
+          ? currentSelectedPaths.filter((p) => p !== path)
+          : [...currentSelectedPaths, path];
       } else if (isCtrl) {
         next = currentSelectedPaths.includes(path)
           ? currentSelectedPaths.filter((p) => p !== path)
@@ -1163,11 +1167,11 @@ export function WorkspaceTree({
         next = [path];
       }
 
-      if (!isShift) lastSelectedPathRef.current = path;
+      lastSelectedPathRef.current = path;
       if (!selectedPaths) setInternalSelectedPaths(next);
       if (onSelectionChange) onSelectionChange(next);
     },
-    [currentSelectedPaths, flatPaths, selectedPaths, onSelectionChange],
+    [currentSelectedPaths, selectedPaths, onSelectionChange],
   );
 
   const handleInsert = useCallback(
@@ -1357,6 +1361,7 @@ export function WorkspaceTree({
                 setRenamingPath={setRenamingPath}
                 onSelect={handleSelect}
                 onFileClick={onFileClick}
+                isShiftHeld={isShiftHeld}
               />
             </motion.div>
           ))}

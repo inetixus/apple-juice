@@ -1193,16 +1193,21 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
         const redis = getRedis();
         const snapKey = `snapshot:${sessionKey}`;
 
-        // Pull the latest snapshot; if missing, ask the plugin for one and wait.
-        let snapRaw = await redis.get<string>(snapKey);
-        if (!snapRaw) {
-          await redis.set(`requestSnapshot:${sessionKey}`, "1", { ex: 60 });
-          // Plugin polls every ~0.2s; wait up to ~8s for it to arrive.
-          for (let i = 0; i < 40 && !snapRaw; i++) {
-            await new Promise((r) => setTimeout(r, 200));
-            snapRaw = await redis.get<string>(snapKey);
-          }
+        // Always pull a FRESH snapshot so the agent sees the current project
+        // state — essential for the auto-fix loop, where the project changed
+        // since the last prompt. Ask the plugin, wait briefly, fall back to any
+        // cached snapshot if the plugin is slow/offline.
+        const cachedRaw = await redis.get<string>(snapKey);
+        await redis.del(snapKey);
+        await redis.set(`requestSnapshot:${sessionKey}`, "1", { ex: 60 });
+
+        let snapRaw: string | null = null;
+        for (let i = 0; i < 40 && !snapRaw; i++) {
+          await new Promise((r) => setTimeout(r, 200));
+          snapRaw = await redis.get<string>(snapKey);
         }
+        // Fall back to the previous snapshot if no fresh one arrived.
+        if (!snapRaw) snapRaw = cachedRaw ?? null;
 
         let snapshot: any[] = [];
         if (snapRaw) {
@@ -1231,6 +1236,11 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                   prompt,
                   snapshot,
                   model: resolveKiroModelId(effectiveModel),
+                  // UI library guidance — only when the request is UI-related, so
+                  // the agent uses the AppleJuiceUI library instead of raw Instance.new.
+                  uiContext: isUIRelatedPrompt(prompt)
+                    ? `${libraryDeploymentPrompt}\n${uiExamplesBlock}`
+                    : "",
                 }),
               });
 

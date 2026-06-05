@@ -384,6 +384,45 @@ export interface RunResult {
 }
 
 /**
+ * Lightweight, dependency-free sanity check for generated Luau. Catches gross
+ * structural breakage (unbalanced brackets/strings) so we can warn before
+ * syncing. NOT a full parser — for deep checking, run luau-analyze on the VPS
+ * and pipe results here. Returns a list of human-readable warnings.
+ */
+export function sanityCheckLuau(name: string, code: string): string[] {
+  const warnings: string[] = [];
+  if (!code || !code.trim()) {
+    warnings.push(`${name}: empty script`);
+    return warnings;
+  }
+
+  // Strip strings/comments so bracket counting isn't fooled by them.
+  const stripped = code
+    .replace(/--\[\[[\s\S]*?\]\]/g, "")   // block comments
+    .replace(/--[^\n]*/g, "")               // line comments
+    .replace(/\[\[[\s\S]*?\]\]/g, '""')    // long strings
+    .replace(/"(?:\\.|[^"\\])*"/g, '""')   // double-quoted
+    .replace(/'(?:\\.|[^'\\])*'/g, "''");  // single-quoted
+
+  const pairs: [string, string][] = [["(", ")"], ["{", "}"], ["[", "]"]];
+  for (const [open, close] of pairs) {
+    const o = (stripped.match(new RegExp("\\" + open, "g")) || []).length;
+    const c = (stripped.match(new RegExp("\\" + close, "g")) || []).length;
+    if (o !== c) warnings.push(`${name}: unbalanced ${open}${close} (${o} vs ${c})`);
+  }
+
+  // Rough block keyword balance: function/if/for/while/do open, end closes.
+  const opens = (stripped.match(/\b(function|if|for|while|do)\b/g) || []).length;
+  const ends = (stripped.match(/\bend\b/g) || []).length;
+  // `do` inside for/while is paired, so this is heuristic — only flag large gaps.
+  if (opens - ends > 1) {
+    warnings.push(`${name}: possibly missing 'end' (${opens} block openers vs ${ends} ends)`);
+  }
+
+  return warnings;
+}
+
+/**
  * Run kiro-cli agentically inside sessionDir. The agent is told the Rojo naming
  * convention and pointed at project_tree.txt for non-script context.
  */
@@ -395,6 +434,7 @@ export function runAgent(
     apiKey: string;
     model?: string;
     timeoutMs?: number;
+    uiContext?: string;
     onProgress?: (text: string) => void;
   },
 ): Promise<RunResult> {
@@ -436,6 +476,9 @@ export function runAgent(
     `- A UI script must create, style, and wire every element. A purchase flow must check balance, ` +
     `deduct, handle data, and fire remotes. Implement the actual logic yourself.\n` +
     `- Do not ask questions or wait for confirmation — generate the complete solution now.\n\n` +
+    (opts.uiContext && opts.uiContext.trim()
+      ? `## UI LIBRARY (use this for any UI work)\n${opts.uiContext.trim()}\n\n`
+      : '') +
     `USER REQUEST:\n${userPrompt}`;
 
   return new Promise((resolve) => {
