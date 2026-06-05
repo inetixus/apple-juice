@@ -5,7 +5,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Build tag so we can verify which code is actually running (GET /version).
-const BUILD_TAG = 'kiro-proxy-v3-brace-anchored';
+const BUILD_TAG = 'kiro-proxy-v4-json-guarantee';
 
 // Path to a libstdc++ that provides GLIBCXX_3.4.30 (required by kiro-cli).
 // On Oracle Linux 9 the system libstdc++ is too old, so we point the CLI at a
@@ -25,7 +25,6 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Health check + version endpoints
 app.get('/', (_req, res) => {
   res.status(200).send('Kiro Proxy is running');
 });
@@ -51,11 +50,47 @@ function stripAnsi(s: string): string {
   return s;
 }
 
-/** Remove the trailing "▸ Credits: X • Time: Ys" footer kiro-cli appends. */
-function stripFooter(s: string): string {
-  s = s.replace(/[\r\n]+[^\r\n]*Credits:[^\r\n]*Time:[^\r\n]*\s*$/u, '');
-  s = s.replace(/[\u25B8\u25BA▸►][^\r\n]*Credits:[^\r\n]*$/u, '');
-  return s;
+/** Strip the kiro-cli prompt marker, code fences, and the credits footer. */
+function stripChrome(s: string): string {
+  let t = stripAnsi(s);
+  t = t.replace(/^\s*>\s?/, '');                 // leading "> " prompt marker
+  t = t.replace(/^\s*```[^\n]*\n/, '');          // opening code fence (```json etc.)
+  t = t.replace(/^\s*json\s*\n/i, '');           // bare "json" tag line
+  t = t.replace(/\n\s*```\s*$/, '');             // closing code fence
+  t = t.replace(/[\r\n]+[^\r\n]*Credits:[^\r\n]*Time:[^\r\n]*\s*$/u, ''); // footer
+  t = t.replace(/[\u25B8\u25BA▸►][^\r\n]*Credits:[^\r\n]*$/u, '');
+  return t.trim();
+}
+
+/**
+ * Turn raw CLI output into a guaranteed-valid JSON string of the shape the app
+ * expects: {"message":...,"scripts":[...]}.
+ *  - If the output contains a parseable JSON object with message/scripts, use it.
+ *  - Otherwise treat the whole thing as a plain chat reply and wrap it so the
+ *    app never falls back to its "response was truncated" recovery path.
+ */
+function toAppJson(rawOutput: string): string {
+  const clean = stripChrome(rawOutput);
+
+  // Try the substring from the first "{" to the last "}" as JSON.
+  const first = clean.indexOf('{');
+  const last = clean.lastIndexOf('}');
+  if (first !== -1 && last > first) {
+    const candidate = clean.slice(first, last + 1);
+    try {
+      const obj = JSON.parse(candidate);
+      if (obj && typeof obj === 'object' && ('message' in obj || 'scripts' in obj)) {
+        // Normalize: ensure a scripts array is always present.
+        if (!Array.isArray(obj.scripts)) obj.scripts = [];
+        return JSON.stringify(obj);
+      }
+    } catch {
+      /* not valid JSON — fall through to wrapping */
+    }
+  }
+
+  // Plain conversational reply — wrap it.
+  return JSON.stringify({ message: clean, scripts: [] });
 }
 
 /**
@@ -98,7 +133,6 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
     env: {
       ...process.env,
       KIRO_API_KEY: kiroApiKey,
-      // Prepend our staged libstdc++ so kiro-cli finds GLIBCXX_3.4.30.
       LD_LIBRARY_PATH: KIRO_LIB_PATH +
         (process.env.LD_LIBRARY_PATH ? `:${process.env.LD_LIBRARY_PATH}` : ''),
     },
@@ -109,110 +143,63 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
-
-    const dummyPayload = JSON.stringify({
+    // Immediate empty chunk to beat any upstream time-to-first-byte timeout.
+    const dummy = JSON.stringify({
       id: 'chatcmpl-kiro',
       object: 'chat.completion.chunk',
       created: Math.floor(Date.now() / 1000),
       model: 'kiro-model',
       choices: [{ index: 0, delta: { content: '' } }],
     });
-    res.write(`data: ${dummyPayload}\n\n`);
+    res.write(`data: ${dummy}\n\n`);
   }
 
   let rawBuffer = '';
   let errorOutput = '';
 
-  // The JSON body begins at the first "{" in the cleaned output. Everything
-  // before it (the "> " marker, a "json" tag, ``` fences) is CLI chrome and is
-  // dropped. Locking this index once it's found keeps the stream monotonic, so
-  // no chrome can leak even mid-stream.
-  let bodyStart = -1;
-  let emitted = '';
-  // Small holdback protects against a partially-arrived trailing footer.
-  const HOLDBACK = 64;
-
-  const sendDelta = (delta: string) => {
-    if (!delta) return;
-    const payload = JSON.stringify({
-      id: 'chatcmpl-kiro',
-      object: 'chat.completion.chunk',
-      created: Math.floor(Date.now() / 1000),
-      model: model || 'kiro-model',
-      choices: [{ index: 0, delta: { content: delta } }],
-    });
-    res.write(`data: ${payload}\n\n`);
-  };
-
-  // Returns the current clean body, or null if we haven't seen a "{" yet
-  // (and aren't finalizing). On final with no "{", falls back to plain text.
-  const computeBody = (isFinal: boolean): string | null => {
-    const clean = stripAnsi(rawBuffer);
-    if (bodyStart === -1) {
-      const brace = clean.indexOf('{');
-      if (brace === -1) {
-        if (!isFinal) return null;
-        // No JSON at all — treat as plain text, strip prompt marker + fences.
-        let t = clean.replace(/^\s*>\s?/, '');
-        t = t.replace(/^\s*```[^\n]*\n/, '').replace(/\n\s*```\s*$/, '');
-        return stripFooter(t);
-      }
-      bodyStart = brace;
-    }
-    return stripFooter(clean.slice(bodyStart));
-  };
-
-  const pump = (isFinal: boolean): string => {
-    const body = computeBody(isFinal);
-    if (body === null) return '';
-    const emittable = isFinal ? body.length : Math.max(0, body.length - HOLDBACK);
-    if (emittable > emitted.length) {
-      const delta = body.slice(emitted.length, emittable);
-      emitted = body.slice(0, emittable);
-      return delta;
-    }
-    return '';
-  };
-
-  child.stdout.on('data', (data: any) => {
-    rawBuffer += data.toString();
-    if (stream) sendDelta(pump(false));
-  });
-
-  child.stderr.on('data', (data: any) => {
-    errorOutput += data.toString();
-  });
+  child.stdout.on('data', (d: any) => { rawBuffer += d.toString(); });
+  child.stderr.on('data', (d: any) => { errorOutput += d.toString(); });
 
   child.on('close', (code: number | null) => {
     if (code !== 0) {
-      console.error('Execution error code:', code);
-      console.error('stderr:', errorOutput);
+      console.error('Execution error code:', code, 'stderr:', errorOutput);
+      const errJson = JSON.stringify({
+        message: `[CLI Error]: ${errorOutput || 'unknown error'}`,
+        scripts: [],
+      });
       if (!stream) {
-        return res.status(500).json({
-          error: 'An error occurred while communicating with the CLI',
-          detail: errorOutput,
-        });
+        return res.status(500).json({ error: 'CLI execution failed', detail: errorOutput });
       }
-      sendDelta(`\n\n[CLI Error]: ${errorOutput}`);
+      const payload = JSON.stringify({
+        id: 'chatcmpl-kiro', object: 'chat.completion.chunk',
+        created: Math.floor(Date.now() / 1000), model: model || 'kiro-model',
+        choices: [{ index: 0, delta: { content: errJson } }],
+      });
+      res.write(`data: ${payload}\n\n`);
       res.write(`data: [DONE]\n\n`);
       return res.end();
     }
+
+    // Always hand the app a single valid JSON object.
+    const appJson = toAppJson(rawBuffer);
 
     if (stream) {
-      sendDelta(pump(true)); // flush remaining body past the holdback
+      const payload = JSON.stringify({
+        id: 'chatcmpl-kiro', object: 'chat.completion.chunk',
+        created: Math.floor(Date.now() / 1000), model: model || 'kiro-model',
+        choices: [{ index: 0, delta: { content: appJson } }],
+      });
+      res.write(`data: ${payload}\n\n`);
       res.write(`data: [DONE]\n\n`);
       return res.end();
     }
 
-    const finalText = (computeBody(true) || '').trim();
     return res.status(200).json({
       id: 'chatcmpl-' + Math.random().toString(36).substring(2),
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
       model: model || 'kiro-model',
-      choices: [
-        { index: 0, message: { role: 'assistant', content: finalText }, finish_reason: 'stop' },
-      ],
+      choices: [{ index: 0, message: { role: 'assistant', content: appJson }, finish_reason: 'stop' }],
       usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
     });
   });
