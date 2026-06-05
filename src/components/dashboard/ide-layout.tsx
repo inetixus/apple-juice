@@ -66,6 +66,7 @@ export function IdeLayout() {
     selectedTreePaths,
     handleVault,
     revertCheckpoint,
+    applyToStudio,
     setSelectedTreePaths,
     handleFileClick,
     messages,
@@ -471,6 +472,19 @@ export function IdeLayout() {
                                 Reverted
                               </span>
                             )}
+                            {m.role !== "user" &&
+                              !m.isReverted &&
+                              Array.isArray(m.scripts) &&
+                              m.scripts.length > 0 && (
+                                <button
+                                  onClick={() => applyToStudio(m.id, m.scripts)}
+                                  className="mt-2 self-start px-3 py-1.5 rounded-lg bg-[#ccff00] text-black font-bold text-[11px] hover:bg-[#d4ff33] active:scale-95 transition-all flex items-center gap-1.5"
+                                  title="Sync these scripts into Roblox Studio"
+                                >
+                                  <Play className="w-3 h-3" />
+                                  Apply to Studio
+                                </button>
+                              )}
                             {m.script && (
                               <div className="mt-3 flex flex-col gap-2 w-full">
                                 <ScriptCard

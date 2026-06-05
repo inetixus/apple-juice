@@ -10,7 +10,6 @@ import {
   Menu,
   Check,
   ArrowRight,
-  ChevronDown,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -29,6 +28,7 @@ import {
 import { WorkspaceTree } from "@/components/workspace-tree";
 import { StripeWave } from "@/components/stripe-wave";
 import { SlashCommandInput } from "@/components/slash-command";
+import { ModelDropdown } from "./dashboard/model-dropdown";
 
 type DashboardClientProps = {
   username: string;
@@ -1014,6 +1014,41 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       console.error("Failed to delete game", err);
     }
   }
+
+  const applyToStudio = useCallback(
+    async (messageId: string, scripts: any[]) => {
+      if (!sessionKey) {
+        showToast("Connect your Roblox Studio plugin first.", "error");
+        return;
+      }
+      if (!scripts || scripts.length === 0) {
+        showToast("Nothing to apply.", "info");
+        return;
+      }
+      showToast("Applying to Studio...", "info");
+      try {
+        const res = await fetch("/api/revert-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionKey, scripts }),
+        });
+        if (res.ok) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === messageId ? { ...m, pendingSync: false } : m,
+            ),
+          );
+          showToast("Synced to Studio.", "success");
+        } else {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.error || "Failed to apply to Studio.", "error");
+        }
+      } catch {
+        showToast("Could not reach the server.", "error");
+      }
+    },
+    [sessionKey, showToast],
+  );
 
   const revertCheckpoint = useCallback(
     async (messageId: string, checkpointId: string) => {
@@ -3231,6 +3266,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     switchChat,
     handleVault,
     revertCheckpoint,
+    applyToStudio,
     handleAttachAsset,
     getProjectColor,
     getRobloxIcon,
@@ -3478,6 +3514,29 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                             <div className={`rounded-2xl px-5 py-3.5 text-[13px] leading-relaxed border whitespace-pre-wrap break-words ${isUser ? "bg-white/[0.06] text-white border-white/10 rounded-tr-sm" : "bg-black/30 text-white/90 border-white/[0.06] backdrop-blur-md rounded-tl-sm"}`}>
                                               {message.content}
                                             </div>
+                                            {!isUser && Array.isArray(message.scripts) && message.scripts.length > 0 && !message.isReverted && (
+                                              <button
+                                                onClick={() => applyToStudio(message.id, message.scripts as any[])}
+                                                className="self-start px-3 py-1.5 rounded-lg bg-[#ccff00] text-black font-bold text-[11px] hover:bg-[#d4ff33] active:scale-95 transition-all flex items-center gap-1.5"
+                                                title="Sync these scripts into Roblox Studio"
+                                              >
+                                                <ArrowRight className="w-3 h-3" />
+                                                Apply to Studio
+                                              </button>
+                                            )}
+                                            {!isUser && message.checkpointId && !message.isReverted && (
+                                              <button
+                                                onClick={() => revertCheckpoint(message.id, message.checkpointId as string)}
+                                                className="self-start px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-semibold text-white/50 hover:text-white hover:bg-white/10 transition-all flex items-center gap-1.5"
+                                                title="Undo the changes this prompt made"
+                                              >
+                                                <X className="w-3 h-3" />
+                                                Revert this change
+                                              </button>
+                                            )}
+                                            {!isUser && message.isReverted && (
+                                              <span className="self-start text-[10px] font-semibold text-white/40 italic">Reverted</span>
+                                            )}
                                           </div>
                                         </div>
                                       </div>
@@ -3517,25 +3576,16 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                     })()}
                                     <span className="text-[11px] font-bold text-white/70 tracking-tight">{selectedModel}</span>
                                   </div>
-                                  <div className="relative flex items-center gap-1.5 bg-white/[0.04] border border-white/10 rounded-lg pl-2 pr-1 py-1 hover:bg-white/[0.07] transition-colors">
-                                    {(() => {
-                                      const logo = kiroModelLogo(selectedModel);
-                                      return logo ? (
-                                        <img src={logo} alt="" className="w-3.5 h-3.5 object-contain rounded-sm pointer-events-none" />
-                                      ) : null;
-                                    })()}
-                                    <select
-                                      className="bg-transparent text-white/70 text-[11px] font-semibold tracking-tight outline-none cursor-pointer appearance-none pr-4"
-                                      value={selectedModel}
-                                      onChange={(e) => {
-                                        setSelectedModel(e.target.value);
-                                        window.localStorage.setItem("apple-juice-model", e.target.value);
-                                      }}
-                                    >
-                                      {availableModels.map((m: string) => <option key={m} value={m} className="bg-[#14161a]">{m}</option>)}
-                                    </select>
-                                    <ChevronDown className="w-3 h-3 text-white/40 absolute right-1.5 pointer-events-none" />
-                                  </div>
+                                  <ModelDropdown
+                                    models={availableModels}
+                                    selected={selectedModel}
+                                    align="right"
+                                    direction="up"
+                                    onSelect={(m) => {
+                                      setSelectedModel(m);
+                                      window.localStorage.setItem("apple-juice-model", m);
+                                    }}
+                                  />
                                 </div>
                                 <div className="relative">
                                   <SlashCommandInput

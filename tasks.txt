@@ -1,0 +1,36 @@
+# 🧃 Apple Juice — Hardening & Completion Tasks
+
+Worked top to bottom. [x] = done, [ ] = pending. One task at a time.
+
+## 1. Data layer correctness
+[x] 1a. Fix "opening an existing project does nothing" — root cause was illegal useDashboard() hook calls inside sidebar onClick handlers; fixed by destructuring switchProject at component top.
+[x] 1b. Verify Turso migration works — wrote scripts/verify-turso.mjs; 7/7 checks pass (get/set/del, TTL filtering, atomic incr, session consume round-trip, cleanup).
+[x] 1c. Upstash -> Turso migration script — wrote scripts/migrate-upstash-to-turso.mjs (dry-run by default, --commit to write, idempotent upsert, preserves TTL). Syntax verified; run with both cred sets to migrate live data.
+
+## 2. Stage 2 agent — security & robustness
+[x] 2a. Locked agent to --trust-tools=fs_read,fs_write (no shell). Also pre-create standard Roblox service dirs in materialize() so fs_write works without shell mkdir. (Re-test on VPS after deploy.)
+[x] 2b. Added per-session dir cleanup — sweepOldSessions() removes dirs untouched > 1h (configurable via KIRO_SESSION_TTL_MS), runs at boot + every 30min. Bumped build tag to v6-hardened.
+[x] 2c. Hardened materialize() — safeSegment() sanitizes each path segment, isInside() traversal guard rejects out-of-bounds writes, plus caps: 400KB/file, 8MB total, 2000 files. Round-trip + traversal verified (4/4).
+[x] 2d. Upgraded agent system prompt with full Roblox conventions: Rojo naming, explore-first workflow, placement rules, Luau style/safety (task.*, timed WaitForChild, server authority, print headers), and zero-placeholder completeness mandate.
+
+## 3. Stage 2 agent — capability gaps
+[x] 3a. Non-script instances via data_model.json manifest — materialize writes it, agent edits it to add/remove RemoteEvents/GUIs/Folders/Parts; readManifest + diffManifest + agent instructions added.
+[x] 3b. Wired manifest diff into /v1/agent — instance creates run before scripts, deletes after; emits create_instance/delete with both name+instanceName (validator + plugin compatible). Proxy tsc clean.
+
+## 4. UX polish
+[x] 4a. Added "Apply to Studio" button — applyToStudio() pushes a message's scripts via /api/revert-code; shown on assistant messages with scripts in both IDE and legacy chat (works without autonomous mode). Legacy chat also got the revert button.
+[x] 4b. Stream agent progress — proxy /v1/agent now streams SSE (progress/result/error events); runAgent emits onProgress per stdout chunk; app relays progress as reasoning deltas so the thinking feed shows live agent activity, then emits the final scripts payload.
+
+## 5. Verification
+[x] 5a. End-to-end logic test passed (9/9): materialize -> simulated agent edits -> diff produced correct script actions, instance create_instance from manifest, and accurate revert patch.
+[x] 5b. Final verification — both tsc projects clean, 53/53 unit tests pass, next build succeeds (33 pages), temp/debug artifacts removed. Kept scripts/verify-turso.mjs + scripts/migrate-upstash-to-turso.mjs as tools.
+
+═══════════════════════════════════════════════
+ALL TASKS COMPLETE
+═══════════════════════════════════════════════
+Deployment reminders:
+  - Re-copy kiro-proxy (agent.ts + server.ts) to VPS, pm2 restart, verify /version = v6-hardened
+  - Re-install updated plugin (AppleJuiceSync.lua) in Studio
+  - Set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN in Vercel; run migrate script with --commit
+  - Set KIRO_AGENT_URL=http://130.110.14.224:3000/v1 in Vercel to enable Stage 2
+  - Re-run the agent test on the VPS to confirm fs_read,fs_write works without shell

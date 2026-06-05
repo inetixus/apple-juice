@@ -6,6 +6,8 @@ import {
   readScriptFiles,
   diffToScripts,
   diffToRevert,
+  readManifest,
+  diffManifest,
   runAgent,
   type SnapshotEntry,
 } from './agent';
@@ -14,7 +16,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Build tag so we can verify which code is actually running (GET /version).
-const BUILD_TAG = 'kiro-proxy-v5-agent';
+const BUILD_TAG = 'kiro-proxy-v6-hardened';
 
 // Where per-session project files are materialized.
 const SESSIONS_ROOT = process.env.KIRO_SESSIONS_ROOT || '/tmp/kiro-sessions';
@@ -26,6 +28,37 @@ function sanitizeSessionKey(key: string): string {
   // Defend against path traversal — only allow safe chars in the dir name.
   return key.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) || 'default';
 }
+
+// ── Session directory cleanup ──────────────────────────────────────────────
+// Materialized project dirs live in SESSIONS_ROOT. Sweep ones untouched for a
+// while so the disk never fills (we hit a full disk during setup once).
+const SESSION_TTL_MS = Number(process.env.KIRO_SESSION_TTL_MS || 60 * 60 * 1000); // 1h
+
+async function sweepOldSessions(): Promise<void> {
+  const fs = await import('fs/promises');
+  let entries: string[] = [];
+  try {
+    entries = await fs.readdir(SESSIONS_ROOT);
+  } catch {
+    return; // root doesn't exist yet — nothing to sweep
+  }
+  const now = Date.now();
+  for (const name of entries) {
+    const dir = path.join(SESSIONS_ROOT, name);
+    try {
+      const st = await fs.stat(dir);
+      if (now - st.mtimeMs > SESSION_TTL_MS) {
+        await fs.rm(dir, { recursive: true, force: true });
+        console.log(`[cleanup] removed stale session dir: ${name}`);
+      }
+    } catch {
+      /* ignore individual failures */
+    }
+  }
+}
+
+// Run a sweep at startup and every 30 minutes.
+setInterval(() => { void sweepOldSessions(); }, 30 * 60 * 1000);
 
 // Path to a libstdc++ that provides GLIBCXX_3.4.30 (required by kiro-cli).
 // On Oracle Linux 9 the system libstdc++ is too old, so we point the CLI at a
@@ -263,39 +296,64 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
 
   const sessionDir = path.join(SESSIONS_ROOT, safeKey);
 
+  // Stream progress as SSE so the client can show live agent activity.
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+
+  const sse = (event: string, data: unknown) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
   try {
     await materialize(sessionDir, snapshot);
     const before = await readScriptFiles(sessionDir);
+    const beforeManifest = await readManifest(sessionDir);
 
     const result = await runAgent(sessionDir, prompt, {
       libPath: KIRO_LIB_PATH,
       apiKey: kiroApiKey,
       model,
       timeoutMs: 240000,
+      onProgress: (text) => sse('progress', { text }),
     });
 
     const after = await readScriptFiles(sessionDir);
-    const scripts = diffToScripts(before, after);
+    const afterManifest = await readManifest(sessionDir);
+
+    const scriptActions = diffToScripts(before, after);
+    const instanceActions = diffManifest(beforeManifest, afterManifest);
     const revert = diffToRevert(before, after);
 
-    // Use the agent's narration (chrome-stripped) as the chat message.
+    // Instance creates should run BEFORE scripts (so scripts can reference
+    // RemoteEvents/Folders), and deletes after. The plugin applies in order.
+    const creates = instanceActions.filter((a) => a.action === 'create_instance');
+    const deletes = instanceActions.filter((a) => a.action === 'delete');
+    const scripts = [...creates, ...scriptActions, ...deletes];
+
+    const changed = scriptActions.length + instanceActions.length;
+
     const message =
       stripChrome(result.stdout) ||
-      (scripts.length > 0
-        ? `Updated ${scripts.length} script${scripts.length > 1 ? 's' : ''}.`
+      (changed > 0
+        ? `Updated ${changed} item${changed > 1 ? 's' : ''}.`
         : 'No changes were made.');
 
-    return res.status(200).json({
+    sse('result', {
       ok: result.ok,
       scripts,
-      revert, // inverse patch — apply via revert-code to undo this prompt
+      revert,
       message,
-      changed: scripts.length,
+      changed,
       exitCode: result.code,
     });
+    res.write('event: done\ndata: {}\n\n');
+    return res.end();
   } catch (e: any) {
     console.error('Agent run failed:', e);
-    return res.status(500).json({ ok: false, error: e?.message || 'Agent run failed' });
+    sse('error', { error: e?.message || 'Agent run failed' });
+    return res.end();
   } finally {
     activeSessions.delete(safeKey);
   }
@@ -304,4 +362,5 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
 app.listen(port, () => {
   console.log(`Kiro proxy server running on port ${port} [${BUILD_TAG}]`);
   console.log(`Using LD_LIBRARY_PATH base: ${KIRO_LIB_PATH}`);
+  void sweepOldSessions(); // initial cleanup on boot
 });

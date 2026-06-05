@@ -198,6 +198,7 @@ export interface DashboardContextType {
   switchChat: (idx: number) => void;
   handleVault: (asset: any) => void;
   revertCheckpoint: (messageId: string, checkpointId: string) => Promise<void>;
+  applyToStudio: (messageId: string, scripts: any[]) => Promise<void>;
   handleAttachAsset: (asset: any) => void;
   getProjectColor: (id: string) => string;
   getRobloxIcon: (className: string) => string;

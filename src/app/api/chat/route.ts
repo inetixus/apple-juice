@@ -1216,6 +1216,8 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
         const encoder = new TextEncoder();
         const sseFromContent = (content: string) =>
           `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
+        const sseFromReasoning = (text: string) =>
+          `data: ${JSON.stringify({ choices: [{ delta: { reasoning: text } }] })}\n\n`;
 
         const stream = new ReadableStream({
           async start(controller) {
@@ -1232,8 +1234,8 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                 }),
               });
 
-              if (!agentRes.ok) {
-                const detail = await agentRes.text();
+              if (!agentRes.ok || !agentRes.body) {
+                const detail = agentRes.ok ? "no response body" : await agentRes.text();
                 controller.enqueue(
                   encoder.encode(
                     sseFromContent(
@@ -1241,45 +1243,70 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                     ),
                   ),
                 );
-              } else {
-                const data = (await agentRes.json()) as {
-                  scripts?: any[];
-                  revert?: any[];
-                  message?: string;
-                };
+                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                controller.close();
+                return;
+              }
 
-                // Persist the inverse patch as a checkpoint so the user can
-                // revert this specific prompt later. Keyed by a fresh id.
+              // Parse the proxy's SSE (event: progress|result|error) and relay
+              // progress to the thinking feed, then emit the final payload.
+              const reader = agentRes.body.getReader();
+              const decoder = new TextDecoder();
+              let buf = "";
+              let resultData: { scripts?: any[]; revert?: any[]; message?: string } | null = null;
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                const blocks = buf.split("\n\n");
+                buf = blocks.pop() || "";
+                for (const block of blocks) {
+                  const evtMatch = block.match(/^event:\s*(.+)$/m);
+                  const dataMatch = block.match(/^data:\s*(.+)$/m);
+                  if (!dataMatch) continue;
+                  const evt = evtMatch ? evtMatch[1].trim() : "message";
+                  let payload: any = {};
+                  try { payload = JSON.parse(dataMatch[1]); } catch { continue; }
+                  if (evt === "progress" && payload.text) {
+                    controller.enqueue(encoder.encode(sseFromReasoning(String(payload.text))));
+                  } else if (evt === "result") {
+                    resultData = payload;
+                  } else if (evt === "error") {
+                    controller.enqueue(
+                      encoder.encode(
+                        sseFromContent(JSON.stringify({ message: `[Agent Error]: ${payload.error}`, scripts: [] })),
+                      ),
+                    );
+                  }
+                }
+              }
+
+              if (resultData) {
+                // Persist the inverse patch as a checkpoint for per-prompt revert.
                 let checkpointId: string | undefined;
-                const revert = Array.isArray(data.revert) ? data.revert : [];
+                const revert = Array.isArray(resultData.revert) ? resultData.revert : [];
                 if (revert.length > 0) {
                   checkpointId = crypto.randomUUID();
                   try {
                     await redis.set(
                       `checkpoint:${sessionKey}:${checkpointId}`,
-                      JSON.stringify({
-                        revert,
-                        prompt,
-                        createdAt: Date.now(),
-                      }),
-                      { ex: 60 * 60 * 24 * 7 }, // keep checkpoints for 7 days
+                      JSON.stringify({ revert, prompt, createdAt: Date.now() }),
+                      { ex: 60 * 60 * 24 * 7 },
                     );
                   } catch {
-                    checkpointId = undefined; // non-fatal; just no revert button
+                    checkpointId = undefined;
                   }
                 }
 
-                // Hand the client the exact JSON shape it already parses, plus
-                // the checkpointId so the assistant message can offer a revert.
                 const appPayload = {
-                  message: data.message || "Done.",
-                  scripts: Array.isArray(data.scripts) ? data.scripts : [],
+                  message: resultData.message || "Done.",
+                  scripts: Array.isArray(resultData.scripts) ? resultData.scripts : [],
                   suggestions: [],
                   checkpointId,
                 };
                 controller.enqueue(encoder.encode(sseFromContent(JSON.stringify(appPayload))));
 
-                // Best-effort usage tracking.
                 if (!isUsingCustomKey && ownerUserId) {
                   const outTk = Math.ceil(JSON.stringify(appPayload).length / 4);
                   await trackMlUsage(ownerUserId, calculateMlUsed(0, outTk, effectiveModel));
