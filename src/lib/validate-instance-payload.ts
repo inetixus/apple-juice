@@ -6,6 +6,8 @@
  * field sizes before they are ever stored or forwarded.
  */
 
+import { normalizeActionName } from "./normalize-action";
+
 export const ALLOWED_ACTIONS = [
   "create",
   "delete",
@@ -42,7 +44,10 @@ export function validateInstancePayload(input: unknown): ValidationResult {
   }
 
   const p = input as Record<string, unknown>;
-  const action = String(p.action ?? "").toLowerCase();
+  // Normalize the action via the shared normalizer (single source of truth):
+  // collapses variants like "runplaytest"/"createInstance" to canonical form.
+  const normalized = normalizeActionName(p.action);
+  const action = normalized ?? String(p.action ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 
   if (!ALLOWED_ACTIONS.includes(action as InstanceAction)) {
     return {

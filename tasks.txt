@@ -36,3 +36,23 @@ Deploy reminders:
   - No plugin change needed for these
   - Live-test: generate a shop UI via the agent (autonomous mode on) to confirm
     UI library deploys + requires resolve + playtest auto-fix loop runs.
+
+
+## ── OPTION C: STRUCTURED TOOL-CALLING (BloxBot-stability parity) ──
+[x] C1. Shared action normalizer (src/lib/normalize-action.ts) — single source of
+    truth that coerces model variants (runplaytest/createInstance/Source->code/etc.)
+    to canonical form; drops unrecognized actions. 9 tests.
+[x] C2. Validator + client parse both use the shared normalizer (no more
+    "Unsupported action runplaytest" — it's coerced to run_playtest everywhere).
+[x] C3. Opt-in structured tool-calling on the Kiro buffered path (KIRO_TOOLS=1):
+    sends executeRobloxActionsTool, parses tool_calls -> normalizeActions, bypassing
+    fragile JSON-text parsing. Defaults OFF so the working path is unaffected.
+[x] C4. Excluded vendored folders (app-bloxbot-ai, kiro-proxy) from app tsconfig.
+    All 63 tests pass; build clean.
+
+NOTE on BloxBot comparison: their stability comes from (1) structured MCP tool-calling
+(model CAN'T emit malformed actions) and (2) OpenCode agent framework + official Roblox
+Studio MCP (viewport screenshots, live property reads, bulk ops). C1-C3 capture the
+tool-calling stability win for our architecture. The remaining gap (screenshots, live
+state, OpenCode-grade loop) would require adopting the official Studio MCP — a bigger
+architectural move that trades away the pure-web-app model.

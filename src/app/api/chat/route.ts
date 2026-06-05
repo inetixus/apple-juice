@@ -19,6 +19,7 @@ import { getAppleJuiceUISource, isUIRelatedPrompt } from "@/lib/apple-juice-ui-l
 import { buildLibraryDeploymentPrompt, getUILibraryDeploymentScripts } from "@/lib/ui-library-deployer";
 import { buildSystemsContextBlock } from "@/lib/systems";
 import { validateGeneration } from "@/lib/validate-generation";
+import { normalizeActions } from "@/lib/normalize-action";
 
 import {
   isKiroModelAvailable,
@@ -1193,6 +1194,89 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
       const kiroKey = process.env.KIRO_API_KEY || "";
       const kiroUrl = process.env.KIRO_API_URL || "https://api.kiro.dev/v1";
 
+      // ── TRUE MCP mode ──────────────────────────────────────────────────────
+      // When KIRO_MCP_URL is set, route through the VPS MCP agent: kiro-cli makes
+      // live interactive studio_* tool calls into the user's Studio via the
+      // bridge. Changes are applied directly in Studio (no snapshot/diff). The
+      // proxy streams progress; we relay it to the thinking feed.
+      const mcpUrl = process.env.KIRO_MCP_URL || "";
+      if (mcpUrl && wantsStream) {
+        const encoder = new TextEncoder();
+        const sseContent = (content: string) =>
+          `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
+        const sseReason = (text: string) =>
+          `data: ${JSON.stringify({ choices: [{ delta: { reasoning: text } }] })}\n\n`;
+
+        const stream = new ReadableStream({
+          async start(controller) {
+            controller.enqueue(encoder.encode(sseContent("")));
+            try {
+              const res = await fetch(`${mcpUrl.replace(/\/$/, "")}/mcp-agent`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  sessionKey,
+                  prompt,
+                  model: resolveKiroModelId(effectiveModel),
+                  uiContext: isUIRelatedPrompt(prompt)
+                    ? `${libraryDeploymentPrompt}\n${uiExamplesBlock}`
+                    : "",
+                }),
+              });
+              if (!res.ok || !res.body) {
+                const detail = res.ok ? "no body" : await res.text();
+                controller.enqueue(encoder.encode(sseContent(
+                  JSON.stringify({ message: `[MCP Error ${res.status}]: ${detail}`, scripts: [] }),
+                )));
+                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                controller.close();
+                return;
+              }
+              const reader = res.body.getReader();
+              const decoder = new TextDecoder();
+              let buf = "";
+              let resultMsg = "Done.";
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                const blocks = buf.split("\n\n");
+                buf = blocks.pop() || "";
+                for (const block of blocks) {
+                  const evt = block.match(/^event:\s*(.+)$/m)?.[1]?.trim();
+                  const dataM = block.match(/^data:\s*(.+)$/m);
+                  if (!dataM) continue;
+                  let payload: any = {};
+                  try { payload = JSON.parse(dataM[1]); } catch { continue; }
+                  if (evt === "progress" && payload.text) {
+                    controller.enqueue(encoder.encode(sseReason(String(payload.text))));
+                  } else if (evt === "result") {
+                    resultMsg = payload.message || "Done.";
+                  } else if (evt === "error") {
+                    resultMsg = `[MCP Error]: ${payload.error}`;
+                  }
+                }
+              }
+              // MCP changes are already applied live in Studio — no scripts array.
+              const appPayload = { message: resultMsg, scripts: [], suggestions: [] };
+              controller.enqueue(encoder.encode(sseContent(JSON.stringify(appPayload))));
+              if (!isUsingCustomKey && ownerUserId) {
+                await trackMlUsage(ownerUserId, calculateMlUsed(0, Math.ceil(resultMsg.length / 4), effectiveModel));
+              }
+            } catch (e: any) {
+              controller.enqueue(encoder.encode(sseContent(
+                JSON.stringify({ message: `[MCP Connection Error]: ${e?.message || e}`, scripts: [] }),
+              )));
+            }
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
+        });
+        return new Response(stream, {
+          headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+        });
+      }
+
       // ── Stage 2: Agentic mode ──────────────────────────────────────────────
       // When KIRO_AGENT_URL is set, route through the VPS agent: materialize the
       // project snapshot as files, let kiro-cli edit them, diff, and return the
@@ -1499,7 +1583,13 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
             messages: msgs,
             temperature: mode === "thinking" ? 0.4 : 0.2,
             max_tokens: Math.min(dynamicMaxOutputTokens, 8192),
-            stream: false
+            stream: false,
+            // Structured tool-calling (opt-in via KIRO_TOOLS=1). When the model
+            // returns tool_calls, we parse them directly instead of fragile
+            // JSON-text parsing — eliminating malformed-action bugs.
+            ...(process.env.KIRO_TOOLS === "1"
+              ? { tools: [executeRobloxActionsTool], tool_choice: "auto" }
+              : {}),
           })
         });
 
@@ -1553,14 +1643,41 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
 
         // Buffered fallback
         const data = await res.json();
+
+        // ── Structured tool-call path (preferred when present) ──
+        // If the model returned tool_calls, parse them into canonical actions
+        // directly — no JSON-text parsing, so no malformed-action class of bugs.
+        const toolCalls = data.choices?.[0]?.message?.tool_calls;
+        if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+          for (const call of toolCalls) {
+            if (call?.function?.name === "execute_roblox_actions") {
+              try {
+                const args = JSON.parse(call.function.arguments || "{}");
+                const acts = normalizeActions(args.actions || []);
+                if (acts.length > 0) {
+                  raw = JSON.stringify({
+                    scripts: acts,
+                    message: args.message || "",
+                    suggestions: args.suggestions || [],
+                  });
+                }
+              } catch {
+                /* fall through to text parsing below */
+              }
+            }
+          }
+        }
+
         const text = data.choices?.[0]?.message?.content || "";
         tokensUsed = data.usage?.completion_tokens || Math.ceil(text.length / 4);
 
-        const content = extractContent(text);
-        const result = processResponse(content, text);
-        code = result.code;
-        raw = result.raw;
-        preambleReasoning = result.preamble;
+        if (!raw) {
+          const content = extractContent(text);
+          const result = processResponse(content, text);
+          code = result.code;
+          raw = result.raw;
+          preambleReasoning = result.preamble;
+        }
 
         if (!code && !raw) {
           return Response.json({ error: "Kiro returned empty output", detail: text }, { status: 502 });

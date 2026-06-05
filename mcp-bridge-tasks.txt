@@ -1,0 +1,54 @@
+# 🧃 Apple Juice — Custom MCP Bridge (Studio over a polling channel)
+
+## THE GOAL
+Replace the one-shot snapshot→diff agent with a TRUE MCP setup:
+kiro-cli (MCP client) ⇄ our MCP server (on VPS) ⇄ Studio plugin (over poll bridge)
+The model makes real interactive tool calls: read_script → edit → run_playtest →
+read errors → fix, each round-tripping into the user's live Studio session.
+
+## ARCHITECTURE
+```
+ kiro-cli (MCP client, --mcp config)
+        │  stdio (MCP protocol)
+        ▼
+ aj-studio-mcp  (our MCP server, Node, on the VPS)   ← NEW
+   tools: studio_get_tree, studio_read_script, studio_write_script,
+          studio_create_instance, studio_delete, studio_rename, studio_move,
+          studio_run_playtest, studio_get_logs
+        │  each tool: enqueue request -> wait for plugin result
+        ▼
+ Bridge store (per-session command queue + result map)   ← NEW (Redis or in-proc)
+        ▲  HTTP long-poll
+        │
+ Studio plugin  (executes the command, returns result)   ← EXTEND existing plugin
+```
+
+## TASKS
+[x] B1. Bridge protocol + store — src/lib/mcp-bridge.ts (enqueue/dequeue/submit/await over the KV store) + /api/mcp/next (plugin pulls) + /api/mcp/result (plugin returns). Per-session FIFO queue + result-by-requestId map, TTL-bounded, session-authed.
+
+[x] B2. MCP server — kiro-proxy/mcp/studio-mcp.ts using @modelcontextprotocol/sdk (stdio). Tools: studio_get_tree/read_script/write_script/create_instance/delete/rename/move/run_playtest/get_logs. Each handler enqueues via /api/mcp/enqueue and polls /api/mcp/poll (secret-authed). Added enqueue + poll routes, dedicated NodeNext tsconfig, and the SDK dep.
+
+[x] B3. Plugin command executor — added MCP_NEXT/RESULT endpoints, executeMcpCommand (maps studio_* tools to existing injectSingleScript/getProjectTree/runPlaytest/readScriptByPath), pollMcpCommand + reportMcpResult, wired into pollLoop each tick. Lua brackets verified balanced.
+
+[x] B4. Wire kiro-cli to MCP — CORRECTED after checking `kiro-cli mcp add --help`:
+    there is no --mcp-config flag. runMcpAgent now (1) `kiro-cli mcp add --agent
+    aj-<session> --name studio --command <runner> --args <json> --env AJ_*` to register
+    the studio server scoped to a PER-SESSION agent (concurrency-safe), (2) `kiro-cli
+    chat --agent aj-<session> --require-mcp-startup --trust-all-tools`, (3) `mcp remove`
+    cleanup. Proxy /v1/mcp-agent + app KIRO_MCP_URL branch unchanged.
+[x] B5. Safety — enqueue route allowlists the 9 studio tools; session-authed plugin
+    routes; secret-authed server routes; reused normalize-action; per-session
+    one-in-flight (activeSessions); timeouts on awaitResult + runMcpAgent.
+[x] B6. Feature flag — MCP path is opt-in via KIRO_MCP_URL; snapshot→diff agent
+    (KIRO_AGENT_URL) and direct stream remain as fallbacks when unset.
+
+[ ] B7. End-to-end test on VPS
+    Real round-trip: model calls studio_get_tree -> studio_write_script -> run_playtest.
+
+## HONEST SCOPE NOTES
+- Latency: each tool call round-trips VPS↔plugin (~poll interval). Tighten poll to ~150ms
+  during an active MCP run; consider SSE/websocket later.
+- No viewport screenshots yet (plugin can't easily capture). Defer.
+- Concurrency: one in-flight command per session.
+- This is the portfolio centerpiece: a cloud agent doing live, interactive tool calls
+  into a sandboxed Roblox Studio via a custom MCP transport bridge.

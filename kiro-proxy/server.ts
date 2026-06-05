@@ -12,6 +12,7 @@ import {
   sanityCheckLuau,
   extractSummary,
   runAgent,
+  runMcpAgent,
   type SnapshotEntry,
 } from './agent';
 
@@ -19,7 +20,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Build tag so we can verify which code is actually running (GET /version).
-const BUILD_TAG = 'kiro-proxy-v10-instrevert';
+const BUILD_TAG = 'kiro-proxy-v12-mcp';
 
 // Where per-session project files are materialized.
 const SESSIONS_ROOT = process.env.KIRO_SESSIONS_ROOT || '/tmp/kiro-sessions';
@@ -259,6 +260,83 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
       usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
     });
   });
+});
+
+/**
+ * TRUE MCP agent endpoint. Runs kiro-cli connected to our Studio MCP server so
+ * the model makes live interactive tool calls into Studio via the bridge.
+ * No snapshot/diff — changes are applied directly in Studio as the agent works.
+ *
+ * Body: { sessionKey, prompt, model?, uiContext? }
+ * Streams SSE: progress events, then a result event.
+ */
+app.post('/v1/mcp-agent', async (req: Request, res: Response) => {
+  const kiroApiKey = process.env.KIRO_API_KEY;
+  const bridgeUrl = process.env.AJ_BRIDGE_URL || 'https://apple-juice.online';
+  const bridgeSecret = process.env.AJ_BRIDGE_SECRET || '';
+  const mcpEntry = process.env.AJ_MCP_ENTRY || path.join(__dirname, 'mcp', 'dist', 'studio-mcp.js');
+  const mcpRunner = process.env.AJ_MCP_RUNNER || 'node';
+
+  if (!kiroApiKey || !bridgeSecret) {
+    return res.status(500).json({ ok: false, error: 'MCP agent not configured (KIRO_API_KEY / AJ_BRIDGE_SECRET).' });
+  }
+
+  const { sessionKey, prompt, model, uiContext } = req.body as {
+    sessionKey?: string;
+    prompt?: string;
+    model?: string;
+    uiContext?: string;
+  };
+  if (!prompt || !sessionKey) {
+    return res.status(400).json({ ok: false, error: 'prompt and sessionKey are required' });
+  }
+
+  const safeKey = sanitizeSessionKey(sessionKey);
+  if (activeSessions.has(safeKey)) {
+    return res.status(429).json({ ok: false, error: 'A generation is already running for this session.' });
+  }
+  activeSessions.add(safeKey);
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+  const sse = (event: string, data: unknown) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  try {
+    const result = await runMcpAgent(SESSIONS_ROOT, prompt, {
+      libPath: KIRO_LIB_PATH,
+      apiKey: kiroApiKey,
+      sessionKey,
+      bridgeUrl,
+      bridgeSecret,
+      mcpEntry,
+      mcpRunner,
+      model,
+      uiContext,
+      timeoutMs: 300000,
+      onProgress: (text) => sse('progress', { text }),
+    });
+
+    sse('result', {
+      ok: result.ok,
+      // In MCP mode changes are already applied live in Studio, so there are no
+      // scripts to return — just the agent's summary.
+      message: extractSummary(result.stdout) || 'Done.',
+      appliedLive: true,
+      exitCode: result.code,
+    });
+    res.write('event: done\ndata: {}\n\n');
+    return res.end();
+  } catch (e: any) {
+    console.error('MCP agent run failed:', e);
+    sse('error', { error: e?.message || 'MCP agent run failed' });
+    return res.end();
+  } finally {
+    activeSessions.delete(safeKey);
+  }
 });
 
 /**

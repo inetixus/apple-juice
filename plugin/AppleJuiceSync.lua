@@ -17,6 +17,8 @@ local LOGS_ENDPOINT = BASE_URL .. "/api/logs"
 local TREE_ENDPOINT = BASE_URL .. "/api/tree"
 local REPORT_FILE_ENDPOINT = BASE_URL .. "/api/report-file"
 local SNAPSHOT_ENDPOINT = BASE_URL .. "/api/snapshot"
+local MCP_NEXT_ENDPOINT = BASE_URL .. "/api/mcp/next"
+local MCP_RESULT_ENDPOINT = BASE_URL .. "/api/mcp/result"
 
 local function updateEndpoints(newUrl)
 	newUrl = newUrl:gsub("%s+", "")
@@ -34,6 +36,8 @@ local function updateEndpoints(newUrl)
 	TREE_ENDPOINT = BASE_URL .. "/api/tree"
 	REPORT_FILE_ENDPOINT = BASE_URL .. "/api/report-file"
 	SNAPSHOT_ENDPOINT = BASE_URL .. "/api/snapshot"
+	MCP_NEXT_ENDPOINT = BASE_URL .. "/api/mcp/next"
+	MCP_RESULT_ENDPOINT = BASE_URL .. "/api/mcp/result"
 end
 
 pcall(function()
@@ -1100,6 +1104,161 @@ local function autoConnect()
 	return nil, data.error or "No active dashboard found."
 end
 
+-- ─── MCP command executor ─────────────────────────────────────────────────────
+-- Executes a single MCP command (from /api/mcp/next) against Studio using the
+-- existing handlers, and returns ok, data, errMessage.
+
+local function readScriptByPath(fullPath)
+	local target = resolvePath(fullPath)
+	if not target then
+		-- Try searching common locations by leaf name as a fallback.
+		local leaf = string.split(fullPath, ".")
+		leaf = leaf[#leaf]
+		local locations = {
+			game:GetService("ServerScriptService"),
+			game:GetService("ReplicatedStorage"),
+			game:GetService("StarterGui"),
+			game:GetService("Workspace"),
+		}
+		for _, loc in ipairs(locations) do
+			local found = loc:FindFirstChild(leaf, true)
+			if found and found:IsA("LuaSourceContainer") then
+				target = found
+				break
+			end
+		end
+	end
+	if target and target:IsA("LuaSourceContainer") then
+		return true, target.Source
+	end
+	return false, nil
+end
+
+local function executeMcpCommand(sessionKey, command)
+	local tool = command.tool
+	local args = command.args or {}
+
+	if tool == "studio_get_tree" then
+		return true, getProjectTree()
+
+	elseif tool == "studio_read_script" then
+		local ok, src = readScriptByPath(args.path or "")
+		if ok then return true, src end
+		return false, nil, "Script not found: " .. tostring(args.path)
+
+	elseif tool == "studio_write_script" then
+		local ok, msg = injectSingleScript({
+			action = "create",
+			parent = args.parent,
+			name = args.name,
+			type = args.type or "Script",
+			code = args.code or "",
+		})
+		if ok then return true, "Wrote " .. tostring(args.name) end
+		return false, nil, msg
+
+	elseif tool == "studio_create_instance" then
+		local ok, msg = injectSingleScript({
+			action = "create_instance",
+			parent = args.parent,
+			className = args.className,
+			instanceName = args.instanceName,
+		})
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_delete" then
+		local ok, msg = injectSingleScript({
+			action = "delete",
+			parent = args.parent,
+			name = args.name,
+		})
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_rename" then
+		local ok, msg = injectSingleScript({
+			action = "rename_instance",
+			oldPath = args.oldPath,
+			newName = args.newName,
+		})
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_move" then
+		local ok, msg = injectSingleScript({
+			action = "move_instance",
+			oldPath = args.oldPath,
+			newParentPath = args.newParentPath,
+		})
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_run_playtest" then
+		-- Collect errors during a playtest and return them to the model.
+		testErrors = {}
+		runPlaytest(sessionKey)
+		-- runPlaytest runs async (~6s). Wait for it to finish, then summarize.
+		local waited = 0
+		while isAutoTesting and waited < 12 do
+			task.wait(0.5)
+			waited += 0.5
+		end
+		local errs = {}
+		for _, e in ipairs(testErrors) do
+			table.insert(errs, e.message)
+		end
+		if #errs == 0 then
+			return true, "Playtest passed with no errors."
+		end
+		return true, "Playtest found " .. #errs .. " error(s):\n" .. table.concat(errs, "\n")
+
+	elseif tool == "studio_get_logs" then
+		local logs = {}
+		for _, e in ipairs(testErrors) do
+			table.insert(logs, "[ERROR] " .. tostring(e.message))
+		end
+		for _, w in ipairs(testWarnings) do
+			table.insert(logs, "[WARN] " .. tostring(w.message))
+		end
+		if #logs == 0 then
+			return true, "No recent errors or warnings."
+		end
+		return true, table.concat(logs, "\n")
+	end
+
+	return false, nil, "Unknown tool: " .. tostring(tool)
+end
+
+local function reportMcpResult(sessionKey, requestId, ok, data, err)
+	task.spawn(function()
+		pcall(function()
+			HttpService:PostAsync(
+				MCP_RESULT_ENDPOINT,
+				HttpService:JSONEncode({
+					key = sessionKey,
+					requestId = requestId,
+					ok = ok,
+					data = data,
+					error = err,
+				}),
+				Enum.HttpContentType.ApplicationJson
+			)
+		end)
+	end)
+end
+
+local function pollMcpCommand(sessionKey)
+	local url = MCP_NEXT_ENDPOINT .. "?key=" .. HttpService:UrlEncode(sessionKey)
+	local ok, response = pcall(function()
+		return HttpService:RequestAsync({ Url = url, Method = "GET", Headers = { ["Accept"] = "application/json" } })
+	end)
+	if not ok or not response.Success then return nil end
+	local decodeOk, data = pcall(function() return HttpService:JSONDecode(response.Body) end)
+	if not decodeOk or not data.command then return nil end
+	return data.command
+end
+
 -- ─── Polling ──────────────────────────────────────────────────────────────────
 
 local function requestPoll(sessionKey)
@@ -1127,6 +1286,18 @@ local function pollLoop(sessionKey)
 		pollTicks += 1
 		-- Report tree on every poll if it changed. Force a report every 60 polls (~30s) to prevent cache expiry.
 		reportTree(sessionKey, pollTicks % 60 == 1)
+
+		-- MCP bridge: pull and execute any pending interactive tool command.
+		local mcpCmd = pollMcpCommand(sessionKey)
+		if mcpCmd then
+			local ranOk, rok, rdata, rerr = pcall(executeMcpCommand, sessionKey, mcpCmd)
+			if ranOk then
+				reportMcpResult(sessionKey, mcpCmd.requestId, rok, rdata, rerr)
+			else
+				-- executeMcpCommand itself errored; report the failure string.
+				reportMcpResult(sessionKey, mcpCmd.requestId, false, nil, tostring(rok))
+			end
+		end
 
 		local ok, data, err = requestPoll(sessionKey)
 

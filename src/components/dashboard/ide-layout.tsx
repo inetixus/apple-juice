@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useDashboard } from "./dashboard-context";
 import { kiroModelLogo } from "@/lib/kiro-models";
+import { ModificationsPreview } from "./modifications-preview";
 import { WorkspaceTree } from "@/components/workspace-tree";
 import { ScriptCard } from "@/components/script-card";
 import { SlashCommandInput } from "@/components/slash-command";
@@ -476,14 +477,17 @@ export function IdeLayout() {
                               !m.isReverted &&
                               Array.isArray(m.scripts) &&
                               m.scripts.length > 0 && (
-                                <button
-                                  onClick={() => applyToStudio(m.id, m.scripts)}
-                                  className="mt-2 self-start px-3 py-1.5 rounded-lg bg-[#ccff00] text-black font-bold text-[11px] hover:bg-[#d4ff33] active:scale-95 transition-all flex items-center gap-1.5"
-                                  title="Sync these scripts into Roblox Studio"
-                                >
-                                  <Play className="w-3 h-3" />
-                                  Apply to Studio
-                                </button>
+                                <>
+                                  <ModificationsPreview scripts={m.scripts} />
+                                  <button
+                                    onClick={() => applyToStudio(m.id, m.scripts)}
+                                    className="mt-2 self-start px-3 py-1.5 rounded-lg bg-[#ccff00] text-black font-bold text-[11px] hover:bg-[#d4ff33] active:scale-95 transition-all flex items-center gap-1.5"
+                                    title="Sync these scripts into Roblox Studio"
+                                  >
+                                    <Play className="w-3 h-3" />
+                                    Apply to Studio
+                                  </button>
+                                </>
                               )}
                             {m.script && (
                               <div className="mt-3 flex flex-col gap-2 w-full">

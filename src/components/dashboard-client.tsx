@@ -17,6 +17,7 @@ import { ToastContainer, useToasts } from "@/components/ui/toast";
 import { type ThinkingStep } from "@/components/thinking-feed";
 import { buildActivityFeed, type ActivityStep } from "@/lib/activity-feed";
 import { validateGeneration } from "@/lib/validate-generation";
+import { normalizeAction, normalizeActionName } from "@/lib/normalize-action";
 import {
   KIRO_DEFAULT_MODEL,
   KIRO_MODEL_LABELS,
@@ -29,6 +30,7 @@ import { WorkspaceTree } from "@/components/workspace-tree";
 import { StripeWave } from "@/components/stripe-wave";
 import { SlashCommandInput } from "@/components/slash-command";
 import { ModelDropdown } from "./dashboard/model-dropdown";
+import { ModificationsPreview } from "./dashboard/modifications-preview";
 
 type DashboardClientProps = {
   username: string;
@@ -1826,23 +1828,26 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
               newParentPath: p.newParentPath,
             }
             : undefined,
-        scripts: rawScripts?.map((s: any, index: number) => ({
-          name: s.name || `UnnamedScript_${index + 1}`,
-          parent: s.parent || "ServerScriptService",
-          type: s.type || "Script",
-          action: (s.action as "create" | "delete") || "create",
-          lineCount: s.lineCount || 0,
-          code: s.code || "",
+        scripts: rawScripts?.map((s: any, index: number) => {
+          const norm = normalizeAction(s) || s;
+          return {
+          name: norm.name || `UnnamedScript_${index + 1}`,
+          parent: norm.parent || "ServerScriptService",
+          type: norm.type || "Script",
+          action: (normalizeActionName(norm.action) as any) || "create",
+          lineCount: norm.lineCount || 0,
+          code: norm.code || "",
           originalCode: files.find(
-            (f: any) => f.name === s.name || f.name === s.name + ".lua",
+            (f: any) => f.name === norm.name || f.name === norm.name + ".lua",
           )?.content,
-          requires: s.requires || [],
-          className: s.className || s.type,
-          instanceName: s.instanceName || s.name,
-          oldPath: s.oldPath,
-          newName: s.newName,
-          newParentPath: s.newParentPath,
-        })),
+          requires: norm.requires || [],
+          className: norm.className || norm.type,
+          instanceName: norm.instanceName || norm.name,
+          oldPath: norm.oldPath,
+          newName: norm.newName,
+          newParentPath: norm.newParentPath,
+          };
+        }),
         suggestions: p.suggestions,
         thinking: p.thinking,
         pendingSync,
@@ -3522,6 +3527,9 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                             <div className={`rounded-2xl px-5 py-3.5 text-[13px] leading-relaxed border whitespace-pre-wrap break-words ${isUser ? "bg-white/[0.06] text-white border-white/10 rounded-tr-sm" : "bg-black/30 text-white/90 border-white/[0.06] backdrop-blur-md rounded-tl-sm"}`}>
                                               {message.content}
                                             </div>
+                                            {!isUser && Array.isArray(message.scripts) && message.scripts.length > 0 && !message.isReverted && (
+                                              <ModificationsPreview scripts={message.scripts as any[]} />
+                                            )}
                                             {!isUser && Array.isArray(message.scripts) && message.scripts.length > 0 && !message.isReverted && (
                                               <button
                                                 onClick={() => applyToStudio(message.id, message.scripts as any[])}

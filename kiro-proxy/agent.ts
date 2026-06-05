@@ -554,6 +554,19 @@ export function runAgent(
     `- When modifying a file that already exists, make TARGETED changes — preserve all working code, ` +
     `imports, and logic that isn't related to the request. Don't rewrite or reformat the whole file.\n` +
     `- For NEW files, write the complete implementation.\n\n` +
+    `## MULTI-SCRIPT SYSTEMS (e.g. round systems, shops, combat)\n` +
+    `Complex features need ALL their parts to function. For a round system, that means:\n` +
+    `  1. A ModuleScript in ReplicatedStorage holding shared config/state (round time, min players).\n` +
+    `  2. A server Script in ServerScriptService that runs the round loop (intermission -> round -> end),\n` +
+    `     manages player states, teleports/spawns, and fires RemoteEvents to clients.\n` +
+    `  3. RemoteEvents in ReplicatedStorage (add them to ${MANIFEST_FILE}) for server->client updates.\n` +
+    `  4. A LocalScript in StarterGui/StarterPlayerScripts that builds the GUI (timer, status) and\n` +
+    `     listens to those RemoteEvents to update it.\n` +
+    `Wire every part together — the client must WaitForChild the RemoteEvents, the server must actually\n` +
+    `fire them, and the loop must be a real working state machine, not a stub. Trace the data flow end to end.\n\n` +
+    `## ACTION VOCABULARY (when not using file tools directly)\n` +
+    `The ONLY valid action names are exactly: create, delete, create_instance, rename_instance,\n` +
+    `move_instance, run_playtest. Use the exact snake_case spelling — never "runplaytest" or "createInstance".\n\n` +
     (opts.uiContext && opts.uiContext.trim()
       ? `## UI LIBRARY (use this for any UI work)\n${opts.uiContext.trim()}\n\n`
       : '') +
@@ -606,3 +619,135 @@ export function runAgent(
     });
   });
 }
+
+
+/**
+ * Run kiro-cli in TRUE MCP mode: it connects to our Studio MCP server (stdio)
+ * and makes live, interactive tool calls into the user's Studio session via
+ * the bridge. No filesystem materialization — the model reads/edits Studio
+ * directly through studio_* tools.
+ *
+ * We write a per-run MCP config registering the studio server, pass the session
+ * key + bridge creds through env so the spawned MCP server can reach the bridge.
+ */
+export function runMcpAgent(
+  workDir: string,
+  userPrompt: string,
+  opts: {
+    libPath: string;
+    apiKey: string;
+    sessionKey: string;
+    bridgeUrl: string;
+    bridgeSecret: string;
+    mcpEntry: string; // absolute path to the compiled/ts MCP server entry
+    mcpRunner?: string; // e.g. "ts-node --project .../tsconfig.json" or "node"
+    model?: string;
+    timeoutMs?: number;
+    uiContext?: string;
+    onProgress?: (text: string) => void;
+  },
+): Promise<RunResult> {
+  const instructions =
+    `You are Apple Juice AI, an expert Roblox developer. You are connected to the ` +
+    `user's LIVE Roblox Studio session through MCP tools (prefixed studio_). ` +
+    `You can read and modify their project in real time.\n\n` +
+    `## TOOLS\n` +
+    `- studio_get_tree — see the project hierarchy. CALL THIS FIRST.\n` +
+    `- studio_read_script(path) — read a script's source before editing it.\n` +
+    `- studio_write_script(parent,name,type,code) — create/overwrite a script (full source).\n` +
+    `- studio_create_instance(parent,className,instanceName) — RemoteEvents, Folders, GUIs, Parts.\n` +
+    `- studio_delete(parent,name), studio_rename(oldPath,newName), studio_move(oldPath,newParentPath).\n` +
+    `- studio_run_playtest() — runs a playtest and returns runtime errors. Use it to VERIFY your work.\n` +
+    `- studio_get_logs() — recent console errors/warnings.\n\n` +
+    `## WORKFLOW (iterate until it works)\n` +
+    `1. studio_get_tree to understand the project.\n` +
+    `2. Read relevant scripts before changing them.\n` +
+    `3. Create needed instances (RemoteEvents/Folders) BEFORE the scripts that reference them.\n` +
+    `4. Write complete, production-ready Luau (types, task.*, timed WaitForChild, server authority, ` +
+    `print header on Scripts/LocalScripts).\n` +
+    `5. studio_run_playtest to verify. If it reports errors, READ them, fix the root cause, and ` +
+    `playtest again. Repeat until the playtest passes.\n` +
+    `6. For multi-script systems (round systems, shops): build every part — shared config module, ` +
+    `server loop, RemoteEvents, and client GUI — and wire the data flow end to end.\n` +
+    `Do not ask questions; complete the task, then confirm the playtest passed.\n\n` +
+    (opts.uiContext && opts.uiContext.trim()
+      ? `## UI LIBRARY\n${opts.uiContext.trim()}\n\n`
+      : '') +
+    `USER REQUEST:\n${userPrompt}`;
+
+  // kiro-cli manages MCP servers via `mcp add` into an AGENT config (not a
+  // --config flag). We scope a unique agent per session so concurrent users
+  // don't clobber each other's server registration.
+  const runnerParts = (opts.mcpRunner || 'node').split(' ').filter(Boolean);
+  const agentName = `aj-${opts.sessionKey}`;
+  const env = {
+    ...process.env,
+    KIRO_API_KEY: opts.apiKey,
+    LD_LIBRARY_PATH:
+      opts.libPath +
+      (process.env.LD_LIBRARY_PATH ? `:${process.env.LD_LIBRARY_PATH}` : ''),
+  };
+
+  // Run a kiro-cli subcommand to completion, capturing output.
+  const runKiro = (args: string[], timeoutMs = 30000): Promise<RunResult> =>
+    new Promise((resolve) => {
+      const child = spawn('kiro-cli', args, { cwd: workDir, env });
+      let so = '';
+      let se = '';
+      const t = setTimeout(() => child.kill('SIGKILL'), timeoutMs);
+      child.stdout.on('data', (d) => {
+        const chunk = d.toString();
+        so += chunk;
+        if (opts.onProgress) {
+          const cleaned = chunk
+            .replace(/\x1B\[[0-9;?]*[ -/]*[@-~]/g, '')
+            .replace(/\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)/g, '');
+          if (cleaned.trim()) opts.onProgress(cleaned);
+        }
+      });
+      child.stderr.on('data', (d) => (se += d.toString()));
+      child.on('close', (code) => {
+        clearTimeout(t);
+        resolve({ ok: code === 0, stdout: so, stderr: se, code });
+      });
+    });
+
+  return (async (): Promise<RunResult> => {
+    const mcpServerArgs = [...runnerParts.slice(1), opts.mcpEntry];
+    // 1. Register the studio MCP server under a per-session agent.
+    const addRes = await runKiro([
+      'mcp', 'add',
+      '--agent', agentName,
+      '--name', 'studio',
+      '--command', runnerParts[0] || 'node',
+      '--args', JSON.stringify(mcpServerArgs),
+      '--env', `AJ_SESSION_KEY=${opts.sessionKey}`,
+      '--env', `AJ_BRIDGE_URL=${opts.bridgeUrl}`,
+      '--env', `AJ_BRIDGE_SECRET=${opts.bridgeSecret}`,
+      '--timeout', '20000',
+      '--force',
+    ]);
+    if (!addRes.ok) {
+      return { ok: false, stdout: '', stderr: `mcp add failed: ${addRes.stderr || addRes.stdout}`, code: addRes.code };
+    }
+
+    // 2. Run chat against that agent so the studio_* tools are available.
+    const chatRes = await runKiro(
+      [
+        'chat',
+        '--no-interactive',
+        '--agent', agentName,
+        '--require-mcp-startup',
+        '--trust-all-tools',
+        instructions,
+      ],
+      opts.timeoutMs ?? 300000,
+    );
+
+    // 3. Cleanup: remove the per-session server registration (best effort).
+    await runKiro(['mcp', 'remove', '--agent', agentName, '--name', 'studio']).catch(() => {});
+
+    return chatRes;
+  })();
+}
+

@@ -29,6 +29,21 @@ describe("validateInstancePayload", () => {
     if (res.ok) expect(res.payload.action).toBe("create");
   });
 
+  it("normalizes action aliases to canonical snake_case", () => {
+    for (const variant of ["runplaytest", "run playtest", "runPlaytest", "RUN_PLAYTEST"]) {
+      const res = validateInstancePayload({ action: variant });
+      expect(res.ok).toBe(true);
+      if (res.ok) expect(res.payload.action).toBe("run_playtest");
+    }
+    const ci = validateInstancePayload({
+      action: "createInstance",
+      className: "RemoteEvent",
+      instanceName: "Evt",
+    });
+    expect(ci.ok).toBe(true);
+    if (ci.ok) expect(ci.payload.action).toBe("create_instance");
+  });
+
   it("requires name and parent for create", () => {
     expect(validateInstancePayload({ action: "create", parent: "X" }).ok).toBe(false);
     expect(validateInstancePayload({ action: "create", name: "Y" }).ok).toBe(false);
