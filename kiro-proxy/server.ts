@@ -1,11 +1,30 @@
 import express from 'express';
 import type { Request, Response } from 'express';
+import * as path from 'path';
+import {
+  materialize,
+  readScriptFiles,
+  diffToScripts,
+  runAgent,
+  type SnapshotEntry,
+} from './agent';
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Build tag so we can verify which code is actually running (GET /version).
-const BUILD_TAG = 'kiro-proxy-v4-json-guarantee';
+const BUILD_TAG = 'kiro-proxy-v5-agent';
+
+// Where per-session project files are materialized.
+const SESSIONS_ROOT = process.env.KIRO_SESSIONS_ROOT || '/tmp/kiro-sessions';
+
+// Only one agent run per session at a time (the CLI mutates a shared dir).
+const activeSessions = new Set<string>();
+
+function sanitizeSessionKey(key: string): string {
+  // Defend against path traversal — only allow safe chars in the dir name.
+  return key.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) || 'default';
+}
 
 // Path to a libstdc++ that provides GLIBCXX_3.4.30 (required by kiro-cli).
 // On Oracle Linux 9 the system libstdc++ is too old, so we point the CLI at a
@@ -203,6 +222,80 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
       usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
     });
   });
+});
+
+/**
+ * Stage 2 agentic endpoint.
+ *
+ * Body: { sessionKey, prompt, snapshot: SnapshotEntry[], model? }
+ * Returns: { ok, scripts: ScriptAction[], message, log }
+ *
+ * Materializes the snapshot to disk, runs kiro-cli agentically in that dir,
+ * diffs the result, and returns plugin-ready script actions. Stateless: the
+ * app supplies the snapshot, so no Redis/keys live on the VPS.
+ */
+app.post('/v1/agent', async (req: Request, res: Response) => {
+  const kiroApiKey = process.env.KIRO_API_KEY;
+  if (!kiroApiKey) {
+    return res.status(500).json({ ok: false, error: 'Server configuration error' });
+  }
+
+  const { sessionKey, prompt, snapshot, model } = req.body as {
+    sessionKey?: string;
+    prompt?: string;
+    snapshot?: SnapshotEntry[];
+    model?: string;
+  };
+
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ ok: false, error: 'prompt is required' });
+  }
+  if (!Array.isArray(snapshot)) {
+    return res.status(400).json({ ok: false, error: 'snapshot array is required' });
+  }
+
+  const safeKey = sanitizeSessionKey(sessionKey || 'default');
+  if (activeSessions.has(safeKey)) {
+    return res.status(429).json({ ok: false, error: 'A generation is already running for this session.' });
+  }
+  activeSessions.add(safeKey);
+
+  const sessionDir = path.join(SESSIONS_ROOT, safeKey);
+
+  try {
+    await materialize(sessionDir, snapshot);
+    const before = await readScriptFiles(sessionDir);
+
+    const result = await runAgent(sessionDir, prompt, {
+      libPath: KIRO_LIB_PATH,
+      apiKey: kiroApiKey,
+      model,
+      timeoutMs: 240000,
+    });
+
+    const after = await readScriptFiles(sessionDir);
+    const scripts = diffToScripts(before, after);
+
+    // Use the agent's narration (chrome-stripped) as the chat message.
+    const message =
+      stripChrome(result.stdout) ||
+      (scripts.length > 0
+        ? `Updated ${scripts.length} script${scripts.length > 1 ? 's' : ''}.`
+        : 'No changes were made.');
+
+    return res.status(200).json({
+      ok: result.ok,
+      scripts,
+      message,
+      changed: scripts.length,
+      exitCode: result.code,
+    });
+  } catch (e: any) {
+    console.error('Agent run failed:', e);
+    return res.status(500).json({ ok: false, error: e?.message || 'Agent run failed' });
+  } finally {
+    activeSessions.delete(safeKey);
+  }
 });
 
 app.listen(port, () => {

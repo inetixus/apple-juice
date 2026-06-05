@@ -1,4 +1,4 @@
-import { consumeCode, updateSession } from "@/lib/store";
+import { consumeCode, updateSession, getRedis } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -55,12 +55,27 @@ export async function GET(req: Request) {
       });
     }
 
+    // Stage 2: if a snapshot was requested for this session, tell the plugin
+    // to send one (and clear the one-shot flag so it only fires once).
+    let requestSnapshot = false;
+    try {
+      const redis = getRedis();
+      const flag = await redis.get<string>(`requestSnapshot:${sessionKey}`);
+      if (flag) {
+        requestSnapshot = true;
+        await redis.del(`requestSnapshot:${sessionKey}`);
+      }
+    } catch {
+      /* best-effort; snapshot will be retried on the next agent request */
+    }
+
     return Response.json({
       paired: true,
       hasNewCode: result.payload.hasNewCode,
       code: codeStr,
       messageId: result.payload.messageId,
       requestedFile: result.payload.requestedFile,
+      requestSnapshot,
     });
   } catch (err) {
     console.error(

@@ -1183,6 +1183,107 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
     if (effectiveProvider === "kiro") {
       const kiroKey = process.env.KIRO_API_KEY || "";
       const kiroUrl = process.env.KIRO_API_URL || "https://api.kiro.dev/v1";
+
+      // ── Stage 2: Agentic mode ──────────────────────────────────────────────
+      // When KIRO_AGENT_URL is set, route through the VPS agent: materialize the
+      // project snapshot as files, let kiro-cli edit them, diff, and return the
+      // changed scripts. Opt-in so the standard path keeps working if unset.
+      const agentUrl = process.env.KIRO_AGENT_URL || "";
+      if (agentUrl && wantsStream) {
+        const redis = getRedis();
+        const snapKey = `snapshot:${sessionKey}`;
+
+        // Pull the latest snapshot; if missing, ask the plugin for one and wait.
+        let snapRaw = await redis.get<string>(snapKey);
+        if (!snapRaw) {
+          await redis.set(`requestSnapshot:${sessionKey}`, "1", { ex: 60 });
+          // Plugin polls every ~0.2s; wait up to ~8s for it to arrive.
+          for (let i = 0; i < 40 && !snapRaw; i++) {
+            await new Promise((r) => setTimeout(r, 200));
+            snapRaw = await redis.get<string>(snapKey);
+          }
+        }
+
+        let snapshot: any[] = [];
+        if (snapRaw) {
+          try {
+            snapshot = typeof snapRaw === "string" ? JSON.parse(snapRaw) : (snapRaw as any[]);
+          } catch {
+            snapshot = [];
+          }
+        }
+
+        const encoder = new TextEncoder();
+        const sseFromContent = (content: string) =>
+          `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
+
+        const stream = new ReadableStream({
+          async start(controller) {
+            controller.enqueue(encoder.encode(sseFromContent("")));
+            try {
+              const agentRes = await fetch(`${agentUrl.replace(/\/$/, "")}/v1/agent`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  sessionKey,
+                  prompt,
+                  snapshot,
+                  model: resolveKiroModelId(effectiveModel),
+                }),
+              });
+
+              if (!agentRes.ok) {
+                const detail = await agentRes.text();
+                controller.enqueue(
+                  encoder.encode(
+                    sseFromContent(
+                      JSON.stringify({ message: `[Agent Error ${agentRes.status}]: ${detail}`, scripts: [] }),
+                    ),
+                  ),
+                );
+              } else {
+                const data = (await agentRes.json()) as {
+                  scripts?: any[];
+                  message?: string;
+                };
+                // Hand the client the exact JSON shape it already parses:
+                // {message, scripts:[{action,type,parent,name,code}], suggestions}
+                const appPayload = {
+                  message: data.message || "Done.",
+                  scripts: Array.isArray(data.scripts) ? data.scripts : [],
+                  suggestions: [],
+                };
+                controller.enqueue(encoder.encode(sseFromContent(JSON.stringify(appPayload))));
+
+                // Best-effort usage tracking.
+                if (!isUsingCustomKey && ownerUserId) {
+                  const outTk = Math.ceil(JSON.stringify(appPayload).length / 4);
+                  await trackMlUsage(ownerUserId, calculateMlUsed(0, outTk, effectiveModel));
+                }
+              }
+            } catch (e: any) {
+              controller.enqueue(
+                encoder.encode(
+                  sseFromContent(
+                    JSON.stringify({ message: `[Agent Connection Error]: ${e?.message || e}`, scripts: [] }),
+                  ),
+                ),
+              );
+            }
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
+        });
+
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        });
+      }
+
       if (!kiroKey) {
         return Response.json(
           { error: "Kiro is not configured", detail: "KIRO_API_KEY is missing from the server environment." },

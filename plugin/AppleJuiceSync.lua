@@ -16,6 +16,7 @@ local POLL_ENDPOINT = BASE_URL .. "/api/poll"
 local LOGS_ENDPOINT = BASE_URL .. "/api/logs"
 local TREE_ENDPOINT = BASE_URL .. "/api/tree"
 local REPORT_FILE_ENDPOINT = BASE_URL .. "/api/report-file"
+local SNAPSHOT_ENDPOINT = BASE_URL .. "/api/snapshot"
 
 local function updateEndpoints(newUrl)
 	newUrl = newUrl:gsub("%s+", "")
@@ -32,6 +33,7 @@ local function updateEndpoints(newUrl)
 	LOGS_ENDPOINT = BASE_URL .. "/api/logs"
 	TREE_ENDPOINT = BASE_URL .. "/api/tree"
 	REPORT_FILE_ENDPOINT = BASE_URL .. "/api/report-file"
+	SNAPSHOT_ENDPOINT = BASE_URL .. "/api/snapshot"
 end
 
 pcall(function()
@@ -973,6 +975,68 @@ local function getProjectTree()
 	return table.concat(results, "\n")
 end
 
+-- ─── Stage 2: Full project snapshot (tree + script sources) ────────────────────
+-- Like getProjectTree, but also captures the .Source of every LuaSourceContainer
+-- so the server can materialize the project as real files for the agentic CLI.
+-- Capped to keep payloads sane.
+
+local SNAPSHOT_SERVICES = {
+	"Workspace", "ReplicatedFirst", "ReplicatedStorage",
+	"ServerScriptService", "ServerStorage", "StarterGui",
+	"StarterPack", "StarterPlayer",
+}
+local MAX_SNAPSHOT_ENTRIES = 1500
+local MAX_SOURCE_BYTES = 200000 -- skip pathologically large scripts
+
+local function buildSnapshotEntries(parent, parentPath, depth, results)
+	if depth > 6 then return end
+	if #results >= MAX_SNAPSHOT_ENTRIES then return end
+	for _, child in ipairs(parent:GetChildren()) do
+		if #results >= MAX_SNAPSHOT_ENTRIES then return end
+		local childPath = parentPath .. "." .. child.Name
+		local entry = { path = childPath, className = child.ClassName }
+		if child:IsA("LuaSourceContainer") then
+			local ok, src = pcall(function() return child.Source end)
+			if ok and src and #src <= MAX_SOURCE_BYTES then
+				entry.source = src
+			else
+				entry.source = ""
+			end
+		end
+		table.insert(results, entry)
+		buildSnapshotEntries(child, childPath, depth + 1, results)
+	end
+end
+
+local function getProjectSnapshot()
+	local results = {}
+	for _, sName in ipairs(SNAPSHOT_SERVICES) do
+		local ok, root = pcall(function() return game:GetService(sName) end)
+		if ok and root then
+			table.insert(results, { path = root.Name, className = root.ClassName })
+			buildSnapshotEntries(root, root.Name, 1, results)
+		end
+	end
+	return results
+end
+
+local isReportingSnapshot = false
+local function reportSnapshot(sessionKey)
+	if isReportingSnapshot then return end
+	isReportingSnapshot = true
+	task.spawn(function()
+		local snapshot = getProjectSnapshot()
+		pcall(function()
+			HttpService:PostAsync(
+				SNAPSHOT_ENDPOINT,
+				HttpService:JSONEncode({ key = sessionKey, snapshot = snapshot }),
+				Enum.HttpContentType.ApplicationJson
+			)
+		end)
+		isReportingSnapshot = false
+	end)
+end
+
 local lastTreeHash = ""
 local isReportingTree = false
 local function reportTree(sessionKey, force)
@@ -1086,6 +1150,15 @@ local function pollLoop(sessionKey)
 		if not isConnected then
 			isConnected = true
 			setStatus("Connected — waiting for code...", "success")
+		end
+
+		-- Stage 2: app requests a full project snapshot (tree + sources) so the
+		-- agentic CLI can work against real files.
+		if data.requestSnapshot then
+			if sessionKey then
+				reportLog(sessionKey, "📸 [Roblox Studio] Sending project snapshot...")
+			end
+			reportSnapshot(sessionKey)
 		end
 
 		if data.requestedFile then
