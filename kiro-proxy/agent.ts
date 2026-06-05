@@ -193,7 +193,14 @@ export async function materialize(
     }
 
     let source = entry.source ?? '';
-    if (source.length > MAX_FILE_BYTES) source = source.slice(0, MAX_FILE_BYTES);
+    if (source.length > MAX_FILE_BYTES) {
+      // Mark truncation so the agent knows it's seeing a partial file and
+      // won't assume the omitted tail is empty / safe to overwrite blindly.
+      source =
+        source.slice(0, MAX_FILE_BYTES) +
+        `\n--[[ ⚠️ AppleJuice: source truncated (${entry.source!.length} bytes total, showing first ${MAX_FILE_BYTES}). ` +
+        `Preserve the omitted portion — make targeted edits rather than rewriting this whole file. ]]\n`;
+    }
     if (totalBytes + source.length > MAX_TOTAL_BYTES) {
       // Stop materializing source once the budget is exhausted; still record
       // the path in the tree manifest so the agent knows the file exists.
@@ -278,6 +285,39 @@ export function diffManifest(
     if (SERVICE_CLASSES.has(e.className)) continue;
     const { parent, name } = splitInstancePath(e.path);
     actions.push({ action: 'delete', className: e.className, instanceName: name, name, parent });
+  }
+
+  return actions;
+}
+
+/**
+ * Inverse of diffManifest: actions that undo the instance changes.
+ *   - instance the agent CREATED -> delete it
+ *   - instance the agent DELETED -> recreate it
+ */
+export function diffManifestToRevert(
+  before: ManifestEntry[],
+  after: ManifestEntry[],
+): InstanceAction[] {
+  const key = (e: ManifestEntry) => `${e.path}|${e.className}`;
+  const beforeSet = new Set(before.map(key));
+  const afterByPath = new Map(after.map((e) => [e.path, e]));
+  const actions: InstanceAction[] = [];
+
+  // Created by agent -> undo = delete.
+  for (const e of after) {
+    if (beforeSet.has(key(e))) continue;
+    if (SERVICE_CLASSES.has(e.className)) continue;
+    const { parent, name } = splitInstancePath(e.path);
+    actions.push({ action: 'delete', className: e.className, instanceName: name, name, parent });
+  }
+
+  // Deleted by agent -> undo = recreate.
+  for (const e of before) {
+    if (afterByPath.has(e.path)) continue;
+    if (SERVICE_CLASSES.has(e.className)) continue;
+    const { parent, name } = splitInstancePath(e.path);
+    actions.push({ action: 'create_instance', className: e.className, instanceName: name, name, parent });
   }
 
   return actions;
@@ -374,6 +414,40 @@ export function diffToRevert(
   }
 
   return actions;
+}
+
+/**
+ * Extract just the agent's closing summary for the chat bubble, dropping the
+ * tool-operation chrome ("Reading file...", "Creating...", diffs) which is
+ * already shown live via streamed progress. Heuristic: take the text after the
+ * last tool-completion marker; fall back to the last paragraph.
+ */
+export function extractSummary(raw: string): string {
+  let s = raw
+    .replace(/\x1B\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)/g, '')
+    .replace(/[\r\n]+[^\r\n]*Credits:[^\r\n]*Time:[^\r\n]*\s*$/u, '');
+
+  // The CLI prints "> " before its final natural-language summary. Prefer the
+  // text from the last "> " marker onward.
+  const lastPrompt = s.lastIndexOf('\n> ');
+  if (lastPrompt !== -1) {
+    s = s.slice(lastPrompt + 3);
+  } else if (s.startsWith('> ')) {
+    s = s.slice(2);
+  } else {
+    // Otherwise drop lines that are obviously tool chrome.
+    const lines = s.split('\n').filter((l) => {
+      const t = l.trim();
+      if (!t) return false;
+      if (/^(↱|⋮|✓|✗|-|\+)\s/.test(t)) return false;
+      if (/(using tool:|Reading (file|directory)|Creating:|Replacing:|Updating:|Completed in|operations? processed|Batch fs_read|I'll (create|modify|write))/i.test(t)) return false;
+      if (/^\d+\s+:/.test(t) || /^\+?\s*\d+:/.test(t)) return false; // diff line numbers
+      return true;
+    });
+    s = lines.join('\n');
+  }
+  return s.trim();
 }
 
 export interface RunResult {
@@ -476,6 +550,10 @@ export function runAgent(
     `- A UI script must create, style, and wire every element. A purchase flow must check balance, ` +
     `deduct, handle data, and fire remotes. Implement the actual logic yourself.\n` +
     `- Do not ask questions or wait for confirmation — generate the complete solution now.\n\n` +
+    `## EDITING EXISTING FILES\n` +
+    `- When modifying a file that already exists, make TARGETED changes — preserve all working code, ` +
+    `imports, and logic that isn't related to the request. Don't rewrite or reformat the whole file.\n` +
+    `- For NEW files, write the complete implementation.\n\n` +
     (opts.uiContext && opts.uiContext.trim()
       ? `## UI LIBRARY (use this for any UI work)\n${opts.uiContext.trim()}\n\n`
       : '') +

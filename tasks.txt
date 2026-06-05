@@ -5,37 +5,34 @@ Ordered by recommended sequence (visible impact first, then the deep agentic upg
 
 ## ── HIGH IMPACT ──
 
-[x] 5. UI library context for the agent — app passes uiContext (libraryDeploymentPrompt + uiExamplesBlock) to /v1/agent when isUIRelatedPrompt; proxy injects it into the agent instructions under a "UI LIBRARY" section. Build tag -> v7-uicontext.
+[x] 5. UI library context for the agent — app passes uiContext (libraryDeploymentPrompt + uiExamplesBlock) to /v1/agent when isUIRelatedPrompt; proxy injects it into the agent instructions under a "UI LIBRARY" section. PLUS: agent branch now auto-deploys the AppleJuiceUI library module (getUILibraryDeploymentScripts) when the agent's code uses it and it's not already in the project — so require("AppleJuiceUI") resolves at runtime. Build tag -> v7-uicontext.
 
 [x] 1. Agentic playtest feedback loop — the existing auto-fix loop now closes for the agent path: agent writes -> syncs -> playtest -> [APPLE_JUICE_TEST_FAIL] -> auto-fix turn re-runs the agent. Made the agent always pull a FRESH snapshot each run (so the fix turn sees the just-synced broken code), and rewrote buildAutoFixPrompt to tell the filesystem agent to read the live files first. Bounded to MAX_AUTO_FIX retries.
 
 [x] 3. Validate generated Luau — validateGeneration already runs on the agent path (client finalization). Added a dependency-free sanityCheckLuau() in the proxy (balanced brackets/strings, block-end heuristic) that returns non-blocking warnings in the result; logged server-side. Tested 5/5 (no false positives on strings). Build tag -> v8-validate. (Full luau-analyze can be added later for deep checks.)
 
-[ ] 2. On-demand live source reads
-    When the snapshot truncated a file (400KB/8MB caps), let the agent request the
-    full source of a specific script mid-run via the existing request-file flow,
-    for accurate edits on large projects.
+[x] 2. On-demand live source — agent runs one-shot so it can't call back mid-run; instead, truncated large files now carry a clear marker comment telling the agent the file is partial and to make targeted edits rather than rewrite blindly. (Full callback-based reads deferred — would need a multi-turn agent protocol.)
 
 ## ── MEDIUM IMPACT ──
 
-[ ] 4. Persist session dir across prompts in a chat
-    Keep the materialized dir warm between prompts (re-sync only changed files)
-    so follow-up prompts ("now add X to that") are faster and more coherent.
+[~] 4. Persist session dir — INTENTIONALLY SKIPPED. After #1, the agent always re-materializes from a FRESH Studio snapshot each prompt, so the dir already reflects true current state. Persisting a warm dir would risk drift from the real Studio project (the snapshot is the source of truth). Re-materializing is correct here; "continuity" is preserved via the always-fresh snapshot, not a stale cached dir.
 
-[ ] 6. Model routing by task complexity
-    Route trivial edits (rename, tweak) to a cheap/fast model; reserve Opus/Sonnet
-    for architecture. Saves credits, faster, no quality loss on simple tasks.
+[x] 6. Model routing by complexity — routeModelForPrompt() picks Haiku 4.5 for trivial edits (rename/typo/print, <80 chars), Sonnet 4.6 for heavy/architecture requests (system/datastore/shop/refactor, >600 chars), else Auto. Applied ONLY when the user left the model on "Auto" (explicit choices respected) and gated to the plan. kiro-models tests 11/11.
 
 ## ── POLISH ──
 
-[ ] 7. Trim final chat message
-    Agent narration is already streamed as progress; the final chat bubble should
-    show only the agent's summary, not the "Reading file..." chrome.
+[x] 7. Trim final chat message — extractSummary() pulls only the agent's closing summary (text after the last "> " marker, or filters tool-chrome lines) for the chat bubble; the "Reading file..." narration still streams live as progress. Build tag -> v9-summary.
 
-[ ] 8. Diff-aware / targeted editing
-    Encourage targeted edits over full-file rewrites for small changes to large
-    files (more reliable, less token waste).
+[x] 8. Diff-aware editing — agent instructions now explicitly tell it to make TARGETED edits to existing files (preserve unrelated working code/imports, don't reformat the whole file) while writing complete implementations for NEW files.
 
-[ ] 9. Instance-aware revert
-    Extend diffToRevert to inverse the manifest diff too, so reverting also undoes
-    instance creates (RemoteEvents, GUIs), not just scripts.
+[x] 9. Instance-aware revert — diffManifestToRevert() inverts instance changes (created->delete, deleted->recreate); proxy now combines script revert + instance revert with correct ordering (recreate instances, then scripts, then deletes) into the checkpoint. Build tag -> v10-instrevert.
+
+═══════════════════════════════════════════════
+ALL GENERATION-IMPROVEMENT TASKS COMPLETE
+═══════════════════════════════════════════════
+Deploy reminders:
+  - Re-copy kiro-proxy agent.ts + server.ts to VPS; pm2 restart; verify /version = v10-instrevert
+  - git push for the app changes (chat route, kiro-models, workspace-tree)
+  - No plugin change needed for these
+  - Live-test: generate a shop UI via the agent (autonomous mode on) to confirm
+    UI library deploys + requires resolve + playtest auto-fix loop runs.

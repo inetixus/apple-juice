@@ -8,7 +8,9 @@ import {
   diffToRevert,
   readManifest,
   diffManifest,
+  diffManifestToRevert,
   sanityCheckLuau,
+  extractSummary,
   runAgent,
   type SnapshotEntry,
 } from './agent';
@@ -17,7 +19,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Build tag so we can verify which code is actually running (GET /version).
-const BUILD_TAG = 'kiro-proxy-v8-validate';
+const BUILD_TAG = 'kiro-proxy-v10-instrevert';
 
 // Where per-session project files are materialized.
 const SESSIONS_ROOT = process.env.KIRO_SESSIONS_ROOT || '/tmp/kiro-sessions';
@@ -327,7 +329,13 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
 
     const scriptActions = diffToScripts(before, after);
     const instanceActions = diffManifest(beforeManifest, afterManifest);
-    const revert = diffToRevert(before, after);
+    const scriptRevert = diffToRevert(before, after);
+    const instanceRevert = diffManifestToRevert(beforeManifest, afterManifest);
+    // Revert ordering mirrors apply: recreate instances first, then scripts,
+    // then deletes last.
+    const revInstCreates = instanceRevert.filter((a) => a.action === 'create_instance');
+    const revInstDeletes = instanceRevert.filter((a) => a.action === 'delete');
+    const revert = [...revInstCreates, ...scriptRevert, ...revInstDeletes];
 
     // Instance creates should run BEFORE scripts (so scripts can reference
     // RemoteEvents/Folders), and deletes after. The plugin applies in order.
@@ -349,7 +357,7 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
     }
 
     const message =
-      stripChrome(result.stdout) ||
+      extractSummary(result.stdout) ||
       (changed > 0
         ? `Updated ${changed} item${changed > 1 ? 's' : ''}.`
         : 'No changes were made.');

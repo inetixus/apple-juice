@@ -99,6 +99,49 @@ export function bestKiroModelForPlan(plan: KiroPlan): string {
   return "Auto";
 }
 
+/**
+ * Heuristic task-complexity router. Given a prompt, suggests a cheaper/faster
+ * model for trivial edits and a stronger one for architecture-level work.
+ * Only meant to be applied when the user picked "Auto" (don't override an
+ * explicit model choice). Returns a model LABEL gated to the plan.
+ */
+export function routeModelForPrompt(prompt: string, plan: KiroPlan): string {
+  const p = (prompt || "").toLowerCase();
+  const len = p.length;
+
+  // Signals of a heavy, architecture-level request.
+  const heavySignals = [
+    "system", "framework", "architecture", "datastore", "data store",
+    "leaderboard", "matchmaking", "round", "inventory", "shop", "economy",
+    "multiple scripts", "refactor", "rewrite", "entire", "full game",
+    "networking", "replicat", "save data", "profile", "gamepass",
+  ];
+  // Signals of a trivial, single-edit request.
+  const trivialSignals = [
+    "rename", "typo", "comment", "print", "change the color", "tweak",
+    "adjust", "rename variable", "add a print", "fix the spelling",
+  ];
+
+  const isHeavy = heavySignals.some((s) => p.includes(s)) || len > 600;
+  const isTrivial =
+    !isHeavy && (trivialSignals.some((s) => p.includes(s)) || len < 80);
+
+  let target: string;
+  if (isTrivial) {
+    target = "Claude Haiku 4.5";   // fast + cheap for small edits
+  } else if (isHeavy) {
+    target = "Claude Sonnet 4.6";  // strong for architecture
+  } else {
+    target = "Auto";               // let Kiro's router decide
+  }
+
+  // Never exceed what the plan allows; fall back gracefully.
+  if (!isKiroModelAvailable(target, plan)) {
+    return bestKiroModelForPlan(plan);
+  }
+  return target;
+}
+
 /** All display labels (used as the global fallback list). */
 export const KIRO_MODEL_LABELS = KIRO_MODELS.map((m) => m.label);
 

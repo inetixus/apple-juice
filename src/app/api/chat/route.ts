@@ -23,6 +23,7 @@ import { validateGeneration } from "@/lib/validate-generation";
 import {
   isKiroModelAvailable,
   bestKiroModelForPlan,
+  routeModelForPrompt,
   resolveKiroModelId,
   type KiroPlan,
 } from "@/lib/kiro-models";
@@ -197,6 +198,14 @@ export async function POST(req: Request) {
 
     // ── Plan-based model gating (Kiro lineup) ──
     const plan = (userUsage.plan || "free") as KiroPlan;
+
+    // Complexity-based routing: only when the user left the model on "Auto",
+    // pick a cheaper model for trivial edits / a stronger one for architecture.
+    // An explicit model choice is always respected.
+    if ((model || "").trim().toLowerCase() === "auto") {
+      effectiveModel = routeModelForPrompt(prompt, plan);
+    }
+
     if (!isKiroModelAvailable(effectiveModel, plan)) {
       // Fall back to the best model this tier can use.
       effectiveModel = bestKiroModelForPlan(plan);
@@ -1309,9 +1318,29 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                   }
                 }
 
+                let agentScripts = Array.isArray(resultData.scripts) ? resultData.scripts : [];
+
+                // Auto-deploy the AppleJuiceUI library module when the agent used
+                // it but it isn't in the project yet — otherwise the generated
+                // require("AppleJuiceUI") would fail at runtime. Prepend the
+                // library scripts so they're created BEFORE the UI scripts run.
+                const treeStr = (snapshot || [])
+                  .map((e: any) => e?.path || "")
+                  .join("\n");
+                const libExists = treeStr.includes("AppleJuiceUI");
+                const usesLibrary = agentScripts.some(
+                  (s: any) => typeof s?.code === "string" && s.code.includes("AppleJuiceUI"),
+                );
+                if (isUIRelatedPrompt(prompt) && usesLibrary && !libExists) {
+                  const libScripts = getUILibraryDeploymentScripts();
+                  if (libScripts.length > 0) {
+                    agentScripts = [...libScripts, ...agentScripts];
+                  }
+                }
+
                 const appPayload = {
                   message: resultData.message || "Done.",
-                  scripts: Array.isArray(resultData.scripts) ? resultData.scripts : [],
+                  scripts: agentScripts,
                   suggestions: [],
                   checkpointId,
                 };
