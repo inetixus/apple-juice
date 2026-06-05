@@ -1221,7 +1221,7 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
           async start(controller) {
             controller.enqueue(encoder.encode(sseFromContent("")));
             try {
-              const agentRes = await fetch(`${agentUrl.replace(/\/$/, "")}/v1/agent`, {
+              const agentRes = await fetch(`${agentUrl.replace(/\/$/, "")}/agent`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -1244,14 +1244,38 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
               } else {
                 const data = (await agentRes.json()) as {
                   scripts?: any[];
+                  revert?: any[];
                   message?: string;
                 };
-                // Hand the client the exact JSON shape it already parses:
-                // {message, scripts:[{action,type,parent,name,code}], suggestions}
+
+                // Persist the inverse patch as a checkpoint so the user can
+                // revert this specific prompt later. Keyed by a fresh id.
+                let checkpointId: string | undefined;
+                const revert = Array.isArray(data.revert) ? data.revert : [];
+                if (revert.length > 0) {
+                  checkpointId = crypto.randomUUID();
+                  try {
+                    await redis.set(
+                      `checkpoint:${sessionKey}:${checkpointId}`,
+                      JSON.stringify({
+                        revert,
+                        prompt,
+                        createdAt: Date.now(),
+                      }),
+                      { ex: 60 * 60 * 24 * 7 }, // keep checkpoints for 7 days
+                    );
+                  } catch {
+                    checkpointId = undefined; // non-fatal; just no revert button
+                  }
+                }
+
+                // Hand the client the exact JSON shape it already parses, plus
+                // the checkpointId so the assistant message can offer a revert.
                 const appPayload = {
                   message: data.message || "Done.",
                   scripts: Array.isArray(data.scripts) ? data.scripts : [],
                   suggestions: [],
+                  checkpointId,
                 };
                 controller.enqueue(encoder.encode(sseFromContent(JSON.stringify(appPayload))));
 

@@ -52,6 +52,8 @@ export interface ChatMessage {
   isHidden?: boolean;
   tokensUsed?: number;
   isReverted?: boolean;
+  /** Stage 2: id of the stored inverse patch so this prompt can be reverted. */
+  checkpointId?: string;
   simulatedWorkspace?: any[];
   selectedNodeContext?: any;
 }

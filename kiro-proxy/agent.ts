@@ -169,6 +169,44 @@ export function diffToScripts(
   return actions;
 }
 
+/**
+ * Build the INVERSE patch — the actions that undo this run. Pushed through the
+ * normal sync flow, this restores the project to its pre-prompt state.
+ *   - file the agent CREATED  -> delete it
+ *   - file the agent MODIFIED -> recreate with the OLD source
+ *   - file the agent DELETED  -> recreate with the OLD source
+ */
+export function diffToRevert(
+  before: Map<string, string>,
+  after: Map<string, string>,
+): ScriptAction[] {
+  const actions: ScriptAction[] = [];
+
+  for (const [rel, code] of after) {
+    const prev = before.get(rel);
+    if (prev === code) continue; // unchanged — nothing to undo
+    const meta = relPathToMeta(rel);
+    if (!meta) continue;
+    if (prev === undefined) {
+      // Was created by the agent -> undo = delete
+      actions.push({ action: 'delete', ...meta, code: '' });
+    } else {
+      // Was modified -> undo = restore old source
+      actions.push({ action: 'create', ...meta, code: prev });
+    }
+  }
+
+  for (const [rel, prev] of before) {
+    if (after.has(rel)) continue;
+    // Was deleted by the agent -> undo = recreate with old source
+    const meta = relPathToMeta(rel);
+    if (!meta) continue;
+    actions.push({ action: 'create', ...meta, code: prev });
+  }
+
+  return actions;
+}
+
 export interface RunResult {
   ok: boolean;
   stdout: string;

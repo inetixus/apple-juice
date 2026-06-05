@@ -64,6 +64,7 @@ export function IdeLayout() {
     handleDelete,
     selectedTreePaths,
     handleVault,
+    revertCheckpoint,
     setSelectedTreePaths,
     handleFileClick,
     messages,
@@ -452,6 +453,23 @@ export function IdeLayout() {
                             >
                               {m.content}
                             </div>
+                            {m.role !== "user" && m.checkpointId && !m.isReverted && (
+                              <button
+                                onClick={() =>
+                                  revertCheckpoint(m.id, m.checkpointId as string)
+                                }
+                                className="mt-1.5 self-start px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-semibold text-slate-400 hover:text-white hover:bg-white/10 transition-all flex items-center gap-1.5"
+                                title="Undo the changes this prompt made"
+                              >
+                                <X className="w-3 h-3" />
+                                Revert this change
+                              </button>
+                            )}
+                            {m.role !== "user" && m.isReverted && (
+                              <span className="mt-1.5 self-start text-[10px] font-semibold text-slate-500 italic">
+                                Reverted
+                              </span>
+                            )}
                             {m.script && (
                               <div className="mt-3 flex flex-col gap-2 w-full">
                                 <ScriptCard

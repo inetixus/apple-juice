@@ -1,5 +1,8 @@
-// @ts-ignore
-import { Redis } from "@upstash/redis";
+// Migrated from Upstash Redis to Turso (libSQL). `getRedis()` now returns a
+// Redis-compatible KV adapter backed by Turso so existing call sites keep
+// working; the former Lua `eval` scripts are reimplemented as libSQL
+// transactions in this file.
+import { getKV, getTurso, ensureSchema, type KV } from "@/lib/turso";
 
 export type SessionEntry = {
   sessionKey: string;
@@ -109,31 +112,19 @@ export function calculateMaxOutputTokens(remainingMl: number): number {
   return Math.max(0, Math.floor((remainingMl * 1000) / OUTPUT_ML_MULTIPLIER));
 }
 
-let _redis: Redis | null = null;
-export function getRedis(): Redis {
-  if (_redis) return _redis;
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token =
-    process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) {
-    const missingMsg =
-      "Missing Redis credentials. Ensure KV_REST_API_URL or UPSTASH_REDIS_REST_URL is set in your environment.";
-    const missing: Partial<Redis> = {
-      set: async () => {
-        throw new Error(missingMsg);
-      },
-      get: async () => null,
-      expire: async () => 0,
-      eval: async () => {
-        throw new Error(missingMsg);
-      },
-    };
-    _redis = missing as Redis;
-    return _redis;
-  }
+let _kvWrap: KV | null = null;
 
-  _redis = new Redis({ url, token });
-  return _redis;
+/**
+ * Back-compat shim: returns a Redis-like client. Historically this returned an
+ * Upstash Redis instance; it now returns the Turso-backed KV adapter, which
+ * implements the same get/set/del/expire/incr/decr/incrby/decrby surface the
+ * app uses. Callers that used `.eval(...)` now go through the dedicated
+ * transaction-based functions below instead.
+ */
+export function getRedis(): KV {
+  if (_kvWrap) return _kvWrap;
+  _kvWrap = getKV();
+  return _kvWrap;
 }
 
 function keyFor(sessionKey: string) {
@@ -284,43 +275,42 @@ export async function updateSession(
   updates: Partial<SessionEntry>,
 ) {
   const key = keyFor(sessionKey);
-  const lua = `
-    local raw = redis.call("GET", KEYS[1])
-    if not raw then return nil end
-    local sess = cjson.decode(raw)
-    local updates = cjson.decode(ARGV[1])
-    local now = tonumber(ARGV[2])
-
-    for k, v in pairs(updates) do
-      if v == cjson.null then
-        sess[k] = nil
-      else
-        sess[k] = v
-      end
-    end
-
-    local encoded = cjson.encode(sess)
-    if sess.expiresAt then
-      local ttl = math.floor((tonumber(sess.expiresAt) - now) / 1000)
-      if ttl > 0 then
-        redis.call("SET", KEYS[1], encoded, "EX", ttl)
-      else
-        redis.call("SET", KEYS[1], encoded)
-      end
-    else
-      redis.call("SET", KEYS[1], encoded)
-    end
-    return encoded
-  `;
+  const client = getTurso();
+  await ensureSchema();
+  const tx = await client.transaction("write");
   try {
-    const res = await getRedis().eval(
-      lua,
-      [key],
-      [JSON.stringify(updates), String(Date.now())],
-    );
-    if (!res) return null;
-    return (typeof res === "string" ? JSON.parse(res) : res) as SessionEntry;
+    const now = Date.now();
+    const rs = await tx.execute({
+      sql: `SELECT value FROM kv WHERE key = ?`,
+      args: [key],
+    });
+    if (!rs.rows.length) {
+      await tx.rollback();
+      return null;
+    }
+    const sess = JSON.parse(String(rs.rows[0].value)) as SessionEntry &
+      Record<string, unknown>;
+
+    // Apply updates; an explicit null deletes the field (mirrors cjson.null).
+    for (const [k, v] of Object.entries(updates)) {
+      if (v === null || v === undefined) {
+        delete (sess as Record<string, unknown>)[k];
+      } else {
+        (sess as Record<string, unknown>)[k] = v;
+      }
+    }
+
+    const encoded = JSON.stringify(sess);
+    const expiresAt =
+      typeof sess.expiresAt === "number" ? sess.expiresAt : null;
+    await tx.execute({
+      sql: `UPDATE kv SET value = ?, expires_at = ? WHERE key = ?`,
+      args: [encoded, expiresAt && expiresAt > now ? expiresAt : null, key],
+    });
+    await tx.commit();
+    return sess as SessionEntry;
   } catch (err) {
+    try { await tx.rollback(); } catch { /* ignore */ }
     console.error(
       "updateSession error",
       err instanceof Error ? err.message : String(err),
@@ -336,32 +326,37 @@ export async function upsertGeneratedCode(
   autoAccept: boolean = true,
 ) {
   const key = keyFor(sessionKey);
-  const lua = `
-    local raw = redis.call("GET", KEYS[1])
-    if not raw then return nil end
-    local sess = cjson.decode(raw)
-    sess.messageId = ARGV[2]
-    if ARGV[3] == "true" then
-      sess.code = ARGV[1]
-      sess.hasNewCode = true
-      sess.pendingCode = nil
-    else
-      sess.pendingCode = ARGV[1]
-      sess.hasNewCode = false
-    end
-    redis.call("SET", KEYS[1], cjson.encode(sess))
-    return cjson.encode(sess)
-  `;
-
+  await ensureSchema();
+  const tx = await getTurso().transaction("write");
   try {
-    const res = await getRedis().eval(
-      lua,
-      [key],
-      [code, messageId, autoAccept ? "true" : "false"],
-    );
-    if (!res) return null;
-    return (typeof res === "string" ? JSON.parse(res) : res) as SessionEntry;
+    const rs = await tx.execute({
+      sql: `SELECT value, expires_at FROM kv WHERE key = ?`,
+      args: [key],
+    });
+    if (!rs.rows.length) {
+      await tx.rollback();
+      return null;
+    }
+    const sess = JSON.parse(String(rs.rows[0].value)) as SessionEntry;
+    const exp = rs.rows[0].expires_at == null ? null : Number(rs.rows[0].expires_at);
+
+    sess.messageId = messageId;
+    if (autoAccept) {
+      sess.code = code;
+      sess.hasNewCode = true;
+      sess.pendingCode = undefined;
+    } else {
+      sess.pendingCode = code;
+      sess.hasNewCode = false;
+    }
+    await tx.execute({
+      sql: `UPDATE kv SET value = ?, expires_at = ? WHERE key = ?`,
+      args: [JSON.stringify(sess), exp, key],
+    });
+    await tx.commit();
+    return sess;
   } catch (err) {
+    try { await tx.rollback(); } catch { /* ignore */ }
     console.error(
       "upsertGeneratedCode error",
       err instanceof Error ? err.message : String(err),
@@ -372,24 +367,32 @@ export async function upsertGeneratedCode(
 
 export async function acceptPendingCode(sessionKey: string) {
   const key = keyFor(sessionKey);
-  const lua = `
-    local raw = redis.call("GET", KEYS[1])
-    if not raw then return nil end
-    local sess = cjson.decode(raw)
-    if sess.pendingCode then
-      sess.code = sess.pendingCode
-      sess.hasNewCode = true
-      sess.pendingCode = nil
-      redis.call("SET", KEYS[1], cjson.encode(sess))
-      return cjson.encode(sess)
-    end
-    return raw
-  `;
+  await ensureSchema();
+  const tx = await getTurso().transaction("write");
   try {
-    const res = await getRedis().eval(lua, [key], []);
-    if (!res) return null;
-    return (typeof res === "string" ? JSON.parse(res) : res) as SessionEntry;
+    const rs = await tx.execute({
+      sql: `SELECT value, expires_at FROM kv WHERE key = ?`,
+      args: [key],
+    });
+    if (!rs.rows.length) {
+      await tx.rollback();
+      return null;
+    }
+    const sess = JSON.parse(String(rs.rows[0].value)) as SessionEntry;
+    const exp = rs.rows[0].expires_at == null ? null : Number(rs.rows[0].expires_at);
+    if (sess.pendingCode) {
+      sess.code = sess.pendingCode;
+      sess.hasNewCode = true;
+      sess.pendingCode = undefined;
+      await tx.execute({
+        sql: `UPDATE kv SET value = ?, expires_at = ? WHERE key = ?`,
+        args: [JSON.stringify(sess), exp, key],
+      });
+    }
+    await tx.commit();
+    return sess;
   } catch (err) {
+    try { await tx.rollback(); } catch { /* ignore */ }
     console.error("acceptPendingCode error", err);
     return null;
   }
@@ -398,35 +401,45 @@ export async function acceptPendingCode(sessionKey: string) {
 export async function consumeCode(sessionKey: string) {
   const key = keyFor(sessionKey);
   const now = Date.now();
-  const lua = `
-    local raw = redis.call("GET", KEYS[1])
-    if not raw then return cjson.encode({ok=false,reason="not_found"}) end
-    local sess = cjson.decode(raw)
-    if tonumber(sess.expiresAt) < tonumber(ARGV[1]) then return cjson.encode({ok=false,reason="expired"}) end
-    local payload = { 
-      hasNewCode = sess.hasNewCode, 
-      code = sess.code, 
-      messageId = sess.messageId,
-      requestedFile = sess.requestedFile,
-      dashboardLastPingTime = sess.dashboardLastPingTime
-    }
-    sess.hasNewCode = false
-    sess.requestedFile = nil
-    sess.lastPollTime = tonumber(ARGV[1])
-    redis.call("SET", KEYS[1], cjson.encode(sess))
-    return cjson.encode({ok=true,payload=payload})
-  `;
-
+  await ensureSchema();
+  const tx = await getTurso().transaction("write");
   try {
-    const res = await getRedis().eval(lua, [key], [String(now)]);
-    if (!res) return { ok: false as const, reason: "not_found" as const };
-    const parsed = typeof res === "string" ? JSON.parse(res) : res;
-    if (parsed.ok) return { ok: true as const, payload: parsed.payload };
-    return {
-      ok: false as const,
-      reason: parsed.reason as "not_found" | "expired",
+    const rs = await tx.execute({
+      sql: `SELECT value, expires_at FROM kv WHERE key = ?`,
+      args: [key],
+    });
+    if (!rs.rows.length) {
+      await tx.rollback();
+      return { ok: false as const, reason: "not_found" as const };
+    }
+    const sess = JSON.parse(String(rs.rows[0].value)) as SessionEntry;
+    const exp = rs.rows[0].expires_at == null ? null : Number(rs.rows[0].expires_at);
+
+    if (typeof sess.expiresAt === "number" && sess.expiresAt < now) {
+      await tx.rollback();
+      return { ok: false as const, reason: "expired" as const };
+    }
+
+    const payload = {
+      hasNewCode: sess.hasNewCode,
+      code: sess.code,
+      messageId: sess.messageId,
+      requestedFile: sess.requestedFile,
+      dashboardLastPingTime: sess.dashboardLastPingTime,
     };
+
+    sess.hasNewCode = false;
+    sess.requestedFile = undefined;
+    sess.lastPollTime = now;
+
+    await tx.execute({
+      sql: `UPDATE kv SET value = ?, expires_at = ? WHERE key = ?`,
+      args: [JSON.stringify(sess), exp, key],
+    });
+    await tx.commit();
+    return { ok: true as const, payload };
   } catch (err) {
+    try { await tx.rollback(); } catch { /* ignore */ }
     console.error(
       "consumeCode error",
       err instanceof Error ? err.message : String(err),
@@ -438,27 +451,32 @@ export async function consumeCode(sessionKey: string) {
 export async function appendLogs(sessionKey: string, newLogs: string[]) {
   if (!newLogs || newLogs.length === 0) return { ok: true };
   const key = keyFor(sessionKey);
-  const logsJson = JSON.stringify(newLogs);
-  const lua = `
-    local raw = redis.call("GET", KEYS[1])
-    if not raw then return cjson.encode({ok=false,reason="not_found"}) end
-    local sess = cjson.decode(raw)
-    if not sess.logs then sess.logs = {} end
-    local newLogs = cjson.decode(ARGV[1])
-    for i=1, #newLogs do
-      table.insert(sess.logs, newLogs[i])
-      if #sess.logs > 100 then
-        table.remove(sess.logs, 1)
-      end
-    end
-    redis.call("SET", KEYS[1], cjson.encode(sess))
-    return cjson.encode({ok=true})
-  `;
+  await ensureSchema();
+  const tx = await getTurso().transaction("write");
   try {
-    const res = await getRedis().eval(lua, [key], [logsJson]);
-    const parsed = typeof res === "string" ? JSON.parse(res) : res;
-    return parsed as { ok: boolean; reason?: string };
+    const rs = await tx.execute({
+      sql: `SELECT value, expires_at FROM kv WHERE key = ?`,
+      args: [key],
+    });
+    if (!rs.rows.length) {
+      await tx.rollback();
+      return { ok: false, reason: "not_found" };
+    }
+    const sess = JSON.parse(String(rs.rows[0].value)) as SessionEntry;
+    const exp = rs.rows[0].expires_at == null ? null : Number(rs.rows[0].expires_at);
+    if (!sess.logs) sess.logs = [];
+    for (const l of newLogs) {
+      sess.logs.push(l);
+      if (sess.logs.length > 100) sess.logs.shift();
+    }
+    await tx.execute({
+      sql: `UPDATE kv SET value = ?, expires_at = ? WHERE key = ?`,
+      args: [JSON.stringify(sess), exp, key],
+    });
+    await tx.commit();
+    return { ok: true };
   } catch (err) {
+    try { await tx.rollback(); } catch { /* ignore */ }
     console.error("appendLogs error", err);
     return { ok: false, reason: "error" };
   }
@@ -466,20 +484,29 @@ export async function appendLogs(sessionKey: string, newLogs: string[]) {
 
 export async function consumeLogs(sessionKey: string) {
   const key = keyFor(sessionKey);
-  const lua = `
-    local raw = redis.call("GET", KEYS[1])
-    if not raw then return cjson.encode({ok=false,reason="not_found"}) end
-    local sess = cjson.decode(raw)
-    local logs = sess.logs or {}
-    sess.logs = {}
-    redis.call("SET", KEYS[1], cjson.encode(sess))
-    return cjson.encode({ok=true, logs=logs})
-  `;
+  await ensureSchema();
+  const tx = await getTurso().transaction("write");
   try {
-    const res = await getRedis().eval(lua, [key], []);
-    const parsed = typeof res === "string" ? JSON.parse(res) : res;
-    return parsed as { ok: boolean; logs?: string[]; reason?: string };
+    const rs = await tx.execute({
+      sql: `SELECT value, expires_at FROM kv WHERE key = ?`,
+      args: [key],
+    });
+    if (!rs.rows.length) {
+      await tx.rollback();
+      return { ok: false, reason: "not_found" };
+    }
+    const sess = JSON.parse(String(rs.rows[0].value)) as SessionEntry;
+    const exp = rs.rows[0].expires_at == null ? null : Number(rs.rows[0].expires_at);
+    const logs = sess.logs || [];
+    sess.logs = [];
+    await tx.execute({
+      sql: `UPDATE kv SET value = ?, expires_at = ? WHERE key = ?`,
+      args: [JSON.stringify(sess), exp, key],
+    });
+    await tx.commit();
+    return { ok: true, logs };
   } catch (err) {
+    try { await tx.rollback(); } catch { /* ignore */ }
     console.error("consumeLogs error", err);
     return { ok: false, reason: "error" };
   }

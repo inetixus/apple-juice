@@ -5,6 +5,7 @@ import {
   materialize,
   readScriptFiles,
   diffToScripts,
+  diffToRevert,
   runAgent,
   type SnapshotEntry,
 } from './agent';
@@ -275,6 +276,7 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
 
     const after = await readScriptFiles(sessionDir);
     const scripts = diffToScripts(before, after);
+    const revert = diffToRevert(before, after);
 
     // Use the agent's narration (chrome-stripped) as the chat message.
     const message =
@@ -286,6 +288,7 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
     return res.status(200).json({
       ok: result.ok,
       scripts,
+      revert, // inverse patch — apply via revert-code to undo this prompt
       message,
       changed: scripts.length,
       exitCode: result.code,

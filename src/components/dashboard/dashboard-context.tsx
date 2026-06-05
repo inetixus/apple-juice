@@ -197,6 +197,7 @@ export interface DashboardContextType {
   createPairOnServer: () => Promise<void>;
   switchChat: (idx: number) => void;
   handleVault: (asset: any) => void;
+  revertCheckpoint: (messageId: string, checkpointId: string) => Promise<void>;
   handleAttachAsset: (asset: any) => void;
   getProjectColor: (id: string) => string;
   getRobloxIcon: (className: string) => string;

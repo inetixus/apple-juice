@@ -1013,6 +1013,36 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     }
   }
 
+  const revertCheckpoint = useCallback(
+    async (messageId: string, checkpointId: string) => {
+      if (!sessionKey || !checkpointId) return;
+      showToast("Reverting changes...", "info");
+      try {
+        const res = await fetch("/api/revert-checkpoint", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionKey, checkpointId }),
+        });
+        if (res.ok) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === messageId
+                ? { ...m, isReverted: true, checkpointId: undefined }
+                : m,
+            ),
+          );
+          showToast("Reverted. Syncing to Studio...", "success");
+        } else {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.error || "Could not revert this change.", "error");
+        }
+      } catch {
+        showToast("Could not reach the server to revert.", "error");
+      }
+    },
+    [sessionKey, showToast],
+  );
+
   const handleRename = useCallback(
     async (path: string, newName: string) => {
       if (!sessionKey) return;
@@ -1779,6 +1809,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
         thinking: p.thinking,
         pendingSync,
         tokensUsed: p.tokensUsed,
+        checkpointId: p.checkpointId,
       };
     }
     const isRetryObj = typeof overridePrompt === "object";
@@ -3197,6 +3228,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     createPairOnServer,
     switchChat,
     handleVault,
+    revertCheckpoint,
     handleAttachAsset,
     getProjectColor,
     getRobloxIcon,
