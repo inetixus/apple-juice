@@ -28,6 +28,7 @@ import {
 import { useDashboard } from "./dashboard-context";
 import { kiroModelLogo } from "@/lib/kiro-models";
 import { ModificationsPreview } from "./modifications-preview";
+import { MessageContent } from "./message-content";
 import { WorkspaceTree } from "@/components/workspace-tree";
 import { ScriptCard } from "@/components/script-card";
 import { SlashCommandInput } from "@/components/slash-command";
@@ -454,7 +455,7 @@ export function IdeLayout() {
                                   : "bg-[#ccff00]/10 border border-[#ccff00]/20 text-slate-100 rounded-bl-sm backdrop-blur-md"
                                 }`}
                             >
-                              {m.content}
+                              {m.role === "user" ? m.content : <MessageContent content={m.content} />}
                             </div>
                             {m.role !== "user" && m.checkpointId && !m.isReverted && (
                               <button

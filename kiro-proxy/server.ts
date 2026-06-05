@@ -281,11 +281,12 @@ app.post('/v1/mcp-agent', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'MCP agent not configured (KIRO_API_KEY / AJ_BRIDGE_SECRET).' });
   }
 
-  const { sessionKey, prompt, model, uiContext } = req.body as {
+  const { sessionKey, prompt, model, uiContext, history } = req.body as {
     sessionKey?: string;
     prompt?: string;
     model?: string;
     uiContext?: string;
+    history?: { role: string; content: string }[];
   };
   if (!prompt || !sessionKey) {
     return res.status(400).json({ ok: false, error: 'prompt and sessionKey are required' });
@@ -316,6 +317,7 @@ app.post('/v1/mcp-agent', async (req: Request, res: Response) => {
       mcpRunner,
       model,
       uiContext,
+      history,
       timeoutMs: 300000,
       onProgress: (text) => sse('progress', { text }),
     });

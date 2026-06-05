@@ -1217,6 +1217,12 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                 body: JSON.stringify({
                   sessionKey,
                   prompt,
+                  // Pass the recent conversation so the agent has memory of the
+                  // exchange (last ~20 turns). Without this each message is a
+                  // context-free run and the model "forgets" what it just said.
+                  history: (body.messages || [])
+                    .slice(-20)
+                    .map((m) => ({ role: m.role, content: m.content })),
                   model: resolveKiroModelId(effectiveModel),
                   uiContext: isUIRelatedPrompt(prompt)
                     ? `${libraryDeploymentPrompt}\n${uiExamplesBlock}`

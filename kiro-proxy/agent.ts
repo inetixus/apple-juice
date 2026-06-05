@@ -644,6 +644,7 @@ export function runMcpAgent(
     model?: string;
     timeoutMs?: number;
     uiContext?: string;
+    history?: { role: string; content: string }[];
     onProgress?: (text: string) => void;
   },
 ): Promise<RunResult> {
@@ -673,7 +674,16 @@ export function runMcpAgent(
     (opts.uiContext && opts.uiContext.trim()
       ? `## UI LIBRARY\n${opts.uiContext.trim()}\n\n`
       : '') +
-    `USER REQUEST:\n${userPrompt}`;
+    (opts.history && opts.history.length > 0
+      ? `## CONVERSATION SO FAR\n` +
+        `This is an ongoing conversation. Earlier turns (for context — do not redo work already done):\n` +
+        opts.history
+          .filter((m) => m && typeof m.content === 'string' && m.content.trim())
+          .map((m) => `${m.role === 'assistant' ? 'You' : 'User'}: ${m.content.trim().slice(0, 2000)}`)
+          .join('\n') +
+        `\n\n`
+      : '') +
+    `USER REQUEST (the latest message — respond to this):\n${userPrompt}`;
 
   // kiro-cli manages MCP servers via `mcp add` into an AGENT config (not a
   // --config flag). We scope a unique agent per session so concurrent users

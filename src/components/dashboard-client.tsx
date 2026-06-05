@@ -31,6 +31,7 @@ import { StripeWave } from "@/components/stripe-wave";
 import { SlashCommandInput } from "@/components/slash-command";
 import { ModelDropdown } from "./dashboard/model-dropdown";
 import { ModificationsPreview } from "./dashboard/modifications-preview";
+import { MessageContent } from "./dashboard/message-content";
 
 type DashboardClientProps = {
   username: string;
@@ -2356,23 +2357,29 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
                   if (reasoning) {
                     setThinkingSteps((prev) => {
+                      const snippet =
+                        reasoning.length > 60
+                          ? "..." + reasoning.substring(reasoning.length - 60)
+                          : reasoning;
+                      const label = snippet.replace(/\s+/g, " ").trim();
                       const index = prev.findIndex(
                         (s) => "icon" in s && s.icon === "reasoning",
                       );
                       if (index !== -1) {
                         const newSteps = [...prev];
-                        const snippet =
-                          reasoning.length > 50
-                            ? "..." + reasoning.substring(reasoning.length - 50)
-                            : reasoning;
                         newSteps[index] = {
                           ...newSteps[index],
-                          label: `Reasoning: ${snippet.replace(/\n/g, " ")}`,
+                          label: label || "Working...",
                           done: false,
                         };
                         return newSteps;
                       }
-                      return prev;
+                      // No reasoning step yet (e.g. MCP mode): replace the
+                      // placeholder feed with a live progress step so the user
+                      // sees the agent's real tool activity instead of fakes.
+                      return [
+                        { icon: "reasoning", label: label || "Working in Studio...", done: false },
+                      ];
                     });
                   }
 
@@ -3525,7 +3532,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                               </span>
                                             )}
                                             <div className={`rounded-2xl px-5 py-3.5 text-[13px] leading-relaxed border whitespace-pre-wrap break-words ${isUser ? "bg-white/[0.06] text-white border-white/10 rounded-tr-sm" : "bg-black/30 text-white/90 border-white/[0.06] backdrop-blur-md rounded-tl-sm"}`}>
-                                              {message.content}
+                                              {isUser ? message.content : <MessageContent content={message.content} />}
                                             </div>
                                             {!isUser && Array.isArray(message.scripts) && message.scripts.length > 0 && !message.isReverted && (
                                               <ModificationsPreview scripts={message.scripts as any[]} />

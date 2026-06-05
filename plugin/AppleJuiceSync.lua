@@ -241,6 +241,7 @@ local isAutoTesting = false
 local currentPlaytestId = 0
 local testErrors = {}
 local testWarnings = {}
+local mcpBusy = false
 local lastInjectedScripts = {}
 
 local undoStack = {}
@@ -1288,14 +1289,22 @@ local function pollLoop(sessionKey)
 		reportTree(sessionKey, pollTicks % 60 == 1)
 
 		-- MCP bridge: pull and execute any pending interactive tool command.
-		local mcpCmd = pollMcpCommand(sessionKey)
-		if mcpCmd then
-			local ranOk, rok, rdata, rerr = pcall(executeMcpCommand, sessionKey, mcpCmd)
-			if ranOk then
-				reportMcpResult(sessionKey, mcpCmd.requestId, rok, rdata, rerr)
-			else
-				-- executeMcpCommand itself errored; report the failure string.
-				reportMcpResult(sessionKey, mcpCmd.requestId, false, nil, tostring(rok))
+		-- Run it in a separate thread so a long-running command (e.g. a 6s
+		-- playtest) doesn't block the main poll loop and trip the connection
+		-- watchdog. Only one MCP command in flight at a time.
+		if not mcpBusy then
+			local mcpCmd = pollMcpCommand(sessionKey)
+			if mcpCmd then
+				mcpBusy = true
+				task.spawn(function()
+					local ranOk, rok, rdata, rerr = pcall(executeMcpCommand, sessionKey, mcpCmd)
+					if ranOk then
+						reportMcpResult(sessionKey, mcpCmd.requestId, rok, rdata, rerr)
+					else
+						reportMcpResult(sessionKey, mcpCmd.requestId, false, nil, tostring(rok))
+					end
+					mcpBusy = false
+				end)
 			end
 		end
 
