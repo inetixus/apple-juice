@@ -144,18 +144,25 @@ function normalizeIp(ip: string): string {
 }
 
 /**
- * Extract the client IP from standard proxy headers.
+ * Extract the real client IP.
+ *
+ * Behind Cloudflare, `x-forwarded-for` carries a Cloudflare EDGE IP that
+ * differs between requests (browser vs Studio plugin hit different edge
+ * nodes), which broke IP-based auto-pairing. Cloudflare passes the true client
+ * IP in `cf-connecting-ip` / `true-client-ip`, so we prefer those.
  */
 export function extractIp(req: Request): string {
-  let ip = "unknown";
-  const forwarded = req.headers.get("x-forwarded-for");
+  const h = req.headers;
+  // Cloudflare's real-client-IP headers take priority.
+  const cf = h.get("cf-connecting-ip") || h.get("true-client-ip");
+  if (cf) return normalizeIp(cf.trim());
+
+  const forwarded = h.get("x-forwarded-for");
   if (forwarded) {
-    // x-forwarded-for can be "client, proxy1, proxy2" — take the first
-    ip = forwarded.split(",")[0].trim();
-  } else {
-    ip = req.headers.get("x-real-ip") || "unknown";
+    // x-forwarded-for can be "client, proxy1, proxy2" — take the first.
+    return normalizeIp(forwarded.split(",")[0].trim());
   }
-  return normalizeIp(ip);
+  return normalizeIp(h.get("x-real-ip") || "unknown");
 }
 
 export async function createOrReplaceSession(
