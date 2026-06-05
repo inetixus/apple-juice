@@ -65,6 +65,10 @@ chunk.txt
 
 claude-code-main/
 
+# Vendored / reference projects (not part of this app)
+app-bloxbot-ai-0.5.2/
+kiro-proxy-temp/
+
 # Large compiled binaries and media
 public/*.exe
 public/*.bin

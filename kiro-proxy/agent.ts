@@ -713,25 +713,48 @@ export function runMcpAgent(
     });
 
   return (async (): Promise<RunResult> => {
+    const fsp = await import('fs/promises');
+    const os = await import('os');
+    const pathMod = await import('path');
+
+    // Write the agent config file directly (kiro-cli `agent create` is
+    // interactive — opens an editor — so we can't use it headlessly).
+    const agentsDir = pathMod.join(os.homedir(), '.kiro', 'agents');
+    const agentFile = pathMod.join(agentsDir, `${agentName}.json`);
     const mcpServerArgs = [...runnerParts.slice(1), opts.mcpEntry];
-    // 1. Register the studio MCP server under a per-session agent.
-    const addRes = await runKiro([
-      'mcp', 'add',
-      '--agent', agentName,
-      '--name', 'studio',
-      '--command', runnerParts[0] || 'node',
-      '--args', JSON.stringify(mcpServerArgs),
-      '--env', `AJ_SESSION_KEY=${opts.sessionKey}`,
-      '--env', `AJ_BRIDGE_URL=${opts.bridgeUrl}`,
-      '--env', `AJ_BRIDGE_SECRET=${opts.bridgeSecret}`,
-      '--timeout', '20000',
-      '--force',
-    ]);
-    if (!addRes.ok) {
-      return { ok: false, stdout: '', stderr: `mcp add failed: ${addRes.stderr || addRes.stdout}`, code: addRes.code };
+    const agentConfig = {
+      name: agentName,
+      description: '',
+      prompt: null,
+      mcpServers: {
+        studio: {
+          command: runnerParts[0] || 'node',
+          args: mcpServerArgs,
+          env: {
+            AJ_SESSION_KEY: opts.sessionKey,
+            AJ_BRIDGE_URL: opts.bridgeUrl,
+            AJ_BRIDGE_SECRET: opts.bridgeSecret,
+          },
+          timeout: 20000,
+        },
+      },
+      tools: ['*'],
+      toolAliases: {},
+      allowedTools: ['*'],
+      resources: [],
+      hooks: {},
+      toolsSettings: {},
+      includeMcpJson: false,
+      model: null,
+    };
+    try {
+      await fsp.mkdir(agentsDir, { recursive: true });
+      await fsp.writeFile(agentFile, JSON.stringify(agentConfig, null, 2), 'utf8');
+    } catch (e: any) {
+      return { ok: false, stdout: '', stderr: `Failed to write agent config: ${e?.message || e}`, code: null };
     }
 
-    // 2. Run chat against that agent so the studio_* tools are available.
+    // Run chat against the agent so the studio_* tools are available.
     const chatRes = await runKiro(
       [
         'chat',
@@ -744,8 +767,8 @@ export function runMcpAgent(
       opts.timeoutMs ?? 300000,
     );
 
-    // 3. Cleanup: remove the per-session server registration (best effort).
-    await runKiro(['mcp', 'remove', '--agent', agentName, '--name', 'studio']).catch(() => {});
+    // Cleanup the per-session agent config (best effort).
+    try { await fsp.unlink(agentFile); } catch { /* ignore */ }
 
     return chatRes;
   })();
