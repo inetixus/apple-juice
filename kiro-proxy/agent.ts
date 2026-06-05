@@ -509,6 +509,7 @@ export function runAgent(
     model?: string;
     timeoutMs?: number;
     uiContext?: string;
+    history?: { role: string; content: string }[];
     onProgress?: (text: string) => void;
   },
 ): Promise<RunResult> {
@@ -570,7 +571,16 @@ export function runAgent(
     (opts.uiContext && opts.uiContext.trim()
       ? `## UI LIBRARY (use this for any UI work)\n${opts.uiContext.trim()}\n\n`
       : '') +
-    `USER REQUEST:\n${userPrompt}`;
+    (opts.history && opts.history.length > 0
+      ? `## CONVERSATION SO FAR\n` +
+        `This is an ongoing conversation. Earlier turns (for context — do not redo work already done):\n` +
+        opts.history
+          .filter((m) => m && typeof m.content === 'string' && m.content.trim())
+          .map((m) => `${m.role === 'assistant' ? 'You' : 'User'}: ${m.content.trim().slice(0, 2000)}`)
+          .join('\n') +
+        `\n\n`
+      : '') +
+    `USER REQUEST (the latest message — respond to this):\n${userPrompt}`;
 
   return new Promise((resolve) => {
     const child = spawn(

@@ -46,6 +46,7 @@
     "node_modules",
     "claude-code-main",
     "cli",
+    "app-bloxbot-ai-0.5.2",
     "kiro-proxy",
     "kiro-proxy-temp"
   ]

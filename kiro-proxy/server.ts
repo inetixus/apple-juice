@@ -20,7 +20,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Build tag so we can verify which code is actually running (GET /version).
-const BUILD_TAG = 'kiro-proxy-v12-mcp';
+const BUILD_TAG = 'kiro-proxy-v13-history';
 
 // Where per-session project files are materialized.
 const SESSIONS_ROOT = process.env.KIRO_SESSIONS_ROOT || '/tmp/kiro-sessions';
@@ -357,12 +357,13 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Server configuration error' });
   }
 
-  const { sessionKey, prompt, snapshot, model, uiContext } = req.body as {
+  const { sessionKey, prompt, snapshot, model, uiContext, history } = req.body as {
     sessionKey?: string;
     prompt?: string;
     snapshot?: SnapshotEntry[];
     model?: string;
     uiContext?: string;
+    history?: { role: string; content: string }[];
   };
 
   if (!prompt || typeof prompt !== 'string') {
@@ -401,6 +402,7 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
       model,
       timeoutMs: 240000,
       uiContext,
+      history,
       onProgress: (text) => sse('progress', { text }),
     });
 

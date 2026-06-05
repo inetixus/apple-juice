@@ -1194,6 +1194,16 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
       const kiroKey = process.env.KIRO_API_KEY || "";
       const kiroUrl = process.env.KIRO_API_URL || "https://api.kiro.dev/v1";
 
+      // Prior conversation turns (everything EXCEPT the current user message,
+      // which is sent separately as `prompt`). Both the MCP and snapshot agent
+      // paths inject this so the model remembers what was just said. Without it
+      // each prompt is a context-free run and the model "forgets" the exchange.
+      const priorHistory = (body.messages || [])
+        .slice(0, -1) // drop the current turn (already in `prompt`)
+        .slice(-20)
+        .map((m) => ({ role: m.role, content: m.content }))
+        .filter((m) => typeof m.content === "string" && m.content.trim().length > 0);
+
       // ── TRUE MCP mode ──────────────────────────────────────────────────────
       // When KIRO_MCP_URL is set, route through the VPS MCP agent: kiro-cli makes
       // live interactive studio_* tool calls into the user's Studio via the
@@ -1218,11 +1228,9 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                   sessionKey,
                   prompt,
                   // Pass the recent conversation so the agent has memory of the
-                  // exchange (last ~20 turns). Without this each message is a
-                  // context-free run and the model "forgets" what it just said.
-                  history: (body.messages || [])
-                    .slice(-20)
-                    .map((m) => ({ role: m.role, content: m.content })),
+                  // exchange. Without this each message is a context-free run and
+                  // the model "forgets" what it just said.
+                  history: priorHistory,
                   model: resolveKiroModelId(effectiveModel),
                   uiContext: isUIRelatedPrompt(prompt)
                     ? `${libraryDeploymentPrompt}\n${uiExamplesBlock}`
@@ -1335,6 +1343,10 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                   prompt,
                   snapshot,
                   model: resolveKiroModelId(effectiveModel),
+                  // Pass the recent conversation so the agent remembers the
+                  // exchange. Without this each prompt is a context-free run and
+                  // the model "forgets" what it just said.
+                  history: priorHistory,
                   // UI library guidance — only when the request is UI-related, so
                   // the agent uses the AppleJuiceUI library instead of raw Instance.new.
                   uiContext: isUIRelatedPrompt(prompt)
