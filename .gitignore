@@ -68,6 +68,11 @@ claude-code-main/
 # Vendored / reference projects (not part of this app)
 app-bloxbot-ai-0.5.2/
 kiro-proxy-temp/
+hyperframes-imagine/
+hyperframes-intro/
+hyperframes-main/
+hyperframes-product/
+hyperframes-trailer/
 
 # Large compiled binaries and media
 public/*.exe
@@ -77,3 +82,6 @@ public/*.mp4
 # Secrets / credential files
 KIROTOKEN.json
 *.token.json
+*.key
+*.pem
+test.key
