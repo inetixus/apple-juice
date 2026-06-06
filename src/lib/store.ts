@@ -38,21 +38,56 @@ const TRANSFER_LIMIT_PREFIX = "apple-juice:transfers:";
 // Bonus mL from Juice Box purchases ARE stackable.
 export const OUTPUT_ML_MULTIPLIER = 6;
 
+/**
+ * mL of Juice charged per real Kiro credit, when the proxy reports actual
+ * credit usage (agent/MCP paths). This anchors billing to ground-truth cost
+ * instead of token estimates. Tune so your margins hold: e.g. if a credit
+ * costs you ~$0.02–0.04 and you want a clear markup, pick an mL value that maps
+ * a credit to noticeably more than its share of the user's plan. Overridable
+ * via ML_PER_KIRO_CREDIT env (falls back to 1000 = "1 credit ≈ 1000 mL").
+ */
+export const ML_PER_KIRO_CREDIT = Number(process.env.ML_PER_KIRO_CREDIT) || 1000;
+
+/**
+ * Convert real Kiro credits (from the proxy footer) into mL to charge.
+ * Applies the model multiplier so a heavier model still costs proportionally
+ * more, matching the estimate-based path. Floors at 1 mL.
+ */
+export function mlFromCredits(credits: number, model?: string): number {
+  if (!Number.isFinite(credits) || credits <= 0) return 0;
+  const multiplier = model ? MODEL_MULTIPLIERS[model] || 1 : 1;
+  return Math.max(1, Math.ceil(credits * ML_PER_KIRO_CREDIT * multiplier));
+}
+
 export const PLAN_LIMITS = {
   free: {
     dailyMl: 1_000,
     maxProjects: 2,
     maxChatTransfers: 0,
+    // Monthly hard ceiling (cost guardrail). Tune against your real mL→credit
+    // ratio so maxMonthlyMl × worstCostPerMl < the plan's price. 0 = no cap.
+    maxMonthlyMl: 20_000,
+  },
+  // Partner: invite-only tier between Free and Pro. Granted manually to
+  // partnered creators/studios — NOT purchasable. Sits above Free on
+  // allowance/projects/transfers, but uses the same model access as Free.
+  partner: {
+    dailyMl: 3_000,
+    maxProjects: 3,
+    maxChatTransfers: 2,
+    maxMonthlyMl: 60_000,
   },
   fresh_pro: {
     dailyMl: 5_000,
     maxProjects: 3,
     maxChatTransfers: 3,
+    maxMonthlyMl: 110_000,
   },
   pure_ultra: {
     dailyMl: 15_000,
     maxProjects: 8,
     maxChatTransfers: 5,
+    maxMonthlyMl: 350_000,
   },
 } as const;
 
@@ -525,12 +560,34 @@ export function usageKeyFor(userId: string) {
   return `${USAGE_PREFIX}${userId}:${dayKey}`;
 }
 
+/**
+ * Monthly usage key (YYYY-MM). Backs the per-user MONTHLY mL ceiling, which is
+ * the real cost guardrail: daily allowances reset every day with no monthly
+ * bound, so without this a single user could run all month and push aggregate
+ * Kiro credit burn into paid overage. The daily key drives the UX "fuel gauge";
+ * this monthly key is the hard cap.
+ */
+export function monthlyUsageKeyFor(userId: string) {
+  const date = new Date();
+  const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`; // YYYY-M
+  return `${USAGE_PREFIX}monthly:${userId}:${monthKey}`;
+}
+
 export async function setUserUsage(userId: string, usedMl: number) {
   const redis = getRedis();
   const key = usageKeyFor(userId);
   await redis.set(key, usedMl);
   // Set expiry to 40 days to keep the monthly key alive
   await redis.expire(key, 60 * 60 * 24 * 40);
+}
+
+/** Current month-to-date mL consumed (for the monthly ceiling). */
+export async function getMonthlyUsage(userId: string): Promise<number> {
+  try {
+    return (await getRedis().get<number>(monthlyUsageKeyFor(userId))) || 0;
+  } catch {
+    return 0;
+  }
 }
 
 function bonusMlKeyFor(userId: string) {
@@ -563,7 +620,21 @@ export async function getUserUsage(userId: string) {
 
   // Cap is always the plan's daily limit
   const totalMl = limits.dailyMl;
-  const remainingMl = Math.max(0, totalMl - usedMl);
+  const dailyRemainingMl = Math.max(0, totalMl - usedMl);
+
+  // Monthly ceiling (cost guardrail). When set (>0), the effective remaining is
+  // the SMALLER of the daily and monthly remaining — so a user can't exceed the
+  // monthly cap even if they have daily allowance left.
+  const maxMonthlyMl = (limits as { maxMonthlyMl?: number }).maxMonthlyMl ?? 0;
+  const monthlyUsedMl = maxMonthlyMl > 0
+    ? ((await redis.get<number>(monthlyUsageKeyFor(userId))) || 0)
+    : 0;
+  const monthlyRemainingMl = maxMonthlyMl > 0
+    ? Math.max(0, maxMonthlyMl - monthlyUsedMl)
+    : Infinity;
+
+  const remainingMl = Math.max(0, Math.min(dailyRemainingMl, monthlyRemainingMl));
+  const monthlyCapped = maxMonthlyMl > 0 && monthlyRemainingMl <= 0 && dailyRemainingMl > 0;
 
   return {
     usedMl,
@@ -571,6 +642,11 @@ export async function getUserUsage(userId: string) {
     bonusMl,
     totalMl,
     remainingMl,
+    // Monthly ceiling visibility
+    maxMonthlyMl,
+    monthlyUsedMl,
+    monthlyRemainingMl: maxMonthlyMl > 0 ? monthlyRemainingMl : 0,
+    monthlyCapped,
 
     maxOutputTokens: calculateMaxOutputTokens(remainingMl),
     plan,
@@ -590,11 +666,15 @@ export async function getUserUsage(userId: string) {
 export async function trackMlUsage(userId: string, mlUsed: number) {
   if (mlUsed <= 0) return;
   const key = usageKeyFor(userId);
+  const monthlyKey = monthlyUsageKeyFor(userId);
   const redis = getRedis();
   try {
     await redis.incrby(key, mlUsed);
     // Set expiry to 40 days to keep the monthly key alive
     await redis.expire(key, 60 * 60 * 24 * 40);
+    // Also track month-to-date usage for the monthly ceiling (cost guardrail).
+    await redis.incrby(monthlyKey, mlUsed);
+    await redis.expire(monthlyKey, 60 * 60 * 24 * 40);
   } catch (err) {
     console.error("trackMlUsage error", err);
   }
@@ -619,6 +699,14 @@ export async function grantBonusMl(userId: string, ml: number) {
     const toDeduct = Math.min(current, ml);
     if (toDeduct > 0) {
       await redis.decrby(key, toDeduct);
+    }
+    // Also relieve the monthly counter so a purchased refill actually lets a
+    // monthly-capped user keep building (not just the daily tank).
+    const monthlyKey = monthlyUsageKeyFor(userId);
+    const monthlyCurrent = (await redis.get<number>(monthlyKey)) || 0;
+    const monthlyDeduct = Math.min(monthlyCurrent, ml);
+    if (monthlyDeduct > 0) {
+      await redis.decrby(monthlyKey, monthlyDeduct);
     }
   } catch (err) {
     console.error("grantBonusMl error", err);

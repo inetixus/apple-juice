@@ -243,7 +243,7 @@ export function ProjectsTab() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-white/50">Plan</span>
                 <span className="px-2.5 py-1 rounded-lg bg-[#ccff00]/12 text-[#ccff00] text-[10px] font-bold border border-[#ccff00]/25">
-                  {usage.plan === "pure_ultra" ? "Pure Ultra" : usage.plan === "fresh_pro" ? "Fresh Pro" : "Free"}
+                  {usage.plan === "pure_ultra" ? "Pure Ultra" : usage.plan === "fresh_pro" ? "Fresh Pro" : usage.plan === "partner" ? "Partner" : "Free"}
                 </span>
               </div>
 

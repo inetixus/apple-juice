@@ -45,6 +45,15 @@ read errors → fix, each round-tripping into the user's live Studio session.
 [ ] B7. End-to-end test on VPS
     Real round-trip: model calls studio_get_tree -> studio_write_script -> run_playtest.
 
+[x] B8. Apple Juice CLI MCP mode — the CLI now exposes TRUE MCP mode too (not just
+    the web app). `/mcp [on|off]` toggles it (persisted as config.mcpMode). When on,
+    a prompt is sent to /api/chat with stream:true, so the server's existing
+    KIRO_MCP_URL branch routes through the VPS MCP agent. Added streamChat() (SSE
+    parser over http/https) + handleMcpTurn() which renders the agent's live
+    progress (reasoning deltas) and prints its closing summary. MCP changes apply
+    live in Studio, so the CLI skips the artifact/approve/sync flow on this path.
+    Rebuilt dist/aj.cjs.
+
 ## HONEST SCOPE NOTES
 - Latency: each tool call round-trips VPS↔plugin (~poll interval). Tighten poll to ~150ms
   during an active MCP run; consider SSE/websocket later.

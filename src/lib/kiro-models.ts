@@ -11,7 +11,7 @@
  * Multipliers are relative to "Auto" (1.0x), matching Kiro's published pricing.
  */
 
-export type KiroPlan = "free" | "fresh_pro" | "pure_ultra";
+export type KiroPlan = "free" | "partner" | "fresh_pro" | "pure_ultra";
 
 export type KiroModel = {
   /** Human-friendly name shown in the UI. */
@@ -55,8 +55,9 @@ export const KIRO_DEFAULT_MODEL = "Auto";
 
 const PLAN_RANK: Record<KiroPlan, number> = {
   free: 0,
-  fresh_pro: 1,
-  pure_ultra: 2,
+  partner: 1,
+  fresh_pro: 2,
+  pure_ultra: 3,
 };
 
 /** Look up a model by its display label OR its api id (case-insensitive). */

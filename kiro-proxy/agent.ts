@@ -455,6 +455,36 @@ export interface RunResult {
   stdout: string;
   stderr: string;
   code: number | null;
+  /**
+   * Real credits consumed by this kiro-cli run, parsed from the CLI's
+   * "Credits: <n> ... Time: <t>" footer when present. undefined if the footer
+   * wasn't found (older CLI, error path) — callers fall back to an estimate.
+   */
+  credits?: number;
+}
+
+/**
+ * Parse the real credit cost from kiro-cli's trailing "Credits: <n>" footer.
+ * The CLI prints something like "▸ Credits: 0.42  Time: 12.3s" at the end of a
+ * run; that credit figure is exactly what Kiro bills, so it's the ground-truth
+ * cost signal (far better than estimating tokens from output length).
+ * Returns undefined when no footer is present.
+ */
+export function parseCreditsFromOutput(raw: string): number | undefined {
+  if (!raw) return undefined;
+  const clean = raw
+    .replace(/\x1B\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)/g, '');
+  // Match "Credits: 1.23" / "Credits 1.23" / "credits: 0.4" anywhere in output;
+  // prefer the LAST occurrence (the final footer).
+  const re = /credits?\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)/gi;
+  let m: RegExpExecArray | null;
+  let last: number | undefined;
+  while ((m = re.exec(clean)) !== null) {
+    const n = Number(m[1]);
+    if (Number.isFinite(n)) last = n;
+  }
+  return last;
 }
 
 /**
@@ -625,7 +655,7 @@ export function runAgent(
     child.stderr.on('data', (d) => (stderr += d.toString()));
     child.on('close', (code) => {
       clearTimeout(timeout);
-      resolve({ ok: code === 0, stdout, stderr, code });
+      resolve({ ok: code === 0, stdout, stderr, code, credits: parseCreditsFromOutput(stdout) });
     });
   });
 }
@@ -728,7 +758,7 @@ export function runMcpAgent(
       child.stderr.on('data', (d) => (se += d.toString()));
       child.on('close', (code) => {
         clearTimeout(t);
-        resolve({ ok: code === 0, stdout: so, stderr: se, code });
+        resolve({ ok: code === 0, stdout: so, stderr: se, code, credits: parseCreditsFromOutput(so) });
       });
     });
 

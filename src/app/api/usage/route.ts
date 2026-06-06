@@ -2,6 +2,21 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getUserUsage, setUserPlan, setUserUsage } from "@/lib/store";
 
+/**
+ * Admin allowlist for privileged usage mutations (plan/balance overrides).
+ * Comma-separated user IDs in ADMIN_USER_IDS. Empty = nobody is an admin, so
+ * the debug plan-switch buttons become no-ops in production rather than a
+ * privilege-escalation hole. Plans are normally granted via the Roblox webhook
+ * or the redeem-code route — NOT this endpoint.
+ */
+function isAdmin(userId: string): boolean {
+  const ids = (process.env.ADMIN_USER_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return ids.includes(userId);
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
@@ -20,6 +35,14 @@ export async function POST(req: Request) {
 
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Setting your own plan / balance is an admin-only operation. Without this
+  // check any logged-in user could POST { plan: "pure_ultra" } and upgrade
+  // themselves for free. Real grants flow through the Roblox webhook (purchase)
+  // and the redeem-code route (Partner / bonus mL).
+  if (!isAdmin(userId)) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {

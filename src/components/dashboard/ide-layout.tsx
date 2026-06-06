@@ -32,7 +32,6 @@ import { MessageContent } from "./message-content";
 import { WorkspaceTree } from "@/components/workspace-tree";
 import { ScriptCard } from "@/components/script-card";
 import { SlashCommandInput } from "@/components/slash-command";
-import { JuiceLoader } from "./juice-loader";
 import { ThinkingFeed } from "@/components/thinking-feed";
 
 const findNodeById = (nodes: any[], id: string): any => {
@@ -530,14 +529,7 @@ export function IdeLayout() {
                           </div>
                         ))}
                         {isGenerating && (
-                          <div className="py-3 px-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] shadow-inner space-y-3.5 my-2">
-                            <div className="flex items-center gap-3">
-                              <JuiceLoader size="sm" />
-                              <span className="text-[10px] font-black uppercase text-[#ccff00] tracking-widest animate-pulse">
-                                AI Generating Code...
-                              </span>
-                            </div>
-                            <div className="h-px bg-white/5" />
+                          <div className="py-3 px-3.5 rounded-2xl bg-gradient-to-b from-white/[0.04] to-white/[0.01] border border-white/[0.07] shadow-[0_8px_30px_rgba(0,0,0,0.25)] my-2">
                             <ThinkingFeed
                               steps={thinkingSteps}
                               isDeepSeek={selectedModel.toLowerCase().includes("deepseek")}

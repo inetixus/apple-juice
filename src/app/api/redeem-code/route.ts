@@ -5,6 +5,7 @@ import {
   extractIp,
   hasRedeemed,
   markRedeemed,
+  setUserPlan,
 } from "@/lib/store";
 
 export async function POST(req: Request) {
@@ -48,6 +49,26 @@ export async function POST(req: Request) {
 
     const trimmedCode = code.trim().toLowerCase();
     const expectedCode = (process.env.REDEEM1 || "refresh").toLowerCase();
+
+    // ── Partner plan code (invite-only) ──────────────────────────────────────
+    // Partner is NOT purchasable — it's granted to partnered creators/studios via
+    // a private code you hand out per partnership. Set PARTNER_CODE in the env;
+    // if unset, the partner path is disabled entirely (no default, unlike REDEEM1).
+    const partnerCode = (process.env.PARTNER_CODE || "").trim().toLowerCase();
+    if (partnerCode && trimmedCode === partnerCode) {
+      if (await hasRedeemed(userId, trimmedCode)) {
+        return Response.json(
+          { error: "This partner code has already been redeemed on your account." },
+          { status: 409 },
+        );
+      }
+      await markRedeemed(userId, trimmedCode);
+      await setUserPlan(userId, "partner");
+      return Response.json({
+        success: true,
+        message: "Welcome to the Apple Juice Partner program! Your Partner plan is now active. 🧃",
+      });
+    }
 
     if (trimmedCode === expectedCode) {
       // Replay guard: each code can only be redeemed once per user.

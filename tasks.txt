@@ -1,58 +1,115 @@
-# 🧃 Apple Juice — AI Generation Improvement Tasks
+# 🧃 Apple Juice — Improvement Tasks (next round)
 
-Ordered by recommended sequence (visible impact first, then the deep agentic upgrade).
-[x] = done, [ ] = pending. One task at a time; tick + report before moving on.
-
-## ── HIGH IMPACT ──
-
-[x] 5. UI library context for the agent — app passes uiContext (libraryDeploymentPrompt + uiExamplesBlock) to /v1/agent when isUIRelatedPrompt; proxy injects it into the agent instructions under a "UI LIBRARY" section. PLUS: agent branch now auto-deploys the AppleJuiceUI library module (getUILibraryDeploymentScripts) when the agent's code uses it and it's not already in the project — so require("AppleJuiceUI") resolves at runtime. Build tag -> v7-uicontext.
-
-[x] 1. Agentic playtest feedback loop — the existing auto-fix loop now closes for the agent path: agent writes -> syncs -> playtest -> [APPLE_JUICE_TEST_FAIL] -> auto-fix turn re-runs the agent. Made the agent always pull a FRESH snapshot each run (so the fix turn sees the just-synced broken code), and rewrote buildAutoFixPrompt to tell the filesystem agent to read the live files first. Bounded to MAX_AUTO_FIX retries.
-
-[x] 3. Validate generated Luau — validateGeneration already runs on the agent path (client finalization). Added a dependency-free sanityCheckLuau() in the proxy (balanced brackets/strings, block-end heuristic) that returns non-blocking warnings in the result; logged server-side. Tested 5/5 (no false positives on strings). Build tag -> v8-validate. (Full luau-analyze can be added later for deep checks.)
-
-[x] 2. On-demand live source — agent runs one-shot so it can't call back mid-run; instead, truncated large files now carry a clear marker comment telling the agent the file is partial and to make targeted edits rather than rewrite blindly. (Full callback-based reads deferred — would need a multi-turn agent protocol.)
-
-## ── MEDIUM IMPACT ──
-
-[~] 4. Persist session dir — INTENTIONALLY SKIPPED. After #1, the agent always re-materializes from a FRESH Studio snapshot each prompt, so the dir already reflects true current state. Persisting a warm dir would risk drift from the real Studio project (the snapshot is the source of truth). Re-materializing is correct here; "continuity" is preserved via the always-fresh snapshot, not a stale cached dir.
-
-[x] 6. Model routing by complexity — routeModelForPrompt() picks Haiku 4.5 for trivial edits (rename/typo/print, <80 chars), Sonnet 4.6 for heavy/architecture requests (system/datastore/shop/refactor, >600 chars), else Auto. Applied ONLY when the user left the model on "Auto" (explicit choices respected) and gated to the plan. kiro-models tests 11/11.
-
-## ── POLISH ──
-
-[x] 7. Trim final chat message — extractSummary() pulls only the agent's closing summary (text after the last "> " marker, or filters tool-chrome lines) for the chat bubble; the "Reading file..." narration still streams live as progress. Build tag -> v9-summary.
-
-[x] 8. Diff-aware editing — agent instructions now explicitly tell it to make TARGETED edits to existing files (preserve unrelated working code/imports, don't reformat the whole file) while writing complete implementations for NEW files.
-
-[x] 9. Instance-aware revert — diffManifestToRevert() inverts instance changes (created->delete, deleted->recreate); proxy now combines script revert + instance revert with correct ordering (recreate instances, then scripts, then deletes) into the checkpoint. Build tag -> v10-instrevert.
+Ordered by impact. [x] = done, [~] = intentionally skipped/deferred, [ ] = pending.
+One task at a time; tick + report before moving on.
 
 ═══════════════════════════════════════════════
-ALL GENERATION-IMPROVEMENT TASKS COMPLETE
+NOTE: The previous generation-improvement round (UI context, playtest auto-fix,
+Luau validation, model routing, structured tool-calling, instance-aware revert)
+is COMPLETE — see git history / prior tasks. The MCP bridge (B1–B6, B8) is also
+done; B7 (live VPS round-trip test) is still open and tracked below.
 ═══════════════════════════════════════════════
-Deploy reminders:
-  - Re-copy kiro-proxy agent.ts + server.ts to VPS; pm2 restart; verify /version = v10-instrevert
-  - git push for the app changes (chat route, kiro-models, workspace-tree)
-  - No plugin change needed for these
-  - Live-test: generate a shop UI via the agent (autonomous mode on) to confirm
-    UI library deploys + requires resolve + playtest auto-fix loop runs.
 
+## ── HIGH IMPACT: correctness, safety & revenue ──
 
-## ── OPTION C: STRUCTURED TOOL-CALLING (BloxBot-stability parity) ──
-[x] C1. Shared action normalizer (src/lib/normalize-action.ts) — single source of
-    truth that coerces model variants (runplaytest/createInstance/Source->code/etc.)
-    to canonical form; drops unrecognized actions. 9 tests.
-[x] C2. Validator + client parse both use the shared normalizer (no more
-    "Unsupported action runplaytest" — it's coerced to run_playtest everywhere).
-[x] C3. Opt-in structured tool-calling on the Kiro buffered path (KIRO_TOOLS=1):
-    sends executeRobloxActionsTool, parses tool_calls -> normalizeActions, bypassing
-    fragile JSON-text parsing. Defaults OFF so the working path is unaffected.
-[x] C4. Excluded vendored folders (app-bloxbot-ai, kiro-proxy) from app tsconfig.
-    All 63 tests pass; build clean.
+[x] 1. Monthly mL ceiling per user
+    DONE: added maxMonthlyMl to PLAN_LIMITS (free 20k / partner 60k / pro 110k /
+    ultra 350k), a monthly usage key (monthlyUsageKeyFor, YYYY-M), and made
+    getUserUsage return the SMALLER of daily/monthly remaining. trackMlUsage now
+    increments both counters; grantBonusMl relieves both. The chat route's
+    existing remainingMl<=0 gate now also enforces the monthly cap, with a
+    distinct "monthly limit" message when monthlyCapped. Tests added.
+    TODO (tune): the 20k/60k/110k/350k values are placeholders. Measure the real
+    mL→credit ratio (one week of Kiro credit usage ÷ mL metered) and resize so
+    maxMonthlyMl × worstCostPerMl < the plan price. Set to 0 to disable a cap.
 
-NOTE on BloxBot comparison: their stability comes from (1) structured MCP tool-calling
-(model CAN'T emit malformed actions) and (2) OpenCode agent framework + official Roblox
-Studio MCP (viewport screenshots, live property reads, bulk ops). C1-C3 capture the
-tool-calling stability win for our architecture. The remaining gap (screenshots, live
-state, OpenCode-grade loop) would require adopting the official Studio MCP — a bigger
-architectural move that trades away the pure-web-app model.
+[x] SECURITY: /api/usage self-upgrade hole — the POST let any logged-in user set
+    their own plan (e.g. pure_ultra) for free. Now admin-gated via ADMIN_USER_IDS
+    (empty = nobody, so it's a no-op in prod). Real grants flow through the Roblox
+    webhook + redeem-code route. The "Admin Debug Tools" buttons now 403 for
+    non-admins (UI self-corrects on next usage poll).
+
+[ ] 2. MCP end-to-end test on VPS (was B7)
+    WHY: the whole MCP bridge + the new CLI MCP mode shipped, but no real
+    studio_get_tree -> studio_write_script -> run_playtest round-trip has ever been
+    confirmed against a live Studio session. Highest-risk untested path.
+    PLAN: deploy proxy (agent.ts + server.ts) to VPS, pm2 restart, set KIRO_MCP_URL,
+    pair Studio, run a real prompt, confirm tool calls round-trip and changes land
+    live. Tighten poll interval (~150ms) during an active MCP run.
+
+[x] 3. Bridge / MCP endpoint auth audit
+    DONE. Findings:
+    - /api/mcp/enqueue + /api/mcp/poll (VPS-facing): Bearer AJ_BRIDGE_SECRET +
+      valid session + server-side tool allowlist. Solid.
+    - /api/mcp/next + /api/mcp/result (plugin-facing): were session-key only.
+      HARDENED: added IP + session rate limits (checkRateLimit), a 256KB cap on
+      /result payloads (the agent trusts that data), and a JSON-parse guard.
+    - mcp-bridge: added MAX_QUEUE_LEN=50 bound so a runaway producer can't grow
+      the per-session queue unbounded. Everything stays per-session + 120s TTL.
+    RESIDUAL RISK (follow-up, not blocking): session keys are weak as a sole
+    credential — createSessionKey() is randomBytes(4) = 32 bits, and the CLI
+    pairing path uses a short authCode AS the key. Fine for read-only status, but
+    /result injects data the agent acts on. Recommend: widen session keys to
+    >=128 bits for the dashboard path, keep the short human code only for initial
+    pairing, then issue a long key. Tracked as task 3b below.
+
+[ ] 3b. Strengthen session-key entropy
+    createSessionKey() -> randomBytes(16+) hex; keep the short pairing code only
+    for the pair handshake, then hand back a long session key the plugin/CLI use
+    for all subsequent calls. Low effort, closes the brute-force surface on the
+    plugin-facing bridge routes.
+
+[x] 4. Metering follow-up — real token counts from the proxy
+    DONE (better than tokens — uses real CREDITS). kiro-cli prints a
+    "Credits: <n> ... Time: <t>" footer = exactly what Kiro bills. Added
+    parseCreditsFromOutput() in agent.ts, surfaced result.credits from runAgent +
+    runMcpAgent, returned it in both proxy SSE result events. App side: added
+    mlFromCredits() (credits × ML_PER_KIRO_CREDIT × model multiplier) and made
+    the MCP + snapshot-agent paths bill against real credits when present, falling
+    back to the text estimate otherwise. New env: ML_PER_KIRO_CREDIT (default
+    1000). Tests added. Tune ML_PER_KIRO_CREDIT once you know cost-per-credit.
+    DEPLOY: re-copy kiro-proxy agent.ts + server.ts to the VPS + pm2 restart so
+    the footer parsing runs; bump BUILD_TAG to verify.
+
+## ── MEDIUM IMPACT: developer experience ──
+
+[ ] 5. API key "Test Connection" button
+    Validate a pasted key before the user burns a generation turn discovering it's
+    bad. Small, high-value.
+
+[ ] 6. Live Sync status indicator for Studio pairing
+    Heartbeat polling already exists; surface a clear paired/online/offline pill in
+    the dashboard and CLI.
+
+[ ] 7. Monaco-based code views with Luau highlighting
+    Replace the plain code views with Monaco (Luau grammar) for diffs + artifact
+    review. Bigger lift, real DX upgrade.
+
+[ ] 8. next/dynamic for heavy 3D landing components
+    Lazy-load Medusae + StripeWave. Directly targets the 6.3s mobile LCP flagged in
+    the SEO audit (URGENT.txt).
+
+## ── LOW EFFORT: SEO / marketing quick wins (from URGENT.txt) ──
+
+[ ] 9. Schema.org SoftwareApplication markup
+    Add the ld+json block (already drafted in URGENT.txt) to the site <head>.
+    Biggest remaining on-page SEO blocker.
+
+[ ] 10. OpenGraph + Twitter/X social cards
+    Add og:/twitter: meta tags + an og-image.png so shared links render preview
+    cards. Tags drafted in URGENT.txt.
+
+[ ] 11. Single clean redirect + protocol cleanup
+    Collapse http -> https -> www into one Cloudflare redirect rule (~0.63s saved);
+    confirm HTTP/2/3 on all assets.
+
+## ── POLISH: landing "wow factor" (from improvements.txt) ──
+
+[~] 12. Live code-stream injection, magnetic buttons, glitch "welcome",
+    spine energy nodes, AI-typed FAQ. Nice-to-have; hold until the agent path is
+    proven safe + tested (tasks 2–3).
+
+═══════════════════════════════════════════════
+RECOMMENDED ORDER: 3 → 2 → 1 (confirm it's safe, confirm it works, lock the
+economics), then 9/10/11 (low-effort SEO), then DX (5,6,8,7), then polish.
+═══════════════════════════════════════════════

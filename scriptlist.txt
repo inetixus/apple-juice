@@ -1,0 +1,131 @@
+Character & Movement Mechanics
+Kill Brick: A classic Touched event script that sets the touching player's Humanoid health to 0.
+
+Heal Pad: Gradually increments a player's health while they stand on the part.
+
+Speed Booster Pad: Temporarily boosts a character's WalkSpeed upon contact, resetting after a few seconds.
+
+Super Jump Pad: Applies a sudden upward force or sets JumpPower high to launch characters into the air.
+
+Teleporter Pair: Moves a player’s character CFrame from Pad A to Pad B when touched.
+
+Team Changer Gate: Changes the player's Team property when they walk through a specific portal.
+
+Low Gravity Zone: Detects a player entering an area and reduces their gravity local force (or alters workspace gravity).
+
+Sprint Script: A LocalScript that listens for the Shift key to increase WalkSpeed and changes it back on release.
+
+Double Jump: Tracks jump states locally to allow a second vertical impulse mid-air.
+
+Anti-Void Teleporter: Regularly checks player Y-coordinates and teleports them back to spawn if they fall out of the world instead of dying.
+
+Character Scale Changer: Modifies HumanoidDescription scales (Height, Width) when a player touches a magical sizing block.
+
+Crouch System: Lowers the camera offset, scales down the collision box, and slows down the player when holding a key.
+
+Environment & Obstacle Course (Obby) Elements
+Disappearing Platform: Fades a part's transparency and turns off CanCollide shortly after a player steps on it.
+
+Blinking Laser Grid: A continuous loop toggling a damaging part's CanCollide and Transparency statuses.
+
+Moving Platform: Uses TweenService to smoothly glide a platform back and forth between two defined Vector3 positions.
+
+Rotating Spinner: Uses AssemblyAngularVelocity or a basic CFrame loop to spin a hazard block.
+
+Conveyor Belt: Uses AssemblyLinearVelocity to smoothly push any character or unanchored part standing on it.
+
+Falling Block: Unanchors a part 1 second after a player touches it so it plummets.
+
+Flickering Light: A randomized loop changing a PointLight's Enabled state to create a creepy atmosphere.
+
+Day/Night Cycle: A server script that continuously increments Lighting.ClockTime to simulate time passing.
+
+Rising Danger Volume: Gradually increases the Y-axis position of a massive lava/water part over time.
+
+Exploding Barrel: Spawns an Explosion instance at the barrel's position when it takes damage or is clicked.
+
+Breakable Glass: Detects high-velocity hits or mouse clicks to destroy a window pane and replace it with smaller, unanchored shards.
+
+Interactive World & Tycoon Basics
+Proximity Prompt Door: Rotates or slides a door open when a player holds down the interact key ('E').
+
+Keycard Door: Checks the player's inventory/backpack for a tool named "Keycard" before granting access.
+
+Click Detector Door: A simple script that swings a gate open when a player clicks on it directly.
+
+Button Purchase System: A Tycoon-style pad that checks if a player has enough currency, subtracts it, and unhides a structural asset.
+
+Dropper Script: A loop that spawns a physical prize part every X seconds from a fixed dispenser spout.
+
+Collector Bin: Destroys dropped items that fall into it and credits the owner's currency account based on item value.
+
+UI & HUD Interaction
+Menu Toggle Button: Opens or closes a specific UI frame when a screen button is clicked.
+
+Leaderstats Display UI: A custom screen text label that updates instantly whenever a value in the player's leaderstats changes.
+
+Billboard Health Bar: An overhead health indicator floating above characters or NPCs that mirrors their current health percentage.
+
+Typewriter Text Effect: Loops through a string to display text letter-by-letter in a dialogue frame.
+
+Hover Scale Effect: A LocalScript that slightly scales up or highlights UI elements when the player's mouse hovers over them.
+
+Custom Mouse Crosshair: Replaces the default mouse cursor icon with a custom crosshair image asset.
+
+Screen Flash Damage HUD: Temporarily flashes a red overlay vignette across the player's screen when taking damage.
+
+Shop Grid Populator: A script that reads a ModuleScript item list and clones a UI template layout for each item automatically.
+
+Floating Damage Numbers: Instantiates a 3D text block above a target when hit, floating upwards and fading out via TweenService.
+
+Economy, Loops & Data Systems
+Leaderstats Setup Core: Standard script handling PlayerAdded to generate a leaderstats folder containing Coins/Wins data.
+
+Passive Income Loop: Grants a set amount of currency to every active server participant every X seconds.
+
+Basic DataStore Save/Load: Safely stores player leaderstats values to the cloud on PlayerRemoving and reloads them on PlayerAdded.
+
+Kill-Reward System: Detects when an NPC or enemy player dies and awards currency to the player credited with the final blow.
+
+Win Pad Milestone: Teleports the player back to the main lobby, increments their "Wins" stat, and plays a victory particle emitter.
+
+Daily Reward Timer: Compares the current os.time() against a stored DataStore timestamp to see if 24 hours have elapsed before giving a daily chest reward.
+
+Promo Code System: Validates user-typed text inputs against a server-side dictionary of promo codes to distribute special gear or money.
+
+Playtime Counter: Tracks the exact number of minutes a player spends inside a server session.
+
+Basic Tools & Weapons
+Flashlight Tool: Toggles a SpotLight or PointLight object inside an item handle when the player clicks while equipping it.
+
+Classic Melee Sword: Activates a swinging animation on click and monitors the weapon's Touched event during the swing to apply damage.
+
+Click Teleporter Wand: Instantly changes the character's root position to Mouse.Hit.Position upon tool activation.
+
+Consumable Health Potion: Plays a drinking animation, increments the player's health, and destroys the tool instance from the backpack.
+
+Speed Elixir: Grants a temporary walkspeed buff upon consumption, showing a swirling particle effect around the user.
+
+Simple Raycast Gun: Fires a raycast from the tool tip toward the mouse position, spawning a brief tracer line and damaging anything hit.
+
+Audio & Visual Polish
+Material Footstep Changer: Modifies the character's footstep sound effects depending on the FloorMaterial property of their Humanoid.
+
+Ambient Music Zone: Smoothly tweens background music volume or track IDs when a player crosses into a different map region.
+
+Explosion Screen Shake: Distorts and shakes the local player's camera position using a fast decaying math loop when an explosion occurs nearby.
+
+Rainbow Color Strobe: Smoothly rotates a part's color value through the entire spectrum using Color3.fromHSV on a fast run loop.
+
+Motion Speed Trail: Attaches a visual trail asset to a player's character parts that activates only when traveling above a certain velocity threshold.
+
+Dynamic Weather Trigger: Enables or disables server-wide particle emitters (like rain or snow) based on a random game event timer.
+
+Administration & Utilities
+Admin Kick Chat Command: Scans the chat channel for specific formatting (e.g., /kick [username]) and kicks the targeted user if the speaker has admin privileges.
+
+Anti-Speed Exploiter Check: A server-side routine validating that a player's distance traveled over a 1-second interval aligns with their maximum allowed speed attribute.
+
+Server Shutdown Warning: Dispatches a clean UI system broadcast message notifying players of an impending server restart before updates occur.
+
+AFK Status Handler: Registers lack of mouse or keyboard inputs via UserInputService to toggle an "AFK" tag above the player's head.

@@ -85,6 +85,95 @@ async function customFetch(url: string, options: any = {}): Promise<any> {
 // Shadow global fetch to avoid experimental fetch warning and pkg Node 18 compatibility crash
 const fetch = customFetch;
 
+/**
+ * Stream an SSE chat response (used for TRUE MCP mode). The server's /api/chat
+ * route, when sent `stream: true` and KIRO_MCP_URL is configured, relays the
+ * VPS MCP agent's progress as OpenAI-style `reasoning` deltas and emits the
+ * final result as a single `content` delta whose value is a JSON string
+ * ({ message, scripts, suggestions }). We parse those deltas incrementally so
+ * the CLI can render live "watch it work" progress, just like the web app.
+ *
+ * Calls `onProgress(text)` for each reasoning chunk and resolves with the
+ * accumulated content payload + reasoning once `[DONE]` (or stream end) is hit.
+ */
+function streamChat(
+  url: string,
+  body: any,
+  onProgress: (text: string) => void,
+): Promise<{ ok: boolean; status: number; content: string; reasoning: string; error?: string }> {
+  return new Promise((resolve) => {
+    try {
+      const isHttps = url.startsWith('https:');
+      const lib = isHttps ? https : http;
+      const payload = JSON.stringify(body);
+      const req = lib.request(
+        url,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload),
+            Accept: 'text/event-stream',
+          },
+        },
+        (res) => {
+          const status = res.statusCode || 0;
+          const ok = status >= 200 && status < 300;
+          let buf = '';
+          let content = '';
+          let reasoning = '';
+
+          // Non-2xx: collect the error body and bail.
+          if (!ok) {
+            const chunks: Buffer[] = [];
+            res.on('data', (c) => chunks.push(c));
+            res.on('end', () =>
+              resolve({ ok: false, status, content: '', reasoning: '', error: Buffer.concat(chunks).toString('utf8') }),
+            );
+            return;
+          }
+
+          res.on('data', (chunk: Buffer) => {
+            buf += chunk.toString('utf8');
+            const blocks = buf.split('\n\n');
+            buf = blocks.pop() || '';
+            for (const block of blocks) {
+              for (const line of block.split('\n')) {
+                const m = line.match(/^data:\s*(.*)$/);
+                if (!m) continue;
+                const data = m[1];
+                if (data === '[DONE]') continue;
+                let parsed: any;
+                try { parsed = JSON.parse(data); } catch { continue; }
+                const delta = parsed?.choices?.[0]?.delta;
+                if (!delta) continue;
+                if (typeof delta.reasoning === 'string' && delta.reasoning) {
+                  reasoning += delta.reasoning;
+                  onProgress(delta.reasoning);
+                }
+                if (typeof delta.content === 'string' && delta.content) {
+                  content += delta.content;
+                }
+              }
+            }
+          });
+
+          res.on('end', () => resolve({ ok: true, status, content, reasoning }));
+          res.on('error', (err: any) =>
+            resolve({ ok: false, status, content, reasoning, error: err?.message || String(err) }),
+          );
+        },
+      );
+
+      req.on('error', (err) => resolve({ ok: false, status: 0, content: '', reasoning: '', error: err.message }));
+      req.write(payload);
+      req.end();
+    } catch (e: any) {
+      resolve({ ok: false, status: 0, content: '', reasoning: '', error: e?.message || String(e) });
+    }
+  });
+}
+
 let globalConfig: CLIConfig | null = null;
 let globalRl: readline.Interface | null = null;
 
@@ -156,6 +245,13 @@ interface CLIConfig {
   chatbarStyle?: 'mode' | 'minimal' | 'model' | 'both';
   showTokenPricing?: boolean;
   extendedThinking?: boolean;
+  /**
+   * TRUE MCP mode. When enabled, prompts are sent with stream:true so the
+   * server routes through the VPS MCP agent (KIRO_MCP_URL): the model makes
+   * live interactive studio_* tool calls into the paired Studio session via
+   * the bridge. Changes are applied directly in Studio (no artifact/diff flow).
+   */
+  mcpMode?: boolean;
 }
 
 interface SyncStep {
@@ -1371,6 +1467,7 @@ function parseHelpFile(): HelpData {
       ['/pair', 'Link terminal to Roblox Studio'],
       ['/status', 'Refresh server + Studio status'],
       ['/sync', 'AI-edit a file and push to Studio'],
+      ['/mcp', 'Toggle live MCP mode (interactive studio_* tool calls)'],
       ['/provider', 'Set API provider (openai|google|deepseek|openrouter)'],
       ['/key', 'Set API key (optional provider)'],
       ['/model', 'Select AI model interactively'],
@@ -1859,6 +1956,98 @@ async function showInteractiveArtifacts(rl: any, state: any): Promise<void> {
 
     process.stdin.on('keypress', onKeypress);
   });
+}
+
+/**
+ * Run one TRUE MCP turn. Streams the prompt to /api/chat with stream:true so the
+ * server routes through the VPS MCP agent (KIRO_MCP_URL). The agent makes live
+ * studio_* tool calls into the paired Studio session via the bridge — changes
+ * land directly in Studio, so there's no artifact/approve/sync step here. We
+ * render the agent's progress live, then show its closing summary.
+ */
+async function handleMcpTurn(rl: any, state: any, input: string): Promise<void> {
+  const config: CLIConfig = state.config;
+
+  process.stdout.write(`\n  ${BRAND}✦${R}  ${BOLD}${WHITE}MCP Agent${R} ${DIM}— working live in Studio${R}\n\n`);
+  startSpinner('Connecting to Studio bridge', true);
+
+  let lastProgress = '';
+  let sawProgress = false;
+  const onProgress = (text: string) => {
+    // The proxy streams human-readable progress lines (tool calls, results).
+    // Surface the most recent non-empty line beneath a steady spinner.
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      if (!sawProgress) {
+        stopSpinner();
+        sawProgress = true;
+      }
+      lastProgress = line;
+      process.stdout.write(`  ${BRAND}›${R} ${DIM}${line}${R}\n`);
+    }
+  };
+
+  let reply = '';
+  try {
+    const res = await streamChat(
+      `${config.apiUrl}/api/chat`,
+      {
+        prompt: input,
+        sessionKey: config.sessionKey,
+        messages: state.history.slice(0, -1),
+        provider: config.provider,
+        apiKey: config.provider === 'google' ? config.googleKey
+          : config.provider === 'deepseek' ? config.deepseekKey
+            : config.provider === 'openrouter' ? config.openrouterKey
+              : config.openaiKey,
+        openaiKey: config.openaiKey,
+        model: config.model,
+        mode: config.extendedThinking ? 'thinking' : 'fast',
+        stream: true,
+        autoSync: false,
+      },
+      onProgress,
+    );
+
+    stopSpinner();
+
+    if (!res.ok) {
+      state.lastError = `MCP error ${res.status || ''}: ${(res.error || 'request failed').slice(0, 160)}`;
+    } else {
+      // The final `content` delta is a JSON string: { message, scripts, suggestions }.
+      // MCP changes are applied live in Studio, so `scripts` is empty by design.
+      let message = '';
+      const trimmed = (res.content || '').trim();
+      if (trimmed) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          message = typeof parsed?.message === 'string' ? parsed.message : trimmed;
+        } catch {
+          message = trimmed;
+        }
+      }
+      reply = message || (sawProgress ? 'Done — changes applied live in Studio.' : 'No response from the MCP agent.');
+      if (reply.startsWith('[MCP')) {
+        // Surface relayed connection/agent errors as an error, not a normal reply.
+        state.lastError = reply;
+        reply = '';
+      }
+    }
+  } catch (e: any) {
+    stopSpinner();
+    state.lastError = `MCP connection error: ${e?.message || e}`;
+  }
+
+  if (reply) {
+    printAssistantMsg(reply, undefined);
+    state.history.push({ role: 'assistant', content: reply });
+    if (state.history.length > 40) state.history = state.history.slice(-40);
+    writeSessionEvent(state.config, { role: 'assistant', content: reply });
+  }
+
+  redrawScreen(state);
+  state.lastError = undefined;
+  rl.prompt();
 }
 
 async function handleFeedbackSync(rl: any, state: any, feedbackMsg: string): Promise<void> {
@@ -3125,6 +3314,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         { command: '/pair', label: '/pair', description: 'Link terminal to Roblox Studio', category: 'Connection' },
         { command: '/status', label: '/status', description: 'Refresh server + Studio pairing status', category: 'System' },
         { command: '/sync', label: '/sync <file>', description: 'AI-edit a file and push to Studio', category: 'Code' },
+        { command: '/mcp', label: '/mcp [on|off]', description: 'Toggle live MCP mode (interactive studio_* tool calls)', category: 'Code' },
         { command: '/provider', label: '/provider <p>', description: 'Set API provider (openai|google)', category: 'AI' },
         { command: '/key', label: '/key <k>', description: 'Set API key for current provider', category: 'AI' },
         { command: '/model', label: '/model', description: 'Set AI model interactively', category: 'AI' },
@@ -3785,6 +3975,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     { command: '/pair', label: '/pair', description: 'Link terminal to Roblox Studio', category: 'Connection' },
     { command: '/status', label: '/status', description: 'Refresh server + Studio pairing status', category: 'System' },
     { command: '/sync', label: '/sync <file>', description: 'AI-edit a file and push to Studio', category: 'Code' },
+    { command: '/mcp', label: '/mcp [on|off]', description: 'Toggle live MCP mode (interactive studio_* tool calls)', category: 'Code' },
     { command: '/provider', label: '/provider <p>', description: 'Set API provider (openai|google|deepseek|openrouter)', category: 'AI' },
     { command: '/key', label: '/key [p] <k>', description: 'Set API key (optional provider)', category: 'AI' },
     { command: '/model', label: '/model', description: 'Select AI model interactively', category: 'AI' },
@@ -3936,7 +4127,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       }
 
       if (input.startsWith('/') || input === '?') {
-        const allCmds = ['/add-dir', '/agents', '/background', '/branch', '/btw', '/clear', '/resume', '/color', '/compact', '/context', '/pair', '/status', '/sync', '/key', '/model', '/config', '/settings', '/artifact', '/help', '/exit', '/thinking', '/transcript'];
+        const allCmds = ['/add-dir', '/agents', '/background', '/branch', '/btw', '/clear', '/resume', '/color', '/compact', '/context', '/pair', '/status', '/sync', '/mcp', '/key', '/model', '/config', '/settings', '/artifact', '/help', '/exit', '/thinking', '/transcript'];
         const [rawCmd, ...args] = input.slice(1).split(' ');
         const cmd = rawCmd.toLowerCase();
 
@@ -4178,6 +4369,24 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             state.infoMessage = `🧠 Extended Thinking Mode ${state.config.extendedThinking ? 'ENABLED' : 'DISABLED'}`;
             redrawScreen(state);
             await new Promise(r => setTimeout(r, 1500));
+            state.infoMessage = undefined;
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
+          case 'mcp': {
+            const sub = (args[0] || '').toLowerCase();
+            if (sub === 'on') state.config.mcpMode = true;
+            else if (sub === 'off') state.config.mcpMode = false;
+            else state.config.mcpMode = !state.config.mcpMode;
+            saveConfig(state.config);
+            if (state.config.mcpMode) {
+              state.infoMessage = `🔌 MCP Mode ENABLED — prompts now drive live studio_* tool calls in Studio via the bridge. Make sure you're /pair'd.`;
+            } else {
+              state.infoMessage = `🔌 MCP Mode DISABLED — back to the standard plan/artifact flow.`;
+            }
+            redrawScreen(state);
+            await new Promise(r => setTimeout(r, 1800));
             state.infoMessage = undefined;
             redrawScreen(state);
             rl.prompt();
@@ -4884,6 +5093,16 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       // 3. Immediately redraw screen so user message is rendered in chat log
       redrawScreen(state);
 
+      // ── TRUE MCP mode ──────────────────────────────────────────────────────
+      // When enabled, send the prompt with stream:true so the server routes
+      // through the VPS MCP agent. The model makes live studio_* tool calls into
+      // the paired Studio session via the bridge; changes are applied directly
+      // in Studio. We render the agent's progress live (no artifact/sync flow).
+      if (state.config.mcpMode) {
+        await handleMcpTurn(rl, state, input);
+        return;
+      }
+
       // 4. Start spinner
       startSpinner('Thinking', activeMode !== 'Normal');
 
@@ -5264,6 +5483,7 @@ function showHelp(): void {
     ['/pair', 'Link terminal to Roblox Studio'],
     ['/status', 'Refresh server + Studio status'],
     ['/sync', 'AI-edit a file and push to Studio'],
+    ['/mcp', 'Toggle live MCP mode (interactive studio_* tool calls)'],
     ['/provider', 'Set API provider (openai|google|deepseek|openrouter)'],
     ['/key', 'Set API key (optional provider)'],
     ['/model', 'Select AI model interactively'],

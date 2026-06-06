@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { ToastContainer, useToasts } from "@/components/ui/toast";
 import { type ThinkingStep } from "@/components/thinking-feed";
 import { buildActivityFeed, type ActivityStep } from "@/lib/activity-feed";
+import { parseAgentProgress } from "@/lib/agent-progress";
 import { validateGeneration } from "@/lib/validate-generation";
 import { normalizeAction, normalizeActionName } from "@/lib/normalize-action";
 import {
@@ -761,12 +762,16 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
             prev &&
             prev.isLoaded &&
             prev.plan !== data.plan &&
-            (data.plan === "fresh_pro" || data.plan === "pure_ultra")
+            (data.plan === "partner" || data.plan === "fresh_pro" || data.plan === "pure_ultra")
           ) {
             const planName =
-              data.plan === "pure_ultra" ? "Pure Ultra" : "Fresh Pro";
+              data.plan === "pure_ultra" ? "Pure Ultra"
+                : data.plan === "fresh_pro" ? "Fresh Pro"
+                  : "Partner";
             showToast(
-              `Thank you for upgrading! Your ${planName} plan is now active. ÃƒÂ°Ã…Â¸Ã‚Â§Ã†â€™`,
+              data.plan === "partner"
+                ? `Welcome aboard! Your Partner plan is now active. 🧃`
+                : `Thank you for upgrading! Your ${planName} plan is now active. 🧃`,
               "success",
             );
           }
@@ -872,7 +877,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
   async function createNewProject(name: string) {
     const activeCount = projects.filter(p => p.status !== "archived").length;
-    const limit = usage.plan === "pure_ultra" ? 8 : usage.plan === "fresh_pro" ? 3 : 2;
+    const limit = usage.plan === "pure_ultra" ? 8 : usage.plan === "fresh_pro" ? 3 : usage.plan === "partner" ? 3 : 2;
 
     // Tester mode: unlimited local projects, no API call.
     if (isTester) {
@@ -2302,6 +2307,11 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
         if (!reader) throw new Error("Failed to read stream body");
         const decoder = new TextDecoder();
         let accumulated = "";
+        // Raw agent/CLI tool stream (relayed as `reasoning` deltas in MCP/agent
+        // mode). We accumulate it and parse it into a structured tool timeline
+        // rather than dumping truncated raw text into a single feed line.
+        let agentRaw = "";
+        let lastFeedUpdate = 0;
 
         const lastAssistantMsg = [...messagesRef.current]
           .reverse()
@@ -2356,31 +2366,40 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                     "";
 
                   if (reasoning) {
-                    setThinkingSteps((prev) => {
-                      const snippet =
-                        reasoning.length > 60
-                          ? "..." + reasoning.substring(reasoning.length - 60)
-                          : reasoning;
-                      const label = snippet.replace(/\s+/g, " ").trim();
-                      const index = prev.findIndex(
-                        (s) => "icon" in s && s.icon === "reasoning",
-                      );
-                      if (index !== -1) {
-                        const newSteps = [...prev];
-                        newSteps[index] = {
-                          ...newSteps[index],
-                          label: label || "Working...",
-                          done: false,
-                        };
-                        return newSteps;
+                    // Accumulate the raw stream and try to parse it into a
+                    // structured tool timeline (Reading X, Writing Y, Running a
+                    // playtest…). This replaces the old behavior of dumping the
+                    // last 60 chars of raw stdout into one mutating line.
+                    agentRaw += reasoning;
+                    const now = Date.now();
+                    if (now - lastFeedUpdate > 120) {
+                      lastFeedUpdate = now;
+                      const toolSteps = parseAgentProgress(agentRaw, true);
+                      if (toolSteps.length > 0) {
+                        // MCP / filesystem agent mode: real studio_*/fs_* tool calls.
+                        setThinkingSteps(toolSteps);
+                      } else {
+                        // No tool markers — this is a model's chain-of-thought
+                        // (e.g. DeepSeek). Keep showing the latest reasoning text
+                        // on a single reasoning step instead of raw noise.
+                        const snippet = reasoning.replace(/\s+/g, " ").trim();
+                        const label =
+                          snippet.length > 70
+                            ? "…" + snippet.slice(-70)
+                            : snippet || "Reasoning";
+                        setThinkingSteps((prev) => {
+                          const idx = prev.findIndex(
+                            (s) => "icon" in s && s.icon === "reasoning",
+                          );
+                          if (idx !== -1) {
+                            const next = [...prev];
+                            next[idx] = { ...next[idx], label, done: false };
+                            return next;
+                          }
+                          return [{ icon: "reasoning", label, done: false }];
+                        });
                       }
-                      // No reasoning step yet (e.g. MCP mode): replace the
-                      // placeholder feed with a live progress step so the user
-                      // sees the agent's real tool activity instead of fakes.
-                      return [
-                        { icon: "reasoning", label: label || "Working in Studio...", done: false },
-                      ];
-                    });
+                    }
                   }
 
                   if (delta) {
@@ -2554,7 +2573,6 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
         // Mark steps as done only after stream completes
         setThinkingSteps((prev) => prev.map((s) => ({ ...s, done: true })));
-
         // Process the finalized content for scripts
         const result = parseChatResponse(accumulated);
         const payloadFiles = [...attachedFiles];
@@ -3566,14 +3584,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                       );
                                     })}
                                     {isGenerating && (
-                                      <div className="py-4 px-6 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner space-y-4 max-w-[400px]">
-                                        <div className="flex items-center gap-3">
-                                          <JuiceLoader size="sm" />
-                                          <span className="text-[10px] font-black uppercase text-[#ccff00] tracking-widest animate-pulse">
-                                            AI Generating Code...
-                                          </span>
-                                        </div>
-                                        <div className="h-px bg-white/5" />
+                                      <div className="py-3 px-3.5 rounded-2xl bg-gradient-to-b from-white/[0.04] to-white/[0.01] border border-white/[0.07] shadow-[0_8px_30px_rgba(0,0,0,0.25)] max-w-[440px]">
                                         <ThinkingFeed
                                           steps={thinkingSteps}
                                           isDeepSeek={selectedModel.toLowerCase().includes("deepseek")}

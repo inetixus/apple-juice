@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #F1EFE7; /* Claude warm off-white */
+        color: #1e1e1e; font-family: 'Inter', sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #root { position: absolute; inset: 0; }
+      
+      .serif { font-family: 'Playfair Display', serif; }
+      .clip { position: absolute; }
+      
+      /* Dynamic Central Box that morphs */
+      #box {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        background: #EBE8DD; border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 40px; display: flex; align-items: center; justify-content: center;
+        overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); z-index: 10;
+        width: 320px; height: 80px; /* Initial state: Button */
+      }
+      
+      #box-content-btn {
+        display: flex; align-items: center; gap: 16px; font-size: 32px; font-weight: 500; letter-spacing: -0.5px;
+      }
+      
+      #box-content-prompt {
+        display: none; width: 100%; height: 100%; padding: 32px 40px; flex-direction: column; justify-content: space-between;
+        background: #FFFFFF; opacity: 0;
+      }
+      #prompt-text { font-size: 34px; color: #1e1e1e; line-height: 1.4; letter-spacing: -0.5px; }
+      .caret { display: inline-block; width: 2px; height: 38px; background: #D66C44; transform: translateY(6px); margin-left: 2px; }
+      
+      #prompt-bottom { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 40px; }
+      .prompt-tools { display: flex; gap: 12px; }
+      .tool-btn { width: 44px; height: 44px; border-radius: 8px; border: 1px solid #EBE8DD; display: flex; align-items: center; justify-content: center; }
+      .send-btn { background: #D66C44; color: #FFF; padding: 12px 24px; border-radius: 12px; font-size: 20px; font-weight: 500; display: flex; gap: 12px; align-items: center; }
+      
+      #box-content-loader {
+        display: none; font-size: 32px; font-weight: 500; letter-spacing: -0.5px; background: #FFFFFF;
+        width: 100%; height: 100%; align-items: center; justify-content: center; opacity: 0;
+      }
+      .spinner { display: inline-block; animation: spin 2s linear infinite; margin-right: 16px; color: #D66C44; }
+      @keyframes spin { 100% { transform: rotate(360deg); } }
+
+      /* Cursor */
+      #cursor { position: absolute; z-index: 100; width: 40px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2)); pointer-events: none; }
+
+      /* The Grid Container */
+      #grid-container {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(1);
+        width: 1920px; height: 1080px; z-index: 5; opacity: 0; display: none;
+      }
+      
+      /* Actual App UI inside the grid */
+      #app-ui {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        width: 1400px; height: 800px; background: #161618; border-radius: 16px;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.15); overflow: hidden; display: flex; color: #fff;
+        border: 1px solid rgba(255,255,255,0.08);
+      }
+      #app-sidebar { width: 320px; border-right: 1px solid rgba(255,255,255,0.08); background: #1A1A1D; padding: 24px; }
+      #app-main { flex: 1; padding: 40px; position: relative; }
+      .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+      .app-title { font-size: 48px; font-weight: 400; letter-spacing: -1px; }
+      .tweak-btn { background: #D66C44; color: #FFF; padding: 10px 20px; border-radius: 8px; font-weight: 500; font-size: 18px; }
+      
+      .globe-placeholder { width: 500px; height: 500px; border-radius: 50%; border: 1px dashed rgba(255,255,255,0.2); margin: 0 auto; display: flex; align-items: center; justify-content: center; }
+      
+      /* Tweaks Panel */
+      #tweaks-panel {
+        position: absolute; right: -400px; top: 120px; width: 320px; background: #222225; border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      }
+      .tweak-item { margin-bottom: 24px; }
+      .tweak-label { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600; }
+      .tweak-slider { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; position: relative; }
+      .tweak-fill { height: 100%; background: #D66C44; width: 60%; border-radius: 2px; }
+      .tweak-thumb { width: 16px; height: 16px; background: #FFF; border-radius: 50%; position: absolute; top: -6px; left: 60%; transform: translateX(-50%); box-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+
+      /* Grid Items */
+      .grid-item { position: absolute; border-radius: 16px; border: 1px solid rgba(0,0,0,0.06); background: #FFF; box-shadow: 0 10px 30px rgba(0,0,0,0.03); overflow: hidden; }
+      
+      /* Prototype UI */
+      #proto-ui {
+        position: absolute; left: 1920px; top: 50%; transform: translate(-50%, -50%);
+        width: 400px; height: 800px; background: #F8F6F0; border-radius: 40px; border: 12px solid #FFF;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; padding: 40px 24px; transition: background 0.5s ease, color 0.5s ease;
+      }
+      .proto-dark { background: #1E1E1E !important; color: #FFF !important; border-color: #2D2D2D !important; }
+
+      /* Final Logo */
+      #final-logo {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        font-size: 80px; letter-spacing: -2px; display: none; opacity: 0; z-index: 20; color: #1e1e1e;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="apple-juice-claude-clone" data-start="0" data-duration="75" data-width="1920" data-height="1080">
+      
+      <!-- AUDIO TRACKS -->
+      <!-- Timing matches the script below -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/click.mp3" data-start="1.5" data-track-index="1"></audio>
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/pop.mp3" data-start="1.5" data-track-index="2"></audio>
+      
+      <!-- Typing: 2.5 to 6.5 -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/typing.mp3" data-start="2.5" data-duration="4" data-track-index="3"></audio>
+      
+      <!-- Click Send -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/click-soft.mp3" data-start="6.8" data-track-index="4"></audio>
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/pop.mp3" data-start="7.0" data-track-index="5"></audio>
+      
+      <!-- App UI reveals -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/whoosh.mp3" data-start="10.0" data-track-index="6"></audio>
+      
+      <!-- Click Tweaks -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/click.mp3" data-start="13.0" data-track-index="7"></audio>
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/typing.mp3" data-start="13.5" data-duration="2" data-track-index="8"></audio>
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/click-soft.mp3" data-start="15.8" data-track-index="9"></audio>
+      
+      <!-- Tweak panel slides in -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/whoosh-short.mp3" data-start="18.0" data-track-index="10"></audio>
+      
+      <!-- Zoom Out to Grid -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/impact-bass-1.mp3" data-start="26.0" data-track-index="11"></audio>
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/whoosh-cinematic.mp3" data-start="26.0" data-track-index="12"></audio>
+      
+      <!-- Zoom In to Proto -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/whoosh.mp3" data-start="30.0" data-track-index="13"></audio>
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/typing.mp3" data-start="32.0" data-duration="3" data-track-index="14"></audio>
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/click-soft.mp3" data-start="35.3" data-track-index="15"></audio>
+      
+      <!-- Dark mode toggle -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/typing.mp3" data-start="40.0" data-duration="2" data-track-index="16"></audio>
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/click.mp3" data-start="42.3" data-track-index="17"></audio>
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/chime.mp3" data-start="43.5" data-track-index="18"></audio>
+      
+      <!-- Final Zoom Out -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/impact-bass-2.mp3" data-start="48.0" data-track-index="19"></audio>
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/whoosh-cinematic.mp3" data-start="48.0" data-track-index="20"></audio>
+      
+      <!-- Logo Chime -->
+      <audio src="../hyperframes-main/skills/website-to-hyperframes/assets/sfx/sparkle.mp3" data-start="68.0" data-track-index="21"></audio>
+
+      <!-- VISUALS -->
+      <svg id="cursor" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="left: 1000px; top: 700px;">
+        <path d="M5.5 2.5L16.5 13.5H11.5L9.5 19.5L5.5 15.5V2.5Z" fill="white" stroke="black" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+
+      <div id="grid-container">
+        <!-- Main App UI that gets morphed into grid -->
+        <div id="app-ui">
+          <div id="app-sidebar">
+            <div style="opacity:0.5; margin-bottom: 24px;">MatchmakingLobby.lua</div>
+            <div style="background:rgba(255,255,255,0.1); height:8px; width:100%; border-radius:4px; margin-bottom:16px;"></div>
+            <div style="background:rgba(255,255,255,0.1); height:8px; width:70%; border-radius:4px; margin-bottom:16px;"></div>
+            <div style="background:rgba(255,255,255,0.1); height:8px; width:80%; border-radius:4px;"></div>
+          </div>
+          <div id="app-main">
+            <div class="app-header">
+              <div class="app-title serif">Matchmaking Lobby</div>
+              <div class="tweak-btn">Tweaks</div>
+            </div>
+            <div class="globe-placeholder">
+              <!-- Animated globe/nodes placeholder -->
+              <svg width="400" height="400" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none" />
+                <path d="M 20 50 Q 50 20 80 50 T 20 50" stroke="#D66C44" stroke-width="2" fill="none" />
+                <circle cx="20" cy="50" r="3" fill="#D66C44" />
+                <circle cx="80" cy="50" r="3" fill="#D66C44" />
+                <circle cx="50" cy="20" r="3" fill="#D66C44" />
+              </svg>
+            </div>
+            
+            <div id="tweaks-panel">
+              <div class="tweak-item">
+                <div class="tweak-label">Max Players</div>
+                <div class="tweak-slider"><div class="tweak-fill"></div><div class="tweak-thumb"></div></div>
+              </div>
+              <div class="tweak-item">
+                <div class="tweak-label">Queue Time</div>
+                <div class="tweak-slider"><div class="tweak-fill" style="width:40%;"></div><div class="tweak-thumb" style="left:40%;"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other grid items (Bento box style) -->
+        <div class="grid-item" style="left: -1200px; top: -600px; width: 1000px; height: 600px;"></div>
+        <div class="grid-item" style="left: -100px; top: -800px; width: 1400px; height: 600px; background: #2D2D2A;"></div>
+        <div class="grid-item" style="left: 1400px; top: -600px; width: 800px; height: 1000px;"></div>
+        <div class="grid-item" style="left: -1200px; top: 100px; width: 800px; height: 1200px;"></div>
+        <div class="grid-item" style="left: 1100px; top: 900px; width: 1200px; height: 600px; background: #161618;"></div>
+
+        <!-- Proto UI -->
+        <div id="proto-ui">
+          <div style="text-align:center; font-size: 32px; margin-bottom: 40px;" class="serif">Meditation</div>
+          <div style="width:200px; height:200px; border-radius:50%; border:4px solid #D66C44; margin:0 auto 40px; display:flex; align-items:center; justify-content:center; font-size: 40px;">12:00</div>
+          <div style="background:rgba(0,0,0,0.05); height:16px; width:100%; border-radius:8px; margin-bottom:16px;"></div>
+          <div style="background:rgba(0,0,0,0.05); height:16px; width:80%; border-radius:8px;"></div>
+        </div>
+      </div>
+
+      <!-- The Morphing Box (Button -> Prompt -> Loader) -->
+      <div id="box">
+        <!-- State 1 -->
+        <div id="box-content-btn">
+          <span style="color:#D66C44;">🧃</span> Apple Juice
+        </div>
+        
+        <!-- State 2 -->
+        <div id="box-content-prompt">
+          <div id="prompt-text"><span id="typed"></span><span class="caret"></span></div>
+          <div id="prompt-bottom">
+            <div class="prompt-tools">
+              <div class="tool-btn">⚙️</div><div class="tool-btn">📎</div>
+            </div>
+            <div class="send-btn">Send <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          </div>
+        </div>
+
+        <!-- State 3 -->
+        <div id="box-content-loader">
+          <span class="spinner">✳</span> Designing...
+        </div>
+      </div>
+
+      <!-- Final Logo -->
+      <div id="final-logo" class="serif">
+        <span style="color:#D66C44;">✳</span> Apple Juice
+      </div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true, defaults: { ease: "power4.inOut" } });
+
+      // 0.0s - 1.5s: Cursor moves to click the button
+      tl.to("#cursor", { left: 960, top: 540, duration: 1.5, ease: "power2.out" }, 0);
+      
+      // 1.5s: Click effect on button
+      tl.to("#box", { scale: 0.95, duration: 0.1, ease: "power1.inOut" }, 1.5);
+      tl.to("#box", { scale: 1, duration: 0.2, ease: "power1.out" }, 1.6);
+      
+      // 1.8s: Morph Button -> Prompt Box
+      // Hide button text, show prompt structure (opacity 0)
+      tl.to("#box-content-btn", { opacity: 0, duration: 0.2 }, 1.8);
+      tl.set("#box-content-btn", { display: "none" }, 2.0);
+      tl.set("#box-content-prompt", { display: "flex" }, 2.0);
+      
+      // Expand box
+      tl.to("#box", { width: 900, height: 320, borderRadius: 24, duration: 0.8, ease: "expo.inOut", background: "#FFFFFF", boxShadow: "0 24px 64px rgba(0,0,0,0.1)" }, 1.8);
+      tl.to("#box-content-prompt", { opacity: 1, duration: 0.4 }, 2.2);
+
+      // Move cursor away
+      tl.to("#cursor", { left: 1200, top: 800, duration: 1 }, 2.0);
+
+      // 2.5s - 6.5s: Typing text
+      const prompt1 = "Let's design an interactive, dark themed graphic showing how players flow into a Matchmaking Lobby. A rotating 3D globe with glowing paths.";
+      const typeState = { i: 0 };
+      tl.to(typeState, {
+        i: prompt1.length, duration: 4, ease: "none",
+        onUpdate: () => { document.getElementById("typed").textContent = prompt1.slice(0, Math.round(typeState.i)); }
+      }, 2.5);
+      tl.to(".caret", { opacity: 0, duration: 0.4, repeat: 10, yoyo: true }, 2.5);
+
+      // 6.5s: Cursor clicks Send
+      tl.to("#cursor", { left: 1300, top: 620, duration: 0.5, ease: "power2.out" }, 6.2);
+      tl.to(".send-btn", { scale: 0.95, duration: 0.1 }, 6.8);
+      tl.to(".send-btn", { scale: 1, duration: 0.2 }, 6.9);
+
+      // 7.0s: Morph Prompt -> Loader
+      tl.to("#box-content-prompt", { opacity: 0, duration: 0.2 }, 7.0);
+      tl.set("#box-content-prompt", { display: "none" }, 7.2);
+      tl.set("#box-content-loader", { display: "flex" }, 7.2);
+      
+      tl.to("#box", { width: 360, height: 80, borderRadius: 40, duration: 0.6, ease: "expo.inOut" }, 7.0);
+      tl.to("#box-content-loader", { opacity: 1, duration: 0.3 }, 7.4);
+
+      // 9.5s: Loader text changes
+      tl.add(() => { document.querySelector("#box-content-loader").innerHTML = '<span class="spinner">✳</span> Editing...'; }, 9.5);
+
+      // 10.0s: Morph Loader -> App UI (Grid reveal)
+      tl.to("#box", { opacity: 0, scale: 0.8, duration: 0.4 }, 10.0);
+      tl.set("#grid-container", { display: "block" }, 10.0);
+      tl.fromTo("#grid-container", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 1.2, ease: "expo.out" }, 10.2);
+
+      // 13.0s: Cursor clicks Tweaks
+      tl.to("#cursor", { left: 1540, top: 220, duration: 1, ease: "power2.inOut" }, 12.0);
+      tl.to(".tweak-btn", { scale: 0.95, duration: 0.1 }, 13.0);
+      tl.to(".tweak-btn", { scale: 1, duration: 0.2 }, 13.1);
+
+      // 13.5s: Tweaks prompt appears
+      tl.set("#box", { width: 500, height: 120, top: "20%", left: "50%", background: "#FFFFFF" }, 13.2);
+      tl.set("#box-content-loader", { display: "none" }, 13.2);
+      tl.set("#box-content-prompt", { display: "flex", opacity: 1 }, 13.2);
+      tl.set("#prompt-bottom", { display: "none" }, 13.2);
+      
+      const prompt2 = "Add controls for the globe";
+      const typeState2 = { i: 0 };
+      tl.to(typeState2, {
+        i: prompt2.length, duration: 2, ease: "none",
+        onUpdate: () => { document.getElementById("typed").textContent = prompt2.slice(0, Math.round(typeState2.i)); }
+      }, 13.5);
+      tl.to("#box", { opacity: 1, scale: 1, duration: 0.4 }, 13.2);
+
+      // 15.8s: Cursor Send
+      tl.to("#box", { opacity: 0, scale: 0.9, duration: 0.4 }, 15.8);
+
+      // 16.5s: Loader "Soldering..."
+      tl.set("#box-content-prompt", { display: "none" }, 16.2);
+      tl.set("#box-content-loader", { display: "flex", opacity: 1 }, 16.2);
+      tl.add(() => { document.querySelector("#box-content-loader").innerHTML = '<span class="spinner" style="color:#D66C44;">✳</span> Soldering...'; }, 16.2);
+      tl.to("#box", { width: 300, height: 80, borderRadius: 40, opacity: 1, scale: 1, duration: 0.4 }, 16.3);
+
+      // 18.0s: Tweak panel slides in, Loader hides
+      tl.to("#box", { opacity: 0, scale: 0.9, duration: 0.3 }, 17.8);
+      tl.to("#tweaks-panel", { right: 24, duration: 0.8, ease: "expo.out" }, 18.0);
+
+      // 21.0s: Sliders move
+      tl.to(".tweak-fill", { width: "80%", duration: 1, ease: "power2.inOut", stagger: 0.2 }, 21.0);
+      tl.to(".tweak-thumb", { left: "80%", duration: 1, ease: "power2.inOut", stagger: 0.2 }, 21.0);
+
+      // 26.0s: Zoom Out to Bento Grid
+      tl.to("#grid-container", { scale: 0.3, duration: 2, ease: "expo.inOut" }, 26.0);
+      
+      // 30.0s: Pan and Zoom into Proto UI
+      tl.to("#grid-container", { x: "-=1920", duration: 2, ease: "expo.inOut" }, 29.0);
+      tl.to("#grid-container", { scale: 0.8, duration: 2, ease: "expo.inOut" }, 30.0);
+
+      // 32.0s: Type prototype instructions
+      tl.set("#box", { width: 600, height: 160, left: "50%", top: "85%", opacity: 0 }, 31.0);
+      tl.set("#box-content-loader", { display: "none" }, 31.0);
+      tl.set("#box-content-prompt", { display: "flex", opacity: 1 }, 31.0);
+      const prompt3 = "Prototype a serene mobile meditation app.";
+      const typeState3 = { i: 0 };
+      tl.to("#box", { opacity: 1, scale: 1, duration: 0.4 }, 31.5);
+      tl.to(typeState3, {
+        i: prompt3.length, duration: 3, ease: "none",
+        onUpdate: () => { document.getElementById("typed").textContent = prompt3.slice(0, Math.round(typeState3.i)); }
+      }, 32.0);
+
+      // 35.3s: Send
+      tl.to("#box", { opacity: 0, y: 20, duration: 0.4 }, 35.3);
+
+      // 40.0s: Add Dark mode toggle
+      tl.set("#box", { y: 0, opacity: 0 }, 39.0);
+      const prompt4 = "Add a dark mode toggle";
+      const typeState4 = { i: 0 };
+      tl.to("#box", { opacity: 1, scale: 1, duration: 0.4 }, 39.5);
+      tl.to(typeState4, {
+        i: prompt4.length, duration: 2, ease: "none",
+        onUpdate: () => { document.getElementById("typed").textContent = prompt4.slice(0, Math.round(typeState4.i)); }
+      }, 40.0);
+
+      // 42.3s: Send & Dimming
+      tl.to("#box", { opacity: 0, scale: 0.9, duration: 0.3 }, 42.3);
+      tl.add(() => { document.getElementById("proto-ui").classList.add("proto-dark"); }, 43.5);
+
+      // 48.0s: Final Massive Zoom Out
+      tl.to("#grid-container", { scale: 0.15, x: 0, y: 0, duration: 3, ease: "expo.inOut" }, 48.0);
+
+      // 55.0s: Pan around grid
+      tl.to("#grid-container", { x: "+=500", y: "-=500", duration: 5, ease: "sine.inOut" }, 52.0);
+      tl.to("#grid-container", { x: "-=1000", y: "+=800", duration: 6, ease: "sine.inOut" }, 57.0);
+
+      // 66.0s: Fade to logo
+      tl.to("#grid-container", { opacity: 0, scale: 0.1, duration: 2, ease: "power2.in" }, 66.0);
+      tl.set("#final-logo", { display: "block" }, 67.5);
+      tl.to("#final-logo", { opacity: 1, y: -20, duration: 2, ease: "power4.out" }, 68.0);
+      
+      // Ensure cursor disappears cleanly
+      tl.to("#cursor", { opacity: 0, duration: 0.5 }, 67.0);
+
+      window.__timelines["apple-juice-claude-clone"] = tl;
+    </script>
+  </body>
+</html>

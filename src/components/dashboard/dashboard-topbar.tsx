@@ -203,6 +203,8 @@ export function DashboardTopbar() {
                         ? "Ultra"
                         : usage.plan === "fresh_pro"
                         ? "Pro"
+                        : usage.plan === "partner"
+                        ? "Partner"
                         : "Free"}
                     </span>
                   </div>

@@ -32,6 +32,7 @@ export interface BridgeResult {
 const QUEUE_PREFIX = "mcp:queue:";     // list of pending commands (JSON array)
 const RESULT_PREFIX = "mcp:result:";   // a single result by requestId
 const TTL = 120; // seconds — commands/results are short-lived
+const MAX_QUEUE_LEN = 50; // bound the per-session queue (one in-flight in practice)
 
 function queueKey(sessionKey: string) {
   return `${QUEUE_PREFIX}${sessionKey}`;
@@ -66,6 +67,12 @@ export async function enqueueCommand(
     }
   }
   queue.push(cmd);
+  // Bound the queue so a runaway/compromised producer can't grow it without
+  // limit. The MCP flow is one-command-in-flight per session, so this is well
+  // above normal; if exceeded, drop the oldest pending commands.
+  if (queue.length > MAX_QUEUE_LEN) {
+    queue = queue.slice(queue.length - MAX_QUEUE_LEN);
+  }
   await redis.set(queueKey(sessionKey), JSON.stringify(queue), { ex: TTL });
   return requestId;
 }

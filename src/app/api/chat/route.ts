@@ -8,6 +8,7 @@ import {
   getUserUsage,
   trackMlUsage,
   calculateMlUsed,
+  mlFromCredits,
   getRedis,
   getActiveGenerations,
   incrementActiveGenerations,
@@ -17,7 +18,7 @@ import { getAntigravityMapping, relayToAntigravity } from "@/lib/antigravity";
 import { buildUIExamplesBlock } from "@/lib/ui-examples";
 import { getAppleJuiceUISource, isUIRelatedPrompt } from "@/lib/apple-juice-ui-library";
 import { buildLibraryDeploymentPrompt, getUILibraryDeploymentScripts } from "@/lib/ui-library-deployer";
-import { buildSystemsContextBlock } from "@/lib/systems";
+import { buildSystemsContextBlock, buildSnippetsContextBlock } from "@/lib/systems";
 import { validateGeneration } from "@/lib/validate-generation";
 import { normalizeActions } from "@/lib/normalize-action";
 
@@ -186,11 +187,13 @@ export async function POST(req: Request) {
   if (!isUsingCustomKey) {
     userUsage = await getUserUsage(ownerUserId);
     if (userUsage.remainingMl <= 0) {
+      const monthlyHit = (userUsage as { monthlyCapped?: boolean }).monthlyCapped;
       return Response.json(
         {
           error: "Out of Juice",
-          message:
-            "You have reached your daily limit! Your juice will refill tomorrow, or you can buy an Instant Refill (Juice Box) to keep building right now.",
+          message: monthlyHit
+            ? "You've reached your monthly limit for this plan. It resets at the start of next month — or upgrade for a higher ceiling."
+            : "You have reached your daily limit! Your juice will refill tomorrow, or you can buy an Instant Refill (Juice Box) to keep building right now.",
           usage: userUsage,
         },
         { status: 429 },
@@ -479,6 +482,8 @@ export async function POST(req: Request) {
 
   // Build systems context block (injects matching gameplay system templates)
   const systemsContextBlock = buildSystemsContextBlock(prompt);
+  // Build snippet context block (injects matching small drop-in scripts)
+  const snippetsContextBlock = buildSnippetsContextBlock(prompt);
 
   const SYSTEM_PROMPT = `### ABSOLUTE OUTPUT RULE — READ THIS FIRST ###
 If you are provided with the \`execute_roblox_actions\` tool (function calling), you MUST use it to execute your actions.
@@ -659,7 +664,7 @@ FORBIDDEN JSON Fallback formats (these will cause rejection):
 - Validate RemoteEvent arguments on the server side.
 - NEVER reference instances that don't exist yet — create them first or use WaitForChild().
 - The LAST entry in your actions MUST be: {"action": "run_playtest"}
-${fileContextBlock}${treeContextBlock}${uiExamplesBlock}${libraryDeploymentPrompt}${systemsContextBlock}
+${fileContextBlock}${treeContextBlock}${uiExamplesBlock}${libraryDeploymentPrompt}${systemsContextBlock}${snippetsContextBlock}
 FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must be ONLY a single valid JSON object starting with { and ending with }.`;
 
   // Build context compaction summary (BloxBot-style) for long sessions.
@@ -1042,6 +1047,9 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
   let preambleReasoning: string | undefined = undefined;
 
   // ── REAL Priority Queue (Load-Based Concurrency) ──────────────────────────
+  // Higher subscriptions get faster service: they wait less (or not at all) when
+  // the system is under load, and they're never turned away. Lower tiers absorb
+  // the backpressure first. Order: pure_ultra > fresh_pro > partner > free.
   if (!isUsingCustomKey && userUsage) {
     const delay = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms));
@@ -1053,6 +1061,12 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
     } else if (userUsage.plan === "fresh_pro") {
       // Standard Queue: Wait up to 3 seconds if system is heavily loaded
       if (activeLoad > 8) await delay(3000);
+      else if (activeLoad > 4) await delay(1000);
+    } else if (userUsage.plan === "partner") {
+      // Partner Queue: between Pro and Free — a bit more wait than Pro under
+      // load, but never queue-rejected like the free tier.
+      if (activeLoad > 12) await delay(5000);
+      else if (activeLoad > 8) await delay(2500);
       else if (activeLoad > 4) await delay(1000);
     } else {
       // Free Queue: Wait up to 8 seconds if loaded. If heavily loaded, return rate limit.
@@ -1250,6 +1264,15 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
               const decoder = new TextDecoder();
               let buf = "";
               let resultMsg = "Done.";
+              // Accumulate the agent's streamed progress (tool calls + reasoning)
+              // so we can meter the FULL interactive run, not just the final
+              // summary line. The MCP agent makes many real Kiro calls per prompt
+              // (read -> write -> playtest -> fix); charging only resultMsg
+              // massively undercounts credit burn. The progress text is the best
+              // in-band proxy for the work the model actually did.
+              let progressChars = 0;
+              // Real Kiro credits for this run, if the proxy reports them.
+              let mcpCredits = 0;
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
@@ -1263,9 +1286,13 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                   let payload: any = {};
                   try { payload = JSON.parse(dataM[1]); } catch { continue; }
                   if (evt === "progress" && payload.text) {
+                    progressChars += String(payload.text).length;
                     controller.enqueue(encoder.encode(sseReason(String(payload.text))));
                   } else if (evt === "result") {
                     resultMsg = payload.message || "Done.";
+                    if (typeof payload.credits === "number" && payload.credits > 0) {
+                      mcpCredits = payload.credits;
+                    }
                   } else if (evt === "error") {
                     resultMsg = `[MCP Error]: ${payload.error}`;
                   }
@@ -1275,7 +1302,22 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
               const appPayload = { message: resultMsg, scripts: [], suggestions: [] };
               controller.enqueue(encoder.encode(sseContent(JSON.stringify(appPayload))));
               if (!isUsingCustomKey && ownerUserId) {
-                await trackMlUsage(ownerUserId, calculateMlUsed(0, Math.ceil(resultMsg.length / 4), effectiveModel));
+                if (mcpCredits > 0) {
+                  // Ground truth: the proxy reported real Kiro credits for this
+                  // run. Bill against that instead of estimating from text.
+                  await trackMlUsage(ownerUserId, mlFromCredits(mcpCredits, effectiveModel));
+                } else {
+                  // Fallback estimate when no credit footer was available:
+                  //  • input  = prompt + recent history + UI context the app sent
+                  //  • output = streamed tool-call/reasoning progress + final summary
+                  const mcpInputChars =
+                    (prompt?.length || 0) +
+                    JSON.stringify(priorHistory || []).length +
+                    (isUIRelatedPrompt(prompt) ? `${libraryDeploymentPrompt}\n${uiExamplesBlock}`.length : 0);
+                  const mcpInputTk = Math.ceil(mcpInputChars / 4);
+                  const mcpOutputTk = Math.ceil((progressChars + resultMsg.length) / 4);
+                  await trackMlUsage(ownerUserId, calculateMlUsed(mcpInputTk, mcpOutputTk, effectiveModel));
+                }
               }
             } catch (e: any) {
               controller.enqueue(encoder.encode(sseContent(
@@ -1374,7 +1416,10 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
               const reader = agentRes.body.getReader();
               const decoder = new TextDecoder();
               let buf = "";
-              let resultData: { scripts?: any[]; revert?: any[]; message?: string } | null = null;
+              let resultData: { scripts?: any[]; revert?: any[]; message?: string; credits?: number } | null = null;
+              // Accumulate streamed progress so we meter the full multi-turn
+              // agent run (incl. the auto-fix loop), not just the final scripts.
+              let progressChars = 0;
 
               while (true) {
                 const { done, value } = await reader.read();
@@ -1390,6 +1435,7 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                   let payload: any = {};
                   try { payload = JSON.parse(dataMatch[1]); } catch { continue; }
                   if (evt === "progress" && payload.text) {
+                    progressChars += String(payload.text).length;
                     controller.enqueue(encoder.encode(sseFromReasoning(String(payload.text))));
                   } else if (evt === "result") {
                     resultData = payload;
@@ -1449,8 +1495,27 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                 controller.enqueue(encoder.encode(sseFromContent(JSON.stringify(appPayload))));
 
                 if (!isUsingCustomKey && ownerUserId) {
-                  const outTk = Math.ceil(JSON.stringify(appPayload).length / 4);
-                  await trackMlUsage(ownerUserId, calculateMlUsed(0, outTk, effectiveModel));
+                  if (typeof resultData.credits === "number" && resultData.credits > 0) {
+                    // Ground truth: real Kiro credits reported by the proxy.
+                    await trackMlUsage(ownerUserId, mlFromCredits(resultData.credits, effectiveModel));
+                  } else {
+                  // Meter the FULL agent run, not just the returned scripts:
+                  //  • input  = prompt + history + uiContext + the project
+                  //             SNAPSHOT we sent to the VPS (often large, and a
+                  //             real input-token cost the model paid to read)
+                  //  • output = streamed progress (multi-turn reasoning +
+                  //             auto-fix loop) + the final scripts payload
+                  // The old code charged only the final payload with 0 input,
+                  // which undercounted snapshot-heavy and auto-fixed runs badly.
+                  const agentInputChars =
+                    (prompt?.length || 0) +
+                    JSON.stringify(priorHistory || []).length +
+                    (isUIRelatedPrompt(prompt) ? `${libraryDeploymentPrompt}\n${uiExamplesBlock}`.length : 0) +
+                    JSON.stringify(snapshot || []).length;
+                  const agentInputTk = Math.ceil(agentInputChars / 4);
+                  const outTk = Math.ceil((progressChars + JSON.stringify(appPayload).length) / 4);
+                  await trackMlUsage(ownerUserId, calculateMlUsed(agentInputTk, outTk, effectiveModel));
+                  }
                 }
               }
             } catch (e: any) {

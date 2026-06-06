@@ -17,7 +17,7 @@ import {
 import dynamic from "next/dynamic";
 import { LandingCliSection } from "./landing-cli-section";
 import { LandingHeroShowcase } from "./landing-hero-showcase";
-import { LandingAdShowcase } from "./landing-ad-showcase";
+// import { LandingAdShowcase } from "./landing-ad-showcase"; // hidden: Product film section commented out
 
 import { LandingWebIdeSection } from "./landing-web-ide-section";
 import { SpineSection } from "./landing-spine";
@@ -314,6 +314,7 @@ export function LandingContent({
       </section>
 
       {/* ━━━ PRODUCT FILM (looping ad — same demo as hero, narrated) ━━━ */}
+      {/* Hidden for now — section commented out per request.
       <section
         id="film"
         className="relative py-20 md:py-28 px-6 md:px-12 z-10"
@@ -337,6 +338,7 @@ export function LandingContent({
           }
         />
       </section>
+      */}
 
       {/* Seamless light bleed into Web IDE — overlaps hero boundary */}
       <div

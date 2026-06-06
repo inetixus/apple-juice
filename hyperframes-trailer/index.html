@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #0a0b0d;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #fff;
+      }
+      #stage { position: absolute; inset: 0;
+        background: radial-gradient(130% 130% at 50% 25%, #14161b 0%, #0a0b0d 62%, #050507 100%); }
+
+      .scene { position: absolute; inset: 0; }
+      .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; }
+
+      /* faint engineering grid shared backdrop */
+      #grid { position: absolute; inset: 0;
+        background-image:
+          linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+        background-size: 64px 64px;
+        mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 75%);
+        -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 75%); }
+      #accentGlow { position: absolute; top: 50%; left: 50%; width: 1100px; height: 1100px;
+        margin: -550px 0 0 -550px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(204,255,0,0.16) 0%, rgba(204,255,0,0) 62%); filter: blur(10px); }
+
+      /* ── Animated cursor (shared across scenes) ── */
+      #cursor { position: absolute; top: 0; left: 0; width: 40px; height: 40px; z-index: 50;
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)); will-change: transform; }
+      #cursorRing { position: absolute; top: 0; left: 0; width: 64px; height: 64px; margin: -12px 0 0 -12px;
+        border: 3px solid #ccff00; border-radius: 50%; z-index: 49; opacity: 0; }
+
+      /* ── Scene 1: logo ── */
+      #droplet { width: 150px; height: 150px; margin: 0 auto 28px;
+        filter: drop-shadow(0 18px 40px rgba(204,255,0,0.35)); }
+      #wordmark { font-size: 122px; font-weight: 800; letter-spacing: -4px; line-height: 1; }
+      #wordmark .accent { color: #ccff00; }
+      #s1 .tagline { margin-top: 26px; font-size: 36px; font-weight: 500; letter-spacing: 2px; color: rgba(255,255,255,0.55); }
+
+      /* ── Scene 2: hook (morphing headline) ── */
+      #hookWrap { width: 1400px; }
+      .hookLine { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        font-size: 96px; font-weight: 800; letter-spacing: -2px; white-space: nowrap; }
+      #hookA { color: rgba(255,255,255,0.92); }
+      #hookB { color: #ccff00; }
+      #hookB .muted { color: rgba(255,255,255,0.45); }
+
+      /* ── Scene 3: IDE mockup ── */
+      #ide { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px;
+        margin: -360px 0 0 -640px; background: #111317; border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 18px; box-shadow: 0 40px 120px rgba(0,0,0,0.6); overflow: hidden; }
+      #ide .bar { height: 46px; background: #0d0f12; border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex; align-items: center; padding: 0 18px; gap: 10px; }
+      #ide .dot { width: 13px; height: 13px; border-radius: 50%; }
+      #ide .body { display: flex; height: calc(100% - 46px); }
+      #ide .sidebar { width: 320px; border-right: 1px solid rgba(255,255,255,0.06); padding: 22px 20px; }
+      #ide .sidebar h4 { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.35); margin-bottom: 16px; }
+      #ide .file { font-size: 18px; color: rgba(255,255,255,0.6); padding: 9px 10px; border-radius: 8px; margin-bottom: 4px; }
+      #ide .chatarea { flex: 1; display: flex; flex-direction: column; padding: 26px 30px; }
+      #promptBox { background: #0d0f12; border: 1px solid rgba(204,255,0,0.0); border-radius: 14px;
+        padding: 22px 24px; font-size: 26px; color: rgba(255,255,255,0.9); min-height: 96px; }
+      #promptBox .caret { display: inline-block; width: 3px; height: 30px; background: #ccff00; margin-left: 2px;
+        transform: translateY(6px); }
+      #sendBtn { align-self: flex-end; margin-top: 18px; background: #ccff00; color: #0a0b0d;
+        font-weight: 800; font-size: 20px; padding: 14px 26px; border-radius: 10px; }
+      #feed { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; }
+      #feed .step { display: flex; align-items: center; gap: 14px; font-size: 20px; color: rgba(255,255,255,0.8); opacity: 0; }
+      #feed .tick { width: 22px; height: 22px; border-radius: 50%; background: rgba(204,255,0,0.15);
+        border: 2px solid #ccff00; display: flex; align-items: center; justify-content: center; color: #ccff00; font-size: 13px; font-weight: 900; }
+
+      /* ── Scene 4: code → studio morph ── */
+      #codeCard { position: absolute; left: 380px; top: 270px; width: 560px; height: 540px;
+        background: #0d0f12; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 28px 30px;
+        box-shadow: 0 30px 90px rgba(0,0,0,0.55); font-family: "JetBrains Mono", ui-monospace, monospace; }
+      #codeCard .ln { font-size: 19px; line-height: 1.9; white-space: nowrap; opacity: 0; }
+      #codeCard .kw { color: #ccff00; } #codeCard .fn { color: #7dd3fc; } #codeCard .str { color: #fca5a5; } #codeCard .cm { color: rgba(255,255,255,0.35); }
+      #studioPanel { position: absolute; right: 360px; top: 270px; width: 540px; height: 540px;
+        background: #1f232b; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; overflow: hidden;
+        box-shadow: 0 30px 90px rgba(0,0,0,0.55); opacity: 0; }
+      #studioPanel .sbar { height: 44px; background: #2b3038; display: flex; align-items: center; padding: 0 18px;
+        font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.7); letter-spacing: 1px; }
+      #studioPanel .row { display: flex; align-items: center; gap: 12px; padding: 12px 22px; font-size: 19px;
+        color: rgba(255,255,255,0.78); border-bottom: 1px solid rgba(255,255,255,0.04); opacity: 0; }
+      #studioPanel .ic { width: 20px; height: 20px; border-radius: 5px; background: #ccff00; }
+      #s4 .arrow { position: absolute; left: 960px; top: 520px; width: 60px; height: 12px; opacity: 0; }
+      #applyBtn { position: absolute; left: 50%; top: 880px; transform: translateX(-50%);
+        background: #ccff00; color: #0a0b0d; font-weight: 800; font-size: 24px; padding: 16px 34px; border-radius: 12px;
+        box-shadow: 0 14px 34px rgba(204,255,0,0.32); opacity: 0; }
+      #s4 .title { position: absolute; left: 50%; top: 150px; transform: translateX(-50%);
+        font-size: 40px; font-weight: 700; color: rgba(255,255,255,0.85); opacity: 0; }
+
+      /* ── Scene 5: features ── */
+      #s5 .heading { position: absolute; left: 50%; top: 200px; transform: translateX(-50%);
+        font-size: 64px; font-weight: 800; letter-spacing: -2px; }
+      #s5 .heading .accent { color: #ccff00; }
+      #cards { position: absolute; left: 50%; top: 560px; transform: translate(-50%, -50%); display: flex; gap: 40px; }
+      #cards .card { width: 420px; height: 320px; background: #111317; border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px; padding: 40px; opacity: 0; }
+      #cards .card .emoji { font-size: 56px; }
+      #cards .card h3 { font-size: 34px; font-weight: 700; margin: 22px 0 14px; }
+      #cards .card p { font-size: 22px; line-height: 1.5; color: rgba(255,255,255,0.55); }
+      #cards .card .bar { width: 56px; height: 5px; background: #ccff00; border-radius: 5px; margin-bottom: 26px; }
+
+      /* ── Scene 6: outro ── */
+      #s6 .drop { width: 120px; height: 120px; margin: 0 auto 24px; filter: drop-shadow(0 14px 36px rgba(204,255,0,0.4)); }
+      #s6 .logo { font-size: 96px; font-weight: 800; letter-spacing: -3px; }
+      #s6 .logo .accent { color: #ccff00; }
+      #s6 .chip { margin-top: 34px; display: inline-block; background: #ccff00; color: #0a0b0d;
+        font-size: 30px; font-weight: 700; letter-spacing: 3px; padding: 18px 40px; border-radius: 999px;
+        box-shadow: 0 14px 34px rgba(204,255,0,0.32); }
+    </style>
+  </head>
+  <body>
+    <div id="stage" data-composition-id="apple-juice-trailer"
+         data-start="0" data-duration="31" data-width="1920" data-height="1080">
+
+      <div id="grid"></div>
+      <div id="accentGlow"></div>
+
+      <!-- ── SCENE 1 — Logo ── -->
+      <div id="s1" class="scene">
+        <div class="center" style="width: 1200px;">
+          <svg id="droplet" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="dg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#e6ff66" /><stop offset="100%" stop-color="#a6cc00" />
+              </linearGradient>
+            </defs>
+            <path d="M50 6 C50 6 86 50 86 70 A36 36 0 1 1 14 70 C14 50 50 6 50 6 Z" fill="url(#dg)" />
+            <ellipse cx="38" cy="62" rx="9" ry="14" fill="rgba(255,255,255,0.45)" />
+            <path d="M50 6 C58 -2 74 0 78 8 C70 14 58 14 50 6 Z" fill="#7bd13a" />
+          </svg>
+          <div id="wordmark">Apple<span class="accent">Juice</span></div>
+          <div class="tagline">AI that ships Roblox code</div>
+        </div>
+      </div>
+
+      <!-- ── SCENE 2 — Hook ── -->
+      <div id="s2" class="scene">
+        <div id="hookWrap" class="center">
+          <div id="hookA" class="hookLine">Building in Roblox takes hours.</div>
+          <div id="hookB" class="hookLine">Now it takes <span style="color:#ccff00">one sentence.</span></div>
+        </div>
+      </div>
+
+      <!-- ── SCENE 3 — IDE ── -->
+      <div id="s3" class="scene">
+        <div id="ide">
+          <div class="bar">
+            <span class="dot" style="background:#ff5f57"></span>
+            <span class="dot" style="background:#febc2e"></span>
+            <span class="dot" style="background:#28c840"></span>
+            <span style="margin-left:14px; font-size:15px; color:rgba(255,255,255,0.4); letter-spacing:1px;">Apple Juice — Dashboard</span>
+          </div>
+          <div class="body">
+            <div class="sidebar">
+              <h4>Explorer</h4>
+              <div class="file">📁 Workspace</div>
+              <div class="file">📁 ReplicatedStorage</div>
+              <div class="file">📁 ServerScriptService</div>
+              <div class="file">📄 RoundServer</div>
+            </div>
+            <div class="chatarea">
+              <div id="promptBox"><span id="promptText"></span><span class="caret"></span></div>
+              <div id="sendBtn">Generate ↑</div>
+              <div id="feed">
+                <div class="step"><span class="tick">✓</span> Reading project structure</div>
+                <div class="step"><span class="tick">✓</span> Writing RoundServer</div>
+                <div class="step"><span class="tick">✓</span> Creating RemoteEvents</div>
+                <div class="step"><span class="tick">✓</span> Running a playtest to verify</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SCENE 4 — Code → Studio ── -->
+      <div id="s4" class="scene">
+        <div class="title">From prompt to live Studio — instantly.</div>
+        <div id="codeCard">
+          <div class="ln"><span class="cm">-- RoundServer.lua</span></div>
+          <div class="ln"><span class="kw">local</span> Players = game:<span class="fn">GetService</span>(<span class="str">"Players"</span>)</div>
+          <div class="ln"><span class="kw">local</span> intermission = <span class="str">15</span></div>
+          <div class="ln">&nbsp;</div>
+          <div class="ln"><span class="kw">while</span> <span class="kw">true</span> <span class="kw">do</span></div>
+          <div class="ln">&nbsp;&nbsp;<span class="fn">startIntermission</span>()</div>
+          <div class="ln">&nbsp;&nbsp;<span class="fn">runRound</span>()</div>
+          <div class="ln">&nbsp;&nbsp;<span class="fn">awardWinner</span>()</div>
+          <div class="ln"><span class="kw">end</span></div>
+        </div>
+        <svg class="arrow" viewBox="0 0 60 12"><path d="M0 6 H50 M44 1 L52 6 L44 11" stroke="#ccff00" stroke-width="3" fill="none"/></svg>
+        <div id="studioPanel">
+          <div class="sbar">Explorer — Roblox Studio</div>
+          <div class="row"><span class="ic"></span> ServerScriptService</div>
+          <div class="row"><span class="ic"></span> RoundServer (Script)</div>
+          <div class="row"><span class="ic"></span> ReplicatedStorage</div>
+          <div class="row"><span class="ic"></span> RoundEvents (Folder)</div>
+          <div class="row"><span class="ic"></span> StatusUpdate (RemoteEvent)</div>
+        </div>
+        <div id="applyBtn">✓ Applied to Studio</div>
+      </div>
+
+      <!-- ── SCENE 5 — Features ── -->
+      <div id="s5" class="scene">
+        <div class="heading">Your <span class="accent">AI game studio</span></div>
+        <div id="cards">
+          <div class="card"><div class="emoji">⚡</div><h3>Instant sync</h3><div class="bar"></div><p>Code lands in Studio live — no copy-paste, no context switching.</p></div>
+          <div class="card"><div class="emoji">🔁</div><h3>Self-verifying</h3><div class="bar"></div><p>Runs a playtest, reads the errors, and fixes them on its own.</p></div>
+          <div class="card"><div class="emoji">🧠</div><h3>Whole-project aware</h3><div class="bar"></div><p>Understands your entire game, not just one script.</p></div>
+        </div>
+      </div>
+
+      <!-- ── SCENE 6 — Outro ── -->
+      <div id="s6" class="scene">
+        <div class="center" style="width: 1200px;">
+          <svg class="drop" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50 6 C50 6 86 50 86 70 A36 36 0 1 1 14 70 C14 50 50 6 50 6 Z" fill="url(#dg)" />
+            <ellipse cx="38" cy="62" rx="9" ry="14" fill="rgba(255,255,255,0.45)" />
+          </svg>
+          <div class="logo">Apple<span class="accent">Juice</span></div>
+          <div class="chip">apple-juice.online</div>
+        </div>
+      </div>
+
+      <!-- shared cursor -->
+      <div id="cursorRing"></div>
+      <svg id="cursor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 2 L4 20 L9 15 L12.5 22 L15 21 L11.5 14 L18 14 Z" fill="#fff" stroke="#0a0b0d" stroke-width="1.2" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <script>
+      /*
+       * Apple Juice — YouTube trailer (31s @ 1920x1080)
+       * One paused GSAP master timeline that HyperFrames seeks frame-by-frame.
+       * Scenes toggle with autoAlpha so non-linear seeking never leaves a stale
+       * scene visible. An animated cursor moves between scenes to "operate" the UI.
+       */
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true, defaults: { ease: "power3.out" } });
+
+      const S1 = 0, S2 = 4.5, S3 = 9, S4 = 16, S5 = 22.5, S6 = 27.5;
+
+      /* ── Initial state ─────────────────────────────────────────────────── */
+      gsap.set(["#s1", "#s2", "#s3", "#s4", "#s5", "#s6"], { autoAlpha: 0 });
+      gsap.set("#accentGlow", { scale: 0.6, opacity: 0.4 });
+      gsap.set("#cursor", { x: 1500, y: 980, autoAlpha: 0, scale: 1 });
+      gsap.set("#cursorRing", { scale: 0.2, autoAlpha: 0 });
+      // scene 1
+      gsap.set("#droplet", { scale: 0, opacity: 0, transformOrigin: "50% 50%" });
+      gsap.set("#wordmark", { autoAlpha: 0, y: 60 });
+      gsap.set("#s1 .tagline", { autoAlpha: 0, y: 24 });
+      // scene 2
+      gsap.set("#hookA", { autoAlpha: 0, y: 40 });
+      gsap.set("#hookB", { autoAlpha: 0, y: 40 });
+      // scene 3
+      gsap.set("#ide", { autoAlpha: 0, y: 40, scale: 0.96, transformOrigin: "50% 50%" });
+      gsap.set("#promptBox", { borderColor: "rgba(204,255,0,0)" });
+      gsap.set("#sendBtn", { scale: 1 });
+      gsap.set("#feed .step", { autoAlpha: 0, x: -16 });
+      // scene 4
+      gsap.set("#s4 .title", { autoAlpha: 0, y: 20 });
+      gsap.set("#codeCard", { autoAlpha: 0, x: -40 });
+      gsap.set("#codeCard .ln", { autoAlpha: 0, x: -12 });
+      gsap.set("#studioPanel", { autoAlpha: 0, x: 40 });
+      gsap.set("#studioPanel .row", { autoAlpha: 0, x: 16 });
+      gsap.set("#s4 .arrow", { autoAlpha: 0, scaleX: 0, transformOrigin: "0% 50%" });
+      gsap.set("#applyBtn", { autoAlpha: 0, scale: 0.9 });
+      // scene 5
+      gsap.set("#s5 .heading", { autoAlpha: 0, y: 30 });
+      gsap.set("#cards .card", { autoAlpha: 0, y: 60 });
+      // scene 6
+      gsap.set("#s6 .drop", { scale: 0, opacity: 0, transformOrigin: "50% 50%" });
+      gsap.set("#s6 .logo", { autoAlpha: 0, y: 40 });
+      gsap.set("#s6 .chip", { autoAlpha: 0, y: 30, scale: 0.9 });
+
+      /* gentle continuous backdrop pulse (finite repeat across the video) */
+      tl.to("#accentGlow", { opacity: 1, scale: 1, duration: 4, ease: "sine.inOut", yoyo: true, repeat: 7 }, 0);
+
+      /* ── SCENE 1 — Logo reveal ─────────────────────────────────────────── */
+      tl.to("#s1", { autoAlpha: 1, duration: 0.3 }, S1);
+      tl.to("#droplet", { scale: 1, opacity: 1, duration: 1.1, ease: "elastic.out(1, 0.55)" }, S1 + 0.2);
+      tl.to("#droplet", { y: -12, duration: 1.4, ease: "sine.inOut", yoyo: true, repeat: 1 }, S1 + 1.2);
+      tl.to("#wordmark", { autoAlpha: 1, y: 0, duration: 0.8 }, S1 + 0.8);
+      tl.to("#s1 .tagline", { autoAlpha: 1, y: 0, duration: 0.7 }, S1 + 1.4);
+      tl.to("#s1", { autoAlpha: 0, duration: 0.5, ease: "power2.in" }, S2 - 0.5);
+      tl.set("#s1", { autoAlpha: 0 }, S2);
+
+      /* ── SCENE 2 — Hook with text morph ────────────────────────────────── */
+      tl.to("#s2", { autoAlpha: 1, duration: 0.3 }, S2);
+      tl.to("#hookA", { autoAlpha: 1, y: 0, duration: 0.7 }, S2 + 0.3);
+      tl.to("#hookA", { autoAlpha: 0, y: -40, filter: "blur(6px)", duration: 0.6, ease: "power2.in" }, S2 + 2.2);
+      tl.fromTo("#hookB", { autoAlpha: 0, y: 50, filter: "blur(6px)" },
+        { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 0.7 }, S2 + 2.4);
+      tl.to("#hookB", { scale: 1.04, duration: 0.5, ease: "back.out(2)", yoyo: true, repeat: 1, transformOrigin: "50% 50%" }, S2 + 3.2);
+      tl.to("#s2", { autoAlpha: 0, duration: 0.5, ease: "power2.in" }, S3 - 0.5);
+      tl.set("#s2", { autoAlpha: 0 }, S3);
+
+      /* ── SCENE 3 — IDE: cursor types a prompt, feed runs ───────────────── */
+      tl.to("#s3", { autoAlpha: 1, duration: 0.3 }, S3);
+      tl.to("#ide", { autoAlpha: 1, y: 0, scale: 1, duration: 0.7, ease: "power3.out" }, S3 + 0.2);
+      tl.to("#cursor", { autoAlpha: 1, duration: 0.2 }, S3 + 0.7);
+      tl.to("#cursor", { x: 1090, y: 470, duration: 0.8, ease: "power2.inOut" }, S3 + 0.7);
+      tl.fromTo("#cursorRing", { autoAlpha: 0, scale: 0.2 }, { autoAlpha: 1, scale: 1, duration: 0.35, ease: "power2.out" }, S3 + 1.5);
+      tl.to("#cursorRing", { autoAlpha: 0, duration: 0.3 }, S3 + 1.85);
+      tl.to("#promptBox", { borderColor: "rgba(204,255,0,0.6)", duration: 0.3 }, S3 + 1.6);
+      // typewriter prompt (state object animated to a finite index)
+      const promptStr = "Build a round-based system with a timer and winner";
+      const promptState = { i: 0 };
+      tl.to(promptState, {
+        i: promptStr.length, duration: 2.2, ease: "none",
+        onUpdate: () => {
+          const el = document.querySelector("#promptText");
+          if (el) el.textContent = promptStr.slice(0, Math.round(promptState.i));
+        },
+      }, S3 + 1.9);
+      tl.to("#cursor", { x: 1430, y: 560, duration: 0.6, ease: "power2.inOut" }, S3 + 4.2);
+      tl.to("#sendBtn", { scale: 0.92, duration: 0.12, yoyo: true, repeat: 1, transformOrigin: "50% 50%" }, S3 + 4.85);
+      tl.fromTo("#cursorRing", { autoAlpha: 0, scale: 0.2 }, { autoAlpha: 1, scale: 1, duration: 0.3 }, S3 + 4.85);
+      tl.to("#cursorRing", { autoAlpha: 0, duration: 0.25 }, S3 + 5.15);
+      tl.to("#feed .step", { autoAlpha: 1, x: 0, duration: 0.4, stagger: 0.42 }, S3 + 5.2);
+      tl.to("#cursor", { x: 1700, y: 900, autoAlpha: 0, duration: 0.6 }, S3 + 6.4);
+      tl.to("#s3", { autoAlpha: 0, duration: 0.5, ease: "power2.in" }, S4 - 0.5);
+      tl.set(["#s3", "#cursor", "#cursorRing"], { autoAlpha: 0 }, S4);
+
+      /* ── SCENE 4 — Code morphs into live Studio ────────────────────────── */
+      tl.to("#s4", { autoAlpha: 1, duration: 0.3 }, S4);
+      tl.to("#s4 .title", { autoAlpha: 1, y: 0, duration: 0.6 }, S4 + 0.2);
+      tl.to("#codeCard", { autoAlpha: 1, x: 0, duration: 0.6 }, S4 + 0.5);
+      tl.to("#codeCard .ln", { autoAlpha: 1, x: 0, duration: 0.3, stagger: 0.12 }, S4 + 0.8);
+      tl.to("#s4 .arrow", { autoAlpha: 1, scaleX: 1, duration: 0.5, ease: "power2.out" }, S4 + 2.6);
+      tl.to("#studioPanel", { autoAlpha: 1, x: 0, duration: 0.6, ease: "power3.out" }, S4 + 2.9);
+      tl.to("#studioPanel .row", { autoAlpha: 1, x: 0, duration: 0.35, stagger: 0.22 }, S4 + 3.3);
+      tl.to("#applyBtn", { autoAlpha: 1, scale: 1, duration: 0.5, ease: "back.out(1.7)" }, S4 + 4.9);
+      tl.to("#applyBtn", { scale: 1.05, duration: 0.4, yoyo: true, repeat: 1, transformOrigin: "50% 50%" }, S4 + 5.4);
+      tl.to("#s4", { autoAlpha: 0, duration: 0.5, ease: "power2.in" }, S5 - 0.5);
+      tl.set("#s4", { autoAlpha: 0 }, S5);
+
+      /* ── SCENE 5 — Feature cards ───────────────────────────────────────── */
+      tl.to("#s5", { autoAlpha: 1, duration: 0.3 }, S5);
+      tl.to("#s5 .heading", { autoAlpha: 1, y: 0, duration: 0.6 }, S5 + 0.2);
+      tl.to("#cards .card", { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.2, ease: "back.out(1.4)" }, S5 + 0.7);
+      tl.to("#cards .card", { y: -16, duration: 0.9, stagger: 0.2, ease: "sine.inOut", yoyo: true, repeat: 1 }, S5 + 2.2);
+      tl.to("#s5", { autoAlpha: 0, duration: 0.5, ease: "power2.in" }, S6 - 0.5);
+      tl.set("#s5", { autoAlpha: 0 }, S6);
+
+      /* ── SCENE 6 — Outro / CTA ─────────────────────────────────────────── */
+      tl.to("#s6", { autoAlpha: 1, duration: 0.3 }, S6);
+      tl.to("#s6 .drop", { scale: 1, opacity: 1, duration: 0.9, ease: "elastic.out(1, 0.6)" }, S6 + 0.2);
+      tl.to("#s6 .logo", { autoAlpha: 1, y: 0, duration: 0.7 }, S6 + 0.6);
+      tl.to("#s6 .chip", { autoAlpha: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.7)" }, S6 + 1.1);
+      tl.to("#s6 .chip", { scale: 1.04, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: 2, transformOrigin: "50% 50%" }, S6 + 1.8);
+      tl.to("#s6 .logo", { y: -6, duration: 1.2, ease: "sine.inOut" }, S6 + 2.2);
+
+      window.__timelines["apple-juice-trailer"] = tl;
+    </script>
+  </body>
+</html>

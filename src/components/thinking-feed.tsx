@@ -13,6 +13,7 @@ import {
   Trash2,
   FolderInput,
   PlayCircle,
+  Loader2,
 } from "lucide-react";
 
 /**
@@ -64,10 +65,32 @@ const activityIcons = {
   done: Check,
 };
 
+/** Per-kind accent so each tool type reads at a glance. */
+const activityAccent: Record<ActivityStep["kind"], string> = {
+  thinking: "text-violet-300",
+  reading: "text-sky-300",
+  writing: "text-[#ccff00]",
+  creating: "text-emerald-300",
+  editing: "text-amber-300",
+  deleting: "text-rose-300",
+  moving: "text-cyan-300",
+  playtesting: "text-fuchsia-300",
+  done: "text-emerald-300",
+};
+
 type AnyStep = ThinkingStep | ActivityStep;
 
 function isActivityStep(s: AnyStep): s is ActivityStep {
   return "kind" in s;
+}
+
+function stepIcon(step: AnyStep) {
+  return isActivityStep(step) ? activityIcons[step.kind] : legacyIcons[step.icon];
+}
+
+function stepAccent(step: AnyStep, isDeepSeek?: boolean) {
+  if (isActivityStep(step)) return activityAccent[step.kind];
+  return isDeepSeek ? "text-sky-300" : "text-[#ccff00]";
 }
 
 export function ThinkingFeed({
@@ -79,134 +102,110 @@ export function ThinkingFeed({
 }) {
   if (steps.length === 0) return null;
 
+  const activeIdx = steps.findIndex((s) => !s.done);
+  const doneCount = steps.filter((s) => s.done).length;
+  const allDone = doneCount === steps.length;
+
   return (
-    <div className="flex flex-col gap-4 py-3 relative pl-4 select-none">
-      {/* Dynamic Animated Timeline vertical connector line */}
-      <div className="absolute left-[7px] top-4 bottom-4 w-[1.5px] bg-white/[0.04] rounded-full overflow-hidden">
-        <motion.div
-          className={`w-full h-full bg-gradient-to-b ${
-            isDeepSeek ? "from-blue-500 to-indigo-500" : "from-[#ccff00] to-emerald-500"
-          }`}
-          initial={{ y: "-100%" }}
-          animate={{ y: "0%" }}
-          transition={{ duration: 1.5, ease: "easeInOut" }}
-        />
+    <div className="select-none">
+      {/* Header row: compact status + progress count */}
+      <div className="flex items-center justify-between mb-2.5 px-0.5">
+        <div className="flex items-center gap-2">
+          <span
+            className={`relative flex h-1.5 w-1.5 ${
+              allDone ? "" : ""
+            }`}
+          >
+            {!allDone && (
+              <span
+                className={`absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping ${
+                  isDeepSeek ? "bg-sky-400" : "bg-[#ccff00]"
+                }`}
+              />
+            )}
+            <span
+              className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                allDone ? "bg-emerald-400" : isDeepSeek ? "bg-sky-400" : "bg-[#ccff00]"
+              }`}
+            />
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">
+            {allDone ? "Completed" : isDeepSeek ? "Reasoning" : "Working in Studio"}
+          </span>
+        </div>
+        <span className="text-[10px] font-mono tabular-nums text-white/30">
+          {doneCount}/{steps.length}
+        </span>
       </div>
 
-      {isDeepSeek && (
-        <div className="flex items-center gap-2 mb-2 -ml-4">
-          <div className="h-px w-4 bg-blue-500/20" />
-          <span className="text-[9px] font-black text-blue-400/60 uppercase tracking-[0.25em]">
-            DeepSeek Chain of Thought
-          </span>
-          <div className="h-px flex-1 bg-blue-500/20" />
-        </div>
-      )}
+      <div className="flex flex-col gap-1">
+        <AnimatePresence initial={false} mode="popLayout">
+          {steps.map((step, i) => {
+            const Icon = stepIcon(step);
+            const isCurrent = i === activeIdx;
+            const accent = stepAccent(step, isDeepSeek);
+            const detail = isActivityStep(step) ? step.detail : undefined;
 
-      <AnimatePresence initial={false}>
-        {steps.map((step, i) => {
-          const Icon = isActivityStep(step)
-            ? activityIcons[step.kind]
-            : legacyIcons[step.icon];
-          const isCurrent = !step.done && (i === steps.length - 1 || steps[i + 1]?.done);
-          const accentColor = isDeepSeek ? "text-blue-400" : "text-[#ccff00]";
-          const accentBg = isDeepSeek ? "bg-blue-500/10" : "bg-[#ccff00]/10";
-          const glowColor = isDeepSeek ? "shadow-[0_0_12px_rgba(59,130,246,0.4)]" : "shadow-[0_0_12px_rgba(204,255,0,0.4)]";
-          const detail = isActivityStep(step) ? step.detail : undefined;
-
-          return (
-            <motion.div
-              key={i}
-              layout
-              initial={{ opacity: 0, x: -12, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 350, damping: 26 }}
-              className="flex items-start gap-4 text-xs relative group"
-            >
-              {/* Timeline Bullet Node with Spring Animations */}
-              <div className="relative z-10 flex items-center justify-center mt-0.5">
-                <motion.div
-                  layout
-                  className={`w-[18px] h-[18px] rounded-full flex items-center justify-center border transition-all ${
-                    step.done
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                      : isCurrent
-                      ? `${accentBg} border-[#ccff00]/30 ${accentColor} ${glowColor}`
-                      : "bg-white/[0.02] border-white/5 text-white/20"
-                  }`}
-                  animate={step.done ? { scale: [1, 1.25, 1] } : {}}
-                  transition={{ duration: 0.3 }}
-                >
+            return (
+              <motion.div
+                key={`${step.label}-${i}`}
+                layout
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors ${
+                  isCurrent
+                    ? "bg-white/[0.05] ring-1 ring-inset ring-white/[0.07]"
+                    : "bg-transparent"
+                }`}
+              >
+                {/* Icon / status node */}
+                <div className="relative flex-shrink-0 w-4 h-4 flex items-center justify-center">
                   {step.done ? (
-                    <Check className="h-2.5 w-2.5 flex-shrink-0 stroke-[3]" />
-                  ) : (
                     <motion.div
-                      animate={isCurrent ? { rotate: 360 } : {}}
-                      transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                      className="flex items-center justify-center"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 20 }}
                     >
-                      <Icon className="h-2.5 w-2.5 flex-shrink-0" />
+                      <Check className="h-3.5 w-3.5 text-emerald-400 stroke-[3]" />
                     </motion.div>
+                  ) : isCurrent ? (
+                    <Loader2 className={`h-3.5 w-3.5 animate-spin ${accent}`} />
+                  ) : (
+                    <Icon className="h-3.5 w-3.5 text-white/25" />
                   )}
-                </motion.div>
+                </div>
 
-                {/* Pulse ring for active step */}
-                {isCurrent && (
-                  <span className={`absolute -inset-1 rounded-full border border-dashed animate-spin ${
-                    isDeepSeek ? "border-blue-500/30" : "border-[#ccff00]/30"
-                  }`} style={{ animationDuration: '6s' }} />
+                {/* Tool-type icon chip (only meaningful for activity steps) */}
+                {!step.done && isCurrent && (
+                  <Icon className={`h-3 w-3 flex-shrink-0 ${accent}`} />
                 )}
-              </div>
 
-              {/* Text details */}
-              <div className="flex-1 min-w-0 flex flex-col gap-0.5 mt-0.5">
-                <div className="flex items-baseline gap-2 min-w-0">
-                  <motion.span
-                    layout
-                    className={`font-semibold transition-colors truncate tracking-wide ${
+                {/* Label + detail */}
+                <div className="flex items-baseline gap-2 min-w-0 flex-1">
+                  <span
+                    className={`text-[12px] leading-tight truncate transition-colors ${
                       step.done
-                        ? "text-white/30 line-through"
+                        ? "text-white/35"
                         : isCurrent
-                        ? "text-white font-bold"
-                        : "text-white/50"
+                        ? "text-white font-medium"
+                        : "text-white/55"
                     }`}
                   >
                     {step.label}
-                  </motion.span>
+                  </span>
                   {detail && (
-                    <span className="text-[10px] font-mono text-white/30 truncate flex-shrink min-w-0">
+                    <span className="text-[10px] font-mono text-white/25 truncate flex-shrink min-w-0">
                       {detail}
                     </span>
                   )}
                 </div>
-
-                {/* Subtext description / shimmer progress bar for the active step */}
-                {isCurrent && (
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: "100%" }}
-                    className="h-[1.5px] rounded-full overflow-hidden bg-white/5 mt-1 max-w-[150px]"
-                  >
-                    <motion.div
-                      className={`h-full bg-gradient-to-r ${
-                        isDeepSeek ? "from-blue-500 to-indigo-500" : "from-[#ccff00] to-emerald-400"
-                      }`}
-                      animate={{ x: ["-100%", "100%"] }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 1.5,
-                        ease: "linear",
-                      }}
-                      style={{ width: "50%" }}
-                    />
-                  </motion.div>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

@@ -20,7 +20,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Build tag so we can verify which code is actually running (GET /version).
-const BUILD_TAG = 'kiro-proxy-v13-history';
+const BUILD_TAG = 'kiro-proxy-v14-credits';
 
 // Where per-session project files are materialized.
 const SESSIONS_ROOT = process.env.KIRO_SESSIONS_ROOT || '/tmp/kiro-sessions';
@@ -329,6 +329,8 @@ app.post('/v1/mcp-agent', async (req: Request, res: Response) => {
       message: extractSummary(result.stdout) || 'Done.',
       appliedLive: true,
       exitCode: result.code,
+      // Real credits consumed (from the kiro-cli footer), when available.
+      credits: result.credits,
     });
     res.write('event: done\ndata: {}\n\n');
     return res.end();
@@ -452,6 +454,8 @@ app.post('/v1/agent', async (req: Request, res: Response) => {
       changed,
       warnings,
       exitCode: result.code,
+      // Real credits consumed (from the kiro-cli footer), when available.
+      credits: result.credits,
     });
     res.write('event: done\ndata: {}\n\n');
     return res.end();

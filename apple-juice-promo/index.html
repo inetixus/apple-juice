@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #0a0c14;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #f2f4f8;
+      }
+
+      #root { position: absolute; inset: 0; background: #0a0c14; }
+
+      /* shared backdrop: radial depth + faint grid (no full-screen linear gradient → avoids H.264 banding) */
+      #bg-glow {
+        position: absolute; top: 42%; left: 50%; width: 1500px; height: 1500px;
+        margin: -750px 0 0 -750px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(204,255,0,0.10) 0%, rgba(204,255,0,0) 60%);
+        filter: blur(12px); z-index: 0;
+      }
+      #bg-grid {
+        position: absolute; inset: 0; z-index: 0;
+        background-image:
+          linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 72px 72px;
+        mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 72%);
+        -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 72%);
+      }
+
+      .scene { position: absolute; inset: 0; z-index: 2; }
+      .scene-content {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        width: 100%; height: 100%; padding: 120px 160px; gap: 28px; box-sizing: border-box;
+      }
+      .accent { color: #ccff00; }
+      .overlay-label {
+        position: absolute; left: 50%; bottom: 130px; transform: translateX(-50%);
+        font-size: 40px; font-weight: 700; letter-spacing: 0.5px; color: #ccff00;
+        text-shadow: 0 0 24px rgba(204,255,0,0.45); white-space: nowrap; z-index: 5;
+      }
+
+      /* ── Scene 1 — Hook ── */
+      #s1-text { font-size: 104px; font-weight: 800; letter-spacing: -2px; text-align: center; }
+      #s1-caret { display: inline-block; width: 6px; height: 92px; background: #ccff00;
+        transform: translateY(16px); margin-left: 6px; box-shadow: 0 0 18px rgba(204,255,0,0.7); }
+
+      /* ── Scene 2 — Intro & app reveal ── */
+      #s2 .logo-row { display: flex; align-items: center; gap: 26px; }
+      #s2 .emoji { font-size: 120px; filter: drop-shadow(0 12px 30px rgba(204,255,0,0.4)); }
+      #s2 .brand { font-size: 110px; font-weight: 800; letter-spacing: -3px; }
+      #dashboard {
+        position: absolute; left: 50%; top: 56%; width: 1180px; height: 600px;
+        margin: -300px 0 0 -590px; background: #11141d; border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 18px; box-shadow: 0 40px 120px rgba(0,0,0,0.6), 0 0 60px rgba(204,255,0,0.06);
+        overflow: hidden; z-index: 3;
+      }
+      #dashboard .bar { height: 50px; background: #0d0f17; border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex; align-items: center; gap: 10px; padding: 0 20px; }
+      #dashboard .dot { width: 13px; height: 13px; border-radius: 50%; }
+      #dashboard .body { display: flex; height: calc(100% - 50px); }
+      #dashboard .side { width: 300px; border-right: 1px solid rgba(255,255,255,0.06); padding: 24px 22px; }
+      #dashboard .side .row { height: 16px; border-radius: 6px; background: rgba(255,255,255,0.07); margin-bottom: 16px; }
+      #dashboard .side .row.short { width: 60%; }
+      #dashboard .side .row.lime { background: rgba(204,255,0,0.5); width: 75%; }
+      #dashboard .main { flex: 1; padding: 30px 34px; }
+      #dashboard .main .block { height: 22px; border-radius: 7px; background: rgba(255,255,255,0.06); margin-bottom: 20px; }
+      #dashboard .main .block.w70 { width: 70%; } #dashboard .main .block.w90 { width: 90%; } #dashboard .main .block.w50 { width: 50%; }
+      #dashboard .main .pill { display: inline-block; margin-top: 10px; padding: 14px 28px; border-radius: 10px;
+        background: #ccff00; color: #0a0c14; font-weight: 800; font-size: 22px; }
+      #terminal {
+        position: absolute; right: 150px; bottom: 150px; width: 560px; height: 250px;
+        background: #0d1016; border: 1px solid rgba(204,255,0,0.35); border-radius: 14px;
+        box-shadow: 0 24px 70px rgba(0,0,0,0.6), 0 0 40px rgba(204,255,0,0.18);
+        padding: 22px 26px; z-index: 4; font-family: "Courier New", monospace;
+      }
+      #terminal .tprompt { color: #ccff00; font-size: 22px; line-height: 1.7; }
+      #terminal .tdim { color: rgba(255,255,255,0.5); font-size: 20px; line-height: 1.7; }
+
+      /* ── Scene 3 — The Magic ── */
+      #magicInput {
+        position: absolute; left: 50%; top: 230px;
+        width: 1100px; background: #11141d; border: 2px solid rgba(204,255,0,0.5); border-radius: 16px;
+        padding: 28px 32px; font-size: 34px; color: #f2f4f8; z-index: 4;
+        box-shadow: 0 0 50px rgba(204,255,0,0.12);
+      }
+      #magicInput .caret { display: inline-block; width: 4px; height: 36px; background: #ccff00;
+        transform: translateY(8px); margin-left: 3px; }
+      #codeWindow {
+        position: absolute; left: 50%; top: 400px;
+        width: 1100px; height: 520px; background: #0d1016; border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px; padding: 30px 38px; z-index: 3; box-shadow: 0 30px 90px rgba(0,0,0,0.55);
+        font-family: "Courier New", monospace;
+      }
+      #codeWindow .cl { font-size: 24px; line-height: 1.85; white-space: nowrap; }
+      #codeWindow .kw { color: #ccff00; } #codeWindow .fn { color: #7dd3fc; }
+      #codeWindow .str { color: #fca5a5; } #codeWindow .cm { color: rgba(255,255,255,0.4); } #codeWindow .nm { color: #fcd34d; }
+
+      /* ── Scene 4 — Instant Sync ── */
+      #s4 .node {
+        position: absolute; top: 50%; width: 280px; height: 280px; margin-top: -140px;
+        border-radius: 28px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 16px; font-size: 28px; font-weight: 700; z-index: 3;
+      }
+      #node-code { left: 300px; background: #0d1016; border: 1px solid rgba(204,255,0,0.4);
+        box-shadow: 0 0 50px rgba(204,255,0,0.15); }
+      #node-code .ic { font-size: 84px; }
+      #node-studio { right: 300px; background: #11141d; border: 1px solid rgba(255,255,255,0.12); }
+      #node-studio .ic { font-size: 84px; }
+      #wire { position: absolute; top: 50%; left: 580px; width: 760px; height: 6px; margin-top: -3px;
+        background: rgba(255,255,255,0.08); border-radius: 6px; z-index: 2; overflow: visible; }
+      #wireFill { position: absolute; inset: 0; background: linear-gradient(90deg, #ccff00, #a6cc00);
+        border-radius: 6px; transform-origin: left center; box-shadow: 0 0 18px rgba(204,255,0,0.6); }
+      .packet { position: absolute; top: 50%; left: 580px; width: 26px; height: 26px; margin-top: -13px;
+        border-radius: 50%; background: #ccff00; box-shadow: 0 0 22px rgba(204,255,0,0.9); z-index: 4; }
+
+      /* ── Scene 5 — Outro ── */
+      #s5 .lock { font-size: 110px; filter: drop-shadow(0 0 30px rgba(204,255,0,0.5)); }
+      #s5 .byok { font-size: 64px; font-weight: 800; letter-spacing: -1px; }
+      #s5 .byok-sub { font-size: 34px; color: rgba(242,244,248,0.65); font-weight: 500; }
+      #outroLogo { position: absolute; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 22px; z-index: 6; }
+      #outroLogo .row { display: flex; align-items: center; gap: 22px; }
+      #outroLogo .emoji { font-size: 96px; filter: drop-shadow(0 10px 26px rgba(204,255,0,0.4)); }
+      #outroLogo .brand { font-size: 92px; font-weight: 800; letter-spacing: -3px; }
+      #outroLogo .credit { font-size: 32px; color: rgba(242,244,248,0.7); font-weight: 500; }
+      #outroLogo .credit b { color: #ccff00; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="apple-juice-promo"
+         data-start="0" data-duration="45" data-width="1920" data-height="1080">
+
+      <div id="bg-glow"></div>
+      <div id="bg-grid"></div>
+
+      <!-- ── SCENE 1 — Hook (0–5s) ── -->
+      <div id="s1" class="scene clip" data-start="0" data-duration="5.4" data-track-index="0">
+        <div class="scene-content">
+          <div id="s1-text"><span id="s1-typed"></span><span id="s1-caret"></span></div>
+        </div>
+      </div>
+
+      <!-- ── SCENE 2 — Intro & App Reveal (5–15s) ── -->
+      <div id="s2" class="scene clip" data-start="5" data-duration="10.4" data-track-index="1">
+        <div class="logo-row" style="position:absolute; left:50%; top:160px; transform:translateX(-50%);">
+          <div class="emoji">🧃</div>
+          <div class="brand">Apple<span class="accent">Juice</span></div>
+        </div>
+        <div id="dashboard">
+          <div class="bar">
+            <span class="dot" style="background:#ff5f57"></span>
+            <span class="dot" style="background:#febc2e"></span>
+            <span class="dot" style="background:#28c840"></span>
+            <span style="margin-left:14px; font-size:16px; color:rgba(255,255,255,0.7);">Apple Juice — Dashboard</span>
+          </div>
+          <div class="body">
+            <div class="side">
+              <div class="row lime"></div><div class="row"></div><div class="row short"></div>
+              <div class="row"></div><div class="row short"></div><div class="row"></div>
+            </div>
+            <div class="main">
+              <div class="block w90"></div><div class="block w70"></div>
+              <div class="block w50"></div><div class="block w90"></div>
+              <div class="pill">Generate ↑</div>
+            </div>
+          </div>
+        </div>
+        <div id="terminal">
+          <div class="tprompt">$ aj sync</div>
+          <div class="tdim">→ paired with Studio</div>
+          <div class="tdim">→ watching project…</div>
+          <div class="tprompt">✓ CLI companion ready</div>
+        </div>
+        <div id="s2-label" class="overlay-label">The 1st AI Code Tool for Roblox</div>
+      </div>
+
+      <!-- ── SCENE 3 — The Magic (15–25s) ── -->
+      <div id="s3" class="scene clip" data-start="15" data-duration="10.4" data-track-index="2">
+        <div id="magicInput"><span id="magicTyped"></span><span class="caret"></span></div>
+        <div id="codeWindow">
+          <div class="cl"><span class="cm">-- MatchmakingLobby.lua</span></div>
+          <div class="cl"><span class="kw">local</span> Players = game:<span class="fn">GetService</span>(<span class="str">"Players"</span>)</div>
+          <div class="cl"><span class="kw">local</span> queue = {}</div>
+          <div class="cl"><span class="kw">local</span> LOBBY_TIME = <span class="nm">30</span></div>
+          <div class="cl">&nbsp;</div>
+          <div class="cl"><span class="kw">local function</span> <span class="fn">startMatch</span>()</div>
+          <div class="cl">&nbsp;&nbsp;<span class="kw">for</span> _, plr <span class="kw">in</span> queue <span class="kw">do</span></div>
+          <div class="cl">&nbsp;&nbsp;&nbsp;&nbsp;<span class="fn">teleport</span>(plr)</div>
+          <div class="cl">&nbsp;&nbsp;<span class="kw">end</span></div>
+          <div class="cl"><span class="kw">end</span></div>
+        </div>
+        <div id="s3-label" class="overlay-label">Natural language to Luau, instantly.</div>
+      </div>
+
+      <!-- ── SCENE 4 — Instant Sync (25–35s) ── -->
+      <div id="s4" class="scene clip" data-start="25" data-duration="10.4" data-track-index="3">
+        <div id="wire"><div id="wireFill"></div></div>
+        <div id="packet" class="packet"></div>
+        <div id="node-code" class="node"><div class="ic">📄</div><div>Luau Code</div></div>
+        <div id="node-studio" class="node"><div class="ic">🟦</div><div>Roblox Studio</div></div>
+        <div id="s4-label" class="overlay-label">Zero copy-pasting. Instant Studio Sync.</div>
+      </div>
+
+      <!-- ── SCENE 5 — Outro (35–45s) ── -->
+      <div id="s5" class="scene clip" data-start="35" data-duration="10" data-track-index="4">
+        <div id="byokGroup" class="scene-content" style="gap:22px;">
+          <div class="lock">🔒</div>
+          <div class="byok">BYOK — <span class="accent">Your Keys. Your Privacy.</span></div>
+          <div class="byok-sub">Bring your own OpenAI or Gemini key. 100% private.</div>
+        </div>
+        <div id="outroLogo" style="opacity:0;">
+          <div class="row">
+            <div class="emoji">🧃</div>
+            <div class="brand">Apple<span class="accent">Juice</span></div>
+          </div>
+          <div class="credit">Level up your game. Built by <b>inetixus</b>.</div>
+          <div class="credit" style="font-size:26px; color:rgba(242,244,248,0.5);">Link in description ↓</div>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true, defaults: { ease: "power3.out" } });
+
+      const TOTAL = 45;
+
+      /* Ambient backdrop pulse for the whole video (finite repeat). */
+      const pulseCycle = 5;
+      tl.to("#bg-glow", {
+        opacity: 0.6, scale: 1.12, duration: pulseCycle, ease: "sine.inOut",
+        yoyo: true, repeat: Math.floor(TOTAL / pulseCycle) - 1,
+      }, 0);
+
+      /* ── SCENE 1 — Hook: kinetic typewriter ───────────────────────────── */
+      const s1str = "Struggling with Luau scripts?";
+      const s1state = { i: 0 };
+      tl.to(s1state, {
+        i: s1str.length, duration: 2.4, ease: "none",
+        onUpdate: () => {
+          const el = document.querySelector("#s1-typed");
+          if (el) el.textContent = s1str.slice(0, Math.round(s1state.i));
+        },
+      }, 0.3);
+      // caret blink (finite)
+      tl.to("#s1-caret", { opacity: 0, duration: 0.5, ease: "steps(1)", yoyo: true, repeat: 7 }, 0.3);
+      // fluid slide-away of the whole hook line as it transitions out
+      tl.to("#s1-text", { x: -260, opacity: 0, duration: 0.8, ease: "expo.inOut" }, 4.4);
+
+      /* ── SCENE 2 — Intro & app reveal ─────────────────────────────────── */
+      tl.from("#s2 .logo-row", { y: -60, opacity: 0, duration: 0.8, ease: "power3.out" }, 5.2);
+      tl.from("#s2 .emoji", { scale: 0, rotation: -40, duration: 0.9, ease: "back.out(1.7)" }, 5.3);
+      tl.from("#dashboard", { y: 120, opacity: 0, scale: 0.95, duration: 1.0, ease: "expo.out" }, 5.9);
+      tl.from("#dashboard .side .row", { x: -24, opacity: 0, duration: 0.4, stagger: 0.08, ease: "power2.out" }, 6.6);
+      tl.from("#dashboard .main .block", { x: 24, opacity: 0, duration: 0.4, stagger: 0.1, ease: "power2.out" }, 6.9);
+      tl.from("#dashboard .main .pill", { scale: 0.6, opacity: 0, duration: 0.5, ease: "back.out(2)" }, 7.6);
+      // CLI terminal pops up
+      tl.from("#terminal", { y: 80, opacity: 0, scale: 0.9, duration: 0.7, ease: "back.out(1.5)" }, 8.6);
+      tl.from("#terminal .tprompt, #terminal .tdim", { opacity: 0, x: -10, duration: 0.3, stagger: 0.18, ease: "power1.out" }, 9.0);
+      tl.from("#s2-label", { y: 40, opacity: 0, duration: 0.7, ease: "power3.out" }, 10.4);
+
+      /* ── SCENE 3 — The Magic: typed prompt → code generates block by block ── */
+      // Re-establish horizontal centering via GSAP (CSS translateX removed to
+      // avoid transform conflict) — set at the scene boundary, then fromTo keeps it.
+      tl.set("#magicInput", { xPercent: -50 }, 15);
+      tl.set("#codeWindow", { xPercent: -50 }, 15);
+      tl.fromTo("#magicInput", { xPercent: -50, y: -40, opacity: 0, scale: 0.96 },
+        { xPercent: -50, y: 0, opacity: 1, scale: 1, duration: 0.7, ease: "expo.out" }, 15.3);
+      const s3str = "Create a 30s matchmaking lobby";
+      const s3state = { i: 0 };
+      tl.to(s3state, {
+        i: s3str.length, duration: 2.0, ease: "none",
+        onUpdate: () => {
+          const el = document.querySelector("#magicTyped");
+          if (el) el.textContent = s3str.slice(0, Math.round(s3state.i));
+        },
+      }, 15.8);
+      tl.fromTo("#codeWindow", { xPercent: -50, y: 50, opacity: 0 },
+        { xPercent: -50, y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 18.2);
+      // code lines generate block by block
+      tl.from("#codeWindow .cl", { opacity: 0, x: -16, duration: 0.32, stagger: 0.2, ease: "power2.out" }, 18.6);
+      tl.from("#s3-label", { y: 40, opacity: 0, duration: 0.7, ease: "power3.out" }, 23.4);
+
+      /* ── SCENE 4 — Instant Sync: data flow code → Studio ──────────────── */
+      tl.from("#node-code", { x: -80, opacity: 0, scale: 0.85, duration: 0.7, ease: "expo.out" }, 25.3);
+      tl.from("#node-studio", { x: 80, opacity: 0, scale: 0.85, duration: 0.7, ease: "expo.out" }, 25.5);
+      tl.from("#wire", { scaleX: 0, opacity: 0, duration: 0.5, transformOrigin: "left center", ease: "power2.out" }, 26.0);
+      // wire fills + packet travels across (repeats a few times)
+      tl.fromTo("#wireFill", { scaleX: 0 }, { scaleX: 1, duration: 1.0, ease: "power2.inOut" }, 26.4);
+      const packetCycle = 1.6;
+      const packetRepeats = 3;
+      tl.fromTo("#packet",
+        { x: 0, opacity: 0 },
+        { keyframes: [
+            { opacity: 1, duration: 0.1 },
+            { x: 760, duration: packetCycle - 0.3, ease: "power1.inOut" },
+            { opacity: 0, duration: 0.2 },
+          ], repeat: packetRepeats - 1 }, 26.6);
+      // studio node confirms with a glow pop on each arrival
+      tl.to("#node-studio", { boxShadow: "0 0 60px rgba(204,255,0,0.5)", duration: 0.4, yoyo: true, repeat: packetRepeats * 2 - 1, ease: "sine.inOut" }, 27.6);
+      tl.from("#s4-label", { y: 40, opacity: 0, duration: 0.7, ease: "power3.out" }, 33.2);
+
+      /* ── SCENE 5 — Outro: BYOK → logo (only scene allowed to exit) ────── */
+      tl.from("#s5 .lock", { scale: 0, rotation: -20, opacity: 0, duration: 0.8, ease: "back.out(1.7)" }, 35.3);
+      tl.from("#s5 .byok", { y: 40, opacity: 0, duration: 0.6, ease: "power3.out" }, 35.7);
+      tl.from("#s5 .byok-sub", { y: 30, opacity: 0, duration: 0.6, ease: "power2.out" }, 36.0);
+      // BYOK group fades out, logo lockup fades in (final-scene exit is allowed)
+      tl.to("#byokGroup", { opacity: 0, y: -40, duration: 0.7, ease: "power2.in" }, 39.5);
+      tl.to("#outroLogo", { opacity: 1, duration: 0.8, ease: "power2.out" }, 40.2);
+      tl.from("#outroLogo .emoji", { scale: 0, rotation: -30, duration: 0.8, ease: "back.out(1.7)" }, 40.4);
+      tl.from("#outroLogo .brand", { y: 40, opacity: 0, duration: 0.6, ease: "power3.out" }, 40.7);
+      tl.from("#outroLogo .credit", { y: 24, opacity: 0, duration: 0.5, stagger: 0.2, ease: "power2.out" }, 41.2);
+      tl.to("#outroLogo .row", { scale: 1.04, duration: 1.0, ease: "sine.inOut", yoyo: true, repeat: 1 }, 42.4);
+
+      window.__timelines["apple-juice-promo"] = tl;
+    </script>
+  </body>
+</html>

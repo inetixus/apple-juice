@@ -1,0 +1,99 @@
+0:00 - 0:11 | The Initial Generation
+A black pixelated cursor clicks a pill-shaped "Design" button on a cream background.
+
+The button expands seamlessly into a rounded text input container.
+
+The user types a prompt requesting an interactive, dark-themed globe showing culture flows.
+
+The background transitions into a dark, faint map of Europe and Africa.
+
+Two files (flows.docx, cities.xlsx) attach to the top of the input field.
+
+The user clicks the coral "Send" button.
+
+The text input container morphs down into a small pill reading "❇️ Designing...", shifts to "❇️ Edi", and becomes a square icon.
+
+The background map illuminates with glowing teal paths connecting major global cities.
+
+0:11 - 0:28 | Breakpoints & Live Tweaking
+The camera snaps back, revealing the full web IDE interface.
+
+The left panel displays a vertical progress checklist.
+
+The center canvas holds the generated globe UI, complete with title and numerical stats.
+
+The cursor selects the "Tweaks" tab in the right-hand panel.
+
+A pop-up input field appears. The user commands it to add globe controls and breakpoint options.
+
+The input field morphs to read "⭕ Soldering...".
+
+Checkmarks populate the left-hand progress list.
+
+The right panel generates a "BREAKPOINT" toggle group and a complex "NETWORK" slider interface.
+
+The cursor drags the "Pulse speed" slider to the left.
+
+The cursor clicks the "MOBILE" breakpoint button.
+
+The center UI instantly scales down to fit a vertical mobile phone ratio.
+
+0:28 - 0:46 | The Infinite Canvas & Dark Mode
+The camera rapidly zooms out to an infinite canvas view displaying dozens of disparate UI projects, then dives into a white mobile meditation app.
+
+The cursor clicks a palette icon on the mobile UI screen.
+
+The right panel shifts to a typography and theme selector.
+
+The cursor selects a green "Moss" swatch, changing the app's accent color to light green.
+
+The user clicks "Comment", drops a pin on the UI, and prompts the AI to add a dark mode toggle.
+
+The input field morphs to "💥 Dimming...".
+
+A "Dark mode" toggle switch appears in the top right of the "TWEAKS" panel.
+
+The user clicks the toggle, and the entire mobile app instantly shifts to a deep charcoal theme.
+
+0:46 - 0:58 | Component Swapping & Typography
+The camera pans across the infinite canvas to a desktop landing page for "Hemlark Retreat '26" featuring a forest image.
+
+The user clicks "Comment", drops a pin directly on the image, and types "Swap this to the coastline photo".
+
+The forest image instantly swaps to an aerial shot of a rocky coastline.
+
+The cursor selects the "Knobs" tab at the top.
+
+A floating CSS-style property panel appears next to the headline.
+
+The user clicks the "Size: 60px" field. The typography scales up fluidly in real-time.
+
+0:58 - 1:12 | Data Visualization & Exporting
+The camera pans to a new canvas showing a blue analytics dashboard.
+
+The user clicks "Comment", pins a bar chart, and types "Make this a line graph instead?".
+
+The vertical bars seamlessly animate and morph into a line graph with data nodes.
+
+The cursor moves to the main top navigation bar and clicks "Export".
+
+A dropdown menu lists multiple options (.zip, PDF, PPTX, Canva, HTML, Claude Code).
+
+The user selects "Handoff to Claude Code".
+
+A centered modal appears titled "Send to local coding agent" displaying a terminal command path.
+
+The user clicks "Copy command".
+
+The camera executes a massive pull-out, revealing the full scale of the infinite canvas.
+
+1:12 - 1:21 | Outro Sequence
+The screen cuts back to the initial cream background.
+
+The original "Design" pill button sits in the center.
+
+The text "by Anthropic Labs" fades in directly below it.
+
+The pill button collapses inward into a coral-colored, rotating asterisk.
+
+The asterisk slides to the left as the word "Claude" fades in beside it.

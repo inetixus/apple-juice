@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #F8F6F0; /* Anthropic/Claude warm cream */
+        color: #2D2D2A;
+        font-family: 'Inter', sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      
+      #root { position: absolute; inset: 0; background: #F8F6F0; }
+      
+      /* Subtle noise texture for organic feel */
+      #noise {
+        position: absolute; inset: 0; z-index: 10;
+        background-image: url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22 opacity=%220.03%22/%3E%3C/svg%3E');
+        pointer-events: none; opacity: 0;
+      }
+
+      .scene { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      
+      .serif { font-family: 'Playfair Display', serif; }
+      .accent { color: #D66C44; /* Earthy Claude-like orange-rust */ }
+      .juice-accent { color: #6A8A24; /* Elegant muted lime/olive for Apple Juice */ }
+
+      /* ── Scene 1 — Hook ── */
+      #s1-text {
+        font-size: 96px; font-weight: 400; text-align: center; line-height: 1.1;
+        letter-spacing: -1px; opacity: 0;
+      }
+
+      /* ── Scene 2 — Minimal Canvas/Dashboard ── */
+      #s2 { gap: 60px; }
+      #canvas-window {
+        width: 1200px; height: 680px;
+        background: #FFFFFF; border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 12px; box-shadow: 0 24px 64px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.02);
+        display: flex; flex-direction: column; overflow: hidden;
+      }
+      #canvas-header {
+        height: 64px; border-bottom: 1px solid rgba(0,0,0,0.04);
+        display: flex; align-items: center; justify-content: space-between; padding: 0 32px;
+        background: #FCFCFA;
+      }
+      #canvas-header .dots { display: flex; gap: 8px; }
+      #canvas-header .dot { width: 10px; height: 10px; border-radius: 50%; background: #E5E5E0; }
+      #canvas-header .title { font-size: 15px; font-weight: 500; color: #8F8F8A; letter-spacing: 0.5px; }
+      
+      #canvas-body { display: flex; flex: 1; }
+      #canvas-sidebar {
+        width: 280px; border-right: 1px solid rgba(0,0,0,0.04); background: #FCFCFA; padding: 32px 24px;
+      }
+      .skeleton-line { height: 12px; background: #F0F0EA; border-radius: 4px; margin-bottom: 16px; }
+      .skeleton-line.w-full { width: 100%; }
+      .skeleton-line.w-half { width: 50%; }
+      .skeleton-line.w-third { width: 33%; }
+      .skeleton-line.active { background: #EAE6D9; }
+
+      #canvas-main { flex: 1; padding: 64px; position: relative; }
+      
+      /* Chat input overlay */
+      #chat-input {
+        position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+        width: 600px; background: #FFFFFF; border: 1px solid rgba(0,0,0,0.08);
+        border-radius: 24px; padding: 18px 24px;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.05);
+        display: flex; align-items: center; gap: 16px;
+      }
+      #chat-prompt { font-size: 18px; color: #2D2D2A; }
+      #chat-prompt .caret { display: inline-block; width: 2px; height: 20px; background: #D66C44; transform: translateY(3px); }
+
+      /* Generated code block */
+      #generated-code {
+        width: 100%; padding: 40px; background: #F8F6F0; border-radius: 8px;
+        font-family: 'Courier New', monospace; font-size: 16px; line-height: 1.6;
+        color: #4A4A45; border: 1px solid rgba(0,0,0,0.03); opacity: 0;
+      }
+
+      /* ── Scene 3 — Final Lockup ── */
+      #s3-logo { display: flex; flex-direction: column; align-items: center; gap: 32px; opacity: 0; }
+      #s3-icon {
+        width: 80px; height: 80px; background: #FFFFFF; border: 1px solid rgba(0,0,0,0.06);
+        border-radius: 20px; display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.03); font-size: 40px;
+      }
+      #s3-title { font-size: 64px; font-weight: 400; letter-spacing: -1px; }
+      #s3-subtitle { font-size: 20px; color: #8F8F8A; letter-spacing: 0.5px; font-weight: 400; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="apple-juice-anthropic-promo" data-start="0" data-duration="25" data-width="1920" data-height="1080">
+      
+      <div id="noise" class="clip" data-start="0" data-duration="25" data-track-index="0"></div>
+
+      <!-- Scene 1: Hook -->
+      <div id="s1" class="scene clip" data-start="0" data-duration="5" data-track-index="1">
+        <div id="s1-text" class="serif">
+          Introducing<br><span class="accent">Apple Juice</span>
+        </div>
+      </div>
+
+      <!-- Scene 2: The Interface -->
+      <div id="s2" class="scene clip" data-start="4.5" data-duration="14" data-track-index="2">
+        <div id="canvas-window">
+          <div id="canvas-header">
+            <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+            <div class="title">Apple Juice Workspace</div>
+            <div style="width:46px;"></div>
+          </div>
+          <div id="canvas-body">
+            <div id="canvas-sidebar">
+              <div class="skeleton-line w-full active" style="margin-bottom: 32px;"></div>
+              <div class="skeleton-line w-half"></div>
+              <div class="skeleton-line w-full"></div>
+              <div class="skeleton-line w-third"></div>
+            </div>
+            <div id="canvas-main">
+              <div id="generated-code">
+                <div><span style="color:#8F8F8A;">-- Generated by Apple Juice</span></div>
+                <div class="cl"></div>
+                <div class="cl"></div>
+                <div class="cl"></div>
+                <div class="cl"></div>
+                <div class="cl"></div>
+                <div class="cl"></div>
+              </div>
+              <div id="chat-input">
+                <div style="width: 24px; height: 24px; background: #F0F0EA; border-radius: 6px;"></div>
+                <div id="chat-prompt"><span id="typed-text"></span><span class="caret"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scene 3: Outro -->
+      <div id="s3" class="scene clip" data-start="18" data-duration="7" data-track-index="3">
+        <div id="s3-logo">
+          <div id="s3-icon">🧃</div>
+          <div id="s3-title" class="serif">Apple Juice</div>
+          <div id="s3-subtitle">Intelligent design for Roblox Studio</div>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      // Use smooth, elegant easing similar to Anthropic/Claude
+      const tl = gsap.timeline({ paused: true, defaults: { ease: "power4.inOut" } });
+
+      // Ambient noise fade in
+      tl.to("#noise", { opacity: 1, duration: 2 }, 0);
+
+      // --- Scene 1 ---
+      // Elegant fade and slight lift
+      tl.fromTo("#s1-text", 
+        { y: 30, opacity: 0 }, 
+        { y: 0, opacity: 1, duration: 2 }, 0.5);
+      
+      // Fade out Scene 1
+      tl.to("#s1-text", { y: -20, opacity: 0, duration: 1.5 }, 3.5);
+
+      // --- Scene 2 ---
+      // Canvas window scales up softly
+      tl.fromTo("#canvas-window",
+        { scale: 0.95, opacity: 0, y: 40 },
+        { scale: 1, opacity: 1, y: 0, duration: 2 }, 4.5);
+      
+      // Chat input slides in
+      tl.fromTo("#chat-input",
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 1.5, ease: "power3.out" }, 5.5);
+
+      // Typing animation
+      const promptText = "Build a responsive matchmaking UI.";
+      const typeState = { i: 0 };
+      tl.to(typeState, {
+        i: promptText.length,
+        duration: 2.5,
+        ease: "none",
+        onUpdate: () => {
+          document.getElementById("typed-text").textContent = promptText.slice(0, Math.round(typeState.i));
+        }
+      }, 7.0);
+
+      // Caret blink
+      tl.to(".caret", { opacity: 0, duration: 0.4, ease: "steps(1)", repeat: 10, yoyo: true }, 6.0);
+
+      // Code block appears gracefully
+      tl.fromTo("#generated-code",
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 1.5 }, 10.5);
+
+      // Populate code block lines sequentially
+      const codeLines = [
+        "local ui = Instance.new('ScreenGui')",
+        "local frame = Instance.new('Frame')",
+        "frame.Size = UDim2.new(0.5, 0, 0.5, 0)",
+        "frame.Position = UDim2.new(0.25, 0, 0.25, 0)",
+        "frame.BackgroundColor3 = Color3.fromRGB(24, 24, 24)",
+        "frame.Parent = ui"
+      ];
+      
+      codeLines.forEach((line, index) => {
+        tl.add(() => {
+          const els = document.querySelectorAll("#generated-code .cl");
+          if(els[index]) {
+            els[index].textContent = line;
+            gsap.fromTo(els[index], {opacity: 0, x: -10}, {opacity: 1, x: 0, duration: 0.8, ease: "power3.out"});
+          }
+        }, 11.5 + (index * 0.4));
+      });
+
+      // Canvas window fades out softly
+      tl.to("#canvas-window", { scale: 1.02, opacity: 0, duration: 1.5 }, 17.5);
+
+      // --- Scene 3 ---
+      // Logo and outro text fade in
+      tl.fromTo("#s3-logo",
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 2 }, 18.5);
+      
+      // Gentle floating of the icon
+      tl.to("#s3-icon", { y: -10, duration: 2, ease: "sine.inOut", yoyo: true, repeat: 2 }, 19.5);
+
+      window.__timelines["apple-juice-anthropic-promo"] = tl;
+    </script>
+  </body>
+</html>

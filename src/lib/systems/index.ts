@@ -26,6 +26,14 @@ export { ABILITIES_SYSTEM } from "./abilities";
 export { MAP_VOTING_SYSTEM } from "./map-voting";
 export { BLOCK_BUILDING_SYSTEM } from "./block-building";
 
+// Small focused drop-in scripts (kill bricks, teleporters, sprint, tools, etc.)
+export {
+  SCRIPT_SNIPPETS,
+  getRelevantSnippets,
+  buildSnippetsContextBlock,
+  type ScriptSnippet,
+} from "./snippets";
+
 import { ECONOMY_SYSTEM } from "./economy";
 import { ROUND_SYSTEM } from "./rounds";
 import { NPC_SYSTEM } from "./npc-dialogue";

@@ -5,6 +5,7 @@ import {
   OUTPUT_ML_MULTIPLIER,
   PLAN_LIMITS,
   MODEL_MULTIPLIERS,
+  mlFromCredits,
 } from "./store";
 
 describe("calculateMlUsed", () => {
@@ -75,9 +76,44 @@ describe("PLAN_LIMITS", () => {
     expect(PLAN_LIMITS.free.maxProjects).toBeLessThan(PLAN_LIMITS.pure_ultra.maxProjects);
   });
 
+  it("places Partner (invite-only) between Free and Pro on allowance", () => {
+    expect(PLAN_LIMITS.free.dailyMl).toBeLessThan(PLAN_LIMITS.partner.dailyMl);
+    expect(PLAN_LIMITS.partner.dailyMl).toBeLessThan(PLAN_LIMITS.fresh_pro.dailyMl);
+    expect(PLAN_LIMITS.partner.maxChatTransfers).toBeGreaterThan(0);
+  });
+
+  it("defines an escalating monthly ceiling per tier (cost guardrail)", () => {
+    expect(PLAN_LIMITS.free.maxMonthlyMl).toBeLessThan(PLAN_LIMITS.partner.maxMonthlyMl);
+    expect(PLAN_LIMITS.partner.maxMonthlyMl).toBeLessThan(PLAN_LIMITS.fresh_pro.maxMonthlyMl);
+    expect(PLAN_LIMITS.fresh_pro.maxMonthlyMl).toBeLessThan(PLAN_LIMITS.pure_ultra.maxMonthlyMl);
+    // Monthly ceiling must exceed a single day's allowance, or it'd cap mid-day-1.
+    for (const tier of ["free", "partner", "fresh_pro", "pure_ultra"] as const) {
+      expect(PLAN_LIMITS[tier].maxMonthlyMl).toBeGreaterThan(PLAN_LIMITS[tier].dailyMl);
+    }
+  });
+
   it("only allows chat transfers on paid plans", () => {
     expect(PLAN_LIMITS.free.maxChatTransfers).toBe(0);
     expect(PLAN_LIMITS.fresh_pro.maxChatTransfers).toBeGreaterThan(0);
+  });
+});
+
+describe("mlFromCredits", () => {
+  it("converts credits to mL at the configured rate", () => {
+    // Default ML_PER_KIRO_CREDIT = 1000, Auto multiplier = 1.
+    expect(mlFromCredits(1)).toBe(1000);
+    expect(mlFromCredits(0.5)).toBe(500);
+  });
+
+  it("applies the model multiplier", () => {
+    // Opus 4.8 multiplier is 2.2.
+    expect(mlFromCredits(1, "claude-opus-4.8")).toBe(2200);
+  });
+
+  it("floors at 1 mL and ignores non-positive input", () => {
+    expect(mlFromCredits(0.0001)).toBe(1);
+    expect(mlFromCredits(0)).toBe(0);
+    expect(mlFromCredits(-5)).toBe(0);
   });
 });
 

@@ -37,6 +37,8 @@ Custom commands
   Refresh server + Studio status
 /sync
   AI-edit a file and push to Studio
+/mcp
+  Toggle live MCP mode (model makes interactive studio_* tool calls into Studio via the bridge)
 /provider
   Set API provider (openai|google|deepseek|openrouter)
 /key
