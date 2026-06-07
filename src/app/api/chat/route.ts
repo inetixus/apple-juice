@@ -127,10 +127,10 @@ export async function POST(req: Request) {
   if (!ownerUserId)
     return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Ban enforcement: a banned user cannot generate. Checked early so it applies
-  // to BYOK and shared-credit paths alike.
+  // Ban enforcement: a banned user (or banned IP) cannot generate. Checked
+  // early so it applies to BYOK and shared-credit paths alike.
   {
-    const { getBan } = await import("@/lib/store");
+    const { getBan, isIpBanned, extractIp } = await import("@/lib/store");
     const ban = await getBan(ownerUserId);
     if (ban) {
       return Response.json(
@@ -139,6 +139,17 @@ export async function POST(req: Request) {
           message: ban.expiresAt
             ? `Your account is suspended until ${new Date(ban.expiresAt).toLocaleString()}. Reason: ${ban.reason}`
             : `Your account has been banned. Reason: ${ban.reason}`,
+          banned: true,
+        },
+        { status: 403 },
+      );
+    }
+    const ip = extractIp(req);
+    if (await isIpBanned(ip)) {
+      return Response.json(
+        {
+          error: "Banned",
+          message: "Access from your network has been blocked.",
           banned: true,
         },
         { status: 403 },

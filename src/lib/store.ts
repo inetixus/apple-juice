@@ -1145,6 +1145,14 @@ export type BanRecord = {
   bannedAt: number;
   /** Epoch ms when the ban lifts; omitted/0 = permanent. */
   expiresAt?: number;
+  /** Whether the user is allowed to submit an appeal. */
+  appealable?: boolean;
+  /** Also block this user's last-known IP. */
+  ipBan?: boolean;
+  /** The IP that was banned (when ipBan is set). */
+  bannedIp?: string;
+  /** Appeal text submitted by the user, if any. */
+  appeal?: { text: string; submittedAt: number };
 };
 
 export type WarningRecord = {
@@ -1176,7 +1184,13 @@ export async function banUser(
   userId: string,
   reason: string,
   bannedBy: string,
-  durationDays?: number,
+  opts?: {
+    durationDays?: number;
+    appealable?: boolean;
+    ipBan?: boolean;
+    /** Last-known IP to also block when ipBan is set. */
+    ip?: string;
+  },
 ): Promise<BanRecord> {
   const now = Date.now();
   const record: BanRecord = {
@@ -1184,17 +1198,84 @@ export async function banUser(
     reason: reason || "No reason provided",
     bannedBy,
     bannedAt: now,
+    appealable: opts?.appealable ?? true,
   };
+  const durationDays = opts?.durationDays;
   if (durationDays && durationDays > 0) {
     record.expiresAt = now + durationDays * 24 * 60 * 60 * 1000;
   }
   const redis = getRedis();
+
+  // Optional IP ban — block the user's last-known IP too.
+  if (opts?.ipBan && opts.ip && opts.ip !== "unknown") {
+    record.ipBan = true;
+    record.bannedIp = opts.ip;
+    const ipBanRec = {
+      ip: opts.ip,
+      reason: record.reason,
+      bannedBy,
+      bannedAt: now,
+      expiresAt: record.expiresAt,
+    };
+    await redis.set(ipBanKeyFor(opts.ip), JSON.stringify(ipBanRec));
+    if (record.expiresAt) {
+      const ttl = Math.ceil((record.expiresAt - now) / 1000);
+      if (ttl > 0) await redis.expire(ipBanKeyFor(opts.ip), ttl);
+    }
+  }
+
   await redis.set(banKeyFor(userId), JSON.stringify(record));
   if (record.expiresAt) {
     const ttl = Math.ceil((record.expiresAt - now) / 1000);
     if (ttl > 0) await redis.expire(banKeyFor(userId), ttl);
   }
   return record;
+}
+
+const IP_BAN_PREFIX = "apple-juice:ipban:";
+function ipBanKeyFor(ip: string) {
+  return `${IP_BAN_PREFIX}${ip}`;
+}
+
+/** Is this IP banned? (auto-expires via TTL). */
+export async function isIpBanned(ip: string): Promise<boolean> {
+  if (!ip || ip === "unknown") return false;
+  try {
+    return (await getRedis().get(ipBanKeyFor(ip))) != null;
+  } catch {
+    return false;
+  }
+}
+
+/** Lift an IP ban. */
+export async function unbanIp(ip: string): Promise<void> {
+  if (!ip) return;
+  try {
+    await getRedis().del(ipBanKeyFor(ip));
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Record/replace a user's appeal text on their ban record. */
+export async function submitBanAppeal(
+  userId: string,
+  text: string,
+): Promise<boolean> {
+  const ban = await getBan(userId);
+  if (!ban || !ban.appealable) return false;
+  ban.appeal = { text: text.slice(0, 2000), submittedAt: Date.now() };
+  try {
+    const redis = getRedis();
+    const remaining = ban.expiresAt
+      ? Math.ceil((ban.expiresAt - Date.now()) / 1000)
+      : 0;
+    await redis.set(banKeyFor(userId), JSON.stringify(ban));
+    if (remaining > 0) await redis.expire(banKeyFor(userId), remaining);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Lift a user's ban. */
@@ -1490,4 +1571,122 @@ export async function reviewSubscriptionRequest(
 export async function countPendingSubscriptionRequests(): Promise<number> {
   const pending = await listSubscriptionRequests({ status: "pending", limit: 1000 });
   return pending.length;
+}
+
+// ─── User registry (who joined & when) ───────────────────────────────────────
+//
+// We record each user's first-seen timestamp + last-known IP/username so admins
+// can see the full membership list and so IP bans have an IP to target.
+
+const USER_PREFIX = "apple-juice:user:";
+const USERS_INDEX = "apple-juice:users-index"; // JSON array of userIds (most recent first)
+
+export type UserRecord = {
+  userId: string;
+  username?: string;
+  firstSeen: number;
+  lastSeen: number;
+  lastIp?: string;
+};
+
+function userKeyFor(userId: string) {
+  return `${USER_PREFIX}${userId}`;
+}
+
+/**
+ * Record/refresh a user's presence. Called on dashboard load. Creates the
+ * record + index entry on first sight, updates lastSeen/ip/username after.
+ */
+export async function recordUserSeen(
+  userId: string,
+  opts?: { username?: string; ip?: string },
+): Promise<void> {
+  if (!userId) return;
+  const redis = getRedis();
+  const now = Date.now();
+  try {
+    const raw = await redis.get(userKeyFor(userId));
+    let rec: UserRecord;
+    let isNew = false;
+    if (raw) {
+      rec = (typeof raw === "string" ? JSON.parse(raw) : raw) as UserRecord;
+      rec.lastSeen = now;
+      if (opts?.username) rec.username = opts.username;
+      if (opts?.ip && opts.ip !== "unknown") rec.lastIp = opts.ip;
+    } else {
+      isNew = true;
+      rec = {
+        userId,
+        username: opts?.username,
+        firstSeen: now,
+        lastSeen: now,
+        lastIp: opts?.ip && opts.ip !== "unknown" ? opts.ip : undefined,
+      };
+    }
+    await redis.set(userKeyFor(userId), JSON.stringify(rec));
+
+    if (isNew) {
+      const rawIdx = await redis.get(USERS_INDEX);
+      let ids: string[] = [];
+      if (rawIdx) {
+        try {
+          ids = (typeof rawIdx === "string" ? JSON.parse(rawIdx) : rawIdx) as string[];
+        } catch {
+          ids = [];
+        }
+      }
+      ids.unshift(userId);
+      if (ids.length > 5000) ids = ids.slice(0, 5000);
+      await redis.set(USERS_INDEX, JSON.stringify(ids));
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
+export async function getUserRecord(userId: string): Promise<UserRecord | null> {
+  try {
+    const raw = await getRedis().get(userKeyFor(userId));
+    if (!raw) return null;
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as UserRecord;
+  } catch {
+    return null;
+  }
+}
+
+/** List registered users (most-recent-first) for the admin roster. */
+export async function listUsers(limit = 200): Promise<UserRecord[]> {
+  const redis = getRedis();
+  try {
+    const rawIdx = await redis.get(USERS_INDEX);
+    if (!rawIdx) return [];
+    let ids: string[];
+    try {
+      ids = (typeof rawIdx === "string" ? JSON.parse(rawIdx) : rawIdx) as string[];
+    } catch {
+      return [];
+    }
+    const out: UserRecord[] = [];
+    for (const id of ids.slice(0, limit)) {
+      const rec = await getUserRecord(id);
+      if (rec) out.push(rec);
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Find the most recent subscription request for a user (any status) so the
+ * dashboard can tell them whether it was approved/rejected/still pending.
+ */
+export async function getLatestSubscriptionRequestForUser(
+  userId: string,
+): Promise<SubscriptionRequest | null> {
+  const all = await listSubscriptionRequests({ limit: 1000 });
+  const mine = all.filter((r) => r.userId === userId);
+  if (!mine.length) return null;
+  mine.sort((a, b) => (b.reviewedAt || b.createdAt) - (a.reviewedAt || a.createdAt));
+  return mine[0];
 }

@@ -11,8 +11,13 @@ type Snapshot = {
     bannedBy: string;
     bannedAt: number;
     expiresAt?: number;
+    appealable?: boolean;
+    ipBan?: boolean;
+    bannedIp?: string;
+    appeal?: { text: string; submittedAt: number };
   } | null;
   warnings: { id: string; reason: string; warnedBy: string; warnedAt: number }[];
+  record?: { firstSeen: number; lastSeen: number; lastIp?: string; username?: string } | null;
 };
 
 type AuditEntry = {
@@ -62,8 +67,11 @@ export function AdminPanel({ adminName }: { adminName: string }) {
   // Action inputs
   const [banReason, setBanReason] = useState("");
   const [banDays, setBanDays] = useState("");
+  const [banAppealable, setBanAppealable] = useState(true);
+  const [banIp, setBanIp] = useState(false);
   const [warnReason, setWarnReason] = useState("");
   const [mlAmount, setMlAmount] = useState("");
+  const [users, setUsers] = useState<{ userId: string; username?: string; firstSeen: number; lastSeen: number; lastIp?: string }[]>([]);
 
   const flash = (msg: string, kind: "ok" | "err" = "ok") => {
     setToast({ msg, kind });
@@ -138,9 +146,22 @@ export function AdminPanel({ adminName }: { adminName: string }) {
     [reviewNote, subFilter, loadSubs, loadAudit],
   );
 
+  const loadUsers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin?users=1", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data.users || []);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     void loadAudit();
-  }, [loadAudit]);
+    void loadUsers();
+  }, [loadAudit, loadUsers]);
 
   useEffect(() => {
     void loadSubs(subFilter);
@@ -266,8 +287,18 @@ export function AdminPanel({ adminName }: { adminName: string }) {
                   }
                 />
                 {snapshot.ban && (
-                  <div className="text-xs text-red-300/70 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                    Reason: {snapshot.ban.reason}
+                  <div className="text-xs text-red-300/70 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 space-y-1">
+                    <div>Reason: {snapshot.ban.reason}</div>
+                    <div className="flex gap-2 text-[10px] text-white/40">
+                      {snapshot.ban.appealable === false && <span>No appeal</span>}
+                      {snapshot.ban.ipBan && <span>IP banned: {snapshot.ban.bannedIp}</span>}
+                    </div>
+                    {snapshot.ban.appeal && (
+                      <div className="mt-1.5 pt-1.5 border-t border-red-500/20">
+                        <span className="text-amber-300 font-bold">Appeal:</span>{" "}
+                        <span className="text-white/70">{snapshot.ban.appeal.text}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -401,6 +432,26 @@ export function AdminPanel({ adminName }: { adminName: string }) {
                       placeholder="Ban reason..."
                       className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-400/50"
                     />
+                    <div className="flex gap-4 px-1">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-white/60">
+                        <input
+                          type="checkbox"
+                          checked={banAppealable}
+                          onChange={(e) => setBanAppealable(e.target.checked)}
+                          className="w-3.5 h-3.5 accent-[#ccff00]"
+                        />
+                        Appealable
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-white/60">
+                        <input
+                          type="checkbox"
+                          checked={banIp}
+                          onChange={(e) => setBanIp(e.target.checked)}
+                          className="w-3.5 h-3.5 accent-red-500"
+                        />
+                        IP ban {snapshot.record?.lastIp ? `(${snapshot.record.lastIp})` : "(no IP on file)"}
+                      </label>
+                    </div>
                     <div className="flex gap-2">
                       <input
                         value={banDays}
@@ -420,9 +471,12 @@ export function AdminPanel({ adminName }: { adminName: string }) {
                             action: "ban",
                             reason: banReason.trim(),
                             durationDays: days > 0 ? days : undefined,
+                            appealable: banAppealable,
+                            ipBan: banIp,
                           });
                           setBanReason("");
                           setBanDays("");
+                          setBanIp(false);
                         }}
                         disabled={loading}
                         className="bg-red-500/15 border border-red-500/30 text-red-300 px-5 rounded-lg text-sm font-bold hover:bg-red-500/25 disabled:opacity-50"
@@ -485,6 +539,48 @@ export function AdminPanel({ adminName }: { adminName: string }) {
                     </span>
                   )}
                   <span className="text-xs text-white/30 ml-auto">{fmt(r.createdAt)}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* User roster */}
+        <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-lg">
+              👥 Users <span className="text-white/30 text-sm font-normal">({users.length})</span>
+            </h2>
+            <button onClick={loadUsers} className="text-xs text-white/40 hover:text-white/70">
+              Refresh
+            </button>
+          </div>
+          {users.length === 0 ? (
+            <p className="text-sm text-white/30">No users recorded yet.</p>
+          ) : (
+            <div className="space-y-1 max-h-96 overflow-y-auto text-xs">
+              <div className="flex items-center gap-3 px-3 py-1.5 text-white/30 font-bold uppercase tracking-wider text-[10px] sticky top-0 bg-[#0d0e12]">
+                <span className="w-32 shrink-0">User</span>
+                <span className="flex-1">Joined</span>
+                <span className="w-32 shrink-0">Last seen</span>
+              </div>
+              {users.map((u) => (
+                <button
+                  key={u.userId}
+                  onClick={() => {
+                    setUserId(u.userId);
+                    void lookup(u.userId);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="w-full flex items-center gap-3 bg-white/[0.02] hover:bg-white/[0.05] rounded-lg px-3 py-2 text-left transition-all"
+                >
+                  <span className="w-32 shrink-0 truncate">
+                    <span className="text-white/80 font-medium">
+                      {u.username || u.userId}
+                    </span>
+                  </span>
+                  <span className="flex-1 text-white/40">{fmt(u.firstSeen)}</span>
+                  <span className="w-32 shrink-0 text-white/30">{fmt(u.lastSeen)}</span>
                 </button>
               ))}
             </div>

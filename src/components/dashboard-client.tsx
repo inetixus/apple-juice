@@ -36,6 +36,7 @@ import { WorkspaceTree } from "@/components/workspace-tree";
 import { StripeWave } from "@/components/stripe-wave";
 import { SlashCommandInput } from "@/components/slash-command";
 import { PurchaseFlowModal } from "@/components/purchase-flow-modal";
+import { AccountStatusGate } from "@/components/account-status-gate";
 import { ModelDropdown } from "./dashboard/model-dropdown";
 import { ModificationsPreview } from "./dashboard/modifications-preview";
 import { MessageContent } from "./dashboard/message-content";
@@ -3971,6 +3972,9 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
           onClose={() => setPurchasePlan(null)}
         />
       )}
+
+      {/* Account status: ban wall / warning popup / subscription decision */}
+      <AccountStatusGate enabled={!isDemoMode} />
     </DashboardContext.Provider>
   );
 }

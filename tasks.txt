@@ -73,6 +73,23 @@ done; B7 (live VPS round-trip test) is still open and tracked below.
 
 ## ── MEDIUM IMPACT: developer experience ──
 
+[x] MODERATION UX — warning popups, ban wall, appeals, IP bans, user roster,
+    subscription decision notices
+    User side (AccountStatusGate, polls /api/account/status on dashboard load):
+    - New (unacknowledged) warnings → big red popup, shown once (server marks ack).
+    - Ban → full-screen "Oops, you got banned" wall with reason + expiry; if the
+      ban is appealable, an inline appeal form (POST /api/account/appeal).
+    - Subscription approved/rejected → celebratory / notice popup, shown once.
+    Admin side: ban form now has Appealable + IP-ban toggles (IP ban blocks the
+    user's last-known IP too; auto-lifts on unban). Submitted appeal text shows in
+    the user snapshot. New "👥 Users" roster lists everyone who joined + when
+    (firstSeen/lastSeen/ip), click to inspect. Enforcement: /api/chat blocks both
+    banned users AND banned IPs.
+    Store: banUser gains opts {durationDays, appealable, ipBan, ip}; isIpBanned /
+    unbanIp / submitBanAppeal; user registry (recordUserSeen / listUsers /
+    getUserRecord) populated on each dashboard load; getLatestSubscriptionRequest-
+    ForUser for decision surfacing. Typecheck clean, 94 tests pass.
+
 [x] UNDER-16 MANUAL SUBSCRIPTION VERIFICATION + age-gate purchase flow
     Pricing confirmed (Pro 600 R$ / Ultra 1,500 R$ /mo). The Pro/Ultra buttons
     now open a purchase-flow modal that age-gates:

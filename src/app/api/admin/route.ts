@@ -7,11 +7,14 @@ import {
   grantBonusMl,
   banUser,
   unbanUser,
+  unbanIp,
   warnUser,
   clearWarnings,
   logAdminAction,
   getAdminUserSnapshot,
   getAdminAudit,
+  getUserRecord,
+  listUsers,
   PLAN_LIMITS,
   type UserPlan,
 } from "@/lib/store";
@@ -38,19 +41,25 @@ export async function GET(req: Request) {
     return Response.json({ audit });
   }
 
+  if (url.searchParams.get("users")) {
+    const users = await listUsers(300);
+    return Response.json({ users });
+  }
+
   const targetUserId = url.searchParams.get("userId")?.trim();
   if (!targetUserId) {
     return Response.json({ error: "Missing userId" }, { status: 400 });
   }
   const snapshot = await getAdminUserSnapshot(targetUserId);
-  return Response.json(snapshot);
+  const record = await getUserRecord(targetUserId);
+  return Response.json({ ...snapshot, record });
 }
 
 type AdminAction =
   | { action: "grantPlan"; userId: string; plan: UserPlan }
   | { action: "setBalance"; userId: string; remainingMl: number; totalMl: number }
   | { action: "grantMl"; userId: string; ml: number }
-  | { action: "ban"; userId: string; reason: string; durationDays?: number }
+  | { action: "ban"; userId: string; reason: string; durationDays?: number; appealable?: boolean; ipBan?: boolean }
   | { action: "unban"; userId: string }
   | { action: "warn"; userId: string; reason: string }
   | { action: "clearWarnings"; userId: string };
@@ -127,24 +136,30 @@ export async function POST(req: Request) {
       }
 
       case "ban": {
-        const rec = await banUser(
-          targetUserId,
-          body.reason,
-          adminId,
-          body.durationDays,
-        );
+        // Look up the user's last-known IP for optional IP ban.
+        const rec = body.ipBan ? await getUserRecord(targetUserId) : null;
+        const ban = await banUser(targetUserId, body.reason, adminId, {
+          durationDays: body.durationDays,
+          appealable: body.appealable ?? true,
+          ipBan: body.ipBan,
+          ip: rec?.lastIp,
+        });
         await logAdminAction({
           action: "ban",
           targetUserId,
           adminUserId: adminId,
-          detail: rec.expiresAt
-            ? `${body.reason} (${body.durationDays}d)`
-            : `${body.reason} (permanent)`,
+          detail:
+            (ban.expiresAt ? `${body.reason} (${body.durationDays}d)` : `${body.reason} (permanent)`) +
+            (ban.appealable ? "" : " [no-appeal]") +
+            (ban.ipBan ? ` [ip:${ban.bannedIp}]` : ""),
         });
-        return Response.json({ success: true, message: "User banned.", ban: rec });
+        return Response.json({ success: true, message: "User banned.", ban });
       }
 
       case "unban": {
+        // Also lift any IP ban tied to this user.
+        const existing = await getAdminUserSnapshot(targetUserId);
+        if (existing.ban?.bannedIp) await unbanIp(existing.ban.bannedIp);
         await unbanUser(targetUserId);
         await logAdminAction({ action: "unban", targetUserId, adminUserId: adminId });
         return Response.json({ success: true, message: "User unbanned." });
