@@ -33,6 +33,7 @@ import { WorkspaceTree } from "@/components/workspace-tree";
 import { ScriptCard } from "@/components/script-card";
 import { SlashCommandInput } from "@/components/slash-command";
 import { ThinkingFeed } from "@/components/thinking-feed";
+import { CodeViewer } from "./code-viewer";
 
 const findNodeById = (nodes: any[], id: string): any => {
   for (const node of nodes) {
@@ -981,29 +982,21 @@ export function IdeLayout() {
             </div>
           ) : (
             <div className="flex-1 flex overflow-hidden">
-              {/* Line Numbers */}
-              <div className="w-12 flex-shrink-0 bg-[#0c0d10] border-r border-white/5 flex flex-col items-center py-6 text-white/10 font-mono text-[11px] select-none">
-                {Array.from({
-                  length: Math.max(
-                    20,
-                    (fileContents[activeFile]?.split("\n").length || 0) + 10
-                  ),
-                }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-[21px] flex items-center justify-center w-full"
-                  >
-                    {i + 1}
-                  </div>
-                ))}
-              </div>
-
-              {/* Code Content */}
-              <div className="flex-1 overflow-auto custom-scrollbar bg-[#0c0d10] p-6 pt-6">
+              {/* Code Content — syntax-highlighted with integrated line numbers */}
+              <div className="flex-1 overflow-auto custom-scrollbar bg-[#0c0d10] px-4 py-5 selection:bg-blue-500/30">
                 {fileContents[activeFile] ? (
-                  <pre className="text-[13px] font-mono leading-[21px] text-blue-100/70 selection:bg-blue-500/30 whitespace-pre">
-                    <code>{fileContents[activeFile]}</code>
-                  </pre>
+                  <CodeViewer
+                    code={fileContents[activeFile]}
+                    language={
+                      activeFile.endsWith(".lua") || activeFile.endsWith(".luau")
+                        ? "luau"
+                        : activeFile.endsWith(".json")
+                          ? "json"
+                          : activeFile.endsWith(".ts") || activeFile.endsWith(".tsx")
+                            ? "tsx"
+                            : "luau"
+                    }
+                  />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center gap-4 opacity-10">
                     <div className="w-6 h-6 rounded-full border-2 border-white/5 border-t-[#ccff00] animate-spin" />

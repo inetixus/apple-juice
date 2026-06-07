@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { createOrReplaceSession } from "@/lib/store";
+import { createOrReplaceSession, getRedis } from "@/lib/store";
 
 /**
  * POST /api/pair/init
@@ -26,8 +26,12 @@ export async function POST(req: Request) {
       ? `cli-user-${cliUserId}`
       : `cli-user-${crypto.randomBytes(8).toString("hex")}`;
 
-    // The authCode IS the sessionKey — the plugin connects using it directly
-    const sessionKey = authCode.toUpperCase();
+    // Generate a secure 128-bit sessionKey. The authCode is only used temporarily
+    // for the plugin to establish connection and fetch this sessionKey.
+    const sessionKey = crypto.randomBytes(16).toString("hex");
+    
+    // Store authCode -> sessionKey mapping for 10 minutes so manual connect works
+    await getRedis().set(`apple-juice:auth-code:${authCode.toUpperCase()}`, sessionKey, { ex: 600 });
     const expiresAt = Date.now() + 1000 * 60 * 60 * 24; // 24 hours
 
     await createOrReplaceSession({

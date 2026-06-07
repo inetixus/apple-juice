@@ -1019,10 +1019,14 @@ function drawHeader(serverOnline: boolean, paired: boolean, config: CLIConfig, s
   const projectLabel = `${DIM}active project:${R} ${WHITE}${path.basename(process.cwd())}${R}`;
   const engineVersion = `${DIM}v2.1.0${R}`;
 
+  const serverStatus = serverOnline ? `\x1b[32m🟢 Server\x1b[0m` : `\x1b[31m🔴 Offline\x1b[0m`;
+  const pairStatus = paired ? `\x1b[32m🟢 Paired\x1b[0m` : `\x1b[31m🔴 Unpaired\x1b[0m`;
+  const statusGroup = `${serverStatus} ${DIM}│${R} ${pairStatus}`;
+
   const hasPending = state?.artifacts && state.artifacts.length > 0;
   const count = state?.artifacts ? state.artifacts.length : 0;
   const artifactStatus = hasPending ? `\x1b[38;2;230;126;34m[ ✦ ${count} Pending Artifact${count > 1 ? 's' : ''} ]\x1b[0m  ` : '';
-  const rightPart = `${artifactStatus}${engineVersion}`;
+  const rightPart = `${artifactStatus}${statusGroup} ${DIM}│${R} ${engineVersion}`;
 
   const leftPart = `  ${BOLD}${titleText}${R}  │  ${projectLabel}`;
   const gap = Math.max(1, w - stripAnsi(leftPart).length - stripAnsi(rightPart).length - 4);

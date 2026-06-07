@@ -24,57 +24,7 @@ import {
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import * as Diff from "diff";
-import { Highlight, themes, type PrismTheme } from "prism-react-renderer";
-
-const luauTheme: PrismTheme = {
-  ...themes.dracula,
-  plain: {
-    color: "#E5E7EB",
-    backgroundColor: "transparent",
-  },
-  styles: [
-    ...themes.dracula.styles,
-    {
-      types: ["keyword"],
-      style: {
-        color: "#ccff00",
-        fontWeight: "bold",
-      },
-    },
-    {
-      types: ["operator", "punctuation"],
-      style: {
-        color: "#888888",
-      },
-    },
-    {
-      types: ["string", "char"],
-      style: {
-        color: "#10b981",
-      },
-    },
-    {
-      types: ["function"],
-      style: {
-        color: "#ffffff",
-      },
-    },
-    {
-      types: ["comment"],
-      style: {
-        color: "#4b5563",
-        fontStyle: "italic",
-      },
-    },
-    {
-      types: ["number", "boolean"],
-      style: {
-        color: "#fbbf24",
-      },
-    },
-  ],
-};
+import { CodeEditor } from "@/components/code-editor";
 
 type ScriptMeta = {
   name: string;
@@ -300,88 +250,13 @@ export function ScriptCard({
         )}
       </button>
       {expanded && !isDelete && (
-        <div className="border-t border-black/5">
-          {script.originalCode ? (
-            <div className="max-h-[500px] overflow-auto font-mono text-[13px] bg-[#0a0a0c] p-0 leading-relaxed border-t border-white/[0.03]">
-              <div className="flex flex-col">
-                {Diff.diffLines(
-                  script.originalCode || "",
-                  script.code || "",
-                ).map((part, index) => {
-                  const colorClass = part.added
-                    ? "text-emerald-400"
-                    : part.removed
-                      ? "text-red-400"
-                      : "text-white/40";
-                  const bgClass = part.added
-                    ? "bg-emerald-500/5"
-                    : part.removed
-                      ? "bg-red-500/5"
-                      : "";
-                  const prefix = part.added ? "+ " : part.removed ? "- " : "  ";
-
-                  return (
-                    <div key={index} className={`${bgClass} w-full`}>
-                      <Highlight
-                        theme={luauTheme}
-                        code={part.value.replace(/\n$/, "")}
-                        language="lua"
-                      >
-                        {({ tokens, getLineProps, getTokenProps }) => (
-                          <>
-                            {tokens.map((line, i) => (
-                              <div
-                                key={i}
-                                {...getLineProps({ line })}
-                                className={`flex px-5 ${bgClass}`}
-                              >
-                                <span
-                                  className={`w-6 flex-shrink-0 select-none opacity-30 text-[10px] mt-1 ${colorClass}`}
-                                >
-                                  {prefix}
-                                </span>
-                                <div className="flex-1">
-                                  {line.map((token, key) => (
-                                    <span
-                                      key={key}
-                                      {...getTokenProps({ token })}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </>
-                        )}
-                      </Highlight>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="max-h-[400px] overflow-auto font-mono text-[12px] bg-[#0a0a0c] p-3 leading-relaxed border-t border-white/[0.03]">
-              <Highlight
-                theme={luauTheme}
-                code={(script.code || "").trim()}
-                language="lua"
-              >
-                {({ tokens, getLineProps, getTokenProps }) => (
-                  <pre>
-                    {tokens.map((line, i) => (
-                      <div key={i} {...getLineProps({ line })}>
-                        <span className="inline-block w-6 select-none opacity-10 text-right pr-2 text-[9px]">
-                          {i + 1}
-                        </span>
-                        {line.map((token, key) => (
-                          <span key={key} {...getTokenProps({ token })} />
-                        ))}
-                      </div>
-                    ))}
-                  </pre>
-                )}
-              </Highlight>
-            </div>
-          )}
+        <div className="border-t border-black/5 bg-[#0a0a0c]">
+          <CodeEditor
+            code={script.code || ""}
+            originalCode={script.originalCode}
+            language="luau"
+            height="400px"
+          />
         </div>
       )}
     </motion.div>

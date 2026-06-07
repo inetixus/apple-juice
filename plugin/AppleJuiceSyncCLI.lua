@@ -1364,27 +1364,66 @@ local function pollLoop(sessionKey)
 			if sessionKey then
 				reportLog(sessionKey, "📖 [Roblox Studio] Reading file " .. fileName)
 			end
-			-- Try to find the script in common locations
+			-- Resolve the target script. The dashboard sends a full dotted path
+			-- (e.g. "ServerScriptService.Folder.MyScript"), while the agent may
+			-- send a bare name. Handle both: walk a dotted path from game, then
+			-- fall back to a recursive search by leaf name.
 			local target = nil
-			local locations = { 
-				game:GetService("ServerScriptService"), 
-				game:GetService("ReplicatedStorage"), 
-				game:GetService("Workspace") 
-			}
-			
-			local starterPlayer = game:GetService("StarterPlayer")
-			if starterPlayer:FindFirstChild("StarterPlayerScripts") then
-				table.insert(locations, starterPlayer.StarterPlayerScripts)
-			end
-			if starterPlayer:FindFirstChild("StarterCharacterScripts") then
-				table.insert(locations, starterPlayer.StarterCharacterScripts)
+
+			local function resolveDottedPath(path)
+				local segments = string.split(path, ".")
+				if segments[1] == "game" then
+					table.remove(segments, 1)
+				end
+				if #segments == 0 then return nil end
+				local ok, current = pcall(function()
+					return game:GetService(segments[1])
+				end)
+				if not ok or not current then
+					current = game:FindFirstChild(segments[1])
+				end
+				if not current then return nil end
+				for i = 2, #segments do
+					current = current:FindFirstChild(segments[i])
+					if not current then return nil end
+				end
+				return current
 			end
 
-			for _, loc in ipairs(locations) do
-				local found = loc:FindFirstChild(fileName, true)
-				if found and found:IsA("LuaSourceContainer") then
-					target = found
-					break
+			if string.find(fileName, "%.") then
+				local resolved = resolveDottedPath(fileName)
+				if resolved and resolved:IsA("LuaSourceContainer") then
+					target = resolved
+				end
+			end
+
+			if not target then
+				local leaf = fileName
+				if string.find(leaf, "%.") then
+					local parts = string.split(leaf, ".")
+					leaf = parts[#parts]
+				end
+				local locations = {
+					game:GetService("ServerScriptService"),
+					game:GetService("ReplicatedStorage"),
+					game:GetService("Workspace"),
+					game:GetService("StarterGui"),
+					game:GetService("ServerStorage"),
+				}
+				local starterPlayer = game:GetService("StarterPlayer")
+				if starterPlayer:FindFirstChild("StarterPlayerScripts") then
+					table.insert(locations, starterPlayer.StarterPlayerScripts)
+				end
+				if starterPlayer:FindFirstChild("StarterCharacterScripts") then
+					table.insert(locations, starterPlayer.StarterCharacterScripts)
+				end
+
+				for _, loc in ipairs(locations) do
+					local found = loc:FindFirstChild(leaf, true)
+					if found and found:IsA("LuaSourceContainer") then
+						target = found
+						break
+					end
 				end
 			end
 

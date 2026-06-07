@@ -162,6 +162,9 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   const lastReportedErrorRef = useRef<string | null>(null);
   const continuationRef = useRef<number>(0);
   const waitingForFileRef = useRef<string | null>(null);
+  // Files the user opened in the IDE just to VIEW (not an agent read). These
+  // should populate the editor but NOT fire a prompt back to the AI.
+  const manualViewFilesRef = useRef<Set<string>>(new Set());
 
   const stepTimeoutsRef = useRef<any[]>([]);
   const autoFixRetriesRef = useRef<number>(0);
@@ -401,6 +404,42 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   ]);
   const [teamInviteInput, setTeamInviteInput] = useState("");
 
+  // ── Persistence for the Core / Assets / Team tabs ──
+  // These tabs were previously in-memory only (lost on reload). Persist them to
+  // localStorage so directives, vault assets, and team roster survive a refresh.
+  // Core directives are also injected into generation (see submitPrompt).
+  useEffect(() => {
+    try {
+      const c = window.localStorage.getItem("aj_core_configs");
+      if (c) setGlobalConfigs(JSON.parse(c));
+      const a = window.localStorage.getItem("aj_vault_assets");
+      if (a) _setSavedAssets(JSON.parse(a));
+      const t = window.localStorage.getItem("aj_team_members");
+      if (t) setTeamMembers(JSON.parse(t));
+    } catch {
+      /* corrupted storage — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("aj_core_configs", JSON.stringify(globalConfigs));
+    } catch { /* quota */ }
+  }, [globalConfigs]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("aj_vault_assets", JSON.stringify(savedAssets));
+    } catch { /* quota */ }
+  }, [savedAssets]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("aj_team_members", JSON.stringify(teamMembers));
+    } catch { /* quota */ }
+  }, [teamMembers]);
+
   const handleVault = useCallback((asset: any) => {
     const assetObj = typeof asset === 'string' ? { name: asset.split('/').pop() || asset, type: 'Instance', fullPath: asset } : asset;
     const colors = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4"];
@@ -527,40 +566,46 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
             }
 
             if (data.fileResponse && data.fileResponse.name) {
-              setAttachedFiles((prev) => {
-                if (prev.some((f) => f.name === data.fileResponse.name))
-                  return prev;
-                showToast(`Attached ${data.fileResponse.name}`, "success");
-                playSound("pop");
+              const fr = data.fileResponse;
+              const isNotFound = fr.content === "[APPLE_JUICE_ERROR_FILE_NOT_FOUND]";
+              const isManualView = manualViewFilesRef.current.has(fr.name);
 
-                if (waitingForFileRef.current === data.fileResponse.name) {
-                  waitingForFileRef.current = null;
-
-                  // In IDE mode, we want to store the content in our editor state
-                  if (data.fileResponse.content !== "[APPLE_JUICE_ERROR_FILE_NOT_FOUND]") {
-                    setFileContents(prev => ({
-                      ...prev,
-                      [data.fileResponse.name]: data.fileResponse.content
-                    }));
-                  }
-
-                  // Wait a brief moment to ensure state updates, then submit the file content back to the AI
-                  setTimeout(() => {
-                    let promptText = "";
-                    if (
-                      data.fileResponse.content ===
-                      "[APPLE_JUICE_ERROR_FILE_NOT_FOUND]"
-                    ) {
-                      promptText = `I tried to read the file ${data.fileResponse.name}, but it could not be found in the project. Please check the project tree or create it if necessary.`;
-                    } else {
-                      promptText = `I have read the file ${data.fileResponse.name}. Here is its current content:\n\n\`\`\`luau\n${data.fileResponse.content}\n\`\`\`\n\nPlease continue your task using this information.`;
-                    }
-                    submitPrompt(promptText, true);
-                  }, 500);
+              if (isManualView && waitingForFileRef.current === fr.name) {
+                // User clicked a script just to view it: load into the editor,
+                // do NOT attach to chat or prompt the AI (no juice spent).
+                waitingForFileRef.current = null;
+                manualViewFilesRef.current.delete(fr.name);
+                if (isNotFound) {
+                  setFileContents((prev) => ({
+                    ...prev,
+                    [fr.name]: `-- Couldn't read "${fr.name}" from Studio.\n-- The script may have been deleted, renamed, or isn't a readable LuaSourceContainer.`,
+                  }));
+                  showToast(`Couldn't read ${fr.name.split(".").pop()}`, "error");
+                } else {
+                  setFileContents((prev) => ({ ...prev, [fr.name]: fr.content }));
                 }
+              } else {
+                // Agent-driven read: attach + feed back to the AI as before.
+                setAttachedFiles((prev) => {
+                  if (prev.some((f) => f.name === fr.name)) return prev;
+                  showToast(`Attached ${fr.name}`, "success");
+                  playSound("pop");
 
-                return [...prev, data.fileResponse];
-              });
+                  if (waitingForFileRef.current === fr.name) {
+                    waitingForFileRef.current = null;
+                    if (!isNotFound) {
+                      setFileContents((p) => ({ ...p, [fr.name]: fr.content }));
+                    }
+                    setTimeout(() => {
+                      const promptText = isNotFound
+                        ? `I tried to read the file ${fr.name}, but it could not be found in the project. Please check the project tree or create it if necessary.`
+                        : `I have read the file ${fr.name}. Here is its current content:\n\n\`\`\`luau\n${fr.content}\n\`\`\`\n\nPlease continue your task using this information.`;
+                      submitPrompt(promptText, true);
+                    }, 500);
+                  }
+                  return [...prev, fr];
+                });
+              }
             }
 
             // Handle connection status checking
@@ -1354,10 +1399,11 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
         return;
       }
       waitingForFileRef.current = path;
+      manualViewFilesRef.current.add(path);
       fetch("/api/request-file", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionKey, fileName: path })
+        body: JSON.stringify({ key: sessionKey, fileName: path })
       }).catch(err => console.error("Failed to request file:", err));
     }
   }, [sessionKey, fileContents, showToast]);
@@ -2449,6 +2495,9 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
           autoSync: true,
           tree: projectTree.join("\n"),
           uiStyle: selectedUIStyle,
+          directives: globalConfigs
+            .filter((c) => c.category !== "secret")
+            .map((c) => ({ key: c.key, value: c.value, category: c.category })),
           stream: true,
         }),
         signal: abortControllerRef.current.signal,

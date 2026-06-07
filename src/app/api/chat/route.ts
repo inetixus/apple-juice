@@ -104,6 +104,8 @@ type ChatBody = {
   autoSync?: boolean;
   tree?: string;
   uiStyle?: "none" | "lemonade" | "dracula" | "zap";
+  /** Persistent Juice Core directives/configs the user set in the dashboard. */
+  directives?: { key: string; value: string; category: "secret" | "config" | "directive" }[];
   /** Web client opts into token-by-token SSE streaming. Other consumers
    *  (e.g. the CLI's buffered JSON reader) omit this and get a JSON response. */
   stream?: boolean;
@@ -516,6 +518,20 @@ export async function POST(req: Request) {
   // Build snippet context block (injects matching small drop-in scripts)
   const snippetsContextBlock = buildSnippetsContextBlock(prompt);
 
+  // Build user "Juice Core" directives block. These are persistent rules the
+  // user set in the dashboard Core tab; we inject the directive/config entries
+  // (NOT secrets) into the system prompt so generation actually honors them.
+  let directivesBlock = "";
+  const directiveEntries = (body.directives || []).filter(
+    (d) => d && d.category !== "secret" && d.key && d.value,
+  );
+  if (directiveEntries.length > 0) {
+    const lines = directiveEntries
+      .map((d) => `- ${d.key}: ${d.value}`)
+      .join("\n");
+    directivesBlock = `\n\n## USER CORE DIRECTIVES (MANDATORY)\nThe user has configured these persistent rules. Follow ALL of them in every script you generate:\n${lines}\n`;
+  }
+
   const SYSTEM_PROMPT = `### ABSOLUTE OUTPUT RULE — READ THIS FIRST ###
 If you are provided with the \`execute_roblox_actions\` tool (function calling), you MUST use it to execute your actions.
 If the tool is NOT available, your ENTIRE response MUST be a single valid JSON object and NOTHING ELSE.
@@ -695,7 +711,7 @@ FORBIDDEN JSON Fallback formats (these will cause rejection):
 - Validate RemoteEvent arguments on the server side.
 - NEVER reference instances that don't exist yet — create them first or use WaitForChild().
 - The LAST entry in your actions MUST be: {"action": "run_playtest"}
-${fileContextBlock}${treeContextBlock}${uiExamplesBlock}${libraryDeploymentPrompt}${systemsContextBlock}${snippetsContextBlock}
+${fileContextBlock}${treeContextBlock}${uiExamplesBlock}${libraryDeploymentPrompt}${systemsContextBlock}${snippetsContextBlock}${directivesBlock}
 FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must be ONLY a single valid JSON object starting with { and ending with }.`;
 
   // Build context compaction summary (BloxBot-style) for long sessions.

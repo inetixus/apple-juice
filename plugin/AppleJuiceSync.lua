@@ -1039,12 +1039,21 @@ local function reportTree(sessionKey, force)
 	end)
 end
 
-local function autoConnect()
-	setStatus("Connecting via IP...", "waiting")
+local function autoConnect(manualKey)
+	if manualKey then
+		setStatus("Connecting via key [" .. manualKey .. "]...", "waiting")
+	else
+		setStatus("Connecting via IP...", "waiting")
+	end
 	
+	local url = CONNECT_ENDPOINT
+	if manualKey then
+		url = url .. "?code=" .. HttpService:UrlEncode(manualKey)
+	end
+
 	local ok, response = pcall(function()
 		return HttpService:RequestAsync({
-			Url = CONNECT_ENDPOINT,
+			Url = url,
 			Method = "GET",
 			Headers = { ["Accept"] = "application/json" },
 		})
@@ -1325,27 +1334,72 @@ local function pollLoop(sessionKey)
 			if sessionKey then
 				reportLog(sessionKey, "📖 [Roblox Studio] Reading file " .. fileName)
 			end
-			-- Try to find the script in common locations
+			-- Resolve the target script. The dashboard sends a full dotted path
+			-- (e.g. "ServerScriptService.Folder.MyScript" or "game.Workspace.X"),
+			-- while the agent may send a bare name. Handle both:
+			--   1. If it's a dotted path, walk it from game (skipping a leading
+			--      "game" segment) to land on the exact instance.
+			--   2. Otherwise (or if the walk fails), recursively search common
+			--      service roots for a script with that (leaf) name.
 			local target = nil
-			local locations = { 
-				game:GetService("ServerScriptService"), 
-				game:GetService("ReplicatedStorage"), 
-				game:GetService("Workspace") 
-			}
-			
-			local starterPlayer = game:GetService("StarterPlayer")
-			if starterPlayer:FindFirstChild("StarterPlayerScripts") then
-				table.insert(locations, starterPlayer.StarterPlayerScripts)
-			end
-			if starterPlayer:FindFirstChild("StarterCharacterScripts") then
-				table.insert(locations, starterPlayer.StarterCharacterScripts)
+
+			local function resolveDottedPath(path)
+				local segments = string.split(path, ".")
+				-- Drop a leading "game" segment if present.
+				if segments[1] == "game" then
+					table.remove(segments, 1)
+				end
+				if #segments == 0 then return nil end
+				-- First segment is a service.
+				local ok, current = pcall(function()
+					return game:GetService(segments[1])
+				end)
+				if not ok or not current then
+					current = game:FindFirstChild(segments[1])
+				end
+				if not current then return nil end
+				for i = 2, #segments do
+					current = current:FindFirstChild(segments[i])
+					if not current then return nil end
+				end
+				return current
 			end
 
-			for _, loc in ipairs(locations) do
-				local found = loc:FindFirstChild(fileName, true)
-				if found and found:IsA("LuaSourceContainer") then
-					target = found
-					break
+			if string.find(fileName, "%.") then
+				local resolved = resolveDottedPath(fileName)
+				if resolved and resolved:IsA("LuaSourceContainer") then
+					target = resolved
+				end
+			end
+
+			-- Fallback: recursive search by leaf name across common locations.
+			if not target then
+				local leaf = fileName
+				if string.find(leaf, "%.") then
+					local parts = string.split(leaf, ".")
+					leaf = parts[#parts]
+				end
+				local locations = {
+					game:GetService("ServerScriptService"),
+					game:GetService("ReplicatedStorage"),
+					game:GetService("Workspace"),
+					game:GetService("StarterGui"),
+					game:GetService("ServerStorage"),
+				}
+				local starterPlayer = game:GetService("StarterPlayer")
+				if starterPlayer:FindFirstChild("StarterPlayerScripts") then
+					table.insert(locations, starterPlayer.StarterPlayerScripts)
+				end
+				if starterPlayer:FindFirstChild("StarterCharacterScripts") then
+					table.insert(locations, starterPlayer.StarterCharacterScripts)
+				end
+
+				for _, loc in ipairs(locations) do
+					local found = loc:FindFirstChild(leaf, true)
+					if found and found:IsA("LuaSourceContainer") then
+						target = found
+						break
+					end
 				end
 			end
 
@@ -1473,14 +1527,7 @@ connectButton.MouseButton1Click:Connect(function()
 		local sessionKey, err
 		
 		if #manualKey >= 4 then
-			setStatus("Connecting via key [" .. manualKey .. "]...", "waiting")
-			sessionKey = manualKey
-			-- Verify key works in the background
-			local ok, data, pollErr = requestPoll(sessionKey)
-			if not ok or data.paired ~= true then
-				setStatus(pollErr or data.error or "Invalid manual key.", "error")
-				return
-			end
+			sessionKey, err = autoConnect(manualKey)
 		else
 			sessionKey, err = autoConnect()
 		end

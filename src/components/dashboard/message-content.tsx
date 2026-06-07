@@ -2,20 +2,7 @@
 
 import { useState } from "react";
 import { FileCode, ChevronDown, ChevronRight, Copy, Check, ListTree } from "lucide-react";
-import { Highlight, themes, type PrismTheme } from "prism-react-renderer";
-
-const luauTheme: PrismTheme = {
-  ...themes.vsDark,
-  plain: { color: "#e5e7eb", backgroundColor: "transparent" },
-  styles: [
-    ...themes.vsDark.styles,
-    { types: ["keyword"], style: { color: "#ccff00", fontWeight: "bold" } },
-    { types: ["string", "char"], style: { color: "#10b981" } },
-    { types: ["comment"], style: { color: "#5b6270", fontStyle: "italic" } },
-    { types: ["number", "boolean"], style: { color: "#fbbf24" } },
-    { types: ["function"], style: { color: "#ffffff" } },
-  ],
-};
+import { CodeEditor } from "@/components/code-editor";
 
 type Segment =
   | { kind: "text"; text: string }
@@ -77,21 +64,12 @@ function CodeArtifact({ lang, code }: { lang: string; code: string }) {
         </button>
       </div>
       {open && (
-        <div className="max-h-[420px] overflow-auto custom-scrollbar p-3 text-[12px] font-mono leading-relaxed">
-          <Highlight theme={luauTheme} code={code} language={isLua ? "lua" : (lang as any) || "text"}>
-            {({ tokens, getLineProps, getTokenProps }) => (
-              <pre>
-                {tokens.map((line, i) => (
-                  <div key={i} {...getLineProps({ line })}>
-                    <span className="inline-block w-8 select-none opacity-20 text-right pr-3 text-[10px]">{i + 1}</span>
-                    {line.map((token, key) => (
-                      <span key={key} {...getTokenProps({ token })} />
-                    ))}
-                  </div>
-                ))}
-              </pre>
-            )}
-          </Highlight>
+        <div className="border-t border-black/5 bg-[#0a0a0c]">
+          <CodeEditor
+            code={code}
+            language={isLua ? "luau" : lang || "text"}
+            height={Math.min(420, Math.max(100, lineCount * 20)) + "px"}
+          />
         </div>
       )}
     </div>

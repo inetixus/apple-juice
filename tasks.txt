@@ -184,9 +184,16 @@ done; B7 (live VPS round-trip test) is still open and tracked below.
     Heartbeat polling already exists; surface a clear paired/online/offline pill in
     the dashboard and CLI.
 
-[ ] 7. Monaco-based code views with Luau highlighting
-    Replace the plain code views with Monaco (Luau grammar) for diffs + artifact
-    review. Bigger lift, real DX upgrade.
+[x] 7. Syntax-highlighted code views (Luau)
+    DONE (prism-react-renderer instead of Monaco — far lighter, no extra deps).
+    New CodeViewer component registers a from-scratch Luau Prism grammar (Roblox
+    globals/services, type/typeof/continue/export, interpolated strings, long
+    comments/strings) and renders with integrated line numbers + vsDark theme.
+    Replaced the plain <pre> in the IDE editor; picks luau/json/tsx by extension.
+    Grammar tokenization verified, typecheck clean, 94 tests pass.
+    NOTE: read-only viewer (matches the previous behavior). Full editable Monaco
+    with diffs is still a bigger lift if ever wanted, but the view now actually
+    looks like an IDE.
 
 [ ] 8. next/dynamic for heavy 3D landing components
     Lazy-load Medusae + StripeWave. Directly targets the 6.3s mobile LCP flagged in

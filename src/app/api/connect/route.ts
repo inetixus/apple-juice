@@ -1,16 +1,28 @@
-import { findSessionKeyByIp, extractIp, createOrReplaceSession } from "@/lib/store";
+import { findSessionKeyByIp, extractIp, createOrReplaceSession, getRedis } from "@/lib/store";
 import crypto from "crypto";
 
 /**
  * GET /api/connect
  *
- * Called by the Roblox plugin with no parameters.
+ * Called by the Roblox plugin with no parameters (for IP pairing) or with a ?code= parameter (for manual pairing).
  * Reads the plugin's IP, looks up an existing session, and returns the sessionKey.
  * If no session exists (e.g., during local development), a temporary session is created.
  */
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const authCode = url.searchParams.get("code");
+
+  if (authCode) {
+    // Exchange temporary 6-char auth code for the 128-bit session key
+    const sessionKey = await getRedis().get(`apple-juice:auth-code:${authCode.toUpperCase()}`);
+    if (sessionKey) {
+      return Response.json({ connected: true, sessionKey });
+    }
+    return Response.json({ connected: false, error: "Invalid or expired pairing code. Generate a new one in the dashboard." }, { status: 400 });
+  }
+
   const clientIpRaw = extractIp(req);
   const clientIp = clientIpRaw && clientIpRaw !== "unknown" ? clientIpRaw : "localhost";
   // Cloudflare presence => real deployment. Don't fabricate throwaway sessions
