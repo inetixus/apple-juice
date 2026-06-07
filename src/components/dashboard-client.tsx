@@ -35,6 +35,7 @@ import {
 import { WorkspaceTree } from "@/components/workspace-tree";
 import { StripeWave } from "@/components/stripe-wave";
 import { SlashCommandInput } from "@/components/slash-command";
+import { PurchaseFlowModal } from "@/components/purchase-flow-modal";
 import { ModelDropdown } from "./dashboard/model-dropdown";
 import { ModificationsPreview } from "./dashboard/modifications-preview";
 import { MessageContent } from "./dashboard/message-content";
@@ -148,6 +149,8 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     plan: "free",
   });
   const [showPricing, setShowPricing] = useState(false);
+  const [purchasePlan, setPurchasePlan] = useState<"fresh_pro" | "pure_ultra" | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
 
   const { toasts, show: showToast, dismiss: dismissToast } = useToasts();
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -787,6 +790,12 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     setSelectedModel(savedModel);
 
     void loadProjects();
+
+    // Check admin status so we can surface the admin panel link.
+    void fetch("/api/admin/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setIsAdminUser(!!d.admin))
+      .catch(() => setIsAdminUser(false));
 
     // In provided mode, pass no key so the model list resolves to the Kiro
     // lineup; in BYOK mode pass the provider's key.
@@ -3347,6 +3356,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     setUsage,
     showPricing,
     setShowPricing,
+    isAdminUser,
     autoRetry,
     setAutoRetry,
     autoPlaytest,
@@ -3897,16 +3907,19 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                       </div>
                       <p className="text-xs text-white/45 font-medium mb-5">For serious builders</p>
                       <div className="flex items-baseline gap-1 mb-6">
-                        <span className="text-4xl font-bold text-white tracking-tight">$19</span>
+                        <span className="text-4xl font-bold text-white tracking-tight">600 R$</span>
                         <span className="text-xs text-white/30 font-medium">/mo</span>
                       </div>
                       <ul className="space-y-3 text-[13px] font-medium text-white/75 mb-8">
-                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> 10.0 credits daily</li>
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> 5.0 credits daily</li>
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> Claude Sonnet 4.6, 4.5 &amp; 4.0</li>
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> GLM-5 &amp; MiniMax M2.5</li>
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> Priority queue</li>
                       </ul>
-                      <button className="mt-auto w-full py-3 rounded-xl bg-[#ccff00] text-black font-bold text-xs hover:bg-[#d4ff33] transition-all shadow-[0_4px_20px_rgba(204,255,0,0.3)] flex items-center justify-center gap-1.5">
+                      <button
+                        onClick={() => { setShowPricing(false); setPurchasePlan("fresh_pro"); }}
+                        className="mt-auto w-full py-3 rounded-xl bg-[#ccff00] text-black font-bold text-xs hover:bg-[#d4ff33] transition-all shadow-[0_4px_20px_rgba(204,255,0,0.3)] flex items-center justify-center gap-1.5"
+                      >
                         Upgrade to Pro <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -3918,16 +3931,19 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                       </div>
                       <p className="text-xs text-white/40 font-medium mb-5">Maximum firepower</p>
                       <div className="flex items-baseline gap-1 mb-6">
-                        <span className="text-4xl font-bold text-white tracking-tight">$49</span>
+                        <span className="text-4xl font-bold text-white tracking-tight">1,500 R$</span>
                         <span className="text-xs text-white/30 font-medium">/mo</span>
                       </div>
                       <ul className="space-y-3 text-[13px] font-medium text-white/65 mb-8">
-                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> 30.0 credits daily</li>
+                        <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> 15.0 credits daily</li>
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> Claude Opus 4.8, 4.7, 4.6 &amp; 4.5</li>
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> Every Sonnet, Haiku &amp; open-weight model</li>
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> Priority processing</li>
                       </ul>
-                      <button className="mt-auto w-full py-3 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-bold text-xs transition-all">
+                      <button
+                        onClick={() => { setShowPricing(false); setPurchasePlan("pure_ultra"); }}
+                        className="mt-auto w-full py-3 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-bold text-xs transition-all"
+                      >
                         Go Ultra
                       </button>
                     </div>
@@ -3946,6 +3962,15 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
         </AnimatePresence>
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       </div>
+
+      {/* Purchase flow modal (age gate → shop redirect or under-16 manual verification) */}
+      {purchasePlan && (
+        <PurchaseFlowModal
+          plan={purchasePlan}
+          isLoggedIn={!isDemoMode}
+          onClose={() => setPurchasePlan(null)}
+        />
+      )}
     </DashboardContext.Provider>
   );
 }

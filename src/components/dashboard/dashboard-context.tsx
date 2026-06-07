@@ -90,6 +90,7 @@ export interface DashboardContextType {
   setUsage: Dispatch<SetStateAction<Usage>>;
   showPricing: boolean;
   setShowPricing: Dispatch<SetStateAction<boolean>>;
+  isAdminUser: boolean;
   autoRetry: boolean;
   setAutoRetry: Dispatch<SetStateAction<boolean>>;
   autoPlaytest: boolean;

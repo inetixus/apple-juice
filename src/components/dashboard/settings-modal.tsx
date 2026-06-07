@@ -169,6 +169,7 @@ export function SettingsModal() {
     usage,
     setUsage,
     showToast,
+    isAdminUser,
 
     // Key mode + BYOK
     keyMode,
@@ -390,7 +391,7 @@ export function SettingsModal() {
               </div>
             </div>
 
-            <div className="mt-6 pt-6 border-t border-dashed border-white/10 space-y-3">
+            <div className="mt-6 pt-6 border-t border-dashed border-white/10 space-y-3" style={{ display: isAdminUser ? undefined : "none" }}>
               <label className="text-[10px] font-black text-[#ccff00] uppercase tracking-[0.2em] block mb-2 opacity-50">
                 Admin Debug Tools (Persisted)
               </label>
