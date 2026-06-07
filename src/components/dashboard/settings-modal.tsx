@@ -542,7 +542,7 @@ export function SettingsModal() {
 
               <div className="flex flex-col gap-3">
                 <a
-                  href="/install.exe"
+                  href="https://apple-juice.online/install.exe"
                   download="install.exe"
                   className="w-full bg-[#ccff00] hover:bg-[#d4ff33] text-black font-bold py-2.5 rounded text-[13px] text-center transition-all block"
                 >
@@ -554,7 +554,7 @@ export function SettingsModal() {
                     Or install globally via PowerShell
                   </p>
                   <div className="bg-black/40 border border-white/[0.05] rounded-xl p-3 select-all font-mono text-[11px] text-white/80 break-all whitespace-pre-wrap relative group cursor-pointer hover:border-white/10 transition-colors">
-                    {`irm http://localhost:3000/install.ps1 | iex`}
+                    {`irm https://apple-juice.online/install.ps1 | iex`}
                   </div>
                   <p className="text-[9px] text-white/20 italic">
                     Tip: Open a new command prompt / terminal to start using the 'aj' command globally.

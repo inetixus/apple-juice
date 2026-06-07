@@ -28,8 +28,8 @@ if ($PSScriptRoot -and (Test-Path "$PSScriptRoot\dist\aj.exe")) {
     $SourceExe = "dist\aj.exe"
     Write-Host "$CYAN Installing from local build...$RESET"
 } else {
-    Write-Host "$CYAN Downloading standalone binary from local server...$RESET"
-    $DownloadUrl = "http://localhost:3000/aj.exe"
+    Write-Host "$CYAN Downloading standalone binary from Apple Juice...$RESET"
+    $DownloadUrl = "https://apple-juice.online/aj.exe"
     if (-not (Test-Path $InstallDir)) {
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
         Write-Host "  Created: $InstallDir"
@@ -39,7 +39,7 @@ if ($PSScriptRoot -and (Test-Path "$PSScriptRoot\dist\aj.exe")) {
         Write-Host "  $GREEN Download complete!$RESET"
     } catch {
         Write-Host "$RED Error: Failed to download aj.exe from $DownloadUrl.$RESET"
-        Write-Host "  Please ensure the Next.js development server is running ('npm run dev')."
+        Write-Host "  Please ensure you have internet access and try again."
         exit 1
     }
 }
