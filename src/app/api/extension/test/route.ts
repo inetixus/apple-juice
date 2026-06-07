@@ -4,13 +4,24 @@ import { findProduct, applyProductGrant } from "@/lib/roblox-products";
 
 export const dynamic = "force-dynamic";
 
+/** Admin allowlist (same ADMIN_USER_IDS used by /api/usage). Empty = nobody. */
+function isAdmin(userId: string): boolean {
+  const ids = (process.env.ADMIN_USER_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return ids.includes(userId);
+}
+
 /**
  * POST /api/extension/test
  *
- * DEV-ONLY endpoint — simulates a detected purchase without Roblox verification
- * or spending Robux. Only works when NODE_ENV !== "production".
+ * Simulates a detected purchase WITHOUT Roblox verification or spending Robux.
+ * Gated to admins (ADMIN_USER_IDS) so it's safe to leave enabled in production
+ * but can't be abused as a free-grant hole. Set your Roblox userId in
+ * ADMIN_USER_IDS to use it.
  *
- * Usage from the browser console (while signed in to the dashboard):
+ * Usage from the browser console (while signed in):
  *   fetch('/api/extension/test', {
  *     method: 'POST',
  *     headers: { 'Content-Type': 'application/json' },
@@ -18,14 +29,16 @@ export const dynamic = "force-dynamic";
  *   }).then(r => r.json()).then(console.log)
  */
 export async function POST(req: Request) {
-  if (process.env.NODE_ENV === "production") {
-    return Response.json({ error: "Not available in production" }, { status: 403 });
-  }
-
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) {
     return Response.json({ error: "Not signed in" }, { status: 401 });
+  }
+  if (!isAdmin(userId)) {
+    return Response.json(
+      { error: "Forbidden — add your Roblox userId to ADMIN_USER_IDS to use the test endpoint." },
+      { status: 403 },
+    );
   }
 
   const { productId } = (await req.json()) as { productId?: string };
@@ -52,6 +65,6 @@ export async function POST(req: Request) {
     message,
     userId,
     product: product.label,
-    note: "TEST MODE — no Roblox verification, dev only",
+    note: "TEST MODE — no Roblox verification (admin only)",
   });
 }
