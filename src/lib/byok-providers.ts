@@ -9,6 +9,9 @@
  *
  * Shared-credit ("provided") inference does NOT live here — that runs on the
  * Kiro lineup (see kiro-models.ts) and is selected when keyMode === "provided".
+ *
+ * Logo files live under /public/icons/<id>.png (or .webp). Use those exact
+ * filenames when dropping new icons in — the registry picks them up automatically.
  */
 
 export type ByokProviderId =
@@ -22,7 +25,8 @@ export type ByokProviderId =
   | "xai"
   | "together"
   | "fireworks"
-  | "perplexity";
+  | "perplexity"
+  | "huggingface";
 
 export interface ByokProvider {
   id: ByokProviderId;
@@ -84,7 +88,6 @@ export const BYOK_PROVIDERS: Record<ByokProviderId, ByokProvider> = {
     id: "anthropic",
     label: "Anthropic",
     logo: "/icons/anthropic.png",
-    // Anthropic's OpenAI-compatibility endpoint.
     endpoint: "https://api.anthropic.com/v1/chat/completions",
     consoleUrl: "https://console.anthropic.com/settings/keys",
     placeholder: "sk-ant-...",
@@ -113,7 +116,7 @@ export const BYOK_PROVIDERS: Record<ByokProviderId, ByokProvider> = {
   openrouter: {
     id: "openrouter",
     label: "OpenRouter",
-    logo: null,
+    logo: "/icons/openrouter.png",
     endpoint: "https://openrouter.ai/api/v1/chat/completions",
     consoleUrl: "https://openrouter.ai/keys",
     placeholder: "sk-or-...",
@@ -131,7 +134,7 @@ export const BYOK_PROVIDERS: Record<ByokProviderId, ByokProvider> = {
   groq: {
     id: "groq",
     label: "Groq",
-    logo: null,
+    logo: "/icons/groq.png",
     endpoint: "https://api.groq.com/openai/v1/chat/completions",
     consoleUrl: "https://console.groq.com/keys",
     placeholder: "gsk_...",
@@ -148,7 +151,7 @@ export const BYOK_PROVIDERS: Record<ByokProviderId, ByokProvider> = {
   mistral: {
     id: "mistral",
     label: "Mistral AI",
-    logo: null,
+    logo: "/icons/mistral.png",
     endpoint: "https://api.mistral.ai/v1/chat/completions",
     consoleUrl: "https://console.mistral.ai/api-keys",
     placeholder: "...",
@@ -160,7 +163,7 @@ export const BYOK_PROVIDERS: Record<ByokProviderId, ByokProvider> = {
   xai: {
     id: "xai",
     label: "xAI (Grok)",
-    logo: null,
+    logo: "/icons/xai.png",
     endpoint: "https://api.x.ai/v1/chat/completions",
     consoleUrl: "https://console.x.ai",
     placeholder: "xai-...",
@@ -172,7 +175,7 @@ export const BYOK_PROVIDERS: Record<ByokProviderId, ByokProvider> = {
   together: {
     id: "together",
     label: "Together AI",
-    logo: null,
+    logo: "/icons/together.png",
     endpoint: "https://api.together.xyz/v1/chat/completions",
     consoleUrl: "https://api.together.xyz/settings/api-keys",
     placeholder: "...",
@@ -188,7 +191,7 @@ export const BYOK_PROVIDERS: Record<ByokProviderId, ByokProvider> = {
   fireworks: {
     id: "fireworks",
     label: "Fireworks AI",
-    logo: null,
+    logo: "/icons/fireworks.png",
     endpoint: "https://api.fireworks.ai/inference/v1/chat/completions",
     consoleUrl: "https://fireworks.ai/account/api-keys",
     placeholder: "fw_...",
@@ -204,13 +207,33 @@ export const BYOK_PROVIDERS: Record<ByokProviderId, ByokProvider> = {
   perplexity: {
     id: "perplexity",
     label: "Perplexity",
-    logo: null,
+    logo: "/icons/perplexity.png",
     endpoint: "https://api.perplexity.ai/chat/completions",
     consoleUrl: "https://www.perplexity.ai/settings/api",
     placeholder: "pplx-...",
     keyPrefixes: ["pplx-"],
     defaultModels: ["sonar-pro", "sonar", "sonar-reasoning"],
     defaultModel: "sonar",
+    openAiCompatible: true,
+  },
+  huggingface: {
+    id: "huggingface",
+    label: "Hugging Face",
+    logo: "/icons/huggingface.png",
+    // Hugging Face Inference API — OpenAI-compatible endpoint.
+    // Models are addressed as the full HF repo id, e.g. "Qwen/Qwen2.5-Coder-32B-Instruct".
+    endpoint: "https://api-inference.huggingface.co/v1/chat/completions",
+    consoleUrl: "https://huggingface.co/settings/tokens",
+    placeholder: "hf_...",
+    keyPrefixes: ["hf_"],
+    defaultModels: [
+      "Qwen/Qwen2.5-Coder-32B-Instruct",
+      "meta-llama/Llama-3.3-70B-Instruct",
+      "deepseek-ai/DeepSeek-V3-0324",
+      "mistralai/Mixtral-8x7B-Instruct-v0.1",
+      "microsoft/Phi-4",
+    ],
+    defaultModel: "Qwen/Qwen2.5-Coder-32B-Instruct",
     openAiCompatible: true,
   },
 };
@@ -228,6 +251,7 @@ export const BYOK_PROVIDER_LIST: ByokProvider[] = [
   BYOK_PROVIDERS.together,
   BYOK_PROVIDERS.fireworks,
   BYOK_PROVIDERS.perplexity,
+  BYOK_PROVIDERS.huggingface,
 ];
 
 export function getByokProvider(id: string | undefined | null): ByokProvider | undefined {

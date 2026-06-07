@@ -15,6 +15,12 @@ describe("byok-providers registry", () => {
     expect(listIds).toEqual(mapIds);
   });
 
+  it("has 12 providers including huggingface", () => {
+    expect(BYOK_PROVIDER_LIST).toHaveLength(12);
+    expect(getByokProvider("huggingface")).toBeDefined();
+    expect(getByokProvider("huggingface")?.label).toBe("Hugging Face");
+  });
+
   it("every OpenAI-compatible provider has a concrete https endpoint", () => {
     for (const p of BYOK_PROVIDER_LIST) {
       if (p.openAiCompatible) {
@@ -35,8 +41,16 @@ describe("byok-providers registry", () => {
     }
   });
 
+  it("every provider has a logo path set (no nulls)", () => {
+    for (const p of BYOK_PROVIDER_LIST) {
+      expect(p.logo).not.toBeNull();
+      expect(p.logo).toMatch(/^\/icons\//);
+    }
+  });
+
   it("getByokProvider resolves known ids and rejects unknown", () => {
     expect(getByokProvider("anthropic")?.label).toBe("Anthropic");
+    expect(getByokProvider("huggingface")?.keyPrefixes).toContain("hf_");
     expect(getByokProvider("kiro")).toBeUndefined();
     expect(getByokProvider("")).toBeUndefined();
     expect(getByokProvider(null)).toBeUndefined();
@@ -44,6 +58,7 @@ describe("byok-providers registry", () => {
 
   it("endpointForProvider falls back to OpenAI for unknown ids", () => {
     expect(endpointForProvider("deepseek")).toBe(BYOK_PROVIDERS.deepseek.endpoint);
+    expect(endpointForProvider("huggingface")).toContain("huggingface.co");
     expect(endpointForProvider("nope")).toBe(BYOK_PROVIDERS.openai.endpoint);
   });
 
@@ -56,10 +71,11 @@ describe("byok-providers registry", () => {
     expect(an["anthropic-version"]).toBeTruthy();
 
     expect(extraHeadersForProvider("openai")).toEqual({});
+    expect(extraHeadersForProvider("huggingface")).toEqual({});
   });
 
   it("storageKeyFor is namespaced per provider", () => {
     expect(storageKeyFor("openai")).toBe("apple-juice-byok-openai");
-    expect(storageKeyFor("groq")).toBe("apple-juice-byok-groq");
+    expect(storageKeyFor("huggingface")).toBe("apple-juice-byok-huggingface");
   });
 });

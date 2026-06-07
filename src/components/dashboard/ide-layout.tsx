@@ -828,6 +828,9 @@ export function IdeLayout() {
                           <option value="byok:perplexity" className="bg-[#1a1c22]">
                             My Key — Perplexity
                           </option>
+                          <option value="byok:huggingface" className="bg-[#1a1c22]">
+                            My Key — Hugging Face
+                          </option>
                         </select>
                       </div>
 
