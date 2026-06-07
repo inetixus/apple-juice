@@ -125,6 +125,30 @@ export const MODEL_MULTIPLIERS: Record<string, number> = {
 export type UserPlan = keyof typeof PLAN_LIMITS;
 
 /**
+ * Recommended Studio-plugin poll interval (seconds) by plan. Higher tiers poll
+ * faster, so generated code + MCP commands land in Studio with less latency —
+ * a concrete "priority speed" benefit beyond the generation-start queue. The
+ * plugin clamps to its own min/max, so these are advisory. Tuned so the cost
+ * (extra poll QPS) scales with plan value.
+ */
+export const PLAN_POLL_INTERVAL: Record<UserPlan, number> = {
+  free: 0.4,
+  partner: 0.25,
+  fresh_pro: 0.15,
+  pure_ultra: 0.1,
+};
+
+/** Look up the recommended Studio poll interval for a user's plan. */
+export async function getPollIntervalForUser(userId: string): Promise<number> {
+  try {
+    const plan = await getUserPlan(userId);
+    return PLAN_POLL_INTERVAL[plan] ?? PLAN_POLL_INTERVAL.free;
+  } catch {
+    return PLAN_POLL_INTERVAL.free;
+  }
+}
+
+/**
  * Calculate mL of Juice consumed from raw token counts.
  * Formula: ((inputTokens * 1 + outputTokens * 6) / 1000) * modelMultiplier
  */
@@ -468,6 +492,7 @@ export async function consumeCode(sessionKey: string) {
       messageId: sess.messageId,
       requestedFile: sess.requestedFile,
       dashboardLastPingTime: sess.dashboardLastPingTime,
+      ownerUserId: sess.ownerUserId,
     };
 
     sess.hasNewCode = false;

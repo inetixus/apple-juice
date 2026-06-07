@@ -36,6 +36,11 @@ Usage is metered in **mL of Juice**, a token-based unit (input tokens + 6× outp
 | Fresh Pro | $19/mo | 5,000 | 3 | + Sonnet family |
 | Pure Ultra | $49/mo | 15,000 | 8 | + Opus family |
 
+> **Priority speed**: higher tiers get faster service end-to-end — they skip (or
+> minimize) the load-based generation queue *and* their Studio plugin polls on a
+> tighter cadence (Ultra ~0.1s → Free ~0.4s), so generated code and live MCP edits
+> land in Studio sooner under load.
+
 > **Partner** is a non-purchasable tier for partnered creators/studios — granted via a private code (`PARTNER_CODE`), it sits between Free and Pro on allowance.
 > BYOK users bypass mL entirely and pay their own provider directly.
 

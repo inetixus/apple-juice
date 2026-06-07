@@ -26,6 +26,11 @@ import {
   kiroModelLogo,
   type KiroPlan,
 } from "@/lib/kiro-models";
+import {
+  BYOK_PROVIDERS,
+  getByokProvider,
+  storageKeyFor,
+} from "@/lib/byok-providers";
 
 import { WorkspaceTree } from "@/components/workspace-tree";
 import { StripeWave } from "@/components/stripe-wave";
@@ -83,11 +88,21 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   const [sessionKey, setSessionKey] = useState("");
   const [prompt, setPrompt] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [provider, setProvider] = useState<"openai" | "google">(
+  const [provider, setProvider] = useState<string>(
     "openai",
   );
   const [openaiKey, setOpenaiKey] = useState("");
   const [googleKey, setGoogleKey] = useState("");
+  // ── Key mode + BYOK provider registry ──
+  // keyMode "provided" = shared-credit Kiro models (no user key sent).
+  // keyMode "byok"     = user's own provider key drives inference.
+  const [keyMode, setKeyMode] = useState<"provided" | "byok">("provided");
+  const [byokProvider, setByokProvider] = useState<string>("openai");
+  const [byokKeys, setByokKeys] = useState<Record<string, string>>({});
+  const [testKeyState, setTestKeyState] = useState<{
+    status: "idle" | "testing" | "ok" | "error";
+    message?: string;
+  }>({ status: "idle" });
   const [selectedModel, setSelectedModel] = useState(KIRO_DEFAULT_MODEL);
   const [availableModels, setAvailableModels] =
     useState<string[]>(FALLBACK_MODELS);
@@ -462,12 +477,19 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     if (!sessionKey) return;
     const interval = setInterval(async () => {
       try {
+        // In BYOK mode the active key drives inference; the server stores it in
+        // the session's openaiKey slot (used for every non-google provider) and
+        // googleKey for Google. In provided mode no key is sent.
+        const syncProvider = keyMode === "byok" ? byokProvider : "apple_juice_ai";
+        const activeByokKey = keyMode === "byok" ? (byokKeys[byokProvider] || "") : "";
+        const syncOpenaiKey = byokProvider === "google" ? "" : activeByokKey;
+        const syncGoogleKey = byokProvider === "google" ? activeByokKey : googleKey;
         const res = await fetch(
           `/api/status?key=${encodeURIComponent(sessionKey)}` +
             `&model=${encodeURIComponent(selectedModel)}` +
-            `&provider=${encodeURIComponent(provider)}` +
-            `&openaiKey=${encodeURIComponent(openaiKey)}` +
-            `&googleKey=${encodeURIComponent(googleKey)}` +
+            `&provider=${encodeURIComponent(syncProvider)}` +
+            `&openaiKey=${encodeURIComponent(syncOpenaiKey)}` +
+            `&googleKey=${encodeURIComponent(syncGoogleKey)}` +
             `&mode=${encodeURIComponent(mode)}` +
             `&t=${Date.now()}`,
           { cache: "no-store" },
@@ -666,7 +688,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       }
     }, 500);
     return () => clearInterval(interval);
-  }, [sessionKey, showToast, selectedModel, provider, openaiKey, googleKey, mode]);
+  }, [sessionKey, showToast, selectedModel, provider, openaiKey, googleKey, mode, keyMode, byokProvider, byokKeys]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -712,7 +734,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
     const savedProvider = (window.localStorage.getItem(
       "apple-juice-provider",
-    ) || "openai") as "openai" | "google";
+    ) || "openai") as string;
     const savedOpen =
       window.localStorage.getItem("apple-juice-openai-key") ??
       window.localStorage.getItem("apple-juice-api-key") ??
@@ -724,9 +746,40 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     setOpenaiKey(savedOpen);
     setGoogleKey(savedGoogle);
 
+    // ── Key mode + BYOK keys ──
+    // Restore which mode the user picked (shared "provided" vs their own "byok"),
+    // the selected BYOK provider, and any per-provider keys. Legacy single-key
+    // storage (openai/google above) is migrated into the byok map so existing
+    // users keep their saved keys.
+    const savedKeyMode =
+      (window.localStorage.getItem("apple-juice-key-mode") as
+        | "provided"
+        | "byok"
+        | null) ?? "provided";
+    const savedByokProvider =
+      window.localStorage.getItem("apple-juice-byok-provider") || "openai";
+
+    const loadedByokKeys: Record<string, string> = {};
+    for (const id of Object.keys(BYOK_PROVIDERS)) {
+      const v = window.localStorage.getItem(storageKeyFor(id));
+      if (v) loadedByokKeys[id] = v;
+    }
+    // Migrate legacy keys into the map if not already present.
+    if (savedOpen && !loadedByokKeys.openai) loadedByokKeys.openai = savedOpen;
+    if (savedGoogle && !loadedByokKeys.google) loadedByokKeys.google = savedGoogle;
+
+    setKeyMode(savedKeyMode);
+    setByokProvider(savedByokProvider);
+    setByokKeys(loadedByokKeys);
+
     let effectiveKey = savedOpen;
     if (savedProvider === "google") effectiveKey = savedGoogle;
     else effectiveKey = savedOpen;
+    // In BYOK mode the active provider/key is the saved BYOK selection.
+    if (savedKeyMode === "byok") {
+      effectiveKey = loadedByokKeys[savedByokProvider] || "";
+      setProvider(savedByokProvider);
+    }
     setApiKey(effectiveKey);
 
     const savedModel =
@@ -735,7 +788,13 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
     void loadProjects();
 
-    void loadModels(effectiveKey, savedModel);
+    // In provided mode, pass no key so the model list resolves to the Kiro
+    // lineup; in BYOK mode pass the provider's key.
+    void loadModels(
+      savedKeyMode === "byok" ? effectiveKey : "",
+      savedModel,
+      savedKeyMode === "byok" ? savedByokProvider : "apple_juice_ai",
+    );
 
     const savedAutoRetry = localStorage.getItem("aj_auto_retry") === "true";
     setAutoRetry(savedAutoRetry);
@@ -1415,15 +1474,17 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       if (targetModel && nextModels.includes(targetModel)) {
         setSelectedModel(targetModel);
       } else {
-        const fallbackDefault =
-          actualProvider === "apple_juice_ai" || actualProvider === "kiro"
-            ? KIRO_DEFAULT_MODEL
-            : usedProvider === "google"
-              ? "gemini-3-flash"
-              : "gpt-4o-mini";
+        const isShared =
+          actualProvider === "apple_juice_ai" || actualProvider === "kiro";
+        const byokMeta = !isShared ? getByokProvider(actualProvider) : undefined;
+        const fallbackDefault = isShared
+          ? KIRO_DEFAULT_MODEL
+          : byokMeta?.defaultModel || nextModels[0] || "gpt-4o-mini";
         const first = nextModels.includes(KIRO_DEFAULT_MODEL)
           ? KIRO_DEFAULT_MODEL
-          : nextModels[0] || fallbackDefault;
+          : nextModels.includes(fallbackDefault)
+            ? fallbackDefault
+            : nextModels[0] || fallbackDefault;
         setSelectedModel(first);
         window.localStorage.setItem("apple-juice-model", first);
       }
@@ -1449,7 +1510,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     ).trim();
     const detectedGoogle = looksLikeGoogleKey(inputValue);
 
-    let finalProvider: "openai" | "google" = provider;
+    let finalProvider: "openai" | "google" = (provider === "google" ? "google" : "openai");
     if (detectedGoogle) finalProvider = "google";
 
     if (finalProvider === "google") {
@@ -1467,6 +1528,101 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     setApiKey(inputValue);
     void loadModels(inputValue, undefined, finalProvider);
     setShowSettings(false);
+  }
+
+  // ── Key mode + BYOK helpers ───────────────────────────────────────────────
+
+  /**
+   * Switch between using the platform's provided shared-credit models and the
+   * user's own provider key. This is the single toggle that decides whether a
+   * key is sent to /api/chat at all.
+   */
+  function selectKeyMode(mode: "provided" | "byok") {
+    setKeyMode(mode);
+    setTestKeyState({ status: "idle" });
+    window.localStorage.setItem("apple-juice-key-mode", mode);
+
+    if (mode === "provided") {
+      // No key → server routes to the Kiro shared-credit lineup.
+      setApiKey("");
+      setProvider("apple_juice_ai");
+      const savedModel =
+        window.localStorage.getItem("apple-juice-model") || KIRO_DEFAULT_MODEL;
+      void loadModels("", savedModel, "apple_juice_ai");
+    } else {
+      const id = byokProvider || "openai";
+      const key = byokKeys[id] || "";
+      setProvider(id);
+      setApiKey(key);
+      void loadModels(key, undefined, id);
+    }
+  }
+
+  /** Switch the active BYOK provider and load its model list. */
+  function selectByokProvider(id: string) {
+    setByokProvider(id);
+    window.localStorage.setItem("apple-juice-byok-provider", id);
+    setTestKeyState({ status: "idle" });
+    const key = byokKeys[id] || "";
+    setProvider(id);
+    setApiKey(key);
+    const meta = getByokProvider(id);
+    void loadModels(key, meta?.defaultModel, id);
+  }
+
+  /** Update (and persist) the key for a specific BYOK provider. */
+  function setByokKeyValue(id: string, value: string) {
+    setByokKeys((prev) => ({ ...prev, [id]: value }));
+    setTestKeyState({ status: "idle" });
+    if (value.trim()) {
+      window.localStorage.setItem(storageKeyFor(id), value.trim());
+    } else {
+      window.localStorage.removeItem(storageKeyFor(id));
+    }
+    // Keep legacy mirrors in sync so the rest of the app still works.
+    if (id === "openai") {
+      setOpenaiKey(value);
+      window.localStorage.setItem("apple-juice-openai-key", value.trim());
+      window.localStorage.setItem("apple-juice-api-key", value.trim());
+    } else if (id === "google") {
+      setGoogleKey(value);
+      window.localStorage.setItem("apple-juice-google-key", value.trim());
+    }
+    if (id === byokProvider) setApiKey(value);
+  }
+
+  /**
+   * Validate the active BYOK key against the provider before the user spends a
+   * generation turn finding out it's bad. Calls /api/test-key, which makes a
+   * tiny real request and never stores the key.
+   */
+  async function testConnection() {
+    const id = byokProvider || "openai";
+    const key = (byokKeys[id] || "").trim();
+    if (!key) {
+      setTestKeyState({ status: "error", message: "Enter a key first." });
+      return;
+    }
+    setTestKeyState({ status: "testing" });
+    try {
+      const res = await fetch("/api/test-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: id, apiKey: key, model: selectedModel }),
+      });
+      const data = (await res.json()) as { ok?: boolean; error?: string; note?: string };
+      if (data.ok) {
+        setTestKeyState({ status: "ok", message: data.note || "Connection verified." });
+        showToast("API key verified", "success");
+      } else {
+        setTestKeyState({ status: "error", message: data.error || "Key validation failed." });
+      }
+    } catch (err) {
+      setTestKeyState({
+        status: "error",
+        message: err instanceof Error ? err.message : "Network error during test.",
+      });
+    }
   }
 
   // Replace the placeholder "thinking…" steps with the REAL activity timeline
@@ -1996,7 +2152,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
             prompt: trimmed,
             provider,
             apiKey: apiKey.trim(),
-            openaiKey: openaiKey.trim(),
+            openaiKey: provider === "google" ? "" : apiKey.trim(),
           }),
           signal: abortControllerRef.current.signal,
         });
@@ -2277,7 +2433,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
           apiKey: apiKey.trim(),
           model: selectedModel,
           provider,
-          openaiKey: openaiKey.trim(),
+          openaiKey: provider === "google" ? "" : apiKey.trim(),
           mode,
           fileContents: attachedFiles.length > 0 ? attachedFiles : undefined,
           autoSync: true,
@@ -3141,6 +3297,18 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     setOpenaiKey,
     googleKey,
     setGoogleKey,
+    keyMode,
+    setKeyMode,
+    byokProvider,
+    setByokProvider,
+    byokKeys,
+    setByokKeys,
+    testKeyState,
+    setTestKeyState,
+    selectKeyMode,
+    selectByokProvider,
+    setByokKeyValue,
+    testConnection,
     selectedModel,
     setSelectedModel,
     availableModels,

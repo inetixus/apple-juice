@@ -4,6 +4,7 @@ type ModelsBody = {
 };
 
 import { KIRO_MODEL_LABELS } from "@/lib/kiro-models";
+import { getByokProvider } from "@/lib/byok-providers";
 
 const FALLBACK_MODELS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"];
 const GOOGLE_FALLBACK_MODELS = [
@@ -46,6 +47,39 @@ export async function POST(request: Request) {
 
   if (provider === "opencode") {
     return Response.json({ models: OPENCODE_MODELS });
+  }
+
+  // ── Generic BYOK providers ──────────────────────────────────────────────
+  // For any registered BYOK provider that isn't OpenAI/Google (handled with a
+  // live fetch below), return the curated default model list. A live model
+  // listing isn't uniformly available/cheap across providers, and the test-key
+  // endpoint already validates the key, so curated defaults are the right UX.
+  const byok = getByokProvider(provider);
+  if (
+    byok &&
+    provider !== "openai" &&
+    provider !== "google"
+  ) {
+    // OpenRouter does expose a public model list — try it, fall back to curated.
+    if (provider === "openrouter") {
+      try {
+        const r = await fetch("https://openrouter.ai/api/v1/models", {
+          headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+          signal: AbortSignal.timeout(10000),
+        });
+        if (r.ok) {
+          const j = await r.json();
+          const ids = (j?.data || [])
+            .map((m: any) => m?.id)
+            .filter((id: any): id is string => typeof id === "string")
+            .sort();
+          if (ids.length) return Response.json({ models: ids });
+        }
+      } catch {
+        /* fall back to curated */
+      }
+    }
+    return Response.json({ models: byok.defaultModels });
   }
 
   if (provider === "google") {

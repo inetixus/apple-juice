@@ -90,11 +90,10 @@ export function IdeLayout() {
     prompt,
     setPrompt,
     submitPrompt,
-    provider,
-    setProvider,
-    googleKey,
-    openaiKey,
-    loadModels,
+    keyMode,
+    byokProvider,
+    selectKeyMode,
+    selectByokProvider,
     selectedModel,
     setSelectedModel,
     isLoadingModels,
@@ -777,24 +776,57 @@ export function IdeLayout() {
                     <div className="space-y-4">
                       <div>
                         <label className="text-[9px] font-black uppercase text-white/40 mb-1.5 block tracking-widest">
-                          Provider
+                          Inference Source
                         </label>
                         <select
-                          value={provider}
+                          value={keyMode === "byok" ? `byok:${byokProvider}` : "provided"}
                           onChange={(e) => {
-                            const val = e.target.value as "openai" | "google";
-                            setProvider(val);
-                            const newKey =
-                              val === "google" ? googleKey : openaiKey;
-                            loadModels(newKey, undefined, val);
+                            const val = e.target.value;
+                            if (val === "provided") {
+                              selectKeyMode("provided");
+                            } else {
+                              const id = val.replace("byok:", "");
+                              selectKeyMode("byok");
+                              selectByokProvider(id);
+                            }
                           }}
                           className="w-full bg-white/[0.03] border border-white/5 text-white/80 text-[10px] font-bold py-2 px-3 rounded-lg focus:outline-none focus:border-[#ccff00]/30 transition-all cursor-pointer uppercase tracking-tight"
                         >
-                          <option value="openai" className="bg-[#1a1c22]">
-                            OpenAI
+                          <option value="provided" className="bg-[#1a1c22]">
+                            Provided Models (Shared Credits)
                           </option>
-                          <option value="google" className="bg-[#1a1c22]">
-                            Google AI Studio
+                          <option value="byok:openai" className="bg-[#1a1c22]">
+                            My Key — OpenAI
+                          </option>
+                          <option value="byok:anthropic" className="bg-[#1a1c22]">
+                            My Key — Anthropic
+                          </option>
+                          <option value="byok:google" className="bg-[#1a1c22]">
+                            My Key — Google AI Studio
+                          </option>
+                          <option value="byok:deepseek" className="bg-[#1a1c22]">
+                            My Key — DeepSeek
+                          </option>
+                          <option value="byok:openrouter" className="bg-[#1a1c22]">
+                            My Key — OpenRouter
+                          </option>
+                          <option value="byok:groq" className="bg-[#1a1c22]">
+                            My Key — Groq
+                          </option>
+                          <option value="byok:xai" className="bg-[#1a1c22]">
+                            My Key — xAI (Grok)
+                          </option>
+                          <option value="byok:mistral" className="bg-[#1a1c22]">
+                            My Key — Mistral
+                          </option>
+                          <option value="byok:together" className="bg-[#1a1c22]">
+                            My Key — Together AI
+                          </option>
+                          <option value="byok:fireworks" className="bg-[#1a1c22]">
+                            My Key — Fireworks
+                          </option>
+                          <option value="byok:perplexity" className="bg-[#1a1c22]">
+                            My Key — Perplexity
                           </option>
                         </select>
                       </div>

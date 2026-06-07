@@ -21,6 +21,7 @@ import { buildLibraryDeploymentPrompt, getUILibraryDeploymentScripts } from "@/l
 import { buildSystemsContextBlock, buildSnippetsContextBlock } from "@/lib/systems";
 import { validateGeneration } from "@/lib/validate-generation";
 import { normalizeActions } from "@/lib/normalize-action";
+import { endpointForProvider, extraHeadersForProvider, getByokProvider } from "@/lib/byok-providers";
 
 import {
   isKiroModelAvailable,
@@ -794,11 +795,8 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
     const headers: any = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${key}`,
+      ...extraHeadersForProvider(effectiveProvider),
     };
-    if (endpointUrl.includes("openrouter.ai")) {
-      headers["HTTP-Referer"] = "https://github.com/inetixus/apple-juice";
-      headers["X-Title"] = "Apple Juice Roblox Sync";
-    }
 
     const payload: any = {
       model: modelName,
@@ -858,11 +856,8 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${key}`,
+      ...extraHeadersForProvider(effectiveProvider),
     };
-    if (endpointUrl.includes("openrouter.ai")) {
-      headers["HTTP-Referer"] = "https://github.com/inetixus/apple-juice";
-      headers["X-Title"] = "Apple Juice Roblox Sync";
-    }
 
     const res = await fetch(endpointUrl, {
       method: "POST",
@@ -1916,14 +1911,17 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
         );
       }
 
-      // ── OpenAI Provider Path ───────────────────────────────────────────────────
+      // ── OpenAI-compatible Provider Path (OpenAI + BYOK: Anthropic, Groq,
+      //    DeepSeek, xAI, Mistral, Together, Fireworks, Perplexity, OpenRouter) ──
     } else if (
-      effectiveModel.toLowerCase().startsWith("gpt-") &&
-      finalOpenAIKey
+      (
+        (effectiveModel.toLowerCase().startsWith("gpt-") && finalOpenAIKey) ||
+        (isUsingCustomKey &&
+          effectiveProvider !== "google" &&
+          getByokProvider(effectiveProvider)?.openAiCompatible)
+      )
     ) {
-      let endpointUrl = "https://api.openai.com/v1/chat/completions";
-      if (effectiveProvider === "deepseek") endpointUrl = "https://api.deepseek.com/v1/chat/completions";
-      else if (effectiveProvider === "openrouter") endpointUrl = "https://openrouter.ai/api/v1/chat/completions";
+      let endpointUrl = endpointForProvider(effectiveProvider);
 
       const requestKey = isUsingCustomKey ? clientKey : (effectiveProvider === "openai" ? systemOpenAIKey : "");
 
@@ -2267,10 +2265,8 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
     } else if (effectiveProvider === "groq_done") {
       // Do nothing, already processed
     } else {
-      // Default: OpenAI using provided apiKey
-      let endpointUrl = "https://api.openai.com/v1/chat/completions";
-      if (effectiveProvider === "deepseek") endpointUrl = "https://api.deepseek.com/v1/chat/completions";
-      else if (effectiveProvider === "openrouter") endpointUrl = "https://openrouter.ai/api/v1/chat/completions";
+      // Default: OpenAI-compatible BYOK provider using the provided apiKey.
+      let endpointUrl = endpointForProvider(effectiveProvider);
 
       const requestKey = isUsingCustomKey ? clientKey : (effectiveProvider === "openai" ? systemOpenAIKey : "");
 

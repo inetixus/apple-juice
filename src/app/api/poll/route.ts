@@ -1,4 +1,4 @@
-import { consumeCode, updateSession, getRedis } from "@/lib/store";
+import { consumeCode, updateSession, getRedis, getPollIntervalForUser } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +69,19 @@ export async function GET(req: Request) {
       /* best-effort; snapshot will be retried on the next agent request */
     }
 
+    // Plan-aware poll cadence: higher tiers poll faster so generated code +
+    // MCP commands land in Studio with less latency. Advisory — the plugin
+    // clamps to its own safe min/max.
+    let pollInterval = 0.4;
+    try {
+      const ownerUserId = (result.payload as { ownerUserId?: string }).ownerUserId;
+      if (ownerUserId) {
+        pollInterval = await getPollIntervalForUser(ownerUserId);
+      }
+    } catch {
+      /* fall back to default cadence */
+    }
+
     return Response.json({
       paired: true,
       hasNewCode: result.payload.hasNewCode,
@@ -76,6 +89,7 @@ export async function GET(req: Request) {
       messageId: result.payload.messageId,
       requestedFile: result.payload.requestedFile,
       requestSnapshot,
+      pollInterval,
     });
   } catch (err) {
     console.error(

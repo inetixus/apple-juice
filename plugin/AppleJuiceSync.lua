@@ -47,6 +47,13 @@ pcall(function()
 	end
 end)
 local POLL_INTERVAL = 0.2
+-- Server-driven, plan-aware poll cadence. The /api/poll response may return a
+-- recommended `pollInterval` (higher subscription tiers poll faster so code +
+-- MCP commands land in Studio sooner). We clamp it to a safe range so a bad
+-- value can never hammer the server or stall the loop.
+local MIN_POLL_INTERVAL = 0.1
+local MAX_POLL_INTERVAL = 1.0
+local currentPollInterval = POLL_INTERVAL
 
 local toolbar = plugin:CreateToolbar(TOOLBAR_NAME)
 local toolbarButton = toolbar:CreateButton("AppleJuiceAISyncToggle", "Toggle Apple Juice AI Sync", "rbxassetid://4458901886")
@@ -232,44 +239,8 @@ local STATUS_COLORS = {
 	info = Color3.fromRGB(170, 176, 188),
 }
 
-running = false
+local running = false
 local unloading = false
-local lastMessageId = nil
-local isConnected = false
-local currentSessionKey = nil
-local isAutoTesting = false
-local currentPlaytestId = 0
-local testErrors = {}
-local testWarnings = {}
-local mcpBusy = false
-local lastInjectedScripts = {}
-
-local undoStack = {}
-
-local function updateUndoButton()
-	if #undoStack > 0 then
-		undoButton.Visible = true
-		undoButton.Text = "Undo Last Sync (" .. #undoStack .. ")"
-	else
-		undoButton.Visible = false
-	end
-end
-
-undoButton.MouseButton1Click:Connect(function()
-	if #undoStack == 0 then return end
-	local batch = table.remove(undoStack, #undoStack)
-	for _, fn in ipairs(batch) do
-		pcall(fn)
-	end
-	updateUndoButton()
-	statusLabel.Text = "Undid last generation successfully."
-	statusLabel.TextColor3 = Color3.fromRGB(77, 214, 123)
-end)
-
-local function setStatus(message, kind)
-	statusLabel.Text = message
-	statusLabel.TextColor3 = STATUS_COLORS[kind] or STATUS_COLORS.info
-end
 
 -- ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1332,6 +1303,14 @@ local function pollLoop(sessionKey)
 			setStatus("Connected — waiting for code...", "success")
 		end
 
+		-- Honor the server's plan-aware poll cadence (clamped to a safe range).
+		if type(data.pollInterval) == "number" then
+			local pi = data.pollInterval
+			if pi < MIN_POLL_INTERVAL then pi = MIN_POLL_INTERVAL end
+			if pi > MAX_POLL_INTERVAL then pi = MAX_POLL_INTERVAL end
+			currentPollInterval = pi
+		end
+
 		-- Stage 2: app requests a full project snapshot (tree + sources) so the
 		-- agentic CLI can work against real files.
 		if data.requestSnapshot then
@@ -1438,7 +1417,7 @@ local function pollLoop(sessionKey)
 		end
 
 		local elapsed = 0
-		while running and not unloading and elapsed < POLL_INTERVAL do
+		while running and not unloading and elapsed < currentPollInterval do
 			task.wait(0.1)
 			elapsed += 0.1
 		end

@@ -29,12 +29,29 @@ export interface DashboardContextType {
   setPrompt: Dispatch<SetStateAction<string>>;
   apiKey: string;
   setApiKey: Dispatch<SetStateAction<string>>;
-  provider: "openai" | "google";
-  setProvider: Dispatch<SetStateAction<"openai" | "google">>;
+  provider: string;
+  setProvider: Dispatch<SetStateAction<string>>;
   openaiKey: string;
   setOpenaiKey: Dispatch<SetStateAction<string>>;
   googleKey: string;
   setGoogleKey: Dispatch<SetStateAction<string>>;
+  // ── Key mode + BYOK provider registry ──
+  /** "provided" = shared-credit Kiro models; "byok" = user's own provider key. */
+  keyMode: "provided" | "byok";
+  setKeyMode: Dispatch<SetStateAction<"provided" | "byok">>;
+  /** Selected BYOK provider id (openai, anthropic, google, ...). */
+  byokProvider: string;
+  setByokProvider: Dispatch<SetStateAction<string>>;
+  /** Per-provider key map (also mirrored to localStorage). */
+  byokKeys: Record<string, string>;
+  setByokKeys: Dispatch<SetStateAction<Record<string, string>>>;
+  /** In-flight / result state for the Test Connection button. */
+  testKeyState: { status: "idle" | "testing" | "ok" | "error"; message?: string };
+  setTestKeyState: Dispatch<SetStateAction<{ status: "idle" | "testing" | "ok" | "error"; message?: string }>>;
+  selectKeyMode: (mode: "provided" | "byok") => void;
+  selectByokProvider: (id: string) => void;
+  setByokKeyValue: (id: string, value: string) => void;
+  testConnection: () => Promise<void>;
   selectedModel: string;
   setSelectedModel: Dispatch<SetStateAction<string>>;
   availableModels: string[];

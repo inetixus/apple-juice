@@ -50,6 +50,13 @@ pcall(function()
 	end
 end)
 local POLL_INTERVAL = 0.2
+-- Server-driven, plan-aware poll cadence. The /api/poll response may return a
+-- recommended `pollInterval` (higher subscription tiers poll faster so code +
+-- MCP commands land in Studio sooner). We clamp it to a safe range so a bad
+-- value can never hammer the server or stall the loop.
+local MIN_POLL_INTERVAL = 0.1
+local MAX_POLL_INTERVAL = 1.0
+local currentPollInterval = POLL_INTERVAL
 
 local toolbar = plugin:CreateToolbar(TOOLBAR_NAME)
 local toolbarButton = toolbar:CreateButton("AppleJuiceAISyncCLIToggle", "Toggle Apple Juice AI Sync (CLI)", "rbxassetid://4458901886")
@@ -235,7 +242,7 @@ local STATUS_COLORS = {
 	info = Color3.fromRGB(170, 176, 188),
 }
 
-running = false
+local running = false
 local unloading = false
 local lastMessageId = nil
 local isConnected = false
@@ -1335,6 +1342,14 @@ local function pollLoop(sessionKey)
 			setStatus("Connected — waiting for code...", "success")
 		end
 
+		-- Honor the server's plan-aware poll cadence (clamped to a safe range).
+		if type(data.pollInterval) == "number" then
+			local pi = data.pollInterval
+			if pi < MIN_POLL_INTERVAL then pi = MIN_POLL_INTERVAL end
+			if pi > MAX_POLL_INTERVAL then pi = MAX_POLL_INTERVAL end
+			currentPollInterval = pi
+		end
+
 		-- Stage 2: app requests a full project snapshot (tree + sources) so the
 		-- agentic CLI can work against real files.
 		if data.requestSnapshot then
@@ -1441,7 +1456,7 @@ local function pollLoop(sessionKey)
 		end
 
 		local elapsed = 0
-		while running and not unloading and elapsed < POLL_INTERVAL do
+		while running and not unloading and elapsed < currentPollInterval do
 			task.wait(0.1)
 			elapsed += 0.1
 		end

@@ -58,7 +58,7 @@ const FAQ_ITEMS = [
   {
     question: "Is Apple Juice free to use?",
     answer:
-      "Yes. Apple Juice is free and open-source (MIT License). You only pay for AI inference — either through your own OpenAI or Google AI Studio API key, or by using the platform's shared credit pool.",
+      "Yes. Apple Juice is free and open-source (MIT License). You only pay for AI inference — either through your own provider key (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Groq, xAI, Mistral, and more), or by using the platform's shared credit pool.",
   },
   {
     question: "What data do you receive when I sign in?",
@@ -68,7 +68,7 @@ const FAQ_ITEMS = [
   {
     question: "Do you store my AI provider API keys?",
     answer:
-      "Never. Your API keys are stored exclusively in your browser's localStorage. They are sent directly from your browser to OpenAI or Google AI Studio — our servers are not in that data path.",
+      "Never. Your API keys are stored exclusively in your browser's localStorage. They are sent directly from your browser to your chosen provider — our servers are not in that data path.",
   },
   {
     question: "How does the Studio plugin work?",

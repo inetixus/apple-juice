@@ -73,9 +73,38 @@ done; B7 (live VPS round-trip test) is still open and tracked below.
 
 ## ── MEDIUM IMPACT: developer experience ──
 
-[ ] 5. API key "Test Connection" button
-    Validate a pasted key before the user burns a generation turn discovering it's
-    bad. Small, high-value.
+[x] PRIORITY SPEED: tiered Studio sync cadence
+    DONE. The load-based generation-start queue (pure_ultra > fresh_pro > partner
+    > free) already existed in /api/chat. Added the second half: plan-aware Studio
+    DELIVERY speed. /api/poll now returns a recommended `pollInterval` per plan
+    (PLAN_POLL_INTERVAL: free 0.4s / partner 0.25s / pro 0.15s / ultra 0.1s) via
+    getPollIntervalForUser(); consumeCode now surfaces ownerUserId so the route can
+    resolve the plan. Both plugins (AppleJuiceSync.lua + CLI) honor the returned
+    value, clamped to [0.1s, 1.0s], so higher tiers' generated code + live MCP
+    edits land in Studio with less latency. Store tests still green.
+    DEPLOY: re-import the updated plugin in Studio; no VPS change needed.
+
+[x] 5. API key "Test Connection" button + BYOK provider revamp
+    DONE. Two parts:
+    1) Test Connection: new POST /api/test-key validates a pasted key with the
+       smallest possible real call (1-token chat completion, or a models-list
+       ping for Google) before the user spends a generation turn. Returns a
+       friendly ok/error; the key is used only for that request, never stored.
+       Wired into the settings panel with testing/ok/error states + a toast.
+    2) Provider revamp: added src/lib/byok-providers.ts — a central registry of
+       11 providers (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Groq,
+       Mistral, xAI, Together, Fireworks, Perplexity) with endpoints, key
+       placeholders, console links, and curated default model lists. The
+       settings panel now has a clear two-way toggle: "Provided Models"
+       (shared-credit Kiro lineup, metered in mL) vs "My API Key" (BYOK, billed
+       by the provider, no mL). Per-provider keys persist in localStorage; the
+       model picker + IDE inference-source dropdown follow the selection.
+    Server: /api/models returns each provider's curated models (live fetch for
+    OpenRouter); /api/chat resolves endpoints + headers from the registry and
+    the streaming path now covers any OpenAI-compatible BYOK provider (not just
+    gpt-*). Status sync sends the active provider/key to the paired session.
+    Typecheck clean (app src); store tests still green. FAQ + provider claims
+    updated. localStorage migrates legacy openai/google keys into the new map.
 
 [ ] 6. Live Sync status indicator for Studio pairing
     Heartbeat polling already exists; surface a clear paired/online/offline pill in
