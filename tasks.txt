@@ -73,6 +73,30 @@ done; B7 (live VPS round-trip test) is still open and tracked below.
 
 ## ── MEDIUM IMPACT: developer experience ──
 
+[x] WEBSITE PURCHASES via browser extension (age-gate workaround)
+    PROBLEM: the Roblox shop game is rated 16+, so under-16 / non-age-checked
+    users can't enter it to buy plans/refills. A real payment processor (Stripe
+    etc.) isn't viable (owner is a minor — can't be merchant of record).
+    SOLUTION: a Chrome extension that DETECTS (never makes) a purchase the user
+    completes through Roblox's own flow, then relays it to the site to unlock.
+    Built:
+    - extension/ (MV3): inject.js observes the page's own purchase fetch/XHR
+      (read-only) + roblox-detect.js DOM observer; relays { productId } to the
+      API with credentials. Listener only — no automation, ToS-safe.
+    - /api/extension/purchase: grants to the Roblox userId from the AUTHENTICATED
+      session (forge-proof — only affects caller's own account), then RE-VERIFIES
+      with Roblox before granting (gamepass ownership / Open Cloud active-sub).
+      Fails closed. Dev-product refills aren't verifiable post-hoc, so they're
+      rejected here and still flow through the authoritative in-game webhook.
+    - src/lib/roblox-products.ts: shared product→grant map (webhook + extension
+      use one source of truth). Webhook refactored onto it.
+    - src/lib/roblox-verify.ts: server-side Roblox ownership/subscription checks.
+    - /extension page + landing pricing note + downloadable zip in public/.
+    - New env: ROBLOX_WEBHOOK_SECRET (existing), ROBLOX_OPEN_CLOUD_KEY +
+      ROBLOX_UNIVERSE_ID (subscription verification). Tests added (90 pass).
+    FOLLOW-UP (you): still worth re-checking the game's maturity questionnaire —
+    a pure shop game usually rates 9+/13+, which fixes this at the source.
+
 [x] PRIORITY SPEED: tiered Studio sync cadence
     DONE. The load-based generation-start queue (pure_ultra > fresh_pro > partner
     > free) already existed in /api/chat. Added the second half: plan-aware Studio

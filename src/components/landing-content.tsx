@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 "use client";
 
 import {
@@ -48,17 +48,17 @@ const LANDING_AMBIENT_GRADIENT =
   "radial-gradient(ellipse 55% 45% at 15% 88%, rgba(59,130,246,0.07), transparent 60%)," +
   "radial-gradient(ellipse 50% 40% at 88% 78%, rgba(204,255,0,0.06), transparent 55%)";
 
-/* ─── FAQ data ─── */
+/* â”€â”€â”€ FAQ data â”€â”€â”€ */
 const FAQ_ITEMS = [
   {
     question: "Is Apple Juice affiliated with Roblox Corporation?",
     answer:
-      "No. Apple Juice is an independent, open-source project. It is not affiliated with, endorsed by, or sponsored by Roblox Corporation. Sign-in is performed through the official Roblox OAuth 2.0 API — a publicly available developer program — so the authorization screen you see is hosted and operated by Roblox, not us.",
+      "No. Apple Juice is an independent, open-source project. It is not affiliated with, endorsed by, or sponsored by Roblox Corporation. Sign-in is performed through the official Roblox OAuth 2.0 API â€” a publicly available developer program â€” so the authorization screen you see is hosted and operated by Roblox, not us.",
   },
   {
     question: "Is Apple Juice free to use?",
     answer:
-      "Yes. Apple Juice is free and open-source (MIT License). You only pay for AI inference — either through your own provider key (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Groq, xAI, Mistral, and more), or by using the platform's shared credit pool.",
+      "Yes. Apple Juice is free and open-source (MIT License). You only pay for AI inference â€” either through your own provider key (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Groq, xAI, Mistral, and more), or by using the platform's shared credit pool.",
   },
   {
     question: "What data do you receive when I sign in?",
@@ -68,7 +68,7 @@ const FAQ_ITEMS = [
   {
     question: "Do you store my AI provider API keys?",
     answer:
-      "Never. Your API keys are stored exclusively in your browser's localStorage. They are sent directly from your browser to your chosen provider — our servers are not in that data path.",
+      "Never. Your API keys are stored exclusively in your browser's localStorage. They are sent directly from your browser to your chosen provider â€” our servers are not in that data path.",
   },
   {
     question: "How does the Studio plugin work?",
@@ -82,7 +82,7 @@ const FAQ_ITEMS = [
   },
 ];
 
-/* ─── Main Landing Component ─── */
+/* â”€â”€â”€ Main Landing Component â”€â”€â”€ */
 export function LandingContent({
   session,
   avatarUrl: _avatarUrl,
@@ -103,10 +103,10 @@ export function LandingContent({
   return (
     <div suppressHydrationWarning className="relative min-h-screen bg-gradient-to-b from-[#050508] via-[#08080d] to-[#101015] text-white/90 selection:bg-[#ccff00]/20 selection:text-white font-sans overflow-x-hidden antialiased">
 
-      {/* ━━━ STRIPE SIGNATURE HERO ANIMATED TWISTED WAVE LINES (under particles) ━━━ */}
+      {/* â”â”â” STRIPE SIGNATURE HERO ANIMATED TWISTED WAVE LINES (under particles) â”â”â” */}
       <StripeWave />
 
-      {/* Cursor / particle backdrop — sticky viewport canvas, no mask (transparent) */}
+      {/* Cursor / particle backdrop â€” sticky viewport canvas, no mask (transparent) */}
       <div className="absolute inset-x-0 top-0 h-[100vh] max-h-[900px] z-[1] pointer-events-none">
         <div className="sticky top-0 h-screen w-full">
           <Medusae
@@ -156,7 +156,7 @@ export function LandingContent({
         aria-hidden
       />
 
-      {/* ━━━ NAVBAR ━━━ */}
+      {/* â”â”â” NAVBAR â”â”â” */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex justify-center py-0 px-0`}>
         <div
           className={`w-full max-w-[1400px] transition-all duration-300 flex items-center justify-between mx-auto ${scrolled
@@ -203,9 +203,9 @@ export function LandingContent({
         </div>
       </nav>
 
-      {/* ━━━ HERO & DEMO PANEL ━━━ */}
+      {/* â”â”â” HERO & DEMO PANEL â”â”â” */}
       <section className="relative pt-36 pb-24 px-6 md:px-12 xl:px-20 z-10 flex flex-col items-center overflow-visible">
-        {/* Continuation glow — fills hero below the first viewport so lighting doesn't hard-stop */}
+        {/* Continuation glow â€” fills hero below the first viewport so lighting doesn't hard-stop */}
         <div
           className="absolute inset-x-0 top-[55vh] bottom-0 pointer-events-none -z-10"
           aria-hidden
@@ -227,7 +227,7 @@ export function LandingContent({
           >
             <Sparkles className="h-3.5 w-3.5 text-[#ccff00]" />
             <span className="text-[10px] tracking-wider uppercase font-bold text-white/40 font-mono">
-              Next-Gen Roblox Companion · Secure WebSocket Link
+              Next-Gen Roblox Companion Â· Secure WebSocket Link
             </span>
           </motion.div>
 
@@ -292,17 +292,17 @@ export function LandingContent({
             >
               <Terminal className="w-3.5 h-3.5 text-[#ffb347]" />
               <span className="text-[10px] font-black uppercase tracking-[0.15em] text-[#ffb347] group-hover:text-[#ffd700]">
-                New system — Apple Juice CLI
+                New system â€” Apple Juice CLI
               </span>
               <ChevronRight className="w-3.5 h-3.5 text-[#ff8c00]/60 group-hover:translate-x-0.5 transition-transform" />
             </MagneticButton>
           </motion.div>
         </div>
 
-        {/* ━━━ FEATURE SHOWCASE (Cowork-style cinematic loop) ━━━ */}
+        {/* â”â”â” FEATURE SHOWCASE (Cowork-style cinematic loop) â”â”â” */}
         <LandingHeroShowcase />
 
-        {/* Ambient bridge glow — connects hero lighting into the section below */}
+        {/* Ambient bridge glow â€” connects hero lighting into the section below */}
         <div
           className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-[40%] w-[min(100%,1200px)] h-[520px] pointer-events-none z-0"
           aria-hidden
@@ -313,8 +313,8 @@ export function LandingContent({
         />
       </section>
 
-      {/* ━━━ PRODUCT FILM (looping ad — same demo as hero, narrated) ━━━ */}
-      {/* Hidden for now — section commented out per request.
+      {/* â”â”â” PRODUCT FILM (looping ad â€” same demo as hero, narrated) â”â”â” */}
+      {/* Hidden for now â€” section commented out per request.
       <section
         id="film"
         className="relative py-20 md:py-28 px-6 md:px-12 z-10"
@@ -327,7 +327,7 @@ export function LandingContent({
             See the full story
           </h2>
           <p className="text-white/50 text-base md:text-lg font-medium max-w-2xl mx-auto leading-relaxed">
-            A 25-second cut from prompt to playtest — describe a mechanic, watch the Luau get written, and see it sync straight into Roblox Studio.
+            A 25-second cut from prompt to playtest â€” describe a mechanic, watch the Luau get written, and see it sync straight into Roblox Studio.
           </p>
         </div>
         <LandingAdShowcase
@@ -340,7 +340,7 @@ export function LandingContent({
       </section>
       */}
 
-      {/* Seamless light bleed into Web IDE — overlaps hero boundary */}
+      {/* Seamless light bleed into Web IDE â€” overlaps hero boundary */}
       <div
         className="relative h-0 z-[5] pointer-events-none"
         aria-hidden
@@ -371,7 +371,7 @@ export function LandingContent({
           }}
         />
 
-      {/* ━━━ CORE FEATURES (THREE COLUMNS ROW) ━━━ */}
+      {/* â”â”â” CORE FEATURES (THREE COLUMNS ROW) â”â”â” */}
       <section id="features" className="px-6 py-24 md:py-32 relative">
         <div className="max-w-[1200px] mx-auto relative z-10">
           <div className="text-center mb-20">
@@ -428,7 +428,7 @@ export function LandingContent({
         </div>
       </section>
 
-      {/* ━━━ APPLE JUICE CLI — TERMINAL SYSTEM ━━━ */}
+      {/* â”â”â” APPLE JUICE CLI â€” TERMINAL SYSTEM â”â”â” */}
       <div className="px-6 md:px-12 xl:px-20 relative z-10">
         <div
           className="absolute left-1/2 -translate-x-1/2 top-0 w-[min(100%,900px)] h-[480px] pointer-events-none -z-10 opacity-70"
@@ -451,7 +451,7 @@ export function LandingContent({
 
       <div className="relative">
 
-      {/* ━━━ PRICING (Sleek fully rounded cards with gorgeous video backdrop) ━━━ */}
+      {/* â”â”â” PRICING (Sleek fully rounded cards with gorgeous video backdrop) â”â”â” */}
       <section
         id="pricing"
         ref={pricingSectionRef}
@@ -567,7 +567,7 @@ export function LandingContent({
               <button
                 onClick={() =>
                   window.open(
-                    "https://www.roblox.com/games/137859423074162/Apple-Juice-Shop",
+                    "https://www.roblox.com/games/9665609451/Apple-Juice-Shop",
                     "_blank"
                   )
                 }
@@ -616,7 +616,7 @@ export function LandingContent({
               <button
                 onClick={() =>
                   window.open(
-                    "https://www.roblox.com/games/137859423074162/Apple-Juice-Shop",
+                    "https://www.roblox.com/games/9665609451/Apple-Juice-Shop",
                     "_blank"
                   )
                 }
@@ -628,6 +628,21 @@ export function LandingContent({
 
           </div>
           </div> {/* Close Unified Shop Container Box */}
+
+          {/* Auto-unlock note â€” purchases on Roblox sync via the browser extension */}
+          <div className="max-w-2xl mx-auto -mt-8 mb-16 text-center">
+            <p className="text-[11px] text-white/40 leading-relaxed">
+              Purchases are handled securely by Roblox. Install the{" "}
+              <a
+                href="/extension"
+                className="text-[#ccff00]/80 hover:text-[#ccff00] font-semibold transition-colors"
+              >
+                Apple Juice browser extension
+              </a>{" "}
+              to auto-unlock your plan or refill the moment your Roblox purchase
+              completes â€” no codes, no waiting.
+            </p>
+          </div>
 
           {/* MODEL COMPARISON TABLE */}
           <div className="bg-[#08090c]/45 border border-white/5 rounded-[2.5rem] p-8 md:p-10 mb-16 overflow-x-auto shadow-2xl relative z-20">
@@ -693,7 +708,7 @@ export function LandingContent({
                 <button
                   onClick={() =>
                     window.open(
-                      "https://www.roblox.com/games/137859423074162/Apple-Juice-Shop",
+                      "https://www.roblox.com/games/9665609451/Apple-Juice-Shop",
                       "_blank"
                     )
                   }
@@ -714,7 +729,7 @@ export function LandingContent({
                 <button
                   onClick={() =>
                     window.open(
-                      "https://www.roblox.com/games/137859423074162/Apple-Juice-Shop",
+                      "https://www.roblox.com/games/9665609451/Apple-Juice-Shop",
                       "_blank"
                     )
                   }
@@ -732,7 +747,7 @@ export function LandingContent({
                 <button
                   onClick={() =>
                     window.open(
-                      "https://www.roblox.com/games/137859423074162/Apple-Juice-Shop",
+                      "https://www.roblox.com/games/9665609451/Apple-Juice-Shop",
                       "_blank"
                     )
                   }
@@ -747,7 +762,7 @@ export function LandingContent({
         </div>
       </section>
 
-      {/* ━━━ FAQ (Light Accents Accordion) ━━━ */}
+      {/* â”â”â” FAQ (Light Accents Accordion) â”â”â” */}
       <section id="faq" className="px-6 py-24 md:py-32 relative">
         <div className="max-w-[850px] mx-auto relative z-10">
           <div className="text-center mb-16">
@@ -764,7 +779,7 @@ export function LandingContent({
             ))}
           </div>
         </div>
-      </section>      {/* ━━━ BOTTOM CALL-TO-ACTION ━━━ */}
+      </section>      {/* â”â”â” BOTTOM CALL-TO-ACTION â”â”â” */}
       <section className="px-6 pb-28">
         <div className="max-w-[1000px] mx-auto text-center p-12 md:p-24 rounded-[3rem] bg-white/[0.06] border border-white/15 backdrop-blur-2xl text-white relative overflow-hidden shadow-[0_32px_100px_rgba(0,0,0,0.45)]">
           <div className="absolute -top-36 left-1/4 w-[400px] h-[400px] bg-blue-500/[0.1] rounded-full blur-[100px] pointer-events-none" />
@@ -794,7 +809,7 @@ export function LandingContent({
         </div>
       </section>
 
-      {/* ━━━ FOOTER with stark black Antigravity-style typography ━━━ */}
+      {/* â”â”â” FOOTER with stark black Antigravity-style typography â”â”â” */}
       <footer className="px-6 md:px-12 xl:px-20 py-24 border-t border-white/10 relative z-10 flex flex-col items-center bg-gradient-to-b from-transparent via-white/[0.02] to-white/[0.05]">
 
         {/* Top footer row: Title and Link Columns */}
@@ -872,7 +887,7 @@ export function LandingContent({
 
       </div>
 
-      {/* ━━━ OAUTH GUIDE DIALOG MODAL ━━━ */}
+      {/* â”â”â” OAUTH GUIDE DIALOG MODAL â”â”â” */}
       {showAuthGuide && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4"
@@ -1012,3 +1027,4 @@ export function LandingContent({
     </div>
   );
 }
+

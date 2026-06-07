@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Apple Juice Purchase Sync</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        width: 300px;
+        margin: 0;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #0a0a0c;
+        color: #fff;
+      }
+      .head {
+        padding: 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo {
+        font-size: 22px;
+      }
+      .title { font-weight: 800; font-size: 15px; letter-spacing: -0.01em; }
+      .sub { font-size: 11px; color: rgba(255, 255, 255, 0.4); }
+      .body { padding: 16px; }
+      .step {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 12px;
+        font-size: 12px;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .num {
+        flex: 0 0 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #ccff00;
+        color: #0a0a0c;
+        font-weight: 800;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .status {
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .ok { color: #ccff00; }
+      a { color: #ccff00; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="head">
+      <div class="logo">🧃</div>
+      <div>
+        <div class="title">Apple Juice Sync</div>
+        <div class="sub">Auto-unlocks your Roblox purchases</div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="step"><span class="num">1</span><span>Sign in at <a href="https://apple-juice.online/dashboard" target="_blank">apple-juice.online</a> with Roblox.</span></div>
+      <div class="step"><span class="num">2</span><span>Buy a plan or refill from the Apple Juice Shop on Roblox as usual.</span></div>
+      <div class="step"><span class="num">3</span><span>This extension detects it and unlocks it on your account automatically.</span></div>
+      <div class="status" id="status">No recent purchase detected yet.</div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

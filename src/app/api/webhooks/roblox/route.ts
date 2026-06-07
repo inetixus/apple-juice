@@ -1,5 +1,19 @@
-import { setUserPlan, getUserPlan, grantBonusMl } from "@/lib/store";
+import { getUserPlan } from "@/lib/store";
+import { findProduct, applyProductGrant } from "@/lib/roblox-products";
 
+/**
+ * POST /api/webhooks/roblox
+ *
+ * Called by the IN-GAME ProcessReceipt / subscription handler in the Roblox
+ * shop experience. This is the AUTHORITATIVE purchase path: Roblox has already
+ * processed the transaction server-side, and the call is authenticated with the
+ * shared ROBLOX_WEBHOOK_SECRET that only the game server knows. We trust it and
+ * grant directly.
+ *
+ * (The browser-extension relay at /api/extension/purchase is the SECONDARY path
+ * for purchases made on roblox.com outside the game; that one independently
+ * re-verifies with Roblox because the extension can't hold this secret.)
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -12,58 +26,23 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify this request is actually coming from your official Roblox game
+    // Verify this request is actually coming from your official Roblox game.
     const expectedKey =
       process.env.ROBLOX_WEBHOOK_SECRET || "default_dev_secret_key";
     if (apiKey !== expectedKey) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const id = subscriptionId.toString();
-
-    // ━━━ PLANS ━━━
-    if (id === "EXP-6181762863565242936") {
-      await setUserPlan(userId.toString(), "fresh_pro");
-      return Response.json({
-        success: true,
-        message: "Granted Fresh Pro plan!",
-      });
-    }
-    if (id === "EXP-2786378855714259452") {
-      await setUserPlan(userId.toString(), "pure_ultra");
-      return Response.json({
-        success: true,
-        message: "Granted Pure Ultra plan!",
-      });
+    const product = findProduct(subscriptionId);
+    if (!product) {
+      return Response.json(
+        { success: false, message: "Unknown ID" },
+        { status: 400 },
+      );
     }
 
-    // ━━━ INSTANT REFILLS (DEV PRODUCTS) ━━━
-    if (id === "3585012060") {
-      await grantBonusMl(userId.toString(), 5000);
-      return Response.json({
-        success: true,
-        message: "Granted Small Sip (+5,000 mL)",
-      });
-    }
-    if (id === "3585218786") {
-      await grantBonusMl(userId.toString(), 20000);
-      return Response.json({
-        success: true,
-        message: "Granted Juice Box (+20,000 mL)",
-      });
-    }
-    if (id === "3585218944") {
-      await grantBonusMl(userId.toString(), 80000);
-      return Response.json({
-        success: true,
-        message: "Granted Mega Jug (+80,000 mL)",
-      });
-    }
-
-    return Response.json(
-      { success: false, message: "Unknown ID" },
-      { status: 400 },
-    );
+    const message = await applyProductGrant(userId.toString(), product);
+    return Response.json({ success: true, message });
   } catch (error) {
     console.error("Roblox webhook error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
@@ -80,11 +59,7 @@ export async function GET(req: Request) {
     }
 
     const plan = await getUserPlan(userId);
-
-    return Response.json({
-      success: true,
-      plan: plan,
-    });
+    return Response.json({ success: true, plan });
   } catch (error) {
     console.error("Roblox GET webhook error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
