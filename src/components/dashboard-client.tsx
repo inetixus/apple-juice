@@ -157,6 +157,11 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   const chatEndRef = useRef<HTMLDivElement>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const lastPollRef = useRef<number>(0);
+  // Tracks which `projectId:index` the current `messages` state belongs to, so
+  // auto-save never writes to a project whose history hasn't loaded yet.
+  const loadedChatKeyRef = useRef<string | null>(null);
+  // Whether the user has scrolled up to read history (suppresses auto-scroll).
+  const userScrolledUpRef = useRef(false);
   const lastUpdateRef = useRef<number>(0);
   const codeConsumedRef = useRef<boolean>(false);
   const lastReportedErrorRef = useRef<string | null>(null);
@@ -740,6 +745,9 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   }, [sessionKey, showToast, selectedModel, provider, openaiKey, googleKey, mode, keyMode, byokProvider, byokKeys]);
 
   useEffect(() => {
+    // Only auto-scroll to the latest message when the user is already near the
+    // bottom. If they've scrolled up to read history, don't yank them back.
+    if (userScrolledUpRef.current) return;
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, thinkingSteps]);
 
@@ -1338,6 +1346,11 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       }
     } catch {
       setMessages([]);
+    } finally {
+      // Mark which project/chat the current `messages` belong to, so the
+      // auto-save effect won't write stale/empty state to a freshly-opened
+      // project before its history has loaded (which previously wiped history).
+      loadedChatKeyRef.current = `${projectId}:${index}`;
     }
   }
 
@@ -1376,6 +1389,13 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       return;
     }
     if (activeProjectId && !isProjectsLoading) {
+      // Only save if the current messages actually belong to this project/chat.
+      // On project switch, `activeProjectId` updates a tick before
+      // loadChatMessages repopulates `messages`; without this guard the effect
+      // would persist the previous/empty messages over the new project, wiping
+      // its history.
+      const currentKey = `${activeProjectId}:${activeChatIndex}`;
+      if (loadedChatKeyRef.current !== currentKey) return;
       fetch(`/api/projects/${activeProjectId}/messages?index=${activeChatIndex}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3739,7 +3759,18 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                           </div>
                         ) : (
                           <div className="flex-1 flex flex-col min-h-0 relative w-full overflow-hidden chat-wrapper">
-                            <div className="flex-1 overflow-y-auto relative flex flex-col w-full items-center min-h-0 custom-scrollbar">
+                            <div
+                              className="flex-1 overflow-y-auto relative flex flex-col w-full items-center min-h-0 custom-scrollbar"
+                              onScroll={(e) => {
+                                const el = e.currentTarget;
+                                // "Near bottom" tolerance of 120px — within it we
+                                // keep following new messages; above it the user
+                                // is reading history so we stop auto-scrolling.
+                                const nearBottom =
+                                  el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+                                userScrolledUpRef.current = !nearBottom;
+                              }}
+                            >
                               {/* ORIGINAL CHAT VIEW */}
                               <div className="w-full max-w-4xl px-6 py-12 flex flex-col gap-6">
                                 {messages.length === 0 ? (
@@ -3826,9 +3857,12 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                   </div>
                                 )}
                               </div>
-                              
-                              {/* LEGACY CHAT INPUT */}
-                              <div className="w-full max-w-4xl p-6 flex-shrink-0 mt-auto">
+                            </div>
+
+                            {/* CHAT INPUT — pinned below the scroll area so it stays
+                                in place while the user scrolls through history. */}
+                            <div className="w-full flex justify-center flex-shrink-0 border-t border-white/5 bg-gradient-to-t from-[#0c0d10] to-transparent">
+                              <div className="w-full max-w-4xl p-6">
                                 <div className="flex items-center justify-between px-2 mb-2.5">
                                   <div className="flex items-center gap-2">
                                     {(() => {
