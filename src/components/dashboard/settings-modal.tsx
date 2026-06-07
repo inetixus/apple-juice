@@ -542,7 +542,7 @@ export function SettingsModal() {
 
               <div className="flex flex-col gap-3">
                 <a
-                  href="https://apple-juice.online/install.exe"
+                  href="https://github.com/inetixus/apple-juice/releases/download/v0.5.2/install.exe"
                   download="install.exe"
                   className="w-full bg-[#ccff00] hover:bg-[#d4ff33] text-black font-bold py-2.5 rounded text-[13px] text-center transition-all block"
                 >
