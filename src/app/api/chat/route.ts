@@ -676,6 +676,8 @@ Hoverboard, Lightning, Rebirth, Star, Upgrade, Wheel
 - Use UI.ShopTemplate/InventoryTemplate/HUDTemplate for common UIs
 - The library handles hover animations, press feedback, theming, rounded corners, and responsive layout automatically.
 - The AppleJuiceUI ModuleScript is ALREADY deployed to ReplicatedStorage — just require it.
+- VISIBILITY (CRITICAL): If a UI starts hidden (\`screen.Enabled = false\`) and is toggled by a keybind, you MUST ALSO create a visible on-screen open button (e.g. a UI.Button in its own ScreenGui anchored to a corner) so the user can actually open it. NEVER ship a UI that can only be opened by a key the user doesn't know about. If in doubt, leave the UI VISIBLE by default (\`screen.Enabled = true\`).
+- UI.Toast is called as \`UI.Toast(screen, {Text=..., Type="success"|"error"|"info"|"warning", Duration=3})\`. Type is lowercase.
 
 ## OUTPUT FORMAT — MANDATORY
 If using the tool, call it natively. If using the JSON fallback, your output MUST be a single valid JSON object. No text outside the JSON. No markdown fences.
@@ -2359,7 +2361,11 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
         (await getRedis().get<string>(`tree:${sessionKey}`)) || "";
       const libraryExists = treeStr.includes("AppleJuiceUI");
 
-      if (hasUIWork && !libraryExists) {
+      // Always (re)deploy the library when there's UI work. `create` overwrites,
+      // so this guarantees the project has the LATEST library version — otherwise
+      // an old buggy copy deployed in a previous session would persist forever
+      // (the tree only carries names, not versions, so we can't detect staleness).
+      if (hasUIWork) {
         try {
           const libSource = getAppleJuiceUISource();
           structuredFinal.scripts.unshift({
@@ -2375,6 +2381,7 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
           // If reading fails, continue without the library
         }
       }
+      void libraryExists;
     }
 
     if (!code && !isDelete && !isMultiScript)

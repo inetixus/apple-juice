@@ -3777,10 +3777,13 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                                                 {selectedModel}
                                               </span>
                                             )}
+                                            {/* Only render the bubble if there's content — an empty assistant
+                                                bubble appears while streaming starts (content="" before first token). */}
+                                            {(message.content?.trim() || (isGenerating && message.id === messages[messages.length - 1]?.id && !isUser)) && (
                                             <div className={`rounded-2xl px-5 py-3.5 text-[13px] leading-relaxed border whitespace-pre-wrap break-words ${isUser ? "bg-white/[0.06] text-white border-white/10 rounded-tr-sm" : "bg-black/30 text-white/90 border-white/[0.06] backdrop-blur-md rounded-tl-sm"}`}>
                                               {isUser ? message.content : <MessageContent content={message.content} />}
                                             </div>
-                                            {!isUser && Array.isArray(message.scripts) && message.scripts.length > 0 && !message.isReverted && (
+                                            )}                                            {!isUser && Array.isArray(message.scripts) && message.scripts.length > 0 && !message.isReverted && (
                                               <ModificationsPreview scripts={message.scripts as any[]} />
                                             )}
                                             {!isUser && Array.isArray(message.scripts) && message.scripts.length > 0 && !message.isReverted && (

@@ -448,6 +448,7 @@ export function IdeLayout() {
                             >
                               {m.role === "user" ? "You" : "Agent"}
                             </div>
+                            {(m.content?.trim() || (isGenerating && m.id === messages[messages.length - 1]?.id && m.role !== "user")) && (
                             <div
                               className={`p-3.5 rounded-2xl text-sm leading-relaxed shadow-sm ${m.role === "user"
                                   ? "bg-white/5 text-slate-200 border border-white/10 rounded-br-sm"
@@ -456,6 +457,7 @@ export function IdeLayout() {
                             >
                               {m.role === "user" ? m.content : <MessageContent content={m.content} />}
                             </div>
+                            )}
                             {m.role !== "user" && m.checkpointId && !m.isReverted && (
                               <button
                                 onClick={() =>

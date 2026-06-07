@@ -1,9 +1,12 @@
--- AppleJuiceUI Component Library v1.0
+-- AppleJuiceUI Component Library v1.1
 -- Auto-deployed by Apple Juice AI into ReplicatedStorage
+-- AJUI_VERSION: 1.1.0  (bump when the library source changes so stale deployed
+-- copies in existing projects get re-deployed instead of kept)
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 local UI = {}
+UI._version = "1.1.0"
 UI._themes = {
 	Juice = {
 		bg = Color3.fromRGB(26,26,46), surface = Color3.fromRGB(35,35,55),
@@ -395,7 +398,18 @@ function UI.Modal(parent, props)
 end
 
 function UI.Toast(parent, props)
+	-- Tolerate both call styles: Toast(screen, props) and Toast(props). If the
+	-- first arg isn't an Instance, treat it as the props table and auto-create a
+	-- toast layer. (Generated code sometimes calls UI.Toast({...}).)
+	if typeof(parent) ~= "Instance" then
+		props = parent
+		parent = nil
+	end
 	props = props or {}
+	if not parent then
+		UI._toastScreen = UI._toastScreen or UI.createScreenGui("AppleJuiceToasts")
+		parent = UI._toastScreen
+	end
 	local t = UI.theme()
 	local colors = {
 		success = {bg=Color3.fromRGB(30,70,40), bar=t.success},
@@ -403,7 +417,9 @@ function UI.Toast(parent, props)
 		info = {bg=Color3.fromRGB(30,40,70), bar=t.accent},
 		warning = {bg=Color3.fromRGB(70,60,20), bar=t.warning},
 	}
-	local s = colors[props.Type or "info"] or colors.info
+	-- Normalize Type casing ("Success" -> "success").
+	local toastType = string.lower(tostring(props.Type or "info"))
+	local s = colors[toastType] or colors.info
 	local toast = Instance.new("Frame")
 	toast.Name = "Toast"; toast.Size = UDim2.new(0,300,0,48)
 	toast.Position = UDim2.new(1,320,1,-(props.Index or 1)*56)
@@ -475,8 +491,19 @@ function UI.DynamicScale(parent, props)
 	scale.Name = "DynamicScale"
 	scale.Parent = parent
 
+	-- CurrentCamera can be nil very early in some contexts; bail out gracefully
+	-- so the UI still renders at scale 1 instead of erroring (which would leave
+	-- the whole GUI unbuilt / invisible).
+	if not camera then
+		scale.Scale = 1
+		return scale
+	end
+
 	local function update()
-		local vp = camera.ViewportSize
+		local cam = workspace.CurrentCamera
+		if not cam then return end
+		local vp = cam.ViewportSize
+		if vp.X <= 0 or vp.Y <= 0 then return end -- not measured yet
 		local ratio = math.min(vp.X / base.X, vp.Y / base.Y)
 		scale.Scale = math.clamp(ratio, minS, maxS)
 	end
