@@ -18,6 +18,7 @@ type Snapshot = {
   } | null;
   warnings: { id: string; reason: string; warnedBy: string; warnedAt: number }[];
   record?: { firstSeen: number; lastSeen: number; lastIp?: string; username?: string } | null;
+  registered?: boolean;
 };
 
 type AuditEntry = {
@@ -63,6 +64,7 @@ export function AdminPanel({ adminName }: { adminName: string }) {
   const [subFilter, setSubFilter] = useState<"pending" | "approved" | "rejected">("pending");
   const [activeSub, setActiveSub] = useState<SubRequest | null>(null);
   const [reviewNote, setReviewNote] = useState("");
+  const [subUserCheck, setSubUserCheck] = useState<{ registered: boolean; userId?: string } | null>(null);
 
   // Action inputs
   const [banReason, setBanReason] = useState("");
@@ -113,6 +115,22 @@ export function AdminPanel({ adminName }: { adminName: string }) {
         const data = await res.json();
         setActiveSub(data.request);
         setReviewNote("");
+        setSubUserCheck(null);
+        // Cross-check the claimed Roblox username against our registry.
+        if (data.request?.robloxUsername) {
+          try {
+            const ur = await fetch(
+              `/api/admin?username=${encodeURIComponent(data.request.robloxUsername)}`,
+              { cache: "no-store" },
+            );
+            if (ur.ok) {
+              const ud = await ur.json();
+              setSubUserCheck({ registered: !!ud.registered, userId: ud.record?.userId });
+            }
+          } catch {
+            /* ignore */
+          }
+        }
       }
     } catch {
       /* ignore */
@@ -268,6 +286,22 @@ export function AdminPanel({ adminName }: { adminName: string }) {
               <h2 className="font-bold text-lg">Account</h2>
               <div className="text-sm space-y-2 text-white/70">
                 <Row label="User ID" value={snapshot.userId} />
+                <Row
+                  label="Registered"
+                  value={
+                    snapshot.registered ? (
+                      <span className="text-emerald-400">✓ Signed up</span>
+                    ) : (
+                      <span className="text-white/40">Never signed in</span>
+                    )
+                  }
+                />
+                {snapshot.record?.username && (
+                  <Row label="Username" value={`@${snapshot.record.username}`} />
+                )}
+                {snapshot.record?.firstSeen && (
+                  <Row label="Joined" value={fmt(snapshot.record.firstSeen)} />
+                )}
                 <Row label="Plan" value={PLAN_LABELS[snapshot.plan] || snapshot.plan} />
                 <Row
                   label="Juice"
@@ -648,6 +682,25 @@ export function AdminPanel({ adminName }: { adminName: string }) {
                 <span className="ml-2 capitalize text-white/60">[{activeSub.status}]</span>
               )}
             </p>
+
+            {/* Username verification against our registry */}
+            {subUserCheck && (
+              <div
+                className={`text-xs rounded-lg px-3 py-2 mb-4 border ${
+                  subUserCheck.registered
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
+                    : "bg-amber-500/10 border-amber-500/20 text-amber-300"
+                }`}
+              >
+                {subUserCheck.registered
+                  ? `✓ @${activeSub.robloxUsername} is a signed-up account${
+                      subUserCheck.userId === activeSub.userId
+                        ? " and matches the submitter."
+                        : " (note: differs from the submitting account)."
+                    }`
+                  : `⚠ No signed-up account found with the username @${activeSub.robloxUsername}. They may have typed it differently, or not signed in yet.`}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4 mb-5">
               <div>

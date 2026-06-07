@@ -14,6 +14,8 @@ import {
   getAdminUserSnapshot,
   getAdminAudit,
   getUserRecord,
+  isUserRegistered,
+  findUserByUsername,
   listUsers,
   PLAN_LIMITS,
   type UserPlan,
@@ -46,13 +48,21 @@ export async function GET(req: Request) {
     return Response.json({ users });
   }
 
+  // Resolve a username → registered user (for cross-checking sub requests).
+  const username = url.searchParams.get("username")?.trim();
+  if (username) {
+    const record = await findUserByUsername(username);
+    return Response.json({ registered: !!record, record });
+  }
+
   const targetUserId = url.searchParams.get("userId")?.trim();
   if (!targetUserId) {
     return Response.json({ error: "Missing userId" }, { status: 400 });
   }
   const snapshot = await getAdminUserSnapshot(targetUserId);
   const record = await getUserRecord(targetUserId);
-  return Response.json({ ...snapshot, record });
+  const registered = await isUserRegistered(targetUserId);
+  return Response.json({ ...snapshot, record, registered });
 }
 
 type AdminAction =

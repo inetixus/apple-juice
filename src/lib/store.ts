@@ -1654,6 +1654,27 @@ export async function getUserRecord(userId: string): Promise<UserRecord | null> 
   }
 }
 
+/** True if this userId has ever signed in (exists in the registry). */
+export async function isUserRegistered(userId: string): Promise<boolean> {
+  return (await getUserRecord(userId)) !== null;
+}
+
+/**
+ * Find a registered user by their Roblox username (case-insensitive). Only
+ * matches users already in our registry (i.e. who have signed in). Returns the
+ * record or null.
+ */
+export async function findUserByUsername(
+  username: string,
+): Promise<UserRecord | null> {
+  const target = username.trim().toLowerCase();
+  if (!target) return null;
+  const users = await listUsers(5000);
+  return (
+    users.find((u) => (u.username || "").toLowerCase() === target) || null
+  );
+}
+
 /** List registered users (most-recent-first) for the admin roster. */
 export async function listUsers(limit = 200): Promise<UserRecord[]> {
   const redis = getRedis();
