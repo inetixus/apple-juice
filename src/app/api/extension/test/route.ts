@@ -1,17 +1,9 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { findProduct, applyProductGrant } from "@/lib/roblox-products";
+import { isAdmin } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
-
-/** Admin allowlist (same ADMIN_USER_IDS used by /api/usage). Empty = nobody. */
-function isAdmin(userId: string): boolean {
-  const ids = (process.env.ADMIN_USER_IDS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return ids.includes(userId);
-}
 
 /**
  * POST /api/extension/test

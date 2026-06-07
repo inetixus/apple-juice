@@ -73,6 +73,39 @@ done; B7 (live VPS round-trip test) is still open and tracked below.
 
 ## ── MEDIUM IMPACT: developer experience ──
 
+[x] UNDER-16 MANUAL SUBSCRIPTION VERIFICATION + age-gate purchase flow
+    Pricing confirmed (Pro 600 R$ / Ultra 1,500 R$ /mo). The Pro/Ultra buttons
+    now open a purchase-flow modal that age-gates:
+    - 16+  → redirect to the Roblox shop game (existing flow + extension auto-unlock).
+    - <16  → can't enter the 16+ game, so: instructions to subscribe directly on
+      roblox.com, then submit proof — Roblox username, "already cancelled?" flag,
+      purchase-confirmation screenshot + active-subscription screenshot (both
+      compressed client-side to JPEG). Filed as a PENDING request; nothing is
+      granted automatically.
+    Admin side: the admin panel gained a "Subscription Verification" queue
+    (pending/approved/rejected tabs) with a detail modal showing both screenshots;
+    Approve grants the plan to the user's Roblox userId + logs it, Reject closes it.
+    Backed by /api/subscription-request (user submit, rate-limited, 1 pending each,
+    image-size capped) and /api/admin/subscriptions (list w/o images, detail w/
+    images, approve/reject). Store: createSubscriptionRequest / list / review /
+    count, 60-day TTL. Typecheck clean, 94 tests pass.
+
+[x] ADMIN PANEL — moderation + account management
+    Full admin panel at /admin (server-gated by ADMIN_USER_IDS; redirects non-
+    admins). Features:
+    - User lookup → plan, juice balance, ban status, warnings in one snapshot.
+    - Grant any plan (free / partner / fresh_pro / pure_ultra), grant bonus mL,
+      set balance.
+    - Bans: permanent or N-day (auto-expire via TTL), with reason. Enforced in
+      /api/chat — banned users get 403 before any generation (BYOK + shared).
+    - Warnings: issue/clear, capped per user.
+    - Audit log: every admin action recorded (action, target, admin, detail, ts),
+      most-recent-first, capped at 500.
+    Backed by /api/admin (GET snapshot/audit, POST action union) + /api/admin/me
+    (client admin check). Shared isAdmin() in src/lib/admin.ts (DRY — /api/usage
+    and the extension test route now use it too). Admin Panel link added to the
+    settings modal's admin section. Tests added (94 pass), typecheck clean.
+
 [x] WEBSITE PURCHASES via browser extension (age-gate workaround)
     PROBLEM: the Roblox shop game is rated 16+, so under-16 / non-age-checked
     users can't enter it to buy plans/refills. A real payment processor (Stripe

@@ -1127,3 +1127,367 @@ export async function markRedeemed(userId: string, code: string): Promise<void> 
     /* best-effort */
   }
 }
+
+// ─── Moderation: bans & warnings ─────────────────────────────────────────────
+//
+// Admin moderation state, keyed per user. Bans are enforced at the chat route
+// (and anywhere else that calls isUserBanned). Warnings are advisory notices
+// surfaced to the user. An audit log records every admin action for review.
+
+const BAN_PREFIX = "apple-juice:ban:";
+const WARN_PREFIX = "apple-juice:warnings:";
+const AUDIT_KEY = "apple-juice:admin-audit";
+
+export type BanRecord = {
+  banned: true;
+  reason: string;
+  bannedBy: string;
+  bannedAt: number;
+  /** Epoch ms when the ban lifts; omitted/0 = permanent. */
+  expiresAt?: number;
+};
+
+export type WarningRecord = {
+  id: string;
+  reason: string;
+  warnedBy: string;
+  warnedAt: number;
+  acknowledged?: boolean;
+};
+
+export type AdminAuditEntry = {
+  id: string;
+  action: string;
+  targetUserId: string;
+  adminUserId: string;
+  detail?: string;
+  at: number;
+};
+
+function banKeyFor(userId: string) {
+  return `${BAN_PREFIX}${userId}`;
+}
+function warnKeyFor(userId: string) {
+  return `${WARN_PREFIX}${userId}`;
+}
+
+/** Ban a user. durationDays <= 0 (or omitted) = permanent. */
+export async function banUser(
+  userId: string,
+  reason: string,
+  bannedBy: string,
+  durationDays?: number,
+): Promise<BanRecord> {
+  const now = Date.now();
+  const record: BanRecord = {
+    banned: true,
+    reason: reason || "No reason provided",
+    bannedBy,
+    bannedAt: now,
+  };
+  if (durationDays && durationDays > 0) {
+    record.expiresAt = now + durationDays * 24 * 60 * 60 * 1000;
+  }
+  const redis = getRedis();
+  await redis.set(banKeyFor(userId), JSON.stringify(record));
+  if (record.expiresAt) {
+    const ttl = Math.ceil((record.expiresAt - now) / 1000);
+    if (ttl > 0) await redis.expire(banKeyFor(userId), ttl);
+  }
+  return record;
+}
+
+/** Lift a user's ban. */
+export async function unbanUser(userId: string): Promise<void> {
+  try {
+    await getRedis().del(banKeyFor(userId));
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Returns the active ban record, or null if not banned (auto-expires). */
+export async function getBan(userId: string): Promise<BanRecord | null> {
+  try {
+    const raw = await getRedis().get(banKeyFor(userId));
+    if (!raw) return null;
+    const rec = (typeof raw === "string" ? JSON.parse(raw) : raw) as BanRecord;
+    if (rec.expiresAt && Date.now() > rec.expiresAt) {
+      await unbanUser(userId);
+      return null;
+    }
+    return rec;
+  } catch {
+    return null;
+  }
+}
+
+export async function isUserBanned(userId: string): Promise<boolean> {
+  return (await getBan(userId)) !== null;
+}
+
+/** Add a warning to a user's record. */
+export async function warnUser(
+  userId: string,
+  reason: string,
+  warnedBy: string,
+): Promise<WarningRecord> {
+  const warning: WarningRecord = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    reason: reason || "No reason provided",
+    warnedBy,
+    warnedAt: Date.now(),
+  };
+  const redis = getRedis();
+  const raw = await redis.get(warnKeyFor(userId));
+  let list: WarningRecord[] = [];
+  if (raw) {
+    try {
+      list = (typeof raw === "string" ? JSON.parse(raw) : raw) as WarningRecord[];
+    } catch {
+      list = [];
+    }
+  }
+  list.push(warning);
+  if (list.length > 50) list = list.slice(-50);
+  await redis.set(warnKeyFor(userId), JSON.stringify(list));
+  return warning;
+}
+
+export async function getWarnings(userId: string): Promise<WarningRecord[]> {
+  try {
+    const raw = await getRedis().get(warnKeyFor(userId));
+    if (!raw) return [];
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as WarningRecord[];
+  } catch {
+    return [];
+  }
+}
+
+/** Clear all warnings for a user. */
+export async function clearWarnings(userId: string): Promise<void> {
+  try {
+    await getRedis().del(warnKeyFor(userId));
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Mark all of a user's warnings acknowledged (called when they view them). */
+export async function acknowledgeWarnings(userId: string): Promise<void> {
+  const redis = getRedis();
+  const list = await getWarnings(userId);
+  if (!list.length) return;
+  for (const w of list) w.acknowledged = true;
+  try {
+    await redis.set(warnKeyFor(userId), JSON.stringify(list));
+  } catch {
+    /* best-effort */
+  }
+}
+
+/** Append an entry to the admin audit log (most-recent-first, capped). */
+export async function logAdminAction(
+  entry: Omit<AdminAuditEntry, "id" | "at">,
+): Promise<void> {
+  const redis = getRedis();
+  const full: AdminAuditEntry = {
+    ...entry,
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    at: Date.now(),
+  };
+  try {
+    const raw = await redis.get(AUDIT_KEY);
+    let list: AdminAuditEntry[] = [];
+    if (raw) {
+      try {
+        list = (typeof raw === "string" ? JSON.parse(raw) : raw) as AdminAuditEntry[];
+      } catch {
+        list = [];
+      }
+    }
+    list.unshift(full);
+    if (list.length > 500) list = list.slice(0, 500);
+    await redis.set(AUDIT_KEY, JSON.stringify(list));
+  } catch {
+    /* best-effort */
+  }
+}
+
+export async function getAdminAudit(limit = 100): Promise<AdminAuditEntry[]> {
+  try {
+    const raw = await getRedis().get(AUDIT_KEY);
+    if (!raw) return [];
+    const list = (typeof raw === "string" ? JSON.parse(raw) : raw) as AdminAuditEntry[];
+    return list.slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Admin lookup: aggregate a user's moderation + account state in one call.
+ */
+export async function getAdminUserSnapshot(userId: string) {
+  const [usage, ban, warnings] = await Promise.all([
+    getUserUsage(userId),
+    getBan(userId),
+    getWarnings(userId),
+  ]);
+  return {
+    userId,
+    plan: usage.plan,
+    usage: {
+      usedMl: usage.usedMl,
+      totalMl: usage.totalMl,
+      remainingMl: usage.remainingMl,
+      bonusMl: usage.bonusMl,
+    },
+    ban,
+    warnings,
+  };
+}
+
+// ─── Manual subscription verification (under-16 flow) ────────────────────────
+//
+// Under-16 users can't enter the 16+ shop game, so they purchase the Roblox
+// subscription directly on roblox.com, then submit proof here (screenshots +
+// details) for an admin to review and grant manually. Requests live in KV,
+// indexed in a pending list for the admin review queue.
+
+const SUBREQ_PREFIX = "apple-juice:subreq:";
+const SUBREQ_INDEX = "apple-juice:subreq-index"; // JSON array of request ids (most recent first)
+
+export type SubReqStatus = "pending" | "approved" | "rejected";
+
+export type SubscriptionRequest = {
+  id: string;
+  /** Apple Juice account (Roblox userId from session) that gets the grant. */
+  userId: string;
+  /** Roblox username the user typed (for admin cross-check). */
+  robloxUsername: string;
+  /** Plan they claim to have subscribed to. */
+  plan: UserPlan;
+  /** Did they say they already cancelled the recurring sub? */
+  cancelled: boolean;
+  /** Screenshot data URLs (compressed client-side). */
+  purchaseProof: string; // confirmation screenshot
+  ownershipProof: string; // "already subscribed" screenshot
+  status: SubReqStatus;
+  createdAt: number;
+  reviewedAt?: number;
+  reviewedBy?: string;
+  reviewNote?: string;
+};
+
+function subReqKeyFor(id: string) {
+  return `${SUBREQ_PREFIX}${id}`;
+}
+
+function genReqId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+/** Create a pending subscription verification request. */
+export async function createSubscriptionRequest(
+  input: Omit<SubscriptionRequest, "id" | "status" | "createdAt">,
+): Promise<SubscriptionRequest> {
+  const redis = getRedis();
+  const req: SubscriptionRequest = {
+    ...input,
+    id: genReqId(),
+    status: "pending",
+    createdAt: Date.now(),
+  };
+  // Store the request (keep 60 days).
+  await redis.set(subReqKeyFor(req.id), JSON.stringify(req));
+  await redis.expire(subReqKeyFor(req.id), 60 * 60 * 24 * 60);
+
+  // Prepend to the index.
+  const rawIdx = await redis.get(SUBREQ_INDEX);
+  let ids: string[] = [];
+  if (rawIdx) {
+    try {
+      ids = (typeof rawIdx === "string" ? JSON.parse(rawIdx) : rawIdx) as string[];
+    } catch {
+      ids = [];
+    }
+  }
+  ids.unshift(req.id);
+  if (ids.length > 1000) ids = ids.slice(0, 1000);
+  await redis.set(SUBREQ_INDEX, JSON.stringify(ids));
+  return req;
+}
+
+export async function getSubscriptionRequest(
+  id: string,
+): Promise<SubscriptionRequest | null> {
+  try {
+    const raw = await getRedis().get(subReqKeyFor(id));
+    if (!raw) return null;
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as SubscriptionRequest;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * List subscription requests for the admin queue. By default returns the most
+ * recent `limit` requests; pass status to filter. Strips the heavy image data
+ * unless includeProof is set (the list view doesn't need full images).
+ */
+export async function listSubscriptionRequests(opts?: {
+  status?: SubReqStatus;
+  limit?: number;
+  includeProof?: boolean;
+}): Promise<SubscriptionRequest[]> {
+  const limit = opts?.limit ?? 100;
+  const redis = getRedis();
+  const rawIdx = await redis.get(SUBREQ_INDEX);
+  if (!rawIdx) return [];
+  let ids: string[];
+  try {
+    ids = (typeof rawIdx === "string" ? JSON.parse(rawIdx) : rawIdx) as string[];
+  } catch {
+    return [];
+  }
+
+  const out: SubscriptionRequest[] = [];
+  for (const id of ids) {
+    if (out.length >= limit) break;
+    const req = await getSubscriptionRequest(id);
+    if (!req) continue;
+    if (opts?.status && req.status !== opts.status) continue;
+    if (!opts?.includeProof) {
+      out.push({ ...req, purchaseProof: "", ownershipProof: "" });
+    } else {
+      out.push(req);
+    }
+  }
+  return out;
+}
+
+/** Mark a request approved/rejected. Returns the updated request. */
+export async function reviewSubscriptionRequest(
+  id: string,
+  status: "approved" | "rejected",
+  reviewedBy: string,
+  note?: string,
+): Promise<SubscriptionRequest | null> {
+  const req = await getSubscriptionRequest(id);
+  if (!req) return null;
+  req.status = status;
+  req.reviewedAt = Date.now();
+  req.reviewedBy = reviewedBy;
+  if (note) req.reviewNote = note;
+  const redis = getRedis();
+  await redis.set(subReqKeyFor(id), JSON.stringify(req));
+  await redis.expire(subReqKeyFor(id), 60 * 60 * 24 * 60);
+  return req;
+}
+
+/** Count pending requests (for an admin badge). */
+export async function countPendingSubscriptionRequests(): Promise<number> {
+  const pending = await listSubscriptionRequests({ status: "pending", limit: 1000 });
+  return pending.length;
+}

@@ -24,6 +24,7 @@ import { SpineSection } from "./landing-spine";
 import { MagneticButton } from "./magnetic-button";
 import { FaqItemPremium } from "./faq-item-premium";
 import { NavLiquidTabs } from "./nav-liquid-tabs";
+import { PurchaseFlowModal } from "./purchase-flow-modal";
 import { signIn } from "next-auth/react";
 import { motion } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
@@ -92,6 +93,7 @@ export function LandingContent({
 }) {
   const [showAuthGuide, setShowAuthGuide] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [purchasePlan, setPurchasePlan] = useState<"fresh_pro" | "pure_ultra" | null>(null);
   const pricingSectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -565,12 +567,7 @@ export function LandingContent({
               </ul>
 
               <button
-                onClick={() =>
-                  window.open(
-                    "https://www.roblox.com/games/9665609451/Apple-Juice-Shop",
-                    "_blank"
-                  )
-                }
+                onClick={() => setPurchasePlan("fresh_pro")}
                 className="mt-auto w-full h-12 rounded-full bg-[#ccff00] text-black font-black py-3 hover:bg-[#d4ff33] transition-all uppercase tracking-wider text-[11px] shadow-sm flex items-center justify-center gap-1.5"
               >
                 Upgrade to Pro
@@ -614,12 +611,7 @@ export function LandingContent({
               </ul>
 
               <button
-                onClick={() =>
-                  window.open(
-                    "https://www.roblox.com/games/9665609451/Apple-Juice-Shop",
-                    "_blank"
-                  )
-                }
+                onClick={() => setPurchasePlan("pure_ultra")}
                 className="mt-auto w-full h-12 rounded-full border border-white/10 text-white font-bold py-3 hover:bg-white/5 transition-all uppercase tracking-wider text-[11px] shadow-sm"
               >
                 Get Ultra Pack
@@ -888,6 +880,14 @@ export function LandingContent({
       </div>
 
       {/* â”â”â” OAUTH GUIDE DIALOG MODAL â”â”â” */}
+      {purchasePlan && (
+        <PurchaseFlowModal
+          plan={purchasePlan}
+          isLoggedIn={!!(session && (session.user as any)?.id)}
+          onClose={() => setPurchasePlan(null)}
+        />
+      )}
+
       {showAuthGuide && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xl p-4"

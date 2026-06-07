@@ -395,6 +395,13 @@ export function SettingsModal() {
                 Admin Debug Tools (Persisted)
               </label>
 
+              <a
+                href="/admin"
+                className="flex items-center justify-center gap-2 w-full bg-[#ccff00]/10 hover:bg-[#ccff00]/20 border border-[#ccff00]/30 text-[#ccff00] font-bold py-2.5 rounded-lg text-[12px] transition-all uppercase tracking-wider"
+              >
+                🛡️ Open Admin Panel
+              </a>
+
               <div className="flex items-center justify-between p-3 rounded-lg bg-[#1e2028]/[0.02] border border-white/[0.05]">
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold text-white">
