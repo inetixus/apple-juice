@@ -3963,6 +3963,10 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                   </div>
 
                   {/* Plans */}
+                  {(() => {
+                  const planRank: Record<string, number> = { free: 0, partner: 1, fresh_pro: 2, pure_ultra: 3 };
+                  const currentRank = planRank[usage.plan as string] ?? 0;
+                  return (
                   <div className="grid md:grid-cols-3 gap-5">
                     {/* Free */}
                     <div className="group relative bg-white/[0.03] border border-white/[0.08] rounded-3xl p-7 flex flex-col hover:border-white/15 transition-all duration-300">
@@ -3979,8 +3983,8 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> Auto router, Haiku 4.5 &amp; Qwen3 Coder</li>
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> DeepSeek 3.2 &amp; MiniMax M2.1</li>
                       </ul>
-                      <button className="mt-auto w-full py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/70 font-bold text-xs transition-all">
-                        Current plan
+                      <button disabled className="mt-auto w-full py-3 rounded-xl bg-white/[0.06] text-white/40 font-bold text-xs cursor-default">
+                        {currentRank === 0 ? "Current plan" : "Included"}
                       </button>
                     </div>
 
@@ -4003,12 +4007,22 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> GLM-5 &amp; MiniMax M2.5</li>
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-[#ccff00] shrink-0" /> Priority queue</li>
                       </ul>
-                      <button
-                        onClick={() => { setShowPricing(false); setPurchasePlan("fresh_pro"); }}
-                        className="mt-auto w-full py-3 rounded-xl bg-[#ccff00] text-black font-bold text-xs hover:bg-[#d4ff33] transition-all shadow-[0_4px_20px_rgba(204,255,0,0.3)] flex items-center justify-center gap-1.5"
-                      >
-                        Upgrade to Pro <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
+                      {currentRank === planRank.fresh_pro ? (
+                        <button disabled className="mt-auto w-full py-3 rounded-xl bg-[#ccff00]/20 text-[#ccff00] font-bold text-xs cursor-default">
+                          Current plan
+                        </button>
+                      ) : currentRank > planRank.fresh_pro ? (
+                        <button disabled className="mt-auto w-full py-3 rounded-xl bg-white/[0.06] text-white/40 font-bold text-xs cursor-default">
+                          Included
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => { setShowPricing(false); setPurchasePlan("fresh_pro"); }}
+                          className="mt-auto w-full py-3 rounded-xl bg-[#ccff00] text-black font-bold text-xs hover:bg-[#d4ff33] transition-all shadow-[0_4px_20px_rgba(204,255,0,0.3)] flex items-center justify-center gap-1.5"
+                        >
+                          Upgrade to Pro <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
 
                     {/* Ultra */}
@@ -4027,14 +4041,22 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> Every Sonnet, Haiku &amp; open-weight model</li>
                         <li className="flex items-center gap-2.5"><Check className="w-4 h-4 text-violet-400 shrink-0" /> Priority processing</li>
                       </ul>
-                      <button
-                        onClick={() => { setShowPricing(false); setPurchasePlan("pure_ultra"); }}
-                        className="mt-auto w-full py-3 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-bold text-xs transition-all"
-                      >
-                        Go Ultra
-                      </button>
+                      {currentRank === planRank.pure_ultra ? (
+                        <button disabled className="mt-auto w-full py-3 rounded-xl bg-violet-500/20 text-violet-300 font-bold text-xs cursor-default">
+                          Current plan
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => { setShowPricing(false); setPurchasePlan("pure_ultra"); }}
+                          className="mt-auto w-full py-3 rounded-xl bg-violet-500 hover:bg-violet-600 text-white font-bold text-xs transition-all"
+                        >
+                          {currentRank > 0 ? "Upgrade to Ultra" : "Go Ultra"}
+                        </button>
+                      )}
                     </div>
                   </div>
+                  );
+                  })()}
 
                   {/* Footer reassurance */}
                   <div className="flex items-center justify-center gap-6 mt-8 text-[11px] text-white/35 font-medium">
