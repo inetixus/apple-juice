@@ -6,17 +6,18 @@ import { X, Check, Loader2, ExternalLink, AlertCircle } from "lucide-react";
 
 type Plan = "fresh_pro" | "pure_ultra";
 
+const SHOP_STORE_URL = "https://www.roblox.com/games/137859423074162/Apple-Juice-Shop#!/store";
+
 const PLAN_INFO: Record<Plan, { label: string; price: string; subUrl: string }> = {
   fresh_pro: {
     label: "Fresh Pro",
     price: "600 R$ / month",
-    // Roblox subscription purchase page. Replace with your real subscription URLs.
-    subUrl: "https://www.roblox.com/games/9665609451/Apple-Juice#subscriptions",
+    subUrl: SHOP_STORE_URL,
   },
   pure_ultra: {
     label: "Pure Ultra",
     price: "1,500 R$ / month",
-    subUrl: "https://www.roblox.com/games/9665609451/Apple-Juice#subscriptions",
+    subUrl: SHOP_STORE_URL,
   },
 };
 
@@ -104,7 +105,7 @@ export function PurchaseFlowModal({
               <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 space-y-2">
                 <p className="text-sm font-bold text-white">How it works</p>
                 <ol className="text-xs text-white/60 leading-relaxed space-y-1.5 list-decimal pl-4">
-                  <li>Subscribe to {info.label} on Roblox (Roblox handles payment securely).</li>
+                  <li>Click <span className="text-[#ccff00] font-semibold">Subscribe on Roblox</span> below and subscribe to {info.label} from the store.</li>
                   <li>Come back here and click <span className="text-[#ccff00] font-semibold">Verify</span>.</li>
                   <li>We confirm it instantly with Roblox and activate your plan — no codes, no screenshots.</li>
                 </ol>
@@ -116,7 +117,7 @@ export function PurchaseFlowModal({
                 rel="noopener noreferrer"
                 className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm hover:bg-white/10 transition-all flex items-center justify-center gap-2"
               >
-                Subscribe on Roblox
+                Open Apple Juice Shop — Store
                 <ExternalLink className="w-4 h-4" />
               </a>
 
