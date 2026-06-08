@@ -1,8 +1,8 @@
 /**
  * Single source of truth for every purchasable Roblox product and what it
- * grants. Shared by the in-game webhook (/api/webhooks/roblox) and the browser-
- * extension purchase relay (/api/extension/purchase) so both paths grant
- * identically and there's one place to add/retune products.
+ * grants. Shared by the in-game webhook (/api/webhooks/roblox) and the
+ * subscription verify flow (/api/verify-subscription) so grants stay consistent
+ * and there's one place to add/retune products.
  */
 
 import { setUserPlan, grantBonusMl, type UserPlan } from "@/lib/store";
@@ -41,6 +41,13 @@ export const ROBLOX_PRODUCTS: RobloxProduct[] = [
     label: "Pure Ultra",
     plan: "pure_ultra",
   },
+  // Cheap test subscription (grants Fresh Pro). Remove/retune for production.
+  {
+    id: "EXP-7545594053153391175",
+    kind: "subscription",
+    label: "Test Subscription",
+    plan: "fresh_pro",
+  },
 
   // ── Instant refills (developer products) ──
   { id: "3585012060", kind: "developerProduct", label: "Small Sip", bonusMl: 5_000 },
@@ -52,6 +59,19 @@ export function findProduct(id: string | number | undefined | null): RobloxProdu
   if (id === undefined || id === null) return undefined;
   const key = id.toString();
   return ROBLOX_PRODUCTS.find((p) => p.id === key);
+}
+
+/** All subscription products, highest plan first (so we grant the best owned). */
+export function subscriptionProducts(): RobloxProduct[] {
+  const rank: Record<string, number> = {
+    free: 0,
+    partner: 1,
+    fresh_pro: 2,
+    pure_ultra: 3,
+  };
+  return ROBLOX_PRODUCTS.filter((p) => p.kind === "subscription").sort(
+    (a, b) => (rank[b.plan || "free"] || 0) - (rank[a.plan || "free"] || 0),
+  );
 }
 
 /**

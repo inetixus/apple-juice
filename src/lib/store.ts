@@ -1711,3 +1711,58 @@ export async function getLatestSubscriptionRequestForUser(
   mine.sort((a, b) => (b.reviewedAt || b.createdAt) - (a.reviewedAt || a.createdAt));
   return mine[0];
 }
+
+// ─── Subscription tracking (Open Cloud verified) ─────────────────────────────
+//
+// When a user's Roblox subscription is verified active via Open Cloud, we store
+// which product they're on + when we last confirmed it. A lazy re-check (on
+// dashboard load, throttled) downgrades them to free if the subscription
+// lapsed, so we never need an in-game purchase or a manual timer.
+
+const SUBSCRIPTION_PREFIX = "apple-juice:subscription:";
+
+export type UserSubscription = {
+  /** The "EXP-..." subscription product id the user is subscribed to. */
+  productId: string;
+  /** Plan granted by this subscription. */
+  plan: UserPlan;
+  /** Last time we confirmed it active via Open Cloud (epoch ms). */
+  lastVerifiedAt: number;
+  /** Whether Roblox reported it will auto-renew. */
+  willRenew?: boolean;
+};
+
+function subscriptionKeyFor(userId: string) {
+  return `${SUBSCRIPTION_PREFIX}${userId}`;
+}
+
+export async function setUserSubscription(
+  userId: string,
+  sub: UserSubscription,
+): Promise<void> {
+  try {
+    await getRedis().set(subscriptionKeyFor(userId), JSON.stringify(sub));
+  } catch (err) {
+    console.error("setUserSubscription error", err);
+  }
+}
+
+export async function getUserSubscription(
+  userId: string,
+): Promise<UserSubscription | null> {
+  try {
+    const raw = await getRedis().get(subscriptionKeyFor(userId));
+    if (!raw) return null;
+    return (typeof raw === "string" ? JSON.parse(raw) : raw) as UserSubscription;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearUserSubscription(userId: string): Promise<void> {
+  try {
+    await getRedis().del(subscriptionKeyFor(userId));
+  } catch {
+    /* best-effort */
+  }
+}

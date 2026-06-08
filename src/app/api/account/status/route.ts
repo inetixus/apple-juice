@@ -7,11 +7,47 @@ import {
   recordUserSeen,
   extractIp,
   getLatestSubscriptionRequestForUser,
+  getUserSubscription,
+  setUserSubscription,
+  clearUserSubscription,
+  setUserPlan,
+  getUserPlan,
 } from "@/lib/store";
+import { userHasActiveSubscription } from "@/lib/roblox-verify";
 
 export const dynamic = "force-dynamic";
 
 const SEEN_SUB_PREFIX = "apple-juice:seen-sub:";
+
+/**
+ * Re-verify a subscriber's Open Cloud status at most once per ~6h. Keeps plans
+ * honest without a cron: if their Roblox subscription lapsed/cancelled, they
+ * get downgraded to free on a later dashboard load; if still active, the
+ * lastVerifiedAt stamp refreshes. No-op for users with no tracked subscription.
+ */
+const RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+async function maybeRecheckSubscription(userId: string) {
+  try {
+    const sub = await getUserSubscription(userId);
+    if (!sub) return;
+    if (Date.now() - sub.lastVerifiedAt < RECHECK_INTERVAL_MS) return;
+
+    const result = await userHasActiveSubscription(userId, sub.productId);
+    // Only act on a POSITIVE verification signal. If the check itself failed
+    // (network / API down — verified=false but not an authoritative "inactive"),
+    // leave the plan alone so an outage can't mass-downgrade paying users.
+    if (result.ok) {
+      await setUserSubscription(userId, { ...sub, lastVerifiedAt: Date.now() });
+    } else if (result.verified) {
+      // Authoritatively inactive → downgrade.
+      const plan = await getUserPlan(userId);
+      if (plan !== "free") await setUserPlan(userId, "free");
+      await clearUserSubscription(userId);
+    }
+  } catch {
+    /* non-fatal */
+  }
+}
 
 /**
  * GET /api/account/status
@@ -34,6 +70,10 @@ export async function GET(req: Request) {
   const username = session?.user?.name || undefined;
   // Register / refresh presence (fire and forget semantics, but await for IP).
   await recordUserSeen(userId, { username, ip });
+
+  // Lazily re-verify an existing subscription (throttled) so lapsed/cancelled
+  // subs downgrade automatically without a cron job.
+  await maybeRecheckSubscription(userId);
 
   const [ban, warnings] = await Promise.all([getBan(userId), getWarnings(userId)]);
 

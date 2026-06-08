@@ -10,9 +10,8 @@ import { findProduct, applyProductGrant } from "@/lib/roblox-products";
  * shared ROBLOX_WEBHOOK_SECRET that only the game server knows. We trust it and
  * grant directly.
  *
- * (The browser-extension relay at /api/extension/purchase is the SECONDARY path
- * for purchases made on roblox.com outside the game; that one independently
- * re-verifies with Roblox because the extension can't hold this secret.)
+ * (The other plan path is /api/verify-subscription, which confirms web
+ * subscription purchases via the Open Cloud subscription API.)
  */
 export async function POST(req: Request) {
   try {

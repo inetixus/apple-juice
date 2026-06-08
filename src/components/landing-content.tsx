@@ -621,18 +621,12 @@ export function LandingContent({
           </div>
           </div> {/* Close Unified Shop Container Box */}
 
-          {/* Auto-unlock note â€” purchases on Roblox sync via the browser extension */}
+          {/* Subscription note — purchases verified instantly via Roblox */}
           <div className="max-w-2xl mx-auto -mt-8 mb-16 text-center">
             <p className="text-[11px] text-white/40 leading-relaxed">
-              Purchases are handled securely by Roblox. Install the{" "}
-              <a
-                href="/extension"
-                className="text-[#ccff00]/80 hover:text-[#ccff00] font-semibold transition-colors"
-              >
-                Apple Juice browser extension
-              </a>{" "}
-              to auto-unlock your plan or refill the moment your Roblox purchase
-              completes â€” no codes, no waiting.
+              Subscriptions are handled securely by Roblox. After you subscribe,
+              your plan activates instantly — verified directly with Roblox. No
+              codes, no screenshots, no waiting.
             </p>
           </div>
 

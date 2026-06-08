@@ -263,3 +263,27 @@ economics), then 9/10/11 (low-effort SEO), then DX (5,6,8,7), then polish.
     DEPLOY: for an EXISTING project that already has a broken/Fusion "AppleJuiceUI"
     in the tree, delete that instance once so the fresh simple ModuleScript deploys
     cleanly (a Folder and ModuleScript of the same name can't coexist).
+
+
+[x] SUBSCRIPTIONS — official Open Cloud verification (replaces extension +
+    screenshots). CONFIRMED WORKING: a web subscription purchase shows up via
+    GET cloud/v2/universes/{uni}/subscription-products/{EXP-..}/subscriptions/{user}
+    as {active:true, willRenew:true}. So the clean flow:
+      1. User subscribes on roblox.com (Roblox = payment processor).
+      2. They click "I subscribed — Verify" (PurchaseFlowModal) → POST
+         /api/verify-subscription → checks each sub product via
+         userHasActiveSubscription() → grants the matching plan + records it
+         (setUserSubscription).
+      3. /api/account/status lazily re-verifies (throttled ~6h) on dashboard load:
+         still active → refresh stamp; authoritatively inactive → downgrade to
+         free + clear. Fails OPEN on API/network error so an outage can't mass-
+         downgrade paying users.
+    Forge-proof: userId = authenticated Roblox session id; check is server-to-
+    server with the Open Cloud key. No screenshots, no admin queue, no browser
+    extension, no account cookie, no second VPS.
+    REMOVED: extension/ folder + zip, /api/extension/* routes, /extension page,
+    landing extension note. Diagnostic kept: /api/admin/sub-check (admin-only raw
+    Open Cloud probe). Test sub EXP-7545594053153391175 added to the registry
+    (grants Fresh Pro) — swap/remove for production. Typecheck clean, 94 tests pass.
+    TODO(you): set the real Roblox subscription purchase URLs in PLAN_INFO
+    (purchase-flow-modal.tsx) — currently point at the game page anchor.

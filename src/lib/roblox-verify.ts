@@ -1,15 +1,14 @@
 /**
  * Server-side Roblox purchase verification.
  *
- * The browser extension that detects a purchase is PUBLIC code — it can't hold
- * a secret and its calls can be forged. So before granting anything off an
- * extension-reported purchase, the server independently asks Roblox whether the
- * user actually owns the product. This module wraps the Roblox endpoints we use
- * for that, and is honest about what can and can't be verified:
+ * Used to confirm purchases with Roblox before granting anything, server-to-
+ * server with our credentials (never trusting the client):
  *
+ *   • Subscriptions→ verified via Open Cloud (needs ROBLOX_OPEN_CLOUD_KEY +
+ *                    ROBLOX_UNIVERSE_ID). This is the PRIMARY plan flow: a user
+ *                    subscribes on roblox.com, then /api/verify-subscription
+ *                    confirms it here and grants the plan.
  *   • Gamepasses   → verifiable (inventory / game-passes API).
- *   • Subscriptions→ verifiable via Open Cloud (needs ROBLOX_OPEN_CLOUD_KEY +
- *                    ROBLOX_UNIVERSE_ID); otherwise unverifiable.
  *   • Dev products → NOT verifiable after the fact (Roblox exposes no ownership
  *                    check for one-shot dev-product receipts). These rely on the
  *                    in-game ProcessReceipt webhook, which is authoritative.
