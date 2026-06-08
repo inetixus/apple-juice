@@ -140,42 +140,19 @@ export function getDeployedComponentNames(): string[] {
 }
 
 export function buildLibraryDeploymentPrompt(): string {
-  const components = getDeployedComponentNames();
+  // The simple imperative AppleJuiceUI.luau library is the single source of
+  // truth (deployed as a ModuleScript to ReplicatedStorage.AppleJuiceUI). The
+  // detailed component/template API is already documented in the main system
+  // prompt's "UI GENERATION" section, so this block just reinforces the require
+  // pattern and must NOT teach the old Fusion/Scope API (which collided and
+  // produced invisible UIs).
   return `
-## PRO MULTI-FILE UI LIBRARY (AUTO-DEPLOYED)
-A modular, high-performance UI library (Fusion-based) has been deployed to:
-  ReplicatedStorage.AppleJuiceUI
-
-### Usage:
+## APPLEJUICEUI LIBRARY (AUTO-DEPLOYED)
+A ModuleScript named "AppleJuiceUI" is auto-deployed to ReplicatedStorage. Require it and use its imperative API (UI.ShopTemplate, UI.createScreenGui, UI.Card, UI.Button, etc. — see the UI GENERATION section above):
 \`\`\`luau
-local AppleJuiceUI = require(game:GetService("ReplicatedStorage"):WaitForChild("AppleJuiceUI"))
-local Fusion = AppleJuiceUI.Fusion
-local Scope = Fusion.scoped(AppleJuiceUI, AppleJuiceUI.Util, AppleJuiceUI.Components)
-
--- The library is organized into individual components for maximum flexibility.
--- Example creating a themed window:
-local screen = Instance.new("ScreenGui", player.PlayerGui)
-local window = AppleJuiceUI.Widget(Scope, {
-    Title = "Game Settings",
-    Size = UDim2.fromOffset(500, 400),
-    OnClose = function() screen:Destroy() end,
-    [Fusion.Children] = {
-        AppleJuiceUI.Button(Scope, {
-            Text = "Save Changes",
-            OnClick = function() print("Saved!") end
-        })
-    }
-})
-window.Parent = screen
+local UI = require(game:GetService("ReplicatedStorage"):WaitForChild("AppleJuiceUI", 10))
+UI.setTheme("Juice")
 \`\`\`
-
-### Available Components:
-${components.map(c => `- **${c}**: \`AppleJuiceUI.${c}(Scope, Props)\``).join("\n")}
-
-### RULES:
-1. ALWAYS use the 'Scope' pattern (Fusion-based).
-2. REQUIRE the library from ReplicatedStorage:WaitForChild("AppleJuiceUI").
-3. Wrap UI creation in a theme if needed: AppleJuiceUI.Themer.Theme:is(AppleJuiceUI.Themes.Zap):during(function() ... end)
-4. Use AppleJuiceUI.Children instead of [Fusion.Children] for readability.
+Do NOT use a Fusion "Scope" pattern or [Fusion.Children] — this library is plain imperative function calls that return Instances.
 `;
 }

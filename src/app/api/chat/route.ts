@@ -17,7 +17,7 @@ import {
 import { getAntigravityMapping, relayToAntigravity } from "@/lib/antigravity";
 import { buildUIExamplesBlock } from "@/lib/ui-examples";
 import { getAppleJuiceUISource, isUIRelatedPrompt } from "@/lib/apple-juice-ui-library";
-import { buildLibraryDeploymentPrompt, getUILibraryDeploymentScripts } from "@/lib/ui-library-deployer";
+import { buildLibraryDeploymentPrompt } from "@/lib/ui-library-deployer";
 import { buildSystemsContextBlock, buildSnippetsContextBlock } from "@/lib/systems";
 import { validateGeneration } from "@/lib/validate-generation";
 import { normalizeActions } from "@/lib/normalize-action";
@@ -654,6 +654,9 @@ UI.ProductCard(scroll, {Text, Price, Icon, OnClick})   -- shop item card
 UI.Badge(parent, {Text, Color="Accent"|"Error"|"Success"|"Warning"})
 UI.ProgressBar(parent, {Value=0..1, Label, FillColor})
 UI.Tabs(parent, {Items={{Id,Label}}, Default, OnChanged})
+UI.Switch(parent, {Default=false, OnChanged})    -- toggle; :Get()/:Set()
+UI.Slider(parent, {Default=0..1, OnChanged})      -- horizontal slider
+UI.IconButton(parent, {Icon, Size, OnClick})      -- square icon button
 UI.Text(parent, {Text, Bold, TextSize, Align, Wrapped})
 UI.Divider(parent)
 UI.Toast(screen, {Text, Type="success"|"error"|"info"|"warning"})
@@ -1523,9 +1526,22 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                   (s: any) => typeof s?.code === "string" && s.code.includes("AppleJuiceUI"),
                 );
                 if (isUIRelatedPrompt(prompt) && usesLibrary && !libExists) {
-                  const libScripts = getUILibraryDeploymentScripts();
-                  if (libScripts.length > 0) {
-                    agentScripts = [...libScripts, ...agentScripts];
+                  // Deploy the simple imperative library (single source of truth),
+                  // not the old Fusion multi-file one (which collided -> invisible UI).
+                  try {
+                    const libSource = getAppleJuiceUISource();
+                    agentScripts = [
+                      {
+                        action: "create",
+                        type: "ModuleScript",
+                        parent: "ReplicatedStorage",
+                        name: "AppleJuiceUI",
+                        code: libSource,
+                      },
+                      ...agentScripts,
+                    ];
+                  } catch {
+                    /* continue without the library */
                   }
                 }
 
@@ -2447,24 +2463,13 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
         scripts.push({ action: "run_playtest" } as any);
       }
 
-      // ── AUTO-DEPLOY MULTI-FILE LIBRARY ──
-      const treeStr = body.tree || "";
-      const libraryAlreadyExists = treeStr.includes("AppleJuiceUI");
-      if (isUIRelatedPrompt(prompt) && !libraryAlreadyExists) {
-        const libScripts = getUILibraryDeploymentScripts();
-        if (libScripts.length > 0) {
-          const libEntries = libScripts.map(ls => ({
-            action: ls.action,
-            type: ls.type || "ModuleScript",
-            parent: ls.parent,
-            name: ls.name,
-            code: ls.code || "",
-            className: ls.className,
-            instanceName: ls.instanceName,
-          }));
-          scripts = [...libEntries, ...scripts];
-        }
-      }
+      // ── AUTO-DEPLOY LIBRARY ──
+      // NOTE: the conflicting Fusion-based multi-file library deploy was removed.
+      // It created a Folder named "AppleJuiceUI" that collided with the simple
+      // imperative ModuleScript library (deployed below as getAppleJuiceUISource),
+      // producing invisible UIs (require resolved to the wrong instance type).
+      // The simple library is the single source of truth — see the deploy block
+      // further down that unshifts getAppleJuiceUISource() when hasUIWork.
 
       // ── DETERMINISTIC QUALITY PASS ──
       // Order by dependency (instances → modules → scripts → playtest),

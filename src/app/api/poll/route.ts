@@ -46,9 +46,12 @@ export async function GET(req: Request) {
     const codeStr =
       typeof codeValue === "string" ? codeValue : JSON.stringify(codeValue);
 
-    // Enforce dashboard connection: If the dashboard hasn't pinged in 20 seconds, disconnect.
+    // Enforce dashboard connection: if the dashboard hasn't pinged in a while,
+    // report unpaired. Widened to 45s (from 20s) so a briefly backgrounded tab,
+    // a slow heartbeat, or a transient network hiccup doesn't drop the plugin —
+    // the plugin itself also tolerates a few consecutive unpaired responses now.
     const lastPing = result.payload.dashboardLastPingTime || 0;
-    if (Date.now() - lastPing > 20000) {
+    if (Date.now() - lastPing > 45000) {
       return Response.json({
         paired: false,
         error: "Dashboard disconnected (close app or refresh tab).",

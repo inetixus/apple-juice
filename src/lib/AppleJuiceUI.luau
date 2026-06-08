@@ -1,12 +1,12 @@
--- AppleJuiceUI Component Library v1.1
+-- AppleJuiceUI Component Library v1.2
 -- Auto-deployed by Apple Juice AI into ReplicatedStorage
--- AJUI_VERSION: 1.1.0  (bump when the library source changes so stale deployed
+-- AJUI_VERSION: 1.2.0  (bump when the library source changes so stale deployed
 -- copies in existing projects get re-deployed instead of kept)
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 local UI = {}
-UI._version = "1.1.0"
+UI._version = "1.2.0"
 UI._themes = {
 	Juice = {
 		bg = Color3.fromRGB(26,26,46), surface = Color3.fromRGB(35,35,55),
@@ -870,4 +870,117 @@ function UI.HUDTemplate(props)
 	return screen, {health = hp, currency = currency, xp = xp}
 end
 
+-- ══════════════════════════════════════════════════════════════════════
+-- Extra components commonly reached for (Switch / Checkbox / Slider /
+-- IconButton). Implemented so generated code that uses them doesn't error.
+-- ══════════════════════════════════════════════════════════════════════
+
+-- A toggle switch. Returns the container; :Get() reads state, OnChanged fires.
+function UI.Switch(parent, props)
+	props = props or {}
+	local t = UI.theme()
+	local state = props.Default == true
+	local track = Instance.new("TextButton")
+	track.Name = props.Name or "Switch"
+	track.Size = props.Size or UDim2.new(0,48,0,26)
+	track.Position = props.Position or UDim2.new(0,0,0,0)
+	track.AutoButtonColor = false; track.Text = ""; track.BorderSizePixel = 0
+	track.BackgroundColor3 = state and t.accent or t.surface
+	Instance.new("UICorner", track).CornerRadius = UDim.new(1,0)
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0,20,0,20); knob.Position = state and UDim2.new(1,-23,0.5,-10) or UDim2.new(0,3,0.5,-10)
+	knob.BackgroundColor3 = Color3.fromRGB(255,255,255); knob.BorderSizePixel = 0
+	Instance.new("UICorner", knob).CornerRadius = UDim.new(1,0); knob.Parent = track
+	local function render()
+		tween(track, 0.15, {BackgroundColor3 = state and t.accent or t.surface})
+		tween(knob, 0.15, {Position = state and UDim2.new(1,-23,0.5,-10) or UDim2.new(0,3,0.5,-10)})
+	end
+	track.MouseButton1Click:Connect(function()
+		state = not state; render()
+		if props.OnChanged then props.OnChanged(state) end
+	end)
+	track.Get = function() return state end
+	track.Set = function(_, v) state = v and true or false; render() end
+	if parent then track.Parent = parent end
+	return track
+end
+
+UI.Checkbox = UI.Switch -- alias; same toggle semantics
+
+-- A horizontal slider 0..1. OnChanged fires with the value.
+function UI.Slider(parent, props)
+	props = props or {}
+	local t = UI.theme()
+	local value = math.clamp(props.Default or 0.5, 0, 1)
+	local bar = Instance.new("TextButton")
+	bar.Name = props.Name or "Slider"
+	bar.Size = props.Size or UDim2.new(0,200,0,8)
+	bar.Position = props.Position or UDim2.new(0,0,0,0)
+	bar.AutoButtonColor = false; bar.Text = ""; bar.BorderSizePixel = 0
+	bar.BackgroundColor3 = t.surface
+	Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
+	local fill = Instance.new("Frame"); fill.Size = UDim2.new(value,0,1,0)
+	fill.BackgroundColor3 = t.accent; fill.BorderSizePixel = 0
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0); fill.Parent = bar
+	local knob = Instance.new("Frame"); knob.Size = UDim2.new(0,16,0,16)
+	knob.Position = UDim2.new(value,-8,0.5,-8); knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+	knob.BorderSizePixel = 0; Instance.new("UICorner", knob).CornerRadius = UDim.new(1,0); knob.Parent = bar
+	local function setFromX(px)
+		local rel = math.clamp((px - bar.AbsolutePosition.X) / math.max(1, bar.AbsoluteSize.X), 0, 1)
+		value = rel
+		fill.Size = UDim2.new(value,0,1,0); knob.Position = UDim2.new(value,-8,0.5,-8)
+		if props.OnChanged then props.OnChanged(value) end
+	end
+	bar.MouseButton1Down:Connect(function(x) setFromX(x) end)
+	if parent then bar.Parent = parent end
+	return bar
+end
+
+-- A square icon button.
+function UI.IconButton(parent, props)
+	props = props or {}
+	local t = UI.theme()
+	local btn = Instance.new("ImageButton")
+	btn.Name = props.Name or "IconButton"
+	btn.Size = props.Size or UDim2.new(0,44,0,44)
+	btn.Position = props.Position or UDim2.new(0,0,0,0)
+	btn.BackgroundColor3 = props.BackgroundColor3 or t.surface; btn.BorderSizePixel = 0
+	btn.Image = props.Icon or ""; btn.ScaleType = Enum.ScaleType.Fit
+	btn.ImageRectOffset = Vector2.new(0,0)
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, props.Corner or t.corner)
+	-- Inset the image so it doesn't fill the whole button.
+	local pad = Instance.new("UIPadding"); local p = UDim.new(0, props.Padding or 8)
+	pad.PaddingTop=p; pad.PaddingBottom=p; pad.PaddingLeft=p; pad.PaddingRight=p; pad.Parent=btn
+	if props.OnClick then btn.MouseButton1Click:Connect(props.OnClick) end
+	if parent then btn.Parent = parent end
+	return btn
+end
+
+-- ══════════════════════════════════════════════════════════════════════
+-- Safety net: if generated code calls a UI.<X> helper we don't define, return
+-- a forgiving stub that creates a basic labeled Frame instead of erroring and
+-- silently killing the whole UI build. Warns to the output so it's debuggable.
+-- ══════════════════════════════════════════════════════════════════════
+setmetatable(UI, {
+	__index = function(_, key)
+		if type(key) == "string" and key:sub(1,1):match("%u") then
+			warn(("[AppleJuiceUI] Unknown component UI.%s — using a fallback Frame. Use a documented component."):format(key))
+			return function(parent, props)
+				props = props or {}
+				local f = UI.Frame(parent, {
+					Size = props.Size or UDim2.new(0,200,0,60),
+					Position = props.Position,
+					AnchorPoint = props.AnchorPoint,
+				})
+				if props.Text then
+					UI.Text(f, {Text = props.Text, Align = Enum.TextXAlignment.Center, Size = UDim2.new(1,0,1,0)})
+				end
+				return f
+			end
+		end
+		return nil
+	end,
+})
+
 return UI
+

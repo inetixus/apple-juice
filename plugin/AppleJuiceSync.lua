@@ -242,6 +242,17 @@ local STATUS_COLORS = {
 local running = false
 local unloading = false
 
+local undoStack = {}
+
+local function setStatus(msg, statusType)
+	statusLabel.Text = msg
+	statusLabel.TextColor3 = STATUS_COLORS[statusType] or STATUS_COLORS.info
+end
+
+local function updateUndoButton()
+	undoButton.Visible = #undoStack > 0
+end
+
 -- ─── Helpers ──────────────────────────────────────────────────────────────────
 
 local function reportLog(sessionKey, logMessage)
@@ -1262,6 +1273,13 @@ local function pollLoop(sessionKey)
 	currentSessionKey = sessionKey
 	local hasError = false
 	local pollTicks = 0
+	-- Resilience: a single failed poll (transient network blip, a momentary
+	-- 502 from the host, one slow request) used to disconnect immediately.
+	-- Tolerate a few consecutive failures before actually giving up.
+	local consecutiveFailures = 0
+	local MAX_CONSECUTIVE_FAILURES = 5
+	local consecutiveUnpaired = 0
+	local MAX_CONSECUTIVE_UNPAIRED = 3
 
 	while running and not unloading do
 		pollTicks += 1
@@ -1291,21 +1309,55 @@ local function pollLoop(sessionKey)
 		local ok, data, err = requestPoll(sessionKey)
 
 		if not ok then
-			setStatus(err or "Poll failed.", "error")
-			hasError = true
-			running = false
-			break
+			-- Transient failure: warn but keep trying. Only disconnect after
+			-- several failures in a row (sustained outage / real problem).
+			consecutiveFailures += 1
+			if consecutiveFailures >= MAX_CONSECUTIVE_FAILURES then
+				setStatus(err or "Poll failed.", "error")
+				hasError = true
+				running = false
+				break
+			else
+				setStatus("Reconnecting... (" .. consecutiveFailures .. ")", "warning")
+				-- Back off a little before the next attempt.
+				local waited = 0
+				while running and not unloading and waited < 1 do
+					task.wait(0.2)
+					waited += 0.2
+				end
+				-- Skip the rest of this iteration and retry.
+				continue
+			end
 		end
 
+		-- Successful request — reset the failure counter.
+		consecutiveFailures = 0
+
 		if data.paired ~= true then
-			setStatus(data.error or "Session expired.", "error")
-			hasError = true
-			running = false
-			isConnected = false
-			connectButton.Text = "Connect"
-			connectButton.BackgroundColor3 = buttonBaseColor
-			break
+			-- The dashboard heartbeat may briefly lapse (tab backgrounded,
+			-- network hiccup). Tolerate a few before disconnecting.
+			consecutiveUnpaired += 1
+			if consecutiveUnpaired >= MAX_CONSECUTIVE_UNPAIRED then
+				setStatus(data.error or "Session expired.", "error")
+				hasError = true
+				running = false
+				isConnected = false
+				connectButton.Text = "Connect"
+				connectButton.BackgroundColor3 = buttonBaseColor
+				break
+			else
+				setStatus("Waiting for dashboard...", "warning")
+				local waited = 0
+				while running and not unloading and waited < 1 do
+					task.wait(0.2)
+					waited += 0.2
+				end
+				continue
+			end
 		end
+
+		-- Paired successfully — reset the unpaired counter.
+		consecutiveUnpaired = 0
 
 		if not isConnected then
 			isConnected = true

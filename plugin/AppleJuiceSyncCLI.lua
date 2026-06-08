@@ -1292,6 +1292,12 @@ local function pollLoop(sessionKey)
 	currentSessionKey = sessionKey
 	local hasError = false
 	local pollTicks = 0
+	-- Resilience: tolerate transient poll/heartbeat failures instead of
+	-- disconnecting on the first one (see AppleJuiceSync.lua for rationale).
+	local consecutiveFailures = 0
+	local MAX_CONSECUTIVE_FAILURES = 5
+	local consecutiveUnpaired = 0
+	local MAX_CONSECUTIVE_UNPAIRED = 3
 
 	while running and not unloading do
 		pollTicks += 1
@@ -1321,21 +1327,47 @@ local function pollLoop(sessionKey)
 		local ok, data, err = requestPoll(sessionKey)
 
 		if not ok then
-			setStatus(err or "Poll failed.", "error")
-			hasError = true
-			running = false
-			break
+			consecutiveFailures += 1
+			if consecutiveFailures >= MAX_CONSECUTIVE_FAILURES then
+				setStatus(err or "Poll failed.", "error")
+				hasError = true
+				running = false
+				break
+			else
+				setStatus("Reconnecting... (" .. consecutiveFailures .. ")", "warning")
+				local waited = 0
+				while running and not unloading and waited < 1 do
+					task.wait(0.2)
+					waited += 0.2
+				end
+				continue
+			end
 		end
 
+		consecutiveFailures = 0
+
 		if data.paired ~= true then
-			setStatus(data.error or "Session expired.", "error")
-			hasError = true
-			running = false
-			isConnected = false
-			connectButton.Text = "Connect"
-			connectButton.BackgroundColor3 = buttonBaseColor
-			break
+			consecutiveUnpaired += 1
+			if consecutiveUnpaired >= MAX_CONSECUTIVE_UNPAIRED then
+				setStatus(data.error or "Session expired.", "error")
+				hasError = true
+				running = false
+				isConnected = false
+				connectButton.Text = "Connect"
+				connectButton.BackgroundColor3 = buttonBaseColor
+				break
+			else
+				setStatus("Waiting for dashboard...", "warning")
+				local waited = 0
+				while running and not unloading and waited < 1 do
+					task.wait(0.2)
+					waited += 0.2
+				end
+				continue
+			end
 		end
+
+		consecutiveUnpaired = 0
 
 		if not isConnected then
 			isConnected = true

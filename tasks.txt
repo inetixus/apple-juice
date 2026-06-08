@@ -223,3 +223,43 @@ done; B7 (live VPS round-trip test) is still open and tracked below.
 RECOMMENDED ORDER: 3 → 2 → 1 (confirm it's safe, confirm it works, lock the
 economics), then 9/10/11 (low-effort SEO), then DX (5,6,8,7), then polish.
 ═══════════════════════════════════════════════
+
+
+[x] PLUGIN STABILITY — random disconnects
+    Root cause: the plugin poll loop disconnected on the FIRST failed poll
+    (transient network blip / momentary 502 / one slow request) and on the first
+    unpaired response (dashboard heartbeat lapsing for one tick). Fixes:
+    - Plugin (both AppleJuiceSync.lua + CLI): tolerate up to 5 consecutive poll
+      failures and 3 consecutive unpaired responses, with a short backoff +
+      "Reconnecting..." status, before actually disconnecting. Reset counters on
+      any success.
+    - Server (/api/poll): widened the dashboard-heartbeat disconnect window from
+      20s → 45s so a backgrounded tab (browsers throttle setInterval to ~1/min)
+      or a brief network hiccup doesn't drop the plugin. Dashboard still pings
+      every 500ms, so 45s is a comfortable margin.
+    DEPLOY: re-import the updated plugin in Studio.
+
+
+[x] INVISIBLE UI — root cause: two conflicting AppleJuiceUI libraries
+    The real reason shop/UIs rendered nothing (even with a visible toggle + no
+    errors): TWO different, incompatible libraries were both named "AppleJuiceUI"
+    at ReplicatedStorage.AppleJuiceUI:
+      1. Simple imperative ModuleScript (AppleJuiceUI.luau) — UI.ShopTemplate,
+         UI.Button(parent,props), UI.setTheme. Used by every system prompt example,
+         ui-examples.ts, and the systems templates.
+      2. Fusion multi-file library (ui-library-deployer.ts from styles/*.txt) —
+         AppleJuiceUI.Widget(Scope,...), Fusion.scoped, [Fusion.Children].
+    Both were deployed on the same UI request (one as a ModuleScript, one as a
+    Folder) and both prompt styles were injected, so the AI mixed APIs and
+    require() resolved to the wrong instance type → UI silently built nothing
+    (playtest "passed" because nothing threw).
+    FIX: removed the Fusion deploy from both the standard path and the agent path
+    (both now deploy getAppleJuiceUISource() — the simple ModuleScript only), and
+    rewrote buildLibraryDeploymentPrompt() to reinforce the imperative API and
+    explicitly forbid the Scope/Fusion pattern. Single source of truth now.
+    Combined with the earlier v1.1 library fixes (Toast signature, DynamicScale
+    guard, always-redeploy) + the prompt rule requiring a visible open button.
+    Typecheck clean, 94 tests pass.
+    DEPLOY: for an EXISTING project that already has a broken/Fusion "AppleJuiceUI"
+    in the tree, delete that instance once so the fresh simple ModuleScript deploys
+    cleanly (a Folder and ModuleScript of the same name can't coexist).
