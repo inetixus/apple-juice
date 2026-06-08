@@ -104,6 +104,13 @@ export async function POST(req: Request) {
           return Response.json({ error: "Invalid plan" }, { status: 400 });
         }
         await setUserPlan(targetUserId, body.plan);
+        // Setting to free should also clear any tracked subscription, so the
+        // lazy re-check doesn't think they still have a sub (and so a clean
+        // reset for testing actually resets).
+        if (body.plan === "free") {
+          const { clearUserSubscription } = await import("@/lib/store");
+          await clearUserSubscription(targetUserId);
+        }
         await logAdminAction({
           action: "grantPlan",
           targetUserId,

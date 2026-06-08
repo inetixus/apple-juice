@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
-import { ROBLOX_PRODUCTS } from "@/lib/roblox-products";
+import { subscriptionProducts } from "@/lib/roblox-products";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
   // Which subscription products to probe.
   const products = productParam
     ? [productParam]
-    : ROBLOX_PRODUCTS.filter((p) => p.kind === "subscription").map((p) => p.id);
+    : subscriptionProducts().map((p) => p.id);
 
   const results: Array<Record<string, unknown>> = [];
 

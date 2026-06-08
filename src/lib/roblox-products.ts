@@ -41,13 +41,6 @@ export const ROBLOX_PRODUCTS: RobloxProduct[] = [
     label: "Pure Ultra",
     plan: "pure_ultra",
   },
-  // Cheap test subscription (grants Fresh Pro). Remove/retune for production.
-  {
-    id: "EXP-7545594053153391175",
-    kind: "subscription",
-    label: "Test Subscription",
-    plan: "fresh_pro",
-  },
 
   // ── Instant refills (developer products) ──
   { id: "3585012060", kind: "developerProduct", label: "Small Sip", bonusMl: 5_000 },
@@ -55,9 +48,25 @@ export const ROBLOX_PRODUCTS: RobloxProduct[] = [
   { id: "3585218944", kind: "developerProduct", label: "Mega Jug", bonusMl: 80_000 },
 ];
 
+/**
+ * Optional test subscription product, configured via env so it never ships
+ * hard-coded. Set TEST_SUBSCRIPTION_ID to an "EXP-..." id (and optionally
+ * TEST_SUBSCRIPTION_PLAN, default fresh_pro) to let yourself verify the full
+ * purchase→verify→grant flow with a cheap sub WITHOUT exposing a cheap path to
+ * a real plan in production (just leave the env unset in prod).
+ */
+function testSubscriptionProduct(): RobloxProduct | null {
+  const id = (process.env.TEST_SUBSCRIPTION_ID || "").trim();
+  if (!id) return null;
+  const plan = ((process.env.TEST_SUBSCRIPTION_PLAN || "fresh_pro").trim() as UserPlan);
+  return { id, kind: "subscription", label: "Test Subscription", plan };
+}
+
 export function findProduct(id: string | number | undefined | null): RobloxProduct | undefined {
   if (id === undefined || id === null) return undefined;
   const key = id.toString();
+  const test = testSubscriptionProduct();
+  if (test && test.id === key) return test;
   return ROBLOX_PRODUCTS.find((p) => p.id === key);
 }
 
@@ -69,9 +78,12 @@ export function subscriptionProducts(): RobloxProduct[] {
     fresh_pro: 2,
     pure_ultra: 3,
   };
-  return ROBLOX_PRODUCTS.filter((p) => p.kind === "subscription").sort(
-    (a, b) => (rank[b.plan || "free"] || 0) - (rank[a.plan || "free"] || 0),
-  );
+  const list = [...ROBLOX_PRODUCTS];
+  const test = testSubscriptionProduct();
+  if (test) list.push(test);
+  return list
+    .filter((p) => p.kind === "subscription")
+    .sort((a, b) => (rank[b.plan || "free"] || 0) - (rank[a.plan || "free"] || 0));
 }
 
 /**
