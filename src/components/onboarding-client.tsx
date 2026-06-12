@@ -520,19 +520,33 @@ export function OnboardingClient({
                 </p>
                 <ol className="mt-6 sm:mt-7 space-y-2.5 sm:space-y-3">
                   {[
-                    "Open Roblox Studio and head to the Creator Store.",
-                    "Search “Apple Juice” and install the official plugin.",
-                    "Click the plugin and pair using this same account.",
-                  ].map((t, i) => (
+                    {
+                      t: "Open the Apple Juice plugin on the Creator Store.",
+                      href: "https://create.roblox.com/store/asset/102115601075937/Apple-Juice",
+                    },
+                    { t: "Install it, then open any place in Roblox Studio." },
+                    { t: "Click the plugin and pair using this same account." },
+                  ].map((item, i) => (
                     <li
-                      key={t}
+                      key={item.t}
                       className="flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4"
                     >
                       <span className="h-6 w-6 shrink-0 rounded-full bg-[#ccff00] text-black flex items-center justify-center font-black text-[11px] font-mono">
                         {i + 1}
                       </span>
                       <span className="text-[12px] sm:text-[13px] text-white/70 font-medium leading-snug">
-                        {t}
+                        {item.href ? (
+                          <a
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[#ccff00] underline underline-offset-2 hover:text-[#d4ff33]"
+                          >
+                            {item.t}
+                          </a>
+                        ) : (
+                          item.t
+                        )}
                       </span>
                     </li>
                   ))}
