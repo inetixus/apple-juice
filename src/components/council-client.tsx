@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Loader2, Scale, Sparkles, Check, X, Zap } from "lucide-react";
+import { Trophy, Loader2, Scale, Sparkles, Check, X, Zap, AlertTriangle } from "lucide-react";
 import { cn } from "@/utils/cn";
 
 type CandidateState = {
@@ -258,6 +258,23 @@ export function CouncilClient({ sessionKey }: { sessionKey?: string }) {
             {errorMsg}
           </div>
         )}
+
+        {/* Credit-usage warning */}
+        <div className="mt-4 flex items-start gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/[0.07] px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-[11px] sm:text-xs text-amber-200/80 font-medium leading-snug">
+            Heads up — the council runs{" "}
+            <span className="font-black text-amber-200">
+              {activeModels.length + 1} model calls
+            </span>{" "}
+            per request ({activeModels.length} candidates + 1 judge), so it uses{" "}
+            <span className="font-black text-amber-200">
+              {maxMode ? "a lot more" : "several times more"}
+            </span>{" "}
+            credits than a normal generation.{" "}
+            {maxMode && "MAX mode uses top-tier models — the most expensive option."}
+          </p>
+        </div>
 
         {/* Live candidate progress */}
         {phase !== "idle" && (
