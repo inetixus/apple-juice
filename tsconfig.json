@@ -37,18 +37,13 @@
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "claude-code-main",
-    "cli",
-    "app-bloxbot-ai-0.5.2",
-    "kiro-proxy",
-    "kiro-proxy-temp"
+    "node_modules"
   ]
 }
 

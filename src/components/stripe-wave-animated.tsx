@@ -80,8 +80,11 @@ export function StripeWaveAnimated() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d", { alpha: true });
-    if (!ctx) return;
+    const ctxOrNull = canvas.getContext("2d", { alpha: true });
+    if (!ctxOrNull) return;
+    // Bind to a non-null const so the nested draw/resize closures keep the
+    // narrowed type (avoids "ctx is possibly null" across function boundaries).
+    const ctx = ctxOrNull;
 
     const reduced = prefersReducedMotion();
     let width = 0;
