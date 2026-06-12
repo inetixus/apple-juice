@@ -209,30 +209,38 @@ export function CouncilClient({ sessionKey }: { sessionKey?: string }) {
             disabled={running}
             className="w-full bg-transparent resize-none outline-none text-sm text-white placeholder:text-white/30 font-medium leading-relaxed"
           />
-          <div className="flex items-center justify-between mt-3 gap-3 flex-wrap">
+          <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex flex-wrap items-center gap-1.5">
-              {/* MAX mode toggle */}
+              {/* Council mode — pick like a model */}
+              <span className="text-[10px] font-bold uppercase tracking-wider text-white/30 mr-0.5">
+                Council:
+              </span>
               <button
-                onClick={() => setMaxMode((m) => !m)}
+                onClick={() => setMaxMode(false)}
+                disabled={running}
+                className={cn(
+                  "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5",
+                  !maxMode
+                    ? "bg-[#ccff00]/15 border-[#ccff00]/50 text-[#ccff00] shadow-[0_0_14px_rgba(204,255,0,0.25)]"
+                    : "bg-white/5 border-white/10 text-white/45 hover:border-white/25",
+                )}
+              >
+                {!maxMode && <Check className="h-3 w-3" strokeWidth={3} />}
+                Standard
+              </button>
+              <button
+                onClick={() => setMaxMode(true)}
                 disabled={running}
                 className={cn(
                   "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5",
                   maxMode
                     ? "bg-[#8b5cf6]/20 border-[#8b5cf6]/50 text-[#c4b5fd] shadow-[0_0_16px_rgba(139,92,246,0.3)]"
-                    : "bg-white/5 border-white/10 text-white/50 hover:border-white/25",
+                    : "bg-white/5 border-white/10 text-white/45 hover:border-white/25",
                 )}
               >
                 <Zap className="h-3 w-3" />
                 MAX
               </button>
-              {activeModels.map((m) => (
-                <span
-                  key={m}
-                  className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold text-white/50"
-                >
-                  {m}
-                </span>
-              ))}
             </div>
             {running ? (
               <button
@@ -250,6 +258,21 @@ export function CouncilClient({ sessionKey }: { sessionKey?: string }) {
                 {maxMode ? "Convene MAX council" : "Convene council"}
               </button>
             )}
+          </div>
+
+          {/* The models competing in the selected mode */}
+          <div className="mt-3 pt-3 border-t border-white/[0.06] flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-white/30 mr-0.5">
+              Competing:
+            </span>
+            {activeModels.map((m) => (
+              <span
+                key={m}
+                className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold text-white/50"
+              >
+                {m}
+              </span>
+            ))}
           </div>
         </div>
 
