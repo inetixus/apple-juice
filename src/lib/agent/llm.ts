@@ -228,3 +228,94 @@ export function parseToolArgs(raw: string): Record<string, unknown> {
     return {};
   }
 }
+
+
+/**
+ * Plain (no-tools) completion. Used by the multi-model code council, where each
+ * candidate model just returns code/text and a judge model scores them.
+ */
+export async function runPlainCompletion(opts: {
+  modelId: string;
+  system: string;
+  user: string;
+  maxTokens?: number;
+  temperature?: number;
+  signal?: AbortSignal;
+}): Promise<{
+  content: string;
+  usage: { inputTokens: number; outputTokens: number };
+  error?: string;
+}> {
+  const { key, url } = kiroConfig();
+  if (!key) {
+    return {
+      content: "",
+      usage: { inputTokens: 0, outputTokens: 0 },
+      error: "KIRO_API_KEY is not configured.",
+    };
+  }
+
+  const body = {
+    model: opts.modelId,
+    messages: [
+      { role: "system", content: opts.system },
+      { role: "user", content: opts.user },
+    ],
+    temperature: opts.temperature ?? 0.3,
+    max_tokens: opts.maxTokens ?? 8192,
+    stream: false,
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(`${url}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify(body),
+      signal: opts.signal,
+    });
+  } catch (err) {
+    return {
+      content: "",
+      usage: { inputTokens: 0, outputTokens: 0 },
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    return {
+      content: "",
+      usage: { inputTokens: 0, outputTokens: 0 },
+      error: `LLM HTTP ${res.status}: ${detail.slice(0, 300)}`,
+    };
+  }
+
+  let json: any;
+  try {
+    json = await res.json();
+  } catch {
+    return {
+      content: "",
+      usage: { inputTokens: 0, outputTokens: 0 },
+      error: "Failed to parse LLM response JSON.",
+    };
+  }
+
+  const content = json?.choices?.[0]?.message?.content;
+  const usage = json?.usage ?? {};
+  return {
+    content: typeof content === "string" ? content : "",
+    usage: {
+      inputTokens:
+        usage.prompt_tokens ??
+        Math.ceil((opts.system.length + opts.user.length) / 4),
+      outputTokens:
+        usage.completion_tokens ??
+        Math.ceil((typeof content === "string" ? content.length : 0) / 4),
+    },
+  };
+}

@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   ChevronRight,
   Crown,
-  Terminal
+  Terminal,
+  Scale
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { LandingCliSection } from "./landing-cli-section";
@@ -210,17 +211,26 @@ export function LandingContent({
 
           <NavLiquidTabs scrolled={scrolled} />
 
-          <button
-            onClick={() =>
-              session
-                ? (window.location.href = "/dashboard")
-                : (window.location.href = "/login")
-            }
-            className="h-9 px-6 rounded-full bg-[#ccff00] text-black text-[11px] font-black uppercase tracking-wider hover:bg-[#d4ff33] shadow-[0_0_15px_rgba(204,255,0,0.25)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-1.5"
-          >
-            {session ? "Enter Studio" : "Get Started"}
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/council"
+              className="hidden sm:inline-flex h-9 px-4 rounded-full border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] text-[11px] font-black uppercase tracking-wider hover:bg-[#8b5cf6]/20 hover:border-[#8b5cf6]/50 transition-all duration-300 items-center justify-center gap-1.5"
+            >
+              <Scale className="w-3.5 h-3.5" />
+              Council
+            </a>
+            <button
+              onClick={() =>
+                session
+                  ? (window.location.href = "/dashboard")
+                  : (window.location.href = "/login")
+              }
+              className="h-9 px-6 rounded-full bg-[#ccff00] text-black text-[11px] font-black uppercase tracking-wider hover:bg-[#d4ff33] shadow-[0_0_15px_rgba(204,255,0,0.25)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-1.5"
+            >
+              {session ? "Enter Studio" : "Get Started"}
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </nav>
 

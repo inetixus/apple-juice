@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     plan,
     lastVerifiedAt: Date.now(),
     willRenew,
+    simulated: true,
   });
 
   const current = await getUserPlan(userId);

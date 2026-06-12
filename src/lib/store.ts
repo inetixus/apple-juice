@@ -1752,6 +1752,9 @@ export type UserSubscription = {
   lastVerifiedAt: number;
   /** Whether Roblox reported it will auto-renew. */
   willRenew?: boolean;
+  /** Set by the dev test-purchase flow. When true, the verify route treats it
+   *  as active instead of round-tripping to Roblox Open Cloud. */
+  simulated?: boolean;
 };
 
 function subscriptionKeyFor(userId: string) {

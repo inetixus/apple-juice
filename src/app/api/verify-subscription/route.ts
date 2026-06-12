@@ -37,6 +37,25 @@ export async function POST(req: Request) {
   if (!userId) {
     return Response.json({ error: "Sign in first." }, { status: 401 });
   }
+
+  // ── Dev simulation short-circuit ──────────────────────────────────────────
+  // The test-purchase flow writes a `simulated: true` subscription. Honor it
+  // (only when ENABLE_TEST_PURCHASE=1) so "Verify" confirms the test plan on
+  // ANY account instead of round-tripping to Roblox Open Cloud and downgrading
+  // it. Placed before the Roblox-provider guard so Google test accounts work.
+  if (process.env.ENABLE_TEST_PURCHASE === "1") {
+    const sim = await getUserSubscription(userId);
+    if (sim?.simulated) {
+      await setUserPlan(userId, sim.plan);
+      return Response.json({
+        success: true,
+        active: true,
+        plan: sim.plan,
+        message: `Verified! Your ${sim.plan} subscription is active.`,
+      });
+    }
+  }
+
   if (provider && provider !== "roblox") {
     return Response.json(
       { error: "Sign in with Roblox to verify a subscription." },

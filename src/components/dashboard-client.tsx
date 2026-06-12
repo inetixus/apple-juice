@@ -1439,6 +1439,17 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     }
   }, [sessionKey, activeProjectId, isProjectsLoading]);
 
+  // Mirror the active session key to localStorage so standalone pages (e.g. the
+  // Code Council at /council) can apply their result straight into the same
+  // paired Studio session.
+  useEffect(() => {
+    try {
+      if (sessionKey) window.localStorage.setItem("aj_session_key", sessionKey);
+    } catch {
+      /* ignore quota */
+    }
+  }, [sessionKey]);
+
 
 
   //
