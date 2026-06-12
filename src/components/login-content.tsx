@@ -38,9 +38,9 @@ export function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#08090c] text-white flex flex-col lg:flex-row overflow-hidden">
+    <div className="min-h-[100dvh] w-full bg-[#08090c] text-white flex flex-col lg:flex-row overflow-hidden">
       {/* ───── MEDIA PANEL ───── */}
-      <div className="relative lg:w-1/2 h-72 lg:h-screen overflow-hidden bg-gradient-to-br from-[#0b0c10] via-[#08090c] to-[#050508]">
+      <div className="relative lg:w-1/2 h-44 sm:h-60 lg:h-screen overflow-hidden bg-gradient-to-br from-[#0b0c10] via-[#08090c] to-[#050508]">
         {/* brand ambient wash */}
         <div className="pointer-events-none absolute -top-24 -left-16 h-80 w-80 rounded-full bg-[#ccff00]/[0.10] blur-[130px]" />
         <div className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 rounded-full bg-violet-500/10 blur-[130px]" />
@@ -52,18 +52,18 @@ export function LoginContent() {
 
         {/* fade into the login side so the split feels seamless */}
         <div className="hidden lg:block absolute inset-y-0 right-0 w-32 bg-gradient-to-r from-transparent to-[#08090c] z-20" />
-        <div className="lg:hidden absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-[#08090c] z-20" />
+        <div className="lg:hidden absolute inset-x-0 bottom-0 h-20 bg-gradient-to-b from-transparent to-[#08090c] z-20" />
 
         {/* brand lockup */}
-        <div className="absolute top-7 left-7 flex items-center gap-3 z-30">
+        <div className="absolute top-5 left-5 sm:top-7 sm:left-7 flex items-center gap-2.5 sm:gap-3 z-30">
           <Image
             src="/apple_juice_logo.png"
             alt="Apple Juice"
             width={40}
             height={40}
-            className="h-10 w-10 object-contain drop-shadow-[0_0_18px_rgba(204,255,0,0.5)]"
+            className="h-8 w-8 sm:h-10 sm:w-10 object-contain drop-shadow-[0_0_18px_rgba(204,255,0,0.5)]"
           />
-          <span className="font-black text-sm uppercase tracking-[0.2em]">
+          <span className="font-black text-xs sm:text-sm uppercase tracking-[0.2em]">
             Apple&nbsp;Juice
           </span>
         </div>
@@ -83,7 +83,7 @@ export function LoginContent() {
       </div>
 
       {/* ───── LOGIN PANEL ───── */}
-      <div className="relative lg:w-1/2 flex items-center justify-center px-6 py-12 lg:py-0">
+      <div className="relative lg:w-1/2 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12 lg:py-0">
         {/* ambient glow */}
         <div className="pointer-events-none absolute -top-20 right-0 h-72 w-72 rounded-full bg-[#ccff00]/10 blur-[120px]" />
         <div className="pointer-events-none absolute bottom-0 left-10 h-64 w-64 rounded-full bg-violet-500/10 blur-[120px]" />
@@ -94,13 +94,13 @@ export function LoginContent() {
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           className="relative w-full max-w-md"
         >
-          <div className="bg-white/[0.04] border border-white/10 backdrop-blur-2xl rounded-[2.5rem] p-8 sm:p-10 shadow-[0_30px_70px_rgba(0,0,0,0.55)]">
+          <div className="bg-white/[0.04] border border-white/10 backdrop-blur-2xl rounded-[1.75rem] sm:rounded-[2.5rem] p-6 sm:p-10 shadow-[0_30px_70px_rgba(0,0,0,0.55)]">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">
               <span className="h-1.5 w-1.5 rounded-full bg-[#ccff00] animate-pulse" />
               Welcome back
             </span>
 
-            <h1 className="mt-5 text-3xl font-black tracking-tight">
+            <h1 className="mt-5 text-2xl sm:text-3xl font-black tracking-tight">
               Sign in to Apple&nbsp;Juice
             </h1>
             <p className="mt-2 text-sm text-white/50 font-medium">

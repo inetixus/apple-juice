@@ -225,7 +225,7 @@ export function LandingContent({
       </nav>
 
       {/* â”â”â” HERO & DEMO PANEL â”â”â” */}
-      <section className="relative pt-36 pb-24 px-6 md:px-12 xl:px-20 z-10 flex flex-col items-center overflow-visible">
+      <section className="relative pt-28 sm:pt-36 pb-16 sm:pb-24 px-6 md:px-12 xl:px-20 z-10 flex flex-col items-center overflow-visible">
         {/* Continuation glow â€” fills hero below the first viewport so lighting doesn't hard-stop */}
         <div
           className="absolute inset-x-0 top-[55vh] bottom-0 pointer-events-none -z-10"
@@ -400,11 +400,11 @@ export function LandingContent({
         />
 
       {/* â”â”â” CORE FEATURES (THREE COLUMNS ROW) â”â”â” */}
-      <section id="features" className="px-6 py-24 md:py-32 relative">
+      <section id="features" className="px-6 py-16 sm:py-24 md:py-32 relative">
         {/* Cursor-reactive flipping-tile backdrop */}
         <FlipTileGrid className="z-0 opacity-70 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_50%,#000_55%,transparent_100%)]" />
         <div className="max-w-[1200px] mx-auto relative z-10">
-          <Reveal className="text-center mb-20">
+          <Reveal className="text-center mb-12 sm:mb-20">
             <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white mb-4">
               We handle the hard stuff
             </h2>
@@ -485,13 +485,13 @@ export function LandingContent({
       <section
         id="pricing"
         ref={pricingSectionRef}
-        className="px-6 py-24 md:py-32 relative overflow-hidden isolate bg-transparent"
+        className="px-6 py-16 sm:py-24 md:py-32 relative overflow-hidden isolate bg-transparent"
       >
         
         <div className="max-w-[1200px] mx-auto relative z-10">
           
           {/* Removed Hard Container Box; using relative wrapper */}
-          <div className="relative py-20 px-6 md:px-0 mb-16">
+          <div className="relative py-10 sm:py-20 px-0 md:px-0 mb-10 sm:mb-16">
 
             
             {/* Lively Ambient Pulsating Glow */}
@@ -502,7 +502,7 @@ export function LandingContent({
             </div>
 
             {/* Header Content */}
-            <Reveal className="text-center mb-20 relative z-10">
+            <Reveal className="text-center mb-12 sm:mb-20 relative z-10">
               <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white mb-4">
                 Pick your squeeze
               </h2>
@@ -512,10 +512,10 @@ export function LandingContent({
             </Reveal>
 
             {/* Cards Grid */}
-            <RevealStagger className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10" stagger={0.14}>
+            <RevealStagger className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8 relative z-10" stagger={0.14}>
 
             {/* TIER 1: FREE */}
-            <RevealItem className="isolate bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-xl border border-white/10 rounded-[2rem] p-8 flex flex-col hover:border-white/20 hover:-translate-y-1 transition-all duration-500 shadow-[0_12px_40px_rgba(0,0,0,0.4)] relative overflow-hidden group">
+            <RevealItem className="isolate bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 sm:p-8 flex flex-col hover:border-white/20 hover:-translate-y-1 transition-all duration-500 shadow-[0_12px_40px_rgba(0,0,0,0.4)] relative overflow-hidden group">
               <div className="absolute inset-0 -z-10 pointer-events-none opacity-25 group-hover:opacity-40 transition-opacity duration-500">
                 <BentoTwirl position="18% 30%" scale={2.6} hueRotate={150} duration={32} />
               </div>
@@ -568,7 +568,7 @@ export function LandingContent({
               <div className="absolute top-0 left-1/2 -translate-x-1/2 translate-y-0 z-30 bg-[#ccff00] text-black text-[9px] font-black uppercase tracking-[0.15em] py-1.5 px-5 rounded-full shadow-[0_4px_20px_rgba(204,255,0,0.4)] whitespace-nowrap">
                 Highly Recommended
               </div>
-            <div className="isolate bg-gradient-to-b from-[#ccff00]/[0.06] to-[#08090c]/80 backdrop-blur-xl border-2 border-[#ccff00] rounded-[2rem] pt-7 px-8 pb-8 flex flex-col relative md:-translate-y-5 shadow-[0_0_50px_rgba(204,255,0,0.18)] hover:shadow-[0_0_70px_rgba(204,255,0,0.3)] hover:scale-[1.02] transition-all duration-500 overflow-hidden group">
+            <div className="isolate bg-gradient-to-b from-[#ccff00]/[0.06] to-[#08090c]/80 backdrop-blur-xl border-2 border-[#ccff00] rounded-[2rem] pt-7 px-6 sm:px-8 pb-8 flex flex-col relative md:-translate-y-5 shadow-[0_0_50px_rgba(204,255,0,0.18)] hover:shadow-[0_0_70px_rgba(204,255,0,0.3)] hover:scale-[1.02] transition-all duration-500 overflow-hidden group">
               <div className="absolute inset-0 -z-10 pointer-events-none opacity-35 group-hover:opacity-50 transition-opacity duration-500">
                 <BentoTwirl position="50% 35%" scale={2.3} hueRotate={0} duration={20} />
               </div>
@@ -617,7 +617,7 @@ export function LandingContent({
             </RevealItem>
 
             {/* TIER 3: ULTRA */}
-            <RevealItem className="isolate bg-gradient-to-b from-[#8b5cf6]/[0.08] to-[#08090c]/70 backdrop-blur-xl border border-[#8b5cf6]/30 rounded-[2rem] p-8 flex flex-col hover:border-[#8b5cf6]/55 hover:-translate-y-1 hover:shadow-[0_0_55px_rgba(139,92,246,0.3)] transition-all duration-500 shadow-[0_12px_40px_rgba(0,0,0,0.4)] relative overflow-hidden group">
+            <RevealItem className="isolate bg-gradient-to-b from-[#8b5cf6]/[0.08] to-[#08090c]/70 backdrop-blur-xl border border-[#8b5cf6]/30 rounded-[2rem] p-6 sm:p-8 flex flex-col hover:border-[#8b5cf6]/55 hover:-translate-y-1 hover:shadow-[0_0_55px_rgba(139,92,246,0.3)] transition-all duration-500 shadow-[0_12px_40px_rgba(0,0,0,0.4)] relative overflow-hidden group">
               {/* Prominent animated flowing twirl — the signature look for the top tier */}
               <div className="absolute inset-0 -z-10 pointer-events-none opacity-70 group-hover:opacity-90 transition-opacity duration-500">
                 <BentoTwirl position="82% 70%" scale={2.9} hueRotate={250} duration={22} />
@@ -682,7 +682,7 @@ export function LandingContent({
           </div>
 
           {/* MODEL COMPARISON TABLE */}
-          <div className="bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-xl border border-white/10 rounded-[2rem] p-8 md:p-10 mb-16 overflow-x-auto shadow-[0_12px_40px_rgba(0,0,0,0.4)] relative z-20">
+          <div className="bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-xl border border-white/10 rounded-[2rem] p-5 sm:p-8 md:p-10 mb-10 sm:mb-16 overflow-x-auto shadow-[0_12px_40px_rgba(0,0,0,0.4)] relative z-20">
             <div className="flex items-center justify-center gap-2 mb-8">
               <Layers className="w-4 h-4 text-white/40" />
               <h4 className="text-xs font-black uppercase tracking-[0.18em] text-white/50 font-mono">
@@ -835,9 +835,9 @@ export function LandingContent({
       </section>
 
       {/* â”â”â” FAQ (Light Accents Accordion) â”â”â” */}
-      <section id="faq" className="px-6 py-24 md:py-32 relative">
+      <section id="faq" className="px-6 py-16 sm:py-24 md:py-32 relative">
         <div className="max-w-[850px] mx-auto relative z-10">
-          <Reveal className="text-center mb-16">
+          <Reveal className="text-center mb-12 sm:mb-16">
             <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white">
               Questions?
             </h2>
