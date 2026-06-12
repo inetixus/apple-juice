@@ -147,6 +147,14 @@ export function routeModelForPrompt(prompt: string, plan: KiroPlan): string {
 export const KIRO_MODEL_LABELS = KIRO_MODELS.map((m) => m.label);
 
 /**
+ * Special pseudo-model: not a single model but the multi-model Code Council
+ * (several models compete, a judge picks the best). Selecting it in the model
+ * dropdown routes the request through /api/council instead of normal
+ * generation. Listed alongside real models so it's discoverable.
+ */
+export const MAX_COUNCIL_MODEL = "MAX (Council)";
+
+/**
  * Map a model name/id to a brand logo served from /public/icons.
  * Returns null when no specific brand logo applies (e.g. "Auto").
  */

@@ -22,6 +22,7 @@ import { normalizeAction, normalizeActionName } from "@/lib/normalize-action";
 import {
   KIRO_DEFAULT_MODEL,
   KIRO_MODEL_LABELS,
+  MAX_COUNCIL_MODEL,
   kiroModelsForPlan,
   kiroModelLogo,
   type KiroPlan,
@@ -1553,6 +1554,9 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       if (actualProvider === "apple_juice_ai" || actualProvider === "kiro") {
         const plan = (usage?.plan || "free") as KiroPlan;
         nextModels = kiroModelsForPlan(plan);
+        // Offer the multi-model Code Council as a selectable option (it runs
+        // several models + a judge). Listed last so it's discoverable.
+        nextModels = [...nextModels, MAX_COUNCIL_MODEL];
       }
 
       setAvailableModels(nextModels);
@@ -1792,6 +1796,115 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
       setIsRedeeming(false);
     }
   };
+
+  // Runs the multi-model Code Council from the chat (selected via the
+  // "MAX (Council)" model). Streams progress into the thinking feed and posts
+  // the winning code as an assistant message with applicable scripts.
+  async function runCouncilFromChat(promptText: string) {
+    const userMessage: any = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: promptText,
+      timestamp: Date.now(),
+    };
+    const ctx = [...messagesRef.current, userMessage];
+    setMessages(ctx);
+    setPrompt("");
+
+    setThinkingSteps([{ icon: "thinking", label: "Convening the council…", done: false }]);
+
+    try {
+      const res = await fetch("/api/council", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: promptText, sessionKey, stream: true }),
+        signal: abortControllerRef.current?.signal,
+      });
+      if (!res.ok || !res.body) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || `Council failed (${res.status})`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let result: any = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const blocks = buf.split("\n\n");
+        buf = blocks.pop() || "";
+        for (const block of blocks) {
+          const evt = block.match(/^event:\s*(.+)$/m)?.[1]?.trim();
+          const dataM = block.match(/^data:\s*(.+)$/m);
+          if (!dataM) continue;
+          let payload: any;
+          try { payload = JSON.parse(dataM[1]); } catch { continue; }
+          if (evt === "progress") {
+            if (payload.kind === "candidate_start")
+              setThinkingSteps((p) => [...p, { icon: "generating", label: `${payload.model} is writing a solution…`, done: false }]);
+            else if (payload.kind === "candidate_done")
+              setThinkingSteps((p) => p.map((s) => s.label.includes(payload.model) ? { ...s, done: true } : s));
+            else if (payload.kind === "judging")
+              setThinkingSteps((p) => [...p.map((s) => ({ ...s, done: true })), { icon: "thinking", label: "Judge is comparing the solutions…", done: false }]);
+          } else if (evt === "result") {
+            result = payload;
+          } else if (evt === "error") {
+            throw new Error(payload.error || "Council failed.");
+          }
+        }
+      }
+
+      if (!result || result.error) {
+        throw new Error(result?.error || "The council didn't return a result.");
+      }
+
+      const board = (result.scores || [])
+        .sort((a: any, b: any) => b.score - a.score)
+        .map((s: any, i: number) => `${i === 0 ? "🏆 " : ""}**${s.model}** — ${s.score}/100`)
+        .join("\n");
+
+      const scripts = result.winningCode
+        ? [{
+            action: "create",
+            type: "Script",
+            parent: "ServerScriptService",
+            name: "CouncilWinner",
+            code: result.winningCode,
+          }]
+        : [];
+
+      const assistantMessage: any = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content:
+          `**Code Council — winner: ${result.winner}**\n\n${result.verdict}\n\n${board}` +
+          (result.winningCode ? `\n\n\`\`\`lua\n${result.winningCode}\n\`\`\`` : ""),
+        timestamp: Date.now(),
+        model: MAX_COUNCIL_MODEL,
+        scripts,
+      };
+      lastGeneratedScriptsRef.current = scripts;
+      setMessages((prev) => [...prev, assistantMessage]);
+      playSound("success");
+    } catch (e: any) {
+      if (e?.name === "AbortError") {
+        showToast("Council stopped.", "info");
+        return;
+      }
+      const errMsg: any = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: `The council couldn't finish: ${e?.message || e}`,
+        timestamp: Date.now(),
+        model: MAX_COUNCIL_MODEL,
+      };
+      setMessages((prev) => [...prev, errMsg]);
+      showToast(e?.message || "Council failed.", "error");
+    }
+  }
 
   async function submitPrompt(
     overridePrompt?: string | any,
@@ -2203,6 +2316,23 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     setIsGenerating(true);
     isGeneratingRef.current = true;
     playSound("whoosh");
+
+    // ── MAX (Council) route ──────────────────────────────────────────────
+    // The pseudo-model "MAX (Council)" isn't a single model — it runs the
+    // multi-model code council (several models compete, a judge picks the best)
+    // via /api/council, then drops the winning code in as an assistant message.
+    if (selectedModel === MAX_COUNCIL_MODEL) {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      abortControllerRef.current = new AbortController();
+      try {
+        await runCouncilFromChat(trimmed);
+      } finally {
+        setIsGenerating(false);
+        isGeneratingRef.current = false;
+        setThinkingSteps([]);
+      }
+      return;
+    }
 
 
     const promptSnippet =
