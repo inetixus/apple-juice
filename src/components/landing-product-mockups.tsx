@@ -96,12 +96,15 @@ function useMockCursor<T extends string>(rootRef: React.RefObject<HTMLDivElement
 type Project = { name: string; meta: string; model: string; grad: string; live?: boolean };
 
 const PROJECTS: Project[] = [
-  { name: "MyObbyGame", meta: "Active now", model: "Claude 3.5", grad: "from-[#ccff00]/40 to-emerald-500/20", live: true },
-  { name: "TowerDefenseSim", meta: "Edited 2h ago", model: "Gemini Pro", grad: "from-blue-500/40 to-violet-500/20" },
-  { name: "PetSimWorld", meta: "Edited 1d ago", model: "GPT-4o", grad: "from-pink-500/40 to-orange-400/20" },
-  { name: "RacingLeague", meta: "Edited 3d ago", model: "DeepSeek V3", grad: "from-cyan-400/40 to-blue-600/20" },
-  { name: "HorrorMap_v3", meta: "Edited 5d ago", model: "o1", grad: "from-violet-500/40 to-fuchsia-500/20" },
-  { name: "TycoonFactory", meta: "Edited 1w ago", model: "Gemini Flash", grad: "from-amber-400/40 to-red-500/20" },
+  { name: "Tower Defense Sim", meta: "Active now", model: "Claude 3.5", grad: "from-blue-400/50 to-violet-300/40", live: true },
+  { name: "Pet Sim World", meta: "Edited 2h ago", model: "GPT-4o", grad: "from-pink-300/50 to-orange-200/40" },
+  { name: "Racing League", meta: "Edited 1d ago", model: "Gemini Pro", grad: "from-cyan-300/50 to-blue-300/40" },
+];
+
+const ACTIVITY = [
+  { who: "Apple Juice", what: "synced DoubleJump.client.lua", when: "2m" },
+  { who: "You", what: "opened Tower Defense Sim", when: "14m" },
+  { who: "Apple Juice", what: "fixed 2 Luau warnings", when: "1h" },
 ];
 
 const NAV = [
@@ -116,40 +119,20 @@ type DashTarget = "new-project" | "nav-models" | `card-${number}`;
 function JuiceTank({ fill }: { fill: number }) {
   const pct = Math.round(fill * 100);
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-wider text-white/40">Juice tank</span>
-        <span className="text-[8px] sm:text-[10px] font-bold text-[#ccff00] tabular-nums">{(fill * 5).toFixed(1)} cr</span>
+    <div className="rounded-xl border border-[#e6ebf1] bg-white p-2.5 sm:p-3">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.08em] text-[#8792a2]">Juice tank</span>
+        <span className="text-[8px] sm:text-[9px] font-semibold text-[#5a8a00] tabular-nums">{(fill * 5).toFixed(1)} cr</span>
       </div>
-      <div className="relative h-16 sm:h-24 w-full rounded-xl overflow-hidden border border-white/10 bg-[#0a0b07]">
+      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-[#eef1f6]">
         <motion.div
-          className="absolute inset-x-0 bottom-0 bg-gradient-to-b from-[#ccff00]/80 to-[#9ec900]/90"
-          animate={{ height: `${pct}%` }}
+          className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#9ec900] to-[#ccff00]"
+          animate={{ width: `${pct}%` }}
           transition={{ duration: 0.8, ease: EASE }}
-        >
-          <motion.div
-            className="absolute -top-2 left-0 h-3 w-[200%]"
-            style={{
-              background:
-                "radial-gradient(circle at 25% 100%, transparent 60%, rgba(204,255,0,0.9) 61%), radial-gradient(circle at 75% 100%, transparent 60%, rgba(204,255,0,0.9) 61%)",
-              backgroundSize: "50% 100%",
-            }}
-            animate={{ x: ["0%", "-50%"] }}
-            transition={{ duration: 2.4, ease: "linear", repeat: Infinity }}
-          />
-          {[0, 1, 2].map((i) => (
-            <motion.span
-              key={i}
-              className="absolute bottom-0 h-1 w-1 rounded-full bg-white/70"
-              style={{ left: `${20 + i * 28}%` }}
-              animate={{ y: [0, -40], opacity: [0, 0.8, 0] }}
-              transition={{ duration: 1.8, ease: "easeOut", repeat: Infinity, delay: i * 0.6 }}
-            />
-          ))}
-        </motion.div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-sm sm:text-xl font-black text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)] tabular-nums">{pct}%</span>
-        </div>
+        />
+      </div>
+      <div className="mt-1.5 flex items-center justify-between">
+        <span className="text-[8px] sm:text-[9px] text-[#8792a2]">{pct}% remaining</span>
       </div>
     </div>
   );
@@ -197,10 +180,10 @@ export function DashboardMockup() {
       setCursorOn(true);
       placeCursor(0.5, 0.92);
       while (!gone()) {
-        await goClick("card-1", 0.45, 0.55);
+        await goClick("card-1", 0.45, 0.5);
         if (gone()) return;
         await sleep(750);
-        await goClick("card-4", 0.7, 0.7);
+        await goClick("card-2", 0.72, 0.5);
         if (gone()) return;
         await sleep(750);
         await goClick("nav-models", 0.12, 0.4);
@@ -221,36 +204,36 @@ export function DashboardMockup() {
   }, [active]);
 
   return (
-    <div ref={ref} className="relative w-full aspect-[16/10] bg-[#070809] text-white overflow-hidden font-sans cursor-none">
+    <div ref={ref} className="relative w-full aspect-[16/10] bg-white text-[#0a2540] overflow-hidden font-sans cursor-none">
       <div
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 60% 50% at 80% 0%, rgba(204,255,0,0.08), transparent 60%), radial-gradient(ellipse 50% 50% at 0% 100%, rgba(59,130,246,0.07), transparent 60%)",
+            "radial-gradient(ellipse 60% 50% at 80% 0%, rgba(204,255,0,0.10), transparent 60%), radial-gradient(ellipse 50% 50% at 0% 100%, rgba(99,91,255,0.06), transparent 60%)",
         }}
       />
 
-      <div className="relative flex items-center justify-between h-9 sm:h-12 px-3 sm:px-5 border-b border-white/[0.06]">
+      <div className="relative flex items-center justify-between h-9 sm:h-12 px-3 sm:px-5 border-b border-[#e6ebf1] bg-white">
         <div className="flex items-center gap-2">
           <AppleJuiceLogo className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="text-[9px] sm:text-xs font-black uppercase tracking-widest">Apple Juice</span>
+          <span className="text-[9px] sm:text-xs font-bold tracking-tight text-[#0a2540]">Apple Juice</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          <span className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#ccff00]/25 bg-[#ccff00]/10 text-[9px] font-bold text-[#ccff00]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#ccff00] animate-pulse" /> Studio paired
+          <span className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#d7e8a8] bg-[#f4fbdf] text-[9px] font-semibold text-[#5a8a00]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#9ec900] animate-pulse" /> Studio paired
           </span>
-          <div className="h-5 w-5 sm:h-7 sm:w-7 rounded-full bg-gradient-to-br from-[#ccff00] to-emerald-500" />
+          <div className="h-5 w-5 sm:h-7 sm:w-7 rounded-full bg-gradient-to-br from-[#ccff00] to-emerald-400" />
         </div>
       </div>
 
       <div className="relative flex h-[calc(100%-2.25rem)] sm:h-[calc(100%-3rem)]">
-        <div className="hidden md:flex w-[20%] min-w-[140px] flex-col border-r border-white/[0.06] p-3 gap-1">
+        <div className="hidden md:flex w-[20%] min-w-[140px] flex-col border-r border-[#e6ebf1] bg-[#fbfcfe] p-3 gap-1">
           <motion.button
             ref={reg("new-project")}
             animate={{ scale: pressed === "new-project" ? 0.95 : 1 }}
             transition={{ duration: 0.12 }}
-            className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-[#ccff00] text-black text-[11px] font-black"
+            className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-[#0a2540] text-white text-[11px] font-semibold shadow-[0_2px_5px_rgba(10,37,64,0.18)]"
           >
             <Plus className="h-3.5 w-3.5" /> New project
           </motion.button>
@@ -262,11 +245,11 @@ export function DashboardMockup() {
               <div
                 key={n.label}
                 ref={isModels ? reg("nav-models") : undefined}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
-                  n.active ? "bg-white/[0.06] text-white" : hot ? "bg-white/[0.08] text-white" : "text-white/45"
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[11px] font-medium transition-colors ${
+                  n.active ? "bg-[#eef1f6] text-[#0a2540]" : hot ? "bg-[#f3f5f9] text-[#0a2540]" : "text-[#697386]"
                 }`}
               >
-                <Icon className={`h-3.5 w-3.5 ${n.active || hot ? "text-[#ccff00]" : ""}`} />
+                <Icon className={`h-3.5 w-3.5 ${n.active || hot ? "text-[#635bff]" : "text-[#8792a2]"}`} />
                 {n.label}
               </div>
             );
@@ -276,20 +259,20 @@ export function DashboardMockup() {
           </div>
         </div>
 
-        <div className="flex-1 min-w-0 p-3 sm:p-5 overflow-hidden">
-          <div className="flex items-center justify-between mb-3 sm:mb-5">
+        <div className="flex-1 min-w-0 p-4 sm:p-6 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
             <div>
-              <motion.h4 initial={false} animate={{ opacity: intro, y: (1 - intro) * 8 }} className="text-sm sm:text-xl font-black tracking-tight">
+              <motion.h4 initial={false} animate={{ opacity: intro, y: (1 - intro) * 8 }} className="text-base sm:text-2xl font-bold tracking-tight text-[#0a2540]">
                 Your places
               </motion.h4>
-              <p className="text-[9px] sm:text-[11px] text-white/40 font-medium">Pick up where you left off</p>
+              <p className="text-[10px] sm:text-xs text-[#8792a2] font-medium mt-0.5">Pick up where you left off</p>
             </div>
-            <div className="hidden sm:flex w-40 h-8 rounded-lg border border-white/10 bg-white/[0.03] px-3 items-center text-[10px] text-white/30">
+            <div className="hidden sm:flex w-44 h-9 rounded-lg border border-[#e6ebf1] bg-[#f6f9fc] px-3 items-center text-[11px] text-[#8792a2]">
               Search places…
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
+          <div className="grid grid-cols-3 gap-3 sm:gap-5">
             {PROJECTS.map((p, i) => {
               const cycled = motionOn && i === focus;
               const hovered = motionOn && highlight === `card-${i}`;
@@ -304,32 +287,45 @@ export function DashboardMockup() {
                     opacity: motionOn ? clamp01((intro - i * 0.06) * 2) : 1,
                     y: lift ? -3 : 0,
                     scale: isPressed ? 0.97 : 1,
-                    borderColor: lift ? "rgba(204,255,0,0.45)" : "rgba(255,255,255,0.08)",
+                    borderColor: lift ? "rgba(99,91,255,0.45)" : "rgba(230,235,241,1)",
                     boxShadow: lift
-                      ? "0 14px 40px rgba(0,0,0,0.5), 0 0 22px rgba(204,255,0,0.18)"
-                      : "0 8px 24px rgba(0,0,0,0.3)",
+                      ? "0 14px 34px rgba(10,37,64,0.12), 0 2px 6px rgba(10,37,64,0.06)"
+                      : "0 1px 3px rgba(10,37,64,0.06)",
                   }}
                   transition={{ duration: 0.34, ease: EASE }}
-                  className="rounded-xl sm:rounded-2xl border bg-white/[0.03] overflow-hidden"
+                  className="rounded-2xl border bg-white overflow-hidden"
                 >
-                  <div className={`relative h-9 sm:h-16 bg-gradient-to-br ${p.grad}`}>
-                    <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)", backgroundSize: "14px 14px" }} />
+                  <div className={`relative h-14 sm:h-20 bg-gradient-to-br ${p.grad}`}>
+                    <div className="absolute inset-0 opacity-50" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)", backgroundSize: "16px 16px" }} />
                     {p.live && (
-                      <span className="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-sm text-[7px] sm:text-[8px] font-black uppercase text-[#ccff00]">
-                        <span className="h-1 w-1 rounded-full bg-[#ccff00] animate-pulse" /> live
+                      <span className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/90 backdrop-blur-sm text-[8px] font-bold uppercase text-[#5a8a00] shadow-sm">
+                        <span className="h-1 w-1 rounded-full bg-[#9ec900] animate-pulse" /> live
                       </span>
                     )}
                   </div>
-                  <div className="p-2 sm:p-3">
-                    <p className="text-[10px] sm:text-xs font-bold truncate">{p.name}</p>
-                    <p className="text-[8px] sm:text-[10px] text-white/40 mb-1.5">{p.meta}</p>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.06] text-[7px] sm:text-[9px] font-semibold text-white/55">
-                      <Sparkles className="h-2 w-2 sm:h-2.5 sm:w-2.5 text-[#ccff00]" /> {p.model}
+                  <div className="p-3 sm:p-3.5">
+                    <p className="text-[11px] sm:text-[13px] font-semibold text-[#0a2540] truncate">{p.name}</p>
+                    <p className="text-[9px] sm:text-[11px] text-[#8792a2] mb-2">{p.meta}</p>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#f3f5f9] text-[8px] sm:text-[10px] font-medium text-[#525f7f]">
+                      <Sparkles className="h-2.5 w-2.5 text-[#635bff]" /> {p.model}
                     </span>
                   </div>
                 </motion.div>
               );
             })}
+          </div>
+
+          <div className="hidden sm:block mt-auto pt-5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#8792a2] mb-2">Recent activity</p>
+            <div className="rounded-xl border border-[#e6ebf1] bg-white divide-y divide-[#f1f3f7]">
+              {ACTIVITY.map((a) => (
+                <div key={a.what} className="flex items-center gap-2.5 px-3.5 py-2">
+                  <span className={`h-1.5 w-1.5 rounded-full ${a.who === "You" ? "bg-[#8792a2]" : "bg-[#635bff]"}`} />
+                  <span className="text-[11px] text-[#0a2540]"><span className="font-semibold">{a.who}</span> <span className="text-[#697386]">{a.what}</span></span>
+                  <span className="ml-auto text-[10px] text-[#b0b8c4] tabular-nums">{a.when}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -353,13 +349,13 @@ export function DashboardMockup() {
 
 type Tok = { s: string; c: string };
 const C = {
-  kw: "text-[#c792ea]",
-  fn: "text-sky-300",
-  str: "text-amber-300",
-  num: "text-orange-400",
-  com: "text-white/30 italic",
-  id: "text-white/85",
-  pu: "text-white/40",
+  kw: "text-[#9333ea]",
+  fn: "text-[#2563eb]",
+  str: "text-[#16a34a]",
+  num: "text-[#c2410c]",
+  com: "text-[#8792a2] italic",
+  id: "text-[#0a2540]",
+  pu: "text-[#697386]",
 };
 
 const CODE: Tok[][] = [
@@ -410,7 +406,7 @@ function CodeLine({ tokens, start, end, revealed, showCaret }: { tokens: Tok[]; 
   return (
     <span className="whitespace-pre">
       {out}
-      {caretHere && <span className="inline-block w-[2px] h-[1em] -mb-[2px] bg-[#ccff00] align-middle" />}
+      {caretHere && <span className="inline-block w-[2px] h-[1em] -mb-[2px] bg-[#635bff] align-middle" />}
       {out.length === 0 && !caretHere && <span>{"\u00A0"}</span>}
     </span>
   );
@@ -498,32 +494,32 @@ export function IdeMockup() {
   const fileClientHot = highlight === "file-client" || pressed === "file-client";
 
   return (
-    <div ref={ref} className="relative w-full aspect-[16/10] bg-[#070809] text-white overflow-hidden cursor-none" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
-      <div className="flex items-center h-8 sm:h-10 px-3 sm:px-4 border-b border-white/[0.06] gap-1.5">
+    <div ref={ref} className="relative w-full aspect-[16/10] bg-white text-[#0a2540] overflow-hidden cursor-none" style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}>
+      <div className="flex items-center h-8 sm:h-10 px-3 sm:px-4 border-b border-[#e6ebf1] bg-[#fbfcfe] gap-1.5">
         <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f56]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#ffbd2e]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#27c93f]" />
         <div className="ml-3 flex items-center gap-1.5">
-          <div className="px-2.5 py-1 rounded-t-md bg-white/[0.06] text-[9px] sm:text-[10px] font-semibold flex items-center gap-1.5">
-            <FileCode className="h-3 w-3 text-[#ccff00]" /> DoubleJump.server.lua
+          <div className="px-2.5 py-1 rounded-t-md bg-white border border-b-0 border-[#e6ebf1] text-[9px] sm:text-[10px] font-semibold flex items-center gap-1.5 text-[#0a2540]">
+            <FileCode className="h-3 w-3 text-[#635bff]" /> DoubleJump.server.lua
           </div>
-          <span className="px-2 py-1 text-[9px] sm:text-[10px] text-white/30">Humanoid.lua</span>
+          <span className="px-2 py-1 text-[9px] sm:text-[10px] text-[#8792a2]">Humanoid.lua</span>
         </div>
       </div>
 
       <div className="flex h-[calc(100%-3.5rem)] sm:h-[calc(100%-4rem)]">
-        <div className="hidden md:flex w-[18%] min-w-[120px] flex-col border-r border-white/[0.06] py-2 text-[11px] text-white/55 font-mono">
-          <p className="px-3 py-1 text-[9px] font-black uppercase tracking-wider text-white/30 font-sans">Explorer</p>
-          <p className="px-3 py-1 flex items-center gap-1.5"><FolderOpen className="h-3 w-3 text-[#ccff00]" /> MyObbyGame</p>
-          <p className="px-3 py-1 pl-6 flex items-center gap-1.5 text-white/40"><Folder className="h-3 w-3" /> ServerScriptService</p>
-          <p className="px-3 py-1 pl-9 flex items-center gap-1.5 rounded bg-[#ccff00]/10 text-[#ccff00]">
+        <div className="hidden md:flex w-[18%] min-w-[120px] flex-col border-r border-[#e6ebf1] bg-[#fbfcfe] py-2 text-[11px] text-[#525f7f] font-mono">
+          <p className="px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#8792a2] font-sans">Explorer</p>
+          <p className="px-3 py-1 flex items-center gap-1.5 text-[#0a2540]"><FolderOpen className="h-3 w-3 text-[#635bff]" /> MyObbyGame</p>
+          <p className="px-3 py-1 pl-6 flex items-center gap-1.5 text-[#697386]"><Folder className="h-3 w-3" /> ServerScriptService</p>
+          <p className="px-3 py-1 pl-9 flex items-center gap-1.5 rounded bg-[#eceff5] text-[#635bff] font-semibold">
             <FileCode className="h-3 w-3" /> DoubleJump.server
           </p>
           <motion.p
             ref={reg("file-client")}
             animate={{
-              backgroundColor: fileClientHot ? "rgba(204,255,0,0.10)" : "rgba(0,0,0,0)",
-              color: fileClientHot ? "#ccff00" : "rgba(255,255,255,0.4)",
+              backgroundColor: fileClientHot ? "rgba(99,91,255,0.08)" : "rgba(0,0,0,0)",
+              color: fileClientHot ? "#635bff" : "rgba(105,115,134,1)",
               scale: pressed === "file-client" ? 0.96 : 1,
             }}
             transition={{ duration: 0.15 }}
@@ -531,16 +527,16 @@ export function IdeMockup() {
           >
             <FileCode className="h-3 w-3" /> DoubleJump.client
           </motion.p>
-          <p className="px-3 py-1 pl-6 flex items-center gap-1.5 text-white/40"><Folder className="h-3 w-3" /> ReplicatedStorage</p>
-          <p className="px-3 py-1 pl-9 flex items-center gap-1.5 text-white/40"><FileCode className="h-3 w-3" /> Config.module</p>
+          <p className="px-3 py-1 pl-6 flex items-center gap-1.5 text-[#697386]"><Folder className="h-3 w-3" /> ReplicatedStorage</p>
+          <p className="px-3 py-1 pl-9 flex items-center gap-1.5 text-[#697386]"><FileCode className="h-3 w-3" /> Config.module</p>
         </div>
 
-        <div className="flex-1 min-w-0 relative bg-[#08090c] overflow-hidden">
+        <div className="flex-1 min-w-0 relative bg-white overflow-hidden">
           <div className="p-3 sm:p-4 text-[10px] sm:text-[12px] font-mono">
             {CODE.map((line, i) => (
               <div key={i} className="flex gap-2 sm:gap-3 leading-[1.5]">
-                <span className="w-4 sm:w-5 text-right text-white/15 select-none shrink-0">{i + 1}</span>
-                <div className={`flex-1 rounded px-1 -mx-1 ${motionOn && i === currentLine && revealed < TOTAL_CHARS ? "bg-[#ccff00]/[0.06]" : ""}`}>
+                <span className="w-4 sm:w-5 text-right text-[#c1c9d2] select-none shrink-0">{i + 1}</span>
+                <div className={`flex-1 rounded px-1 -mx-1 ${motionOn && i === currentLine && revealed < TOTAL_CHARS ? "bg-[#635bff]/[0.06]" : ""}`}>
                   <CodeLine tokens={line} start={LINE_START[i]} end={LINE_START[i] + LINE_LEN[i]} revealed={revealed} showCaret={caretOn && i === currentLine && revealed < TOTAL_CHARS} />
                 </div>
               </div>
@@ -552,18 +548,18 @@ export function IdeMockup() {
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="absolute bottom-2 left-3 sm:left-4 flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/60 border border-white/10 text-[9px] font-bold text-white/60"
+                className="absolute bottom-2 left-3 sm:left-4 flex items-center gap-2 px-2.5 py-1 rounded-full bg-white border border-[#e6ebf1] shadow-sm text-[9px] font-semibold text-[#525f7f]"
               >
-                <Sparkles className="h-3 w-3 text-[#ccff00] animate-pulse" /> Generating Luau…
+                <Sparkles className="h-3 w-3 text-[#635bff] animate-pulse" /> Generating Luau…
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        <div className="hidden sm:flex w-[34%] min-w-[200px] max-w-[340px] flex-col border-l border-white/[0.06] bg-[#0a0b10]">
-          <div className="px-3 py-2 border-b border-white/[0.06] flex items-center gap-2">
+        <div className="hidden sm:flex w-[34%] min-w-[200px] max-w-[340px] flex-col border-l border-[#e6ebf1] bg-[#fbfcfe]">
+          <div className="px-3 py-2 border-b border-[#e6ebf1] flex items-center gap-2">
             <AppleJuiceLogo className="h-3.5 w-3.5" />
-            <span className="text-[9px] font-black uppercase tracking-wider text-white/40">Agent</span>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[#8792a2]">Agent</span>
           </div>
           <div className="flex-1 p-3 space-y-2.5 overflow-hidden" style={{ opacity: fade }}>
             <AnimatePresence>
@@ -574,7 +570,7 @@ export function IdeMockup() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.4, ease: EASE }}
-                  className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-white/[0.07] px-3 py-2 text-[10px] text-white/85 font-medium"
+                  className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm bg-[#0a2540] px-3 py-2 text-[10px] text-white font-medium shadow-[0_2px_5px_rgba(10,37,64,0.12)]"
                 >
                   Build a double jump for my obby
                 </motion.div>
@@ -588,12 +584,12 @@ export function IdeMockup() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-center gap-1.5 px-3 py-2 w-fit rounded-2xl rounded-tl-sm bg-[#ccff00]/[0.07] border border-[#ccff00]/15"
+                  className="flex items-center gap-1.5 px-3 py-2 w-fit rounded-2xl rounded-tl-sm bg-white border border-[#e6ebf1]"
                 >
                   {[0, 1, 2].map((i) => (
                     <motion.span
                       key={i}
-                      className="h-1.5 w-1.5 rounded-full bg-[#ccff00]"
+                      className="h-1.5 w-1.5 rounded-full bg-[#635bff]"
                       animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
                       transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
                     />
@@ -607,9 +603,9 @@ export function IdeMockup() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35 }}
-                className="max-w-[90%] rounded-2xl rounded-tl-sm bg-[#ccff00]/[0.08] border border-[#ccff00]/20 px-3 py-2 text-[10px] text-white/85 leading-relaxed"
+                className="max-w-[90%] rounded-2xl rounded-tl-sm bg-white border border-[#e6ebf1] px-3 py-2 text-[10px] text-[#425466] leading-relaxed shadow-[0_1px_3px_rgba(10,37,64,0.05)]"
               >
-                <span className="font-bold text-[#a6cf00]">Apple Juice</span>
+                <span className="font-semibold text-[#635bff]">Apple Juice</span>
                 <p className="mt-1">{AI_MSG.slice(0, aiMsgChars)}</p>
               </motion.div>
             )}
@@ -622,17 +618,17 @@ export function IdeMockup() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.45, ease: EASE }}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5"
+                  className="rounded-xl border border-[#e6ebf1] bg-white p-2.5 shadow-[0_1px_3px_rgba(10,37,64,0.05)]"
                 >
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#ccff00] text-black">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-md bg-[#16a34a] text-white">
                       <Check className="h-3 w-3" />
                     </span>
-                    <span className="text-[10px] font-bold">Synced to Studio</span>
+                    <span className="text-[10px] font-semibold text-[#0a2540]">Synced to Studio</span>
                   </div>
                   {["DoubleJump.server.lua", "DoubleJump.client.lua"].map((f) => (
-                    <p key={f} className="flex items-center gap-1.5 text-[9px] text-white/50 font-mono py-0.5">
-                      <FileCode className="h-2.5 w-2.5 text-[#ccff00]" /> {f}
+                    <p key={f} className="flex items-center gap-1.5 text-[9px] text-[#697386] font-mono py-0.5">
+                      <FileCode className="h-2.5 w-2.5 text-[#635bff]" /> {f}
                     </p>
                   ))}
                 </motion.div>
@@ -640,23 +636,23 @@ export function IdeMockup() {
             </AnimatePresence>
           </div>
 
-          <div className="p-2.5 border-t border-white/[0.06]">
+          <div className="p-2.5 border-t border-[#e6ebf1]">
             <motion.div
               ref={reg("prompt-input")}
               animate={{
-                borderColor: highlight === "prompt-input" ? "rgba(204,255,0,0.4)" : "rgba(255,255,255,0.1)",
+                borderColor: highlight === "prompt-input" ? "rgba(99,91,255,0.5)" : "rgba(230,235,241,1)",
               }}
-              className="flex items-center gap-2 rounded-xl border bg-white/[0.03] px-2.5 py-1.5"
+              className="flex items-center gap-2 rounded-xl border bg-white px-2.5 py-1.5"
             >
-              <span className="flex-1 text-[9px] text-white/30">Ask Apple Juice…</span>
+              <span className="flex-1 text-[9px] text-[#8792a2]">Ask Apple Juice…</span>
               <motion.span
                 ref={reg("send-btn")}
                 animate={{
                   scale: pressed === "send-btn" ? 0.88 : 1,
-                  boxShadow: pressed === "send-btn" ? "0 0 16px rgba(204,255,0,0.6)" : "0 0 0 rgba(0,0,0,0)",
+                  boxShadow: pressed === "send-btn" ? "0 0 14px rgba(99,91,255,0.5)" : "0 0 0 rgba(0,0,0,0)",
                 }}
                 transition={{ duration: 0.12 }}
-                className="flex h-5 w-5 items-center justify-center rounded-md bg-[#ccff00] text-black"
+                className="flex h-5 w-5 items-center justify-center rounded-md bg-[#635bff] text-white"
               >
                 <ArrowRight className="h-3 w-3" />
               </motion.span>
@@ -665,15 +661,15 @@ export function IdeMockup() {
         </div>
       </div>
 
-      <div className="absolute bottom-0 inset-x-0 h-5 sm:h-6 flex items-center justify-between px-3 sm:px-4 bg-[#0a0b10] border-t border-white/[0.06] text-[8px] sm:text-[9px] font-mono z-[5]">
+      <div className="absolute bottom-0 inset-x-0 h-5 sm:h-6 flex items-center justify-between px-3 sm:px-4 bg-[#0a2540] text-white border-t border-[#0a2540] text-[8px] sm:text-[9px] font-mono z-[5]">
         <div className="flex items-center gap-3 sm:gap-4">
-          <span className="flex items-center gap-1.5 text-[#ccff00] font-bold">
+          <span className="flex items-center gap-1.5 text-[#ccff00] font-semibold">
             <span className="h-1.5 w-1.5 rounded-full bg-[#ccff00] animate-pulse" /> Studio paired
           </span>
-          <span className="hidden sm:flex items-center gap-1 text-white/40"><ChevronRight className="h-2.5 w-2.5" /> main</span>
-          <span className="text-white/40">Luau</span>
+          <span className="hidden sm:flex items-center gap-1 text-white/60"><ChevronRight className="h-2.5 w-2.5" /> main</span>
+          <span className="text-white/60">Luau</span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3 text-white/40">
+        <div className="flex items-center gap-2 sm:gap-3 text-white/60">
           <span className="hidden sm:inline">UTF-8</span>
           <span className="flex items-center gap-1"><Sparkles className="h-2.5 w-2.5 text-[#ccff00]" /> Claude 3.5</span>
         </div>

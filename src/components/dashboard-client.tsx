@@ -2519,6 +2519,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
             .filter((c) => c.category !== "secret")
             .map((c) => ({ key: c.key, value: c.value, category: c.category })),
           stream: true,
+          agentMode,
         }),
         signal: abortControllerRef.current.signal,
       });

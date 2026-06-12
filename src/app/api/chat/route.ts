@@ -30,6 +30,9 @@ import {
   resolveKiroModelId,
   type KiroPlan,
 } from "@/lib/kiro-models";
+import { runAgentLoop, type AgentProgress } from "@/lib/agent/agent-loop";
+import { isAgentLlmConfigured } from "@/lib/agent/llm";
+import { isStudioBridgeLive } from "@/lib/agent/studio-bridge";
 
 export const maxDuration = 300;
 
@@ -109,6 +112,9 @@ type ChatBody = {
   /** Web client opts into token-by-token SSE streaming. Other consumers
    *  (e.g. the CLI's buffered JSON reader) omit this and get a JSON response. */
   stream?: boolean;
+  /** Explicit agent mode from the dashboard ("plan" suppresses code execution).
+   *  Preferred over sniffing the prompt text for the injected mode note. */
+  agentMode?: "plan" | "build";
 };
 
 export async function POST(req: Request) {
@@ -1263,6 +1269,161 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
         .slice(-20)
         .map((m) => ({ role: m.role, content: m.content }))
         .filter((m) => typeof m.content === "string" && m.content.trim().length > 0);
+
+      // ── NATIVE AGENTIC LOOP (default) ───────────────────────────────────────
+      // A real, in-process plan→build→playtest→fix loop that drives Studio
+      // directly through the plugin tool bridge — no external VPS required.
+      // This is the system that actually runs playtests and fixes bugs.
+      //
+      // Guards:
+      //  - only for the streaming web client (the loop streams its own progress),
+      //  - only when the model layer is configured (KIRO_API_KEY),
+      //  - only when the external MCP/agent proxies are NOT set (those take
+      //    precedence if an operator opted into them),
+      //  - only when DISABLE_NATIVE_AGENT is not set (kill switch),
+      //  - and only when the Studio plugin bridge is actually live (otherwise we
+      //    fall through to the legacy single-shot generation below, unchanged).
+      const nativeAgentDisabled =
+        process.env.DISABLE_NATIVE_AGENT === "1" ||
+        !!process.env.KIRO_MCP_URL ||
+        !!process.env.KIRO_AGENT_URL;
+
+      // Plan mode must never execute tools/code. Prefer the explicit flag from
+      // the dashboard; fall back to sniffing the injected prompt note for older
+      // clients that don't send it.
+      const isPlanMode =
+        body.agentMode === "plan" || /mode is set to "PLAN"/i.test(prompt);
+
+      if (
+        wantsStream &&
+        !nativeAgentDisabled &&
+        isAgentLlmConfigured() &&
+        sessionKey &&
+        !isPlanMode &&
+        (await isStudioBridgeLive(sessionKey))
+      ) {
+        const encoder = new TextEncoder();
+        const sseContent = (content: string) =>
+          `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
+        const sseReason = (text: string) =>
+          `data: ${JSON.stringify({ choices: [{ delta: { reasoning: text } }] })}\n\n`;
+
+        const agentModelId = resolveKiroModelId(effectiveModel);
+        const agentExtraContext = isUIRelatedPrompt(prompt)
+          ? `${libraryDeploymentPrompt}\n${uiExamplesBlock}`
+          : "";
+
+        const stream = new ReadableStream({
+          async start(controller) {
+            controller.enqueue(encoder.encode(sseContent("")));
+
+            const onProgress = (p: AgentProgress) => {
+              try {
+                if (p.kind === "thinking") {
+                  controller.enqueue(encoder.encode(sseReason(p.text)));
+                } else if (p.kind === "phase") {
+                  controller.enqueue(encoder.encode(sseReason(`\n▸ ${p.phase}…\n`)));
+                } else if (p.kind === "tool_start") {
+                  controller.enqueue(encoder.encode(sseReason(`  → ${p.label}\n`)));
+                } else if (p.kind === "tool_end") {
+                  controller.enqueue(
+                    encoder.encode(
+                      sseReason(`  ${p.ok ? "✓" : "✗"} ${p.label}\n`),
+                    ),
+                  );
+                } else if (p.kind === "playtest") {
+                  controller.enqueue(
+                    encoder.encode(
+                      sseReason(
+                        `\n${p.passed ? "✅ Playtest passed" : "❌ Playtest failed"}: ${p.summary}\n`,
+                      ),
+                    ),
+                  );
+                }
+              } catch {
+                /* controller closed; ignore */
+              }
+            };
+
+            try {
+              const result = await runAgentLoop({
+                sessionKey,
+                modelId: agentModelId,
+                prompt,
+                history: priorHistory as { role: "user" | "assistant"; content: string }[],
+                extraContext: agentExtraContext,
+                onProgress,
+                signal: req.signal,
+              });
+
+              // Persist an inverse patch so the dashboard can revert this whole
+              // prompt (mirrors the snapshot-agent checkpoint scheme).
+              let checkpointId: string | undefined;
+              if (Array.isArray(result.revert) && result.revert.length > 0) {
+                checkpointId = crypto.randomUUID();
+                try {
+                  await getRedis().set(
+                    `checkpoint:${sessionKey}:${checkpointId}`,
+                    JSON.stringify({
+                      revert: result.revert,
+                      prompt,
+                      createdAt: Date.now(),
+                    }),
+                    { ex: 60 * 60 * 24 * 7 },
+                  );
+                } catch {
+                  checkpointId = undefined;
+                }
+              }
+
+              const appPayload = {
+                message: result.message,
+                // Changes were applied live in Studio during the loop; expose the
+                // written scripts so the dashboard can show them / offer revert.
+                scripts: result.scripts,
+                suggestions: [],
+                playtestPassed: result.playtestPassed,
+                checkpointId,
+              };
+              controller.enqueue(encoder.encode(sseContent(JSON.stringify(appPayload))));
+
+              // Bill the full multi-turn run.
+              if (!isUsingCustomKey && ownerUserId) {
+                await trackMlUsage(
+                  ownerUserId,
+                  calculateMlUsed(
+                    result.usage.inputTokens,
+                    result.usage.outputTokens,
+                    effectiveModel,
+                  ),
+                );
+              }
+            } catch (e: any) {
+              controller.enqueue(
+                encoder.encode(
+                  sseContent(
+                    JSON.stringify({
+                      message: `[Agent Error]: ${e?.message || e}`,
+                      scripts: [],
+                    }),
+                  ),
+                ),
+              );
+            }
+
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
+        });
+
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        });
+      }
 
       // ── TRUE MCP mode ──────────────────────────────────────────────────────
       // When KIRO_MCP_URL is set, route through the VPS MCP agent: kiro-cli makes

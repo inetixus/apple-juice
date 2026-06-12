@@ -631,6 +631,28 @@ export async function setUserPlan(userId: string, plan: UserPlan) {
 }
 
 /**
+ * Whether the user has completed the first-run onboarding flow. Drives the
+ * post-login redirect: brand-new accounts are routed to `/onboarding`, while
+ * returning users go straight to `/dashboard`.
+ */
+export async function getUserOnboarded(userId: string): Promise<boolean> {
+  try {
+    const redis = getRedis();
+    const done = await redis.get<boolean>(
+      `apple-juice:user-onboarded:${userId}`,
+    );
+    return done === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function setUserOnboarded(userId: string, done = true) {
+  const redis = getRedis();
+  await redis.set(`apple-juice:user-onboarded:${userId}`, done);
+}
+
+/**
  * Get the user's current mL of Juice usage for today.
  * Returns daily allowance, used mL, remaining mL, and bonus mL.
  */

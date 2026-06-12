@@ -485,3 +485,392 @@ body {
     display: none;
   }
 }
+
+
+/* ━━━ STRIPE-STYLE SECTION TRANSITIONS & ANIMATIONS ━━━ */
+
+/*
+ * Angled divider — Stripe's signature diagonal cut between sections.
+ * Apply to a thin element placed at a section boundary. The skewed
+ * pseudo-element creates the slanted edge without clipping content.
+ */
+.stripe-angle {
+  position: relative;
+}
+
+.stripe-angle::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 120px;
+  transform: skewY(-3deg);
+  transform-origin: top left;
+  background: inherit;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Slow drifting gradient sheen — used behind hero/CTA for Stripe motion */
+@keyframes stripeGradientDrift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.stripe-gradient-drift {
+  background-size: 200% 200%;
+  animation: stripeGradientDrift 18s ease infinite;
+}
+
+/* Reveal fallback for users who prefer reduced motion — show content instantly */
+@media (prefers-reduced-motion: reduce) {
+  .stripe-gradient-drift {
+    animation: none;
+  }
+}
+
+/* Soft scroll-progress bar (Stripe pins a slim accent line on scroll) */
+.stripe-scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ccff00, #3b82f6, #8b5cf6);
+  transform-origin: 0% 50%;
+  z-index: 60;
+  pointer-events: none;
+  box-shadow: 0 0 12px rgba(204, 255, 0, 0.4);
+}
+
+
+/* ━━━ WAVE-REACTIVE COLOR-SHIFTING TEXT ━━━ */
+/*
+ * Text placed in front of the animated Stripe wave. The gradient slides
+ * horizontally so the letters appear to change color as the twirl flows
+ * behind them — clipped to the glyphs via background-clip: text.
+ *
+ * Kept crisp on purpose: vivid, fully-opaque color stops (no white-wash) plus
+ * a tight drop-shadow so the glyph edges stay sharp against the blurred wave
+ * instead of blooming into it.
+ */
+@keyframes waveTextShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.wave-text-shift {
+  background-image: linear-gradient(
+    100deg,
+    #60a5fa 0%,
+    #818cf8 18%,
+    #a78bfa 34%,
+    #22d3ee 52%,
+    #ccff00 68%,
+    #60a5fa 86%,
+    #a78bfa 100%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  /* Sharpen the glyph edges so the blurred wave behind can't make the text
+     read as fuzzy; the tight dark shadow anchors the letterforms. */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 1px rgba(0, 0, 0, 0.4));
+  animation: waveTextShift 7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wave-text-shift {
+    animation: none;
+    /* Land on a pleasant static blend rather than mid-cycle. */
+    background-position: 25% 50%;
+  }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   STRIPE-STYLE BENTO CARDS
+   Faithful re-creation of Stripe's "Flexible solutions" grid:
+   warm gradient wash, mouse-following border glow, hover lift/shift
+   toward the cursor, and a corner expand-arrow affordance.
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+.sb-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  background: #ffffff;
+  overflow: hidden;
+  isolation: isolate;
+  cursor: pointer;
+  /* mouse-driven vars (set in JS) */
+  --card-shift-x: 0px;
+  --card-shift-y: 0px;
+  --card-grow-x: 0px;
+  --card-grow-y: 0px;
+  --card-mouse-x: 50%;
+  --card-mouse-y: 50%;
+  transform: translate3d(var(--card-shift-x), var(--card-shift-y), 0);
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow:
+    0 1px 1px rgba(10, 37, 64, 0.04),
+    0 4px 12px rgba(10, 37, 64, 0.06);
+}
+
+.sb-card:hover {
+  box-shadow:
+    0 2px 4px rgba(10, 37, 64, 0.06),
+    0 18px 48px rgba(10, 37, 64, 0.14);
+}
+
+/* gradient wash background that bleeds from a corner */
+.sb-card__wash {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* animated colour twirls, contained inside the card */
+.sb-card__twirl {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.85;
+  /* fade the twirl toward the edges so it reads as living inside the card */
+  -webkit-mask: radial-gradient(
+    120% 110% at 50% 45%,
+    #000 55%,
+    rgba(0, 0, 0, 0.35) 80%,
+    transparent 100%
+  );
+  mask: radial-gradient(
+    120% 110% at 50% 45%,
+    #000 55%,
+    rgba(0, 0, 0, 0.35) 80%,
+    transparent 100%
+  );
+  transition: opacity 0.5s ease;
+}
+
+.sb-card:hover .sb-card__twirl {
+  opacity: 1;
+}
+
+/* the animated, mouse-following border highlight */
+.sb-card__border {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: radial-gradient(
+    220px circle at var(--card-mouse-x) var(--card-mouse-y),
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0) 60%
+  );
+  /* keep the gradient only on the 1px ring */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.sb-card:hover .sb-card__border {
+  opacity: 1;
+}
+
+/* static hairline border always present underneath the glow */
+.sb-card__hairline {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(10, 37, 64, 0.08);
+}
+
+.sb-card__inner {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 26px;
+}
+
+.sb-card__title {
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #0a2540;
+  max-width: 16rem;
+}
+
+/* corner expand-arrow affordance (matches Stripe's dialog-entry) */
+.sb-card__expand {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #0a2540;
+  background: transparent;
+  transition:
+    background-color 0.25s ease,
+    transform 0.25s ease;
+}
+
+.sb-card:hover .sb-card__expand {
+  background: rgba(10, 37, 64, 0.05);
+}
+
+.sb-card__expand svg {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sb-card:hover .sb-card__expand svg {
+  transform: translate(1px, -1px);
+}
+
+/* the floating product mockup */
+.sb-card__graphic {
+  position: relative;
+  margin-top: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-card {
+    transition: box-shadow 0.3s ease;
+    transform: none !important;
+  }
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CLEAN HOVER MOTION — subtle, premium tile interactions
+   Lightweight, GPU-friendly utilities that layer onto existing
+   cards without changing their look at rest. Each one eases on a
+   soft cubic-bezier so the page feels calm and high-end.
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* Gentle lift — card floats up a touch and deepens its shadow on hover. */
+.hover-lift {
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.hover-lift:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+/* Soft accent ring that fades in on hover (lime by default). */
+.hover-ring {
+  position: relative;
+  transition: border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hover-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    0 0 0 1px rgba(204, 255, 0, 0.35),
+    0 0 28px rgba(204, 255, 0, 0.18);
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hover-ring:hover::after {
+  opacity: 1;
+}
+
+/* Diagonal sheen that sweeps across the surface once on hover. */
+.hover-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.hover-sheen::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 75%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  transform: skewX(-18deg);
+  transition: left 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hover-sheen:hover::before {
+  left: 150%;
+}
+
+/* Icon/badge that lifts and scales slightly when its parent tile is hovered. */
+.hover-pop {
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.group:hover .hover-pop {
+  transform: translateY(-2px) scale(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift,
+  .hover-ring,
+  .hover-sheen::before,
+  .hover-pop {
+    transition: none;
+  }
+  .hover-lift:hover {
+    transform: none;
+  }
+  .hover-sheen:hover::before {
+    left: -150%;
+  }
+  .group:hover .hover-pop {
+    transform: none;
+  }
+}

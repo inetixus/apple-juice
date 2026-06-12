@@ -44,8 +44,10 @@ function ProductFrame({
       : "md:ml-auto md:mr-0";
   return (
     <GlassParallaxPanel className={`w-full md:w-[48%] md:max-w-[600px] mx-auto ${side}`}>
-      <div className="liquid-glass-panel w-full rounded-2xl md:rounded-3xl border border-white/15 bg-white/[0.04] backdrop-blur-md overflow-hidden shadow-[0_32px_90px_rgba(0,0,0,0.45)]">
-        {children}
+      <div className="w-full rounded-2xl md:rounded-3xl border border-white/12 bg-white p-1.5 sm:p-2 shadow-[0_32px_90px_rgba(0,0,0,0.45)]">
+        <div className="w-full rounded-xl md:rounded-[1.25rem] overflow-hidden ring-1 ring-[#e6ebf1]">
+          {children}
+        </div>
       </div>
     </GlassParallaxPanel>
   );

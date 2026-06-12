@@ -17,16 +17,20 @@ import {
 import dynamic from "next/dynamic";
 import { LandingCliSection } from "./landing-cli-section";
 import { LandingHeroShowcase } from "./landing-hero-showcase";
+import { Reveal, RevealStagger, RevealItem } from "./reveal";
 // import { LandingAdShowcase } from "./landing-ad-showcase"; // hidden: Product film section commented out
 
 import { LandingWebIdeSection } from "./landing-web-ide-section";
+import { LandingBentoSection } from "./landing-bento-section";
+import { BentoTwirl } from "./bento-twirl";
+import { FlipTileGrid } from "./flip-tile-grid";
 import { SpineSection } from "./landing-spine";
 import { MagneticButton } from "./magnetic-button";
 import { FaqItemPremium } from "./faq-item-premium";
 import { NavLiquidTabs } from "./nav-liquid-tabs";
 import { PurchaseFlowModal } from "./purchase-flow-modal";
 import { signIn } from "next-auth/react";
-import { motion } from "framer-motion";
+import { motion, useScroll, useSpring } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 
@@ -35,7 +39,11 @@ const Medusae = dynamic(
   { ssr: false },
 );
 const StripeWave = dynamic(
-  () => import("./stripe-wave").then((m) => m.StripeWave),
+  () => import("./stripe-wave-animated").then((m) => m.StripeWaveAnimated),
+  { ssr: false },
+);
+const RayBurst = dynamic(
+  () => import("./ray-burst-cursor").then((m) => m.RayBurstCursor),
   { ssr: false },
 );
 
@@ -96,6 +104,14 @@ export function LandingContent({
   const [purchasePlan, setPurchasePlan] = useState<"fresh_pro" | "pure_ultra" | null>(null);
   const pricingSectionRef = useRef<HTMLElement>(null);
 
+  // Stripe-style scroll progress indicator
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 120,
+    damping: 30,
+    restDelta: 0.001,
+  });
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -107,6 +123,9 @@ export function LandingContent({
 
       {/* â”â”â” STRIPE SIGNATURE HERO ANIMATED TWISTED WAVE LINES (under particles) â”â”â” */}
       <StripeWave />
+
+      {/* Stripe-style scroll progress bar */}
+      <motion.div className="stripe-scroll-progress w-full" style={{ scaleX }} />
 
       {/* Cursor / particle backdrop â€” sticky viewport canvas, no mask (transparent) */}
       <div className="absolute inset-x-0 top-0 h-[100vh] max-h-[900px] z-[1] pointer-events-none">
@@ -195,7 +214,7 @@ export function LandingContent({
             onClick={() =>
               session
                 ? (window.location.href = "/dashboard")
-                : setShowAuthGuide(true)
+                : (window.location.href = "/login")
             }
             className="h-9 px-6 rounded-full bg-[#ccff00] text-black text-[11px] font-black uppercase tracking-wider hover:bg-[#d4ff33] shadow-[0_0_15px_rgba(204,255,0,0.25)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center gap-1.5"
           >
@@ -240,7 +259,7 @@ export function LandingContent({
             className="text-[44px] sm:text-[68px] md:text-[84px] font-black leading-[1.05] tracking-[-0.04em] mb-8 text-slate-400 max-w-5xl"
           >
             Roblox Studio, <br />
-            <span className="text-white">
+            <span className="wave-text-shift">
               elevated by weightless AI.
             </span>
           </motion.h1>
@@ -265,7 +284,7 @@ export function LandingContent({
               onClick={() =>
                 session
                   ? (window.location.href = "/dashboard")
-                  : setShowAuthGuide(true)
+                  : (window.location.href = "/login")
               }
               className="h-12 w-full sm:w-auto px-8 rounded-full bg-[#ccff00] text-black font-black uppercase tracking-wider text-[11px] flex items-center justify-center gap-2 hover:bg-[#d4ff33] shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:scale-105 active:scale-95 transition-all duration-300"
             >
@@ -303,6 +322,11 @@ export function LandingContent({
 
         {/* â”â”â” FEATURE SHOWCASE (Cowork-style cinematic loop) â”â”â” */}
         <LandingHeroShowcase />
+
+        {/* Cursor-interactive ray burst — fans upward from below the showcase into open space */}
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-[42%] w-[min(100%,1200px)] h-[460px] pointer-events-none z-[2] mix-blend-screen overflow-hidden">
+          <RayBurst />
+        </div>
 
         {/* Ambient bridge glow â€” connects hero lighting into the section below */}
         <div
@@ -359,6 +383,8 @@ export function LandingContent({
       <SpineSection id="explore" className="relative overflow-visible z-10 w-full -mt-8">
         <LandingWebIdeSection />
 
+        <LandingBentoSection />
+
         <div className="relative">
         <div
           className="absolute inset-0 pointer-events-none -z-10"
@@ -375,21 +401,23 @@ export function LandingContent({
 
       {/* â”â”â” CORE FEATURES (THREE COLUMNS ROW) â”â”â” */}
       <section id="features" className="px-6 py-24 md:py-32 relative">
+        {/* Cursor-reactive flipping-tile backdrop */}
+        <FlipTileGrid className="z-0 opacity-70 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_50%,#000_55%,transparent_100%)]" />
         <div className="max-w-[1200px] mx-auto relative z-10">
-          <div className="text-center mb-20">
+          <Reveal className="text-center mb-20">
             <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white mb-4">
               We handle the hard stuff
             </h2>
             <p className="text-white/60 text-base md:text-lg max-w-xl mx-auto font-medium leading-relaxed">
               Autonomously synchronize code files, run diagnostics, and roll back configurations instantly.
             </p>
-          </div>
+          </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+          <RevealStagger className="grid grid-cols-1 md:grid-cols-3 gap-10" stagger={0.12}>
 
             {/* COLUMN 1 */}
-            <div className="flex flex-col items-start bg-white/[0.04] border border-white/10 rounded-3xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.35)] hover:border-white/20 hover:bg-white/[0.06] transition-all duration-300 backdrop-blur-sm">
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.08] border border-white/15 flex items-center justify-center mb-6 shadow-sm">
+            <RevealItem className="group hover-lift hover-ring hover-sheen flex flex-col items-start bg-white/[0.04] border border-white/10 rounded-3xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.35)] hover:border-white/20 hover:bg-white/[0.06] backdrop-blur-sm">
+              <div className="hover-pop w-12 h-12 rounded-2xl bg-white/[0.08] border border-white/15 flex items-center justify-center mb-6 shadow-sm">
                 <Layers className="w-6 h-6 text-blue-400" />
               </div>
               <h3 className="text-lg font-black text-white mb-3 tracking-tight uppercase">
@@ -398,11 +426,11 @@ export function LandingContent({
               <p className="text-sm text-white/60 leading-relaxed font-medium">
                 Our lightweight Roblox Creator Store plugin creates script and module instances automatically. Any files synthesized by the AI dashboard write instantly to your workspace.
               </p>
-            </div>
+            </RevealItem>
 
             {/* COLUMN 2 */}
-            <div className="flex flex-col items-start bg-white/[0.04] border border-white/10 rounded-3xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.35)] hover:border-white/20 hover:bg-white/[0.06] transition-all duration-300 backdrop-blur-sm">
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.08] border border-white/15 flex items-center justify-center mb-6 shadow-sm">
+            <RevealItem className="group hover-lift hover-ring hover-sheen flex flex-col items-start bg-white/[0.04] border border-white/10 rounded-3xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.35)] hover:border-white/20 hover:bg-white/[0.06] backdrop-blur-sm">
+              <div className="hover-pop w-12 h-12 rounded-2xl bg-white/[0.08] border border-white/15 flex items-center justify-center mb-6 shadow-sm">
                 <ShieldCheck className="w-6 h-6 text-emerald-400" />
               </div>
               <h3 className="text-lg font-black text-white mb-3 tracking-tight uppercase">
@@ -411,11 +439,11 @@ export function LandingContent({
               <p className="text-sm text-white/60 leading-relaxed font-medium">
                 Apple Juice runs real-time playtest checks, parses client output lines, and catches runtime issues or compiler warnings in your Luau script blocks, rolling out immediate fixes.
               </p>
-            </div>
+            </RevealItem>
 
             {/* COLUMN 3 */}
-            <div className="flex flex-col items-start bg-white/[0.04] border border-white/10 rounded-3xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.35)] hover:border-white/20 hover:bg-white/[0.06] transition-all duration-300 backdrop-blur-sm">
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.08] border border-white/15 flex items-center justify-center mb-6 shadow-sm">
+            <RevealItem className="group hover-lift hover-ring hover-sheen flex flex-col items-start bg-white/[0.04] border border-white/10 rounded-3xl p-8 shadow-[0_20px_60px_rgba(0,0,0,0.35)] hover:border-white/20 hover:bg-white/[0.06] backdrop-blur-sm">
+              <div className="hover-pop w-12 h-12 rounded-2xl bg-white/[0.08] border border-white/15 flex items-center justify-center mb-6 shadow-sm">
                 <History className="w-6 h-6 text-amber-400" />
               </div>
               <h3 className="text-lg font-black text-white mb-3 tracking-tight uppercase">
@@ -424,9 +452,9 @@ export function LandingContent({
               <p className="text-sm text-white/60 leading-relaxed font-medium">
                 Accidents happen. Review execution logs, scan previous code blocks, and roll back components to clean states in one click. Every file adjustment is archived safely on your dashboard.
               </p>
-            </div>
+            </RevealItem>
 
-          </div>
+          </RevealStagger>
         </div>
       </section>
 
@@ -474,151 +502,174 @@ export function LandingContent({
             </div>
 
             {/* Header Content */}
-            <div className="text-center mb-20 relative z-10">
+            <Reveal className="text-center mb-20 relative z-10">
               <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white mb-4">
                 Pick your squeeze
               </h2>
               <p className="text-white/60 text-base md:text-lg max-w-xl mx-auto font-medium leading-relaxed">
                 Flexible credit tiers billed securely in Robux, or connect your personal API key to build completely free forever.
               </p>
-            </div>
+            </Reveal>
 
             {/* Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
+            <RevealStagger className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10" stagger={0.14}>
 
             {/* TIER 1: FREE */}
-            <div className="bg-[#08090c]/45 border border-white/5 rounded-[2.5rem] p-10 flex flex-col hover:border-white/10 hover:shadow-2xl transition-all duration-500 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[40px] opacity-30 group-hover:scale-125 transition-transform" />
-              <div className="text-white/40 text-xs font-bold uppercase tracking-wider mb-3 font-mono">
-                Free Sip
+            <RevealItem className="isolate bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-xl border border-white/10 rounded-[2rem] p-8 flex flex-col hover:border-white/20 hover:-translate-y-1 transition-all duration-500 shadow-[0_12px_40px_rgba(0,0,0,0.4)] relative overflow-hidden group">
+              <div className="absolute inset-0 -z-10 pointer-events-none opacity-25 group-hover:opacity-40 transition-opacity duration-500">
+                <BentoTwirl position="18% 30%" scale={2.6} hueRotate={150} duration={32} />
               </div>
-              <div className="text-4xl font-black text-white mb-2 tracking-tight">
-                0 R$
-                <span className="text-xs text-white/40 font-bold ml-1">/ forever</span>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[40px] opacity-30 group-hover:scale-125 transition-transform duration-500" />
+
+              <div className="flex items-center gap-2.5 mb-5">
+                <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-white/50" />
+                </div>
+                <span className="text-white/50 text-xs font-bold uppercase tracking-[0.15em] font-mono">
+                  Free Sip
+                </span>
               </div>
-              <p className="text-xs text-white/40 mb-8 border-b border-white/5 pb-6 font-medium">
+
+              <div className="flex items-baseline gap-1 mb-2">
+                <span className="text-5xl font-black text-white tracking-tight">0</span>
+                <span className="text-lg font-black text-white/80">R$</span>
+                <span className="text-xs text-white/40 font-semibold ml-1">/ forever</span>
+              </div>
+              <p className="text-[13px] text-white/45 mb-7 pb-7 border-b border-white/[0.08] font-medium leading-relaxed">
                 Perfect for hobbyists and learning Luau.
               </p>
 
-              <ul className="flex flex-col gap-4 mb-10 text-[13px] text-white/70 font-medium">
+              <ul className="flex flex-col gap-3.5 mb-9 text-[13px] text-white/70 font-medium">
                 <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 text-white/60" />
-                  </div>
+                  <CheckCircle2 className="w-[18px] h-[18px] text-white/40 flex-shrink-0" />
                   <span>1.0 Credit Allowance</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 text-white/60" />
-                  </div>
+                  <CheckCircle2 className="w-[18px] h-[18px] text-white/40 flex-shrink-0" />
                   <span>Auto router & Haiku 4.5</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 text-white/60" />
-                  </div>
+                  <CheckCircle2 className="w-[18px] h-[18px] text-white/40 flex-shrink-0" />
                   <span>Roblox Studio Plugin Sync</span>
                 </li>
               </ul>
 
               <button
                 onClick={() => setShowAuthGuide(true)}
-                className="mt-auto w-full h-12 rounded-full border border-white/10 text-white font-bold py-3 hover:bg-white/5 transition-all uppercase tracking-wider text-[11px] shadow-sm"
+                className="mt-auto w-full h-12 rounded-full border border-white/15 bg-white/[0.03] text-white font-bold hover:bg-white/[0.08] hover:border-white/25 transition-all uppercase tracking-wider text-[11px]"
               >
                 Sign Up Free
               </button>
-            </div>
+            </RevealItem>
 
             {/* TIER 2: PRO (Solid Accent) */}
-            <div className="bg-[#08090c]/70 border-2 border-[#ccff00] rounded-[2.5rem] p-10 flex flex-col relative transform md:-translate-y-4 shadow-[0_0_35px_rgba(204,255,0,0.12)] z-20 hover:scale-[1.02] transition-transform duration-300">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#ccff00] text-black text-[9px] font-black uppercase tracking-wider py-1.5 px-6 rounded-full shadow-md">
+            <RevealItem className="z-20 relative pt-3">
+              {/* Badge straddles the top edge — sits on the wrapper so overflow-hidden can't clip it */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 translate-y-0 z-30 bg-[#ccff00] text-black text-[9px] font-black uppercase tracking-[0.15em] py-1.5 px-5 rounded-full shadow-[0_4px_20px_rgba(204,255,0,0.4)] whitespace-nowrap">
                 Highly Recommended
               </div>
-              <div className="text-[#ccff00] text-xs font-bold uppercase tracking-wider mb-3 font-mono">
-                Fresh Pro
+            <div className="isolate bg-gradient-to-b from-[#ccff00]/[0.06] to-[#08090c]/80 backdrop-blur-xl border-2 border-[#ccff00] rounded-[2rem] pt-7 px-8 pb-8 flex flex-col relative md:-translate-y-5 shadow-[0_0_50px_rgba(204,255,0,0.18)] hover:shadow-[0_0_70px_rgba(204,255,0,0.3)] hover:scale-[1.02] transition-all duration-500 overflow-hidden group">
+              <div className="absolute inset-0 -z-10 pointer-events-none opacity-35 group-hover:opacity-50 transition-opacity duration-500">
+                <BentoTwirl position="50% 35%" scale={2.3} hueRotate={0} duration={20} />
               </div>
-              <div className="text-4xl font-black text-white mb-2 tracking-tight">
-                600 R$
-                <span className="text-xs text-white/40 font-bold ml-1">/ month</span>
+
+              <div className="flex items-center gap-2.5 mb-5">
+                <div className="w-9 h-9 rounded-xl bg-[#ccff00]/15 border border-[#ccff00]/30 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4 text-[#ccff00]" />
+                </div>
+                <span className="text-[#ccff00] text-xs font-bold uppercase tracking-[0.15em] font-mono">
+                  Fresh Pro
+                </span>
               </div>
-              <p className="text-xs text-white/40 mb-8 border-b border-white/5 pb-6 font-medium">
+
+              <div className="flex items-baseline gap-1 mb-2">
+                <span className="text-5xl font-black text-white tracking-tight">600</span>
+                <span className="text-lg font-black text-white/80">R$</span>
+                <span className="text-xs text-white/40 font-semibold ml-1">/ month</span>
+              </div>
+              <p className="text-[13px] text-white/45 mb-7 pb-7 border-b border-white/[0.08] font-medium leading-relaxed">
                 Engineered for serious studio builders.
               </p>
 
-              <ul className="flex flex-col gap-4 mb-10 text-[13px] text-white/80 font-medium">
+              <ul className="flex flex-col gap-3.5 mb-9 text-[13px] text-white/85 font-medium">
                 <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-[#ccff00] flex items-center justify-center flex-shrink-0 shadow-sm">
-                    <Plus className="w-3.5 h-3.5 text-black" />
-                  </div>
-                  <span className="text-white font-black">5.0 Credits Allowance</span>
+                  <CheckCircle2 className="w-[18px] h-[18px] text-[#ccff00] flex-shrink-0" />
+                  <span className="text-white font-bold">5.0 Credits Allowance</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 text-white/60" />
-                  </div>
+                  <CheckCircle2 className="w-[18px] h-[18px] text-[#ccff00] flex-shrink-0" />
                   <span>Claude Sonnet 4.6 & GLM-5</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 text-white/60" />
-                  </div>
+                  <CheckCircle2 className="w-[18px] h-[18px] text-[#ccff00] flex-shrink-0" />
                   <span>Full Studio Context Scans</span>
                 </li>
               </ul>
 
               <button
                 onClick={() => setPurchasePlan("fresh_pro")}
-                className="mt-auto w-full h-12 rounded-full bg-[#ccff00] text-black font-black py-3 hover:bg-[#d4ff33] transition-all uppercase tracking-wider text-[11px] shadow-sm flex items-center justify-center gap-1.5"
+                className="mt-auto w-full h-12 rounded-full bg-[#ccff00] text-black font-black hover:bg-[#d4ff33] hover:shadow-[0_0_25px_rgba(204,255,0,0.5)] transition-all uppercase tracking-wider text-[11px] flex items-center justify-center gap-1.5"
               >
                 Upgrade to Pro
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
+            </RevealItem>
 
             {/* TIER 3: ULTRA */}
-            <div className="bg-[#08090c]/45 border border-white/5 rounded-[2.5rem] p-10 flex flex-col hover:border-white/10 hover:shadow-2xl transition-all duration-500 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[40px] opacity-30 group-hover:scale-125 transition-transform" />
-              <div className="text-white/40 text-xs font-bold uppercase tracking-wider mb-3 font-mono">
-                Pure Ultra
+            <RevealItem className="isolate bg-gradient-to-b from-[#8b5cf6]/[0.08] to-[#08090c]/70 backdrop-blur-xl border border-[#8b5cf6]/30 rounded-[2rem] p-8 flex flex-col hover:border-[#8b5cf6]/55 hover:-translate-y-1 hover:shadow-[0_0_55px_rgba(139,92,246,0.3)] transition-all duration-500 shadow-[0_12px_40px_rgba(0,0,0,0.4)] relative overflow-hidden group">
+              {/* Prominent animated flowing twirl — the signature look for the top tier */}
+              <div className="absolute inset-0 -z-10 pointer-events-none opacity-70 group-hover:opacity-90 transition-opacity duration-500">
+                <BentoTwirl position="82% 70%" scale={2.9} hueRotate={250} duration={22} />
               </div>
-              <div className="text-4xl font-black text-white mb-2 tracking-tight">
-                1,500 R$
-                <span className="text-xs text-white/40 font-bold ml-1">/ month</span>
+              <div className="absolute inset-0 -z-10 pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity duration-500">
+                <BentoTwirl position="20% 35%" scale={3.4} hueRotate={295} duration={30} />
               </div>
-              <p className="text-xs text-white/40 mb-8 border-b border-white/5 pb-6 font-medium">
+              <div className="absolute -top-10 -right-10 w-48 h-48 bg-[#8b5cf6]/20 rounded-full blur-[60px] opacity-50 group-hover:scale-125 transition-transform duration-500" />
+
+              <div className="flex items-center gap-2.5 mb-5">
+                <div className="w-9 h-9 rounded-xl bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 flex items-center justify-center">
+                  <Crown className="w-4 h-4 text-[#c4b5fd]" />
+                </div>
+                <span className="text-[#c4b5fd] text-xs font-bold uppercase tracking-[0.15em] font-mono">
+                  Pure Ultra
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-1 mb-2">
+                <span className="text-5xl font-black text-white tracking-tight">1,500</span>
+                <span className="text-lg font-black text-white/80">R$</span>
+                <span className="text-xs text-white/40 font-semibold ml-1">/ month</span>
+              </div>
+              <p className="text-[13px] text-white/45 mb-7 pb-7 border-b border-white/[0.08] font-medium leading-relaxed">
                 Uncompromising agent-first performance.
               </p>
 
-              <ul className="flex flex-col gap-4 mb-10 text-[13px] text-white/70 font-medium">
+              <ul className="flex flex-col gap-3.5 mb-9 text-[13px] text-white/80 font-medium">
                 <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 text-white/60" />
-                  </div>
-                  <span>15.0 Credits Allowance</span>
+                  <CheckCircle2 className="w-[18px] h-[18px] text-[#a78bfa] flex-shrink-0" />
+                  <span className="text-white font-bold">15.0 Credits Allowance</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 text-white/60" />
-                  </div>
+                  <CheckCircle2 className="w-[18px] h-[18px] text-[#a78bfa] flex-shrink-0" />
                   <span>Claude Opus 4.8 & 4.7</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">
-                    <Plus className="w-3.5 h-3.5 text-white/60" />
-                  </div>
+                  <CheckCircle2 className="w-[18px] h-[18px] text-[#a78bfa] flex-shrink-0" />
                   <span>8 Parallel Studio Workspace Tasks</span>
                 </li>
               </ul>
 
               <button
                 onClick={() => setPurchasePlan("pure_ultra")}
-                className="mt-auto w-full h-12 rounded-full border border-white/10 text-white font-bold py-3 hover:bg-white/5 transition-all uppercase tracking-wider text-[11px] shadow-sm"
+                className="mt-auto w-full h-12 rounded-full border border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-white font-bold hover:bg-[#8b5cf6]/25 hover:border-[#8b5cf6]/60 hover:shadow-[0_0_25px_rgba(139,92,246,0.35)] transition-all uppercase tracking-wider text-[11px] flex items-center justify-center gap-1.5"
               >
                 Get Ultra Pack
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
-            </div>
+            </RevealItem>
 
-          </div>
+          </RevealStagger>
           </div> {/* Close Unified Shop Container Box */}
 
           {/* Subscription note — purchases verified instantly via Roblox */}
@@ -631,66 +682,95 @@ export function LandingContent({
           </div>
 
           {/* MODEL COMPARISON TABLE */}
-          <div className="bg-[#08090c]/45 border border-white/5 rounded-[2.5rem] p-8 md:p-10 mb-16 overflow-x-auto shadow-2xl relative z-20">
-            <h4 className="text-xs font-black uppercase tracking-wider text-white/40 mb-8 text-center font-mono">
-              Compare Tiers
-            </h4>
-            <table className="w-full text-sm min-w-[500px]">
+          <div className="bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-xl border border-white/10 rounded-[2rem] p-8 md:p-10 mb-16 overflow-x-auto shadow-[0_12px_40px_rgba(0,0,0,0.4)] relative z-20">
+            <div className="flex items-center justify-center gap-2 mb-8">
+              <Layers className="w-4 h-4 text-white/40" />
+              <h4 className="text-xs font-black uppercase tracking-[0.18em] text-white/50 font-mono">
+                Compare Tiers
+              </h4>
+            </div>
+            <table className="w-full text-sm min-w-[520px] border-separate border-spacing-y-2">
               <thead>
-                <tr className="border-b border-white/5">
-                  <th className="text-left py-4 text-white/40 font-bold px-4 uppercase tracking-wider text-[10px] font-mono">
+                <tr>
+                  <th className="text-left py-3 text-white/35 font-bold px-4 uppercase tracking-[0.15em] text-[10px] font-mono">
                     Tier
                   </th>
-                  <th className="text-left py-4 text-white/40 font-bold px-4 uppercase tracking-wider text-[10px] font-mono">
+                  <th className="text-left py-3 text-white/35 font-bold px-4 uppercase tracking-[0.15em] text-[10px] font-mono">
                     Primary Model
                   </th>
-                  <th className="text-left py-4 text-white/40 font-bold px-4 uppercase tracking-wider text-[10px] font-mono">
+                  <th className="text-left py-3 text-white/35 font-bold px-4 uppercase tracking-[0.15em] text-[10px] font-mono">
                     Context Window
                   </th>
-                  <th className="text-left py-4 text-white/40 font-bold px-4 uppercase tracking-wider text-[10px] font-mono">
+                  <th className="text-left py-3 text-white/35 font-bold px-4 uppercase tracking-[0.15em] text-[10px] font-mono">
                     Speed
                   </th>
                 </tr>
               </thead>
               <tbody className="text-white/80 font-medium">
-                <tr className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-                  <td className="py-5 px-4 text-white font-bold">Free</td>
-                  <td className="py-5 px-4">Haiku 4.5 / Qwen3 Coder</td>
-                  <td className="py-5 px-4 text-white/40">Standard (128k)</td>
-                  <td className="py-5 px-4 text-[#ccff00] font-black uppercase text-xs tracking-wider">Lightning</td>
+                <tr className="bg-white/[0.02] hover:bg-white/[0.05] transition-colors">
+                  <td className="py-4 px-4 rounded-l-xl">
+                    <span className="inline-flex items-center gap-2 font-bold text-white">
+                      <Sparkles className="w-3.5 h-3.5 text-white/50" /> Free
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">Haiku 4.5 / Qwen3 Coder</td>
+                  <td className="py-4 px-4 text-white/45">Standard (128k)</td>
+                  <td className="py-4 px-4 rounded-r-xl">
+                    <span className="inline-flex items-center rounded-full bg-white/[0.06] border border-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white/70">Lightning</span>
+                  </td>
                 </tr>
-                <tr className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-                  <td className="py-5 px-4 text-[#ccff00] font-black">Pro</td>
-                  <td className="py-5 px-4">Sonnet 4.6 / GLM-5</td>
-                  <td className="py-5 px-4 text-white/40">Enhanced (200k)</td>
-                  <td className="py-5 px-4 text-emerald-400 font-bold uppercase text-xs tracking-wider">Instant</td>
+                <tr className="bg-[#ccff00]/[0.05] hover:bg-[#ccff00]/[0.08] transition-colors">
+                  <td className="py-4 px-4 rounded-l-xl border-l-2 border-[#ccff00]">
+                    <span className="inline-flex items-center gap-2 font-black text-[#ccff00]">
+                      <ShieldCheck className="w-3.5 h-3.5" /> Pro
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">Sonnet 4.6 / GLM-5</td>
+                  <td className="py-4 px-4 text-white/45">Enhanced (200k)</td>
+                  <td className="py-4 px-4 rounded-r-xl">
+                    <span className="inline-flex items-center rounded-full bg-[#ccff00]/15 border border-[#ccff00]/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#ccff00]">Instant</span>
+                  </td>
                 </tr>
-                <tr className="hover:bg-white/[0.02] transition-colors">
-                  <td className="py-5 px-4 text-[#00f0ff] font-bold">Ultra</td>
-                  <td className="py-5 px-4">Claude Opus 4.8 / 4.7</td>
-                  <td className="py-5 px-4 text-white/40">Deep Window (1M+)</td>
-                  <td className="py-5 px-4 text-blue-400 font-bold uppercase text-xs tracking-wider">Priority Queue</td>
+                <tr className="bg-[#8b5cf6]/[0.06] hover:bg-[#8b5cf6]/[0.1] transition-colors">
+                  <td className="py-4 px-4 rounded-l-xl border-l-2 border-[#8b5cf6]">
+                    <span className="inline-flex items-center gap-2 font-black text-[#c4b5fd]">
+                      <Crown className="w-3.5 h-3.5" /> Ultra
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">Claude Opus 4.8 / 4.7</td>
+                  <td className="py-4 px-4 text-white/45">Deep Window (1M+)</td>
+                  <td className="py-4 px-4 rounded-r-xl">
+                    <span className="inline-flex items-center rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#c4b5fd]">Priority Queue</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           {/* JUICE REFILL PACKS */}
-          <div className="bg-[#08090c]/45 border border-white/5 rounded-[2.5rem] p-10 md:p-12 shadow-2xl text-center relative overflow-hidden z-20">
-            <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-3">
+          <div className="bg-gradient-to-b from-white/[0.05] to-white/[0.01] backdrop-blur-xl border border-white/10 rounded-[2rem] p-10 md:p-14 shadow-[0_12px_40px_rgba(0,0,0,0.4)] text-center relative overflow-hidden z-20">
+            <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[420px] h-[280px] bg-[#ccff00]/[0.05] rounded-full blur-[90px] pointer-events-none" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.05] border border-white/10 mb-5">
+              <Sparkles className="w-3.5 h-3.5 text-[#ccff00]" />
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/60 font-mono">One-off packs</span>
+            </div>
+            <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-3">
               Need a quick squeeze?
             </h3>
-            <p className="text-white/60 text-sm mb-10 max-w-md mx-auto font-medium">
+            <p className="text-white/55 text-sm mb-12 max-w-md mx-auto font-medium leading-relaxed">
               Refill your workspace credits instantly using safe, secure one-off Robux packs.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
 
               {/* Refill 1 */}
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center">
-                <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-2 font-mono">Small Sip</span>
-                <div className="text-2xl font-black text-white mb-1">350 R$</div>
-                <div className="text-xs text-[#ccff00] font-black uppercase tracking-wide mb-6">5.0 Credits Refill</div>
+              <div className="group bg-gradient-to-b from-white/[0.05] to-white/[0.01] border border-white/10 rounded-3xl p-7 flex flex-col items-center hover:border-white/20 hover:-translate-y-1 transition-all duration-500 shadow-lg">
+                <span className="text-white/45 text-[10px] font-bold uppercase tracking-[0.15em] mb-3 font-mono">Small Sip</span>
+                <div className="flex items-baseline gap-1 mb-1.5">
+                  <span className="text-3xl font-black text-white tracking-tight">350</span>
+                  <span className="text-sm font-black text-white/70">R$</span>
+                </div>
+                <div className="text-[11px] text-white/70 font-bold uppercase tracking-wide mb-7 px-3 py-1 rounded-full bg-white/[0.06] border border-white/10">5.0 Credits Refill</div>
                 <button
                   onClick={() =>
                     window.open(
@@ -698,20 +778,23 @@ export function LandingContent({
                       "_blank"
                     )
                   }
-                  className="w-full h-10 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs hover:bg-white/10 transition-all uppercase tracking-wider"
+                  className="mt-auto w-full h-11 rounded-full bg-white/[0.04] border border-white/15 text-white font-bold text-[11px] hover:bg-white/[0.1] hover:border-white/25 transition-all uppercase tracking-wider"
                 >
                   Buy Pack
                 </button>
               </div>
 
               {/* Refill 2 */}
-              <div className="bg-[#08090c]/70 border-2 border-[#ccff00] rounded-2xl p-6 flex flex-col items-center relative shadow-[0_0_20px_rgba(204,255,0,0.1)]">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#ccff00] text-black text-[8px] font-black uppercase tracking-wider py-1 px-4 rounded-full">
+              <div className="group bg-gradient-to-b from-[#ccff00]/[0.07] to-[#08090c]/70 border-2 border-[#ccff00] rounded-3xl p-7 flex flex-col items-center relative shadow-[0_0_35px_rgba(204,255,0,0.15)] hover:shadow-[0_0_50px_rgba(204,255,0,0.28)] md:-translate-y-3 hover:-translate-y-4 transition-all duration-500">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#ccff00] text-black text-[8px] font-black uppercase tracking-[0.15em] py-1 px-4 rounded-full shadow-[0_4px_16px_rgba(204,255,0,0.4)]">
                   Best Value
                 </div>
-                <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-2 mt-1 font-mono">Juice Box</span>
-                <div className="text-2xl font-black text-white mb-1">950 R$</div>
-                <div className="text-xs text-[#ccff00] font-black uppercase tracking-wide mb-6">20.0 Credits Refill</div>
+                <span className="text-[#ccff00] text-[10px] font-bold uppercase tracking-[0.15em] mb-3 mt-1 font-mono">Juice Box</span>
+                <div className="flex items-baseline gap-1 mb-1.5">
+                  <span className="text-3xl font-black text-white tracking-tight">950</span>
+                  <span className="text-sm font-black text-white/70">R$</span>
+                </div>
+                <div className="text-[11px] text-[#ccff00] font-black uppercase tracking-wide mb-7 px-3 py-1 rounded-full bg-[#ccff00]/15 border border-[#ccff00]/30">20.0 Credits Refill</div>
                 <button
                   onClick={() =>
                     window.open(
@@ -719,17 +802,20 @@ export function LandingContent({
                       "_blank"
                     )
                   }
-                  className="w-full h-10 rounded-xl bg-[#ccff00] text-black font-black text-xs hover:bg-[#d4ff33] transition-all uppercase tracking-wider"
+                  className="mt-auto w-full h-11 rounded-full bg-[#ccff00] text-black font-black text-[11px] hover:bg-[#d4ff33] hover:shadow-[0_0_22px_rgba(204,255,0,0.5)] transition-all uppercase tracking-wider"
                 >
                   Buy Pack
                 </button>
               </div>
 
               {/* Refill 3 */}
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col items-center">
-                <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-2 font-mono">Mega Jug</span>
-                <div className="text-2xl font-black text-white mb-1">3,000 R$</div>
-                <div className="text-xs text-[#ccff00] font-black uppercase tracking-wide mb-6">80.0 Credits Refill</div>
+              <div className="group bg-gradient-to-b from-[#8b5cf6]/[0.07] to-white/[0.01] border border-[#8b5cf6]/25 rounded-3xl p-7 flex flex-col items-center hover:border-[#8b5cf6]/45 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(139,92,246,0.22)] transition-all duration-500 shadow-lg">
+                <span className="text-[#c4b5fd] text-[10px] font-bold uppercase tracking-[0.15em] mb-3 font-mono">Mega Jug</span>
+                <div className="flex items-baseline gap-1 mb-1.5">
+                  <span className="text-3xl font-black text-white tracking-tight">3,000</span>
+                  <span className="text-sm font-black text-white/70">R$</span>
+                </div>
+                <div className="text-[11px] text-[#c4b5fd] font-black uppercase tracking-wide mb-7 px-3 py-1 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/30">80.0 Credits Refill</div>
                 <button
                   onClick={() =>
                     window.open(
@@ -737,7 +823,7 @@ export function LandingContent({
                       "_blank"
                     )
                   }
-                  className="w-full h-10 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs hover:bg-white/10 transition-all uppercase tracking-wider"
+                  className="mt-auto w-full h-11 rounded-full bg-[#8b5cf6]/10 border border-[#8b5cf6]/40 text-white font-bold text-[11px] hover:bg-[#8b5cf6]/25 hover:border-[#8b5cf6]/60 transition-all uppercase tracking-wider"
                 >
                   Buy Pack
                 </button>
@@ -751,23 +837,23 @@ export function LandingContent({
       {/* â”â”â” FAQ (Light Accents Accordion) â”â”â” */}
       <section id="faq" className="px-6 py-24 md:py-32 relative">
         <div className="max-w-[850px] mx-auto relative z-10">
-          <div className="text-center mb-16">
+          <Reveal className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white">
               Questions?
             </h2>
             <p className="text-white/50 text-sm mt-3 font-medium">
               Everything you need to know about setting up Apple Juice.
             </p>
-          </div>
-          <div className="rounded-3xl border border-white/12 bg-white/[0.04] backdrop-blur-md px-8 py-4 shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
+          </Reveal>
+          <Reveal delay={0.1} className="rounded-3xl border border-white/12 bg-white/[0.04] backdrop-blur-md px-8 py-4 shadow-[0_24px_80px_rgba(0,0,0,0.4)]">
             {FAQ_ITEMS.map((item, i) => (
               <FaqItemPremium key={i} question={item.question} answer={item.answer} />
             ))}
-          </div>
+          </Reveal>
         </div>
       </section>      {/* â”â”â” BOTTOM CALL-TO-ACTION â”â”â” */}
       <section className="px-6 pb-28">
-        <div className="max-w-[1000px] mx-auto text-center p-12 md:p-24 rounded-[3rem] bg-white/[0.06] border border-white/15 backdrop-blur-2xl text-white relative overflow-hidden shadow-[0_32px_100px_rgba(0,0,0,0.45)]">
+        <Reveal distance={32} duration={0.8} className="max-w-[1000px] mx-auto text-center p-12 md:p-24 rounded-[3rem] bg-white/[0.06] border border-white/15 backdrop-blur-2xl text-white relative overflow-hidden shadow-[0_32px_100px_rgba(0,0,0,0.45)]">
           <div className="absolute -top-36 left-1/4 w-[400px] h-[400px] bg-blue-500/[0.1] rounded-full blur-[100px] pointer-events-none" />
           <div className="absolute -bottom-36 right-1/4 w-[400px] h-[400px] bg-[#ccff00]/[0.06] rounded-full blur-[100px] pointer-events-none" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(100%,520px)] h-[280px] bg-white/[0.07] rounded-full blur-[90px] pointer-events-none" />
@@ -784,7 +870,7 @@ export function LandingContent({
               onClick={() =>
                 session
                   ? (window.location.href = "/dashboard")
-                  : setShowAuthGuide(true)
+                  : (window.location.href = "/login")
               }
               className="h-14 px-10 rounded-full bg-[#ccff00] text-black font-black uppercase tracking-wider text-[11px] flex items-center justify-center gap-2 hover:bg-[#d4ff33] transition-all mx-auto shadow-[0_0_20px_rgba(204,255,0,0.35)] hover:scale-105 active:scale-95"
             >
@@ -792,7 +878,7 @@ export function LandingContent({
               <ArrowRight className="h-4 w-4 text-black font-black" />
             </button>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* â”â”â” FOOTER with stark black Antigravity-style typography â”â”â” */}

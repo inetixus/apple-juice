@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ray Burst — cursor interactive</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: linear-gradient(180deg, #eaf1ff 0%, #dfe8ff 45%, #f3ede1 100%);
+    overflow: hidden;
+  }
+  #burst-stage {
+    position: fixed;
+    inset: 0;
+  }
+  #aj-burst-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+  }
+  .hint {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font: 500 13px/1.4 -apple-system, system-ui, sans-serif;
+    color: #3a4a6b;
+    background: rgba(255,255,255,.55);
+    padding: 6px 12px;
+    border-radius: 999px;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <div class="hint">Move your cursor — the burst leans toward it</div>
+  <div id="burst-stage">
+    <canvas id="aj-burst-canvas" aria-hidden="true"></canvas>
+  </div>
+
+<script>
+(function () {
+  function start() {
+    var canvas = document.getElementById('aj-burst-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var DPR = Math.min(window.devicePixelRatio || 1, 2);
+    var rays = [];
+    var W, H, originX, originY;
+
+    // Pointer state (in CSS pixels, relative to canvas). Default: straight up.
+    var pointer = { x: 0, y: 0, active: false };
+    // Smoothed cursor angle measured from the origin, and smoothed "pull" strength.
+    var aimAngle = -Math.PI / 2;
+    var aimStrength = 0;
+
+    function resize() {
+      var rect = canvas.getBoundingClientRect();
+      W = Math.max(rect.width, 600);
+      H = Math.max(rect.height, 320);
+      canvas.width = W * DPR;
+      canvas.height = H * DPR;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      originX = W / 2;
+      originY = H * 1.02;
+      pointer.x = originX;
+      pointer.y = originY - Math.min(W, H) * 0.4;
+    }
+
+    function makeRays() {
+      rays = [];
+      var count = 170;
+      for (var i = 0; i < count; i++) {
+        var t = i / (count - 1);
+        // fan from -100deg to +100deg measured from straight up
+        var spread = 100 * Math.PI / 180;
+        var angle = -Math.PI / 2 + (t - 0.5) * 2 * spread;
+        angle += (Math.random() - 0.5) * 0.05;
+        var maxLen = (Math.min(W, H) * 0.55) * (0.45 + Math.random() * 0.55);
+        var edge = Math.abs(t - 0.5) * 2; // 0 centre -> 1 edges
+        rays.push({
+          angle: angle,
+          baseMaxLen: maxLen,
+          width: 0.6 + Math.random() * 1.6,
+          speed: 0.4 + Math.random() * 0.9,
+          phase: Math.random() * Math.PI * 2,
+          edge: edge,
+          dot: Math.random() > 0.45,
+          // live length factor driven by the cursor, eased per ray
+          react: 0
+        });
+      }
+    }
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    // shortest signed angular difference a-b in range [-PI, PI]
+    function angleDiff(a, b) {
+      var d = a - b;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      return d;
+    }
+
+    function rayColor(edge, alpha) {
+      // orange (255,150,60) -> blue (70,100,245)
+      var r = Math.round(lerp(255, 70, edge));
+      var g = Math.round(lerp(150, 100, edge));
+      var b = Math.round(lerp(60, 245, edge));
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+
+    canvas.addEventListener('pointermove', function (e) {
+      var rect = canvas.getBoundingClientRect();
+      pointer.x = e.clientX - rect.left;
+      pointer.y = e.clientY - rect.top;
+      pointer.active = true;
+    });
+    canvas.addEventListener('pointerleave', function () {
+      pointer.active = false;
+    });
+
+    var t0 = performance.now();
+    function frame(now) {
+      var time = (now - t0) / 1000;
+
+      // Resolve target aim angle + strength from the cursor each frame.
+      var dx = pointer.x - originX;
+      var dy = pointer.y - originY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var targetAngle = Math.atan2(dy, dx);
+      // Only let the cursor steer within the upper hemisphere where rays live.
+      if (targetAngle > 0) targetAngle = targetAngle > Math.PI / 2 ? -Math.PI : 0;
+      var targetStrength = pointer.active
+        ? Math.min(1, dist / (Math.min(W, H) * 0.7))
+        : 0;
+
+      // Ease the global aim so motion feels fluid.
+      aimAngle += angleDiff(targetAngle, aimAngle) * 0.08;
+      aimStrength += (targetStrength - aimStrength) * 0.06;
+
+      ctx.clearRect(0, 0, W, H);
+
+      for (var i = 0; i < rays.length; i++) {
+        var ray = rays[i];
+
+        // How aligned is this ray with the cursor direction? (1 = aimed at cursor)
+        var diff = Math.abs(angleDiff(ray.angle, aimAngle));
+        var alignment = Math.max(0, 1 - diff / (45 * Math.PI / 180)); // within ~45deg
+        alignment = alignment * alignment; // sharpen the falloff
+
+        // Target reaction for this ray, then ease toward it.
+        var targetReact = alignment * aimStrength;
+        ray.react += (targetReact - ray.react) * 0.12;
+
+        var pulse = 0.78 + 0.22 * Math.sin(time * ray.speed + ray.phase);
+        // Cursor stretches aligned rays up to +85% length.
+        var len = ray.baseMaxLen * pulse * (1 + ray.react * 0.85);
+
+        var ex = originX + Math.cos(ray.angle) * len;
+        var ey = originY + Math.sin(ray.angle) * len;
+
+        // Brighten aligned rays.
+        var boost = ray.react;
+        var grad = ctx.createLinearGradient(originX, originY, ex, ey);
+        grad.addColorStop(0, rayColor(ray.edge, 0.0));
+        grad.addColorStop(0.25, rayColor(ray.edge, 0.55 + boost * 0.4));
+        grad.addColorStop(1, rayColor(ray.edge, 0.95));
+
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = ray.width * (1 + boost * 0.6);
+        ctx.beginPath();
+        ctx.moveTo(originX, originY);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        if (ray.dot) {
+          ctx.beginPath();
+          ctx.fillStyle = rayColor(ray.edge, 0.95);
+          ctx.arc(ex, ey, ray.width * (1.4 + boost * 1.2) + 1.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+
+    resize();
+    makeRays();
+    window.addEventListener('resize', function () { resize(); makeRays(); });
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>
