@@ -36,6 +36,7 @@ export default async function OnboardingPage() {
     <OnboardingClient
       username={session?.user?.name ?? "Roblox User"}
       avatarUrl={avatarUrl}
+      isLoggedIn={!!userId}
     />
   );
 }

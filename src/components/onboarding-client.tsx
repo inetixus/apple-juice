@@ -5,8 +5,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { MessageSquare, Cpu, Plug, PlayCircle, Wrench, ArrowRight } from "lucide-react";
+import {
+  MessageSquare,
+  Cpu,
+  Plug,
+  PlayCircle,
+  Wrench,
+  ArrowRight,
+  CheckCircle2,
+  Sparkles,
+  ShieldCheck,
+  Crown,
+  Check,
+} from "lucide-react";
 import { cn } from "@/utils/cn";
+import { PurchaseFlowModal } from "./purchase-flow-modal";
 
 // Same animated Stripe-style wave backdrop the landing page uses.
 const StripeWave = dynamic(
@@ -21,16 +34,29 @@ const LANDING_AMBIENT_GRADIENT =
   "radial-gradient(circle at 80% 60%, rgba(139,92,246,0.05), transparent 60%)," +
   "radial-gradient(ellipse 90% 70% at 50% 105%, rgba(255,255,255,0.09), transparent 55%)";
 
-type Goal = "build" | "scripts" | "learn" | "ship";
+type GoalId =
+  | "build"
+  | "scripts"
+  | "learn"
+  | "ship"
+  | "prototype"
+  | "fix"
+  | "ui"
+  | "systems";
 
-const GOALS: { id: Goal; emoji: string; title: string; desc: string }[] = [
+/** Detailed pool of reasons users come to Apple Juice (multi-select). */
+const GOALS: { id: GoalId; emoji: string; title: string; desc: string }[] = [
   { id: "build", emoji: "🎮", title: "Build a full game", desc: "Maps, mechanics, systems — end to end." },
   { id: "scripts", emoji: "⚡", title: "Generate scripts", desc: "Drop in working Luau on demand." },
+  { id: "ui", emoji: "🎨", title: "Design UI", desc: "Shops, HUDs, menus and inventories." },
+  { id: "systems", emoji: "🧩", title: "Add game systems", desc: "Datastores, economies, combat, leaderboards." },
+  { id: "fix", emoji: "🛠️", title: "Fix bugs", desc: "Find and patch runtime errors fast." },
+  { id: "prototype", emoji: "🚧", title: "Prototype ideas", desc: "Spin up playable concepts in minutes." },
   { id: "learn", emoji: "🧠", title: "Learn as I go", desc: "Understand what the AI writes." },
   { id: "ship", emoji: "🚀", title: "Ship faster", desc: "Cut my dev time on existing projects." },
 ];
 
-/** How the Apple Juice agent actually works — shown during onboarding. */
+/** Detailed, step-by-step explanation of how the agent works. */
 const HOW_IT_WORKS: {
   icon: typeof MessageSquare;
   title: string;
@@ -38,47 +64,113 @@ const HOW_IT_WORKS: {
 }[] = [
   {
     icon: MessageSquare,
-    title: "1 · Describe it",
-    desc: "Tell Apple Juice what you want in plain English — “add a double jump”, “build a shop UI”, “fix this bug”.",
+    title: "1 · You describe it",
+    desc: "Type what you want in plain English — “add a double jump”, “build a shop UI with 6 items”, or “fix the error in my leaderboard”. No technical spec needed.",
   },
   {
     icon: Cpu,
-    title: "2 · The agent plans & writes",
-    desc: "It reads your project, plans the change, and writes complete, production-ready Luau — no copy-pasting snippets.",
+    title: "2 · The agent explores & plans",
+    desc: "It reads your live project tree and the relevant scripts first, so it understands your frameworks, folders, and naming before touching anything.",
   },
   {
     icon: Plug,
-    title: "3 · It syncs to Studio",
-    desc: "Scripts and instances are created live in your open place through the paired Studio plugin.",
+    title: "3 · It writes & syncs to Studio",
+    desc: "Complete, production-ready Luau is created live in your open place through the paired plugin — full files, not snippets. Nothing to copy-paste.",
   },
   {
     icon: PlayCircle,
-    title: "4 · It playtests",
-    desc: "The agent runs a real playtest and reads the actual runtime errors — it verifies the work, not just guesses.",
+    title: "4 · It runs a real playtest",
+    desc: "The agent starts an actual Studio playtest and reads the real runtime errors and warnings — it verifies the work instead of guessing it's correct.",
   },
   {
     icon: Wrench,
     title: "5 · It fixes & repeats",
-    desc: "If the playtest fails, it diagnoses the root cause, rewrites the script, and re-tests until it passes.",
+    desc: "If the playtest fails, it diagnoses the root cause, reads the offending script, rewrites the full corrected source, and re-tests — looping until it passes.",
   },
 ];
 
-const STEPS = ["Welcome", "Your goal", "How it works", "Connect Studio", "Done"] as const;
+type PlanId = "free" | "fresh_pro" | "pure_ultra";
+
+/** The real, current offering — mirrors the landing pricing exactly. */
+const PLANS: {
+  id: PlanId;
+  name: string;
+  icon: typeof Sparkles;
+  price: string;
+  period: string;
+  blurb: string;
+  features: string[];
+  accent: string;
+  iconWrap: string;
+  badge?: string;
+}[] = [
+  {
+    id: "free",
+    name: "Free Sip",
+    icon: Sparkles,
+    price: "0",
+    period: "forever",
+    blurb: "Perfect for hobbyists and learning Luau.",
+    features: ["1.0 Credit Allowance", "Auto router & Haiku 4.5", "Roblox Studio Plugin Sync"],
+    accent: "text-white/70",
+    iconWrap: "bg-white/[0.06] border-white/10 text-white/50",
+  },
+  {
+    id: "fresh_pro",
+    name: "Fresh Pro",
+    icon: ShieldCheck,
+    price: "600",
+    period: "month",
+    blurb: "Engineered for serious studio builders.",
+    features: ["5.0 Credits Allowance", "Claude Sonnet 4.6 & GLM-5", "Full Studio Context Scans"],
+    accent: "text-[#ccff00]",
+    iconWrap: "bg-[#ccff00]/15 border-[#ccff00]/30 text-[#ccff00]",
+    badge: "Most Popular",
+  },
+  {
+    id: "pure_ultra",
+    name: "Pure Ultra",
+    icon: Crown,
+    price: "1,500",
+    period: "month",
+    blurb: "Uncompromising agent-first performance.",
+    features: ["15.0 Credits Allowance", "Claude Opus 4.8 & 4.7", "8 Parallel Studio Workspace Tasks"],
+    accent: "text-[#c4b5fd]",
+    iconWrap: "bg-[#8b5cf6]/15 border-[#8b5cf6]/30 text-[#c4b5fd]",
+  },
+];
+
+const STEPS = [
+  "Welcome",
+  "Your goals",
+  "How it works",
+  "Plans",
+  "Connect Studio",
+  "Done",
+] as const;
 
 export function OnboardingClient({
   username,
   avatarUrl,
+  isLoggedIn = true,
 }: {
   username: string;
   avatarUrl: string;
+  isLoggedIn?: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [goal, setGoal] = useState<Goal | null>(null);
+  const [goals, setGoals] = useState<GoalId[]>([]);
   const [finishing, setFinishing] = useState(false);
+  const [purchasePlan, setPurchasePlan] = useState<"fresh_pro" | "pure_ultra" | null>(null);
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
+
+  const toggleGoal = (id: GoalId) =>
+    setGoals((prev) =>
+      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id],
+    );
 
   const finish = async (target: "/dashboard") => {
     setFinishing(true);
@@ -86,7 +178,7 @@ export function OnboardingClient({
       await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goal }),
+        body: JSON.stringify({ goals }),
       });
     } catch {
       // even if persistence fails, don't trap the user on onboarding
@@ -150,6 +242,7 @@ export function OnboardingClient({
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             className="w-full"
           >
+            {/* ── STEP 0 · WELCOME ── */}
             {step === 0 && (
               <StepCard>
                 <div className="flex items-center gap-3.5 sm:gap-4 mb-5 sm:mb-6">
@@ -177,9 +270,9 @@ export function OnboardingClient({
                   <span className="text-[#ccff00]">{username}.</span>
                 </h1>
                 <p className="mt-4 text-sm text-white/55 font-medium leading-relaxed">
-                  Let&apos;s get your workspace dialed in. This takes about a
-                  minute — we&apos;ll learn what you&apos;re building, show you
-                  how the agent works, and pair Roblox Studio.
+                  Let&apos;s get your workspace dialed in. We&apos;ll learn what
+                  you&apos;re building, show you exactly how the agent works,
+                  walk through the plans, and pair Roblox Studio.
                 </p>
                 <PrimaryRow>
                   <Primary onClick={next} full>
@@ -190,42 +283,51 @@ export function OnboardingClient({
               </StepCard>
             )}
 
+            {/* ── STEP 1 · GOALS (multi-select pool) ── */}
             {step === 1 && (
               <StepCard>
                 <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-                  What brings you here?
+                  Why are you here?
                 </h2>
                 <p className="mt-2 text-sm text-white/50 font-medium">
-                  Pick what fits best — we&apos;ll tune your experience around
-                  it.
+                  Pick everything that applies — we&apos;ll tune your experience
+                  around it. You can change this later.
                 </p>
                 <div className="mt-6 sm:mt-7 grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                  {GOALS.map((g) => (
-                    <button
-                      key={g.id}
-                      onClick={() => setGoal(g.id)}
-                      className={cn(
-                        "text-left rounded-2xl border p-4 transition-all duration-200 active:scale-[0.98] sm:hover:scale-[1.02]",
-                        goal === g.id
-                          ? "border-[#ccff00]/60 bg-[#ccff00]/[0.07] shadow-[0_0_24px_rgba(204,255,0,0.15)]"
-                          : "border-white/10 bg-white/[0.03] hover:border-white/25",
-                      )}
-                    >
-                      <div className="flex items-center gap-3 sm:block">
-                        <div className="text-2xl sm:mb-2">{g.emoji}</div>
-                        <div>
-                          <div className="text-sm font-black">{g.title}</div>
-                          <div className="text-[11px] text-white/50 font-medium mt-0.5 leading-snug">
-                            {g.desc}
+                  {GOALS.map((g) => {
+                    const selected = goals.includes(g.id);
+                    return (
+                      <button
+                        key={g.id}
+                        onClick={() => toggleGoal(g.id)}
+                        className={cn(
+                          "relative text-left rounded-2xl border p-4 transition-all duration-200 active:scale-[0.98] sm:hover:scale-[1.02]",
+                          selected
+                            ? "border-[#ccff00]/60 bg-[#ccff00]/[0.07] shadow-[0_0_24px_rgba(204,255,0,0.15)]"
+                            : "border-white/10 bg-white/[0.03] hover:border-white/25",
+                        )}
+                      >
+                        {selected && (
+                          <span className="absolute top-3 right-3 h-5 w-5 rounded-full bg-[#ccff00] text-black flex items-center justify-center">
+                            <Check className="h-3 w-3" strokeWidth={3} />
+                          </span>
+                        )}
+                        <div className="flex items-center gap-3 sm:block">
+                          <div className="text-2xl sm:mb-2">{g.emoji}</div>
+                          <div>
+                            <div className="text-sm font-black">{g.title}</div>
+                            <div className="text-[11px] text-white/50 font-medium mt-0.5 leading-snug">
+                              {g.desc}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    );
+                  })}
                 </div>
                 <PrimaryRow>
                   <Ghost onClick={back}>Back</Ghost>
-                  <Primary onClick={next} disabled={!goal}>
+                  <Primary onClick={next} disabled={goals.length === 0}>
                     Continue
                     <ArrowRight className="h-4 w-4" />
                   </Primary>
@@ -233,14 +335,16 @@ export function OnboardingClient({
               </StepCard>
             )}
 
+            {/* ── STEP 2 · HOW IT WORKS ── */}
             {step === 2 && (
               <StepCard>
                 <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
                   How Apple Juice works
                 </h2>
                 <p className="mt-2 text-sm text-white/50 font-medium">
-                  It&apos;s a real agent — it writes code, runs it, and fixes
-                  what breaks. No copy-pasting, ever.
+                  It&apos;s a real agent — it explores your project, writes code,
+                  runs it in Studio, and fixes what breaks. No copy-pasting,
+                  ever.
                 </p>
                 <div className="mt-6 sm:mt-7 space-y-2.5 sm:space-y-3">
                   {HOW_IT_WORKS.map((h) => {
@@ -265,6 +369,13 @@ export function OnboardingClient({
                     );
                   })}
                 </div>
+                <div className="mt-5 rounded-2xl border border-[#ccff00]/20 bg-[#ccff00]/[0.05] p-3.5 sm:p-4">
+                  <p className="text-[11px] sm:text-xs text-white/70 font-medium leading-relaxed">
+                    <span className="font-black text-[#ccff00]">The result:</span>{" "}
+                    verified, working code in your game — not a wall of text you
+                    have to paste and debug yourself.
+                  </p>
+                </div>
                 <PrimaryRow>
                   <Ghost onClick={back}>Back</Ghost>
                   <Primary onClick={next}>
@@ -275,7 +386,130 @@ export function OnboardingClient({
               </StepCard>
             )}
 
+            {/* ── STEP 3 · PLANS (real current offering) ── */}
             {step === 3 && (
+              <StepCard>
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+                  Pick your squeeze
+                </h2>
+                <p className="mt-2 text-sm text-white/50 font-medium">
+                  Start free forever, or unlock more Juice and frontier models.
+                  Billed securely in Robux — verified instantly, no codes.
+                </p>
+                <div className="mt-6 sm:mt-7 space-y-3">
+                  {PLANS.map((p) => {
+                    const Icon = p.icon;
+                    return (
+                      <div
+                        key={p.id}
+                        className={cn(
+                          "relative rounded-2xl border p-4 sm:p-5 transition-all duration-300",
+                          p.id === "fresh_pro"
+                            ? "border-[#ccff00]/40 bg-[#ccff00]/[0.05] shadow-[0_0_30px_rgba(204,255,0,0.1)]"
+                            : p.id === "pure_ultra"
+                              ? "border-[#8b5cf6]/30 bg-[#8b5cf6]/[0.06]"
+                              : "border-white/10 bg-white/[0.03]",
+                        )}
+                      >
+                        {p.badge && (
+                          <span className="absolute -top-2.5 left-5 bg-[#ccff00] text-black text-[8px] font-black uppercase tracking-[0.15em] py-1 px-3 rounded-full shadow-[0_4px_16px_rgba(204,255,0,0.4)]">
+                            {p.badge}
+                          </span>
+                        )}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              className={cn(
+                                "w-9 h-9 rounded-xl border flex items-center justify-center shrink-0",
+                                p.iconWrap,
+                              )}
+                            >
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div
+                                className={cn(
+                                  "text-xs font-bold uppercase tracking-[0.15em] font-mono",
+                                  p.accent,
+                                )}
+                              >
+                                {p.name}
+                              </div>
+                              <div className="text-[11px] text-white/45 font-medium mt-0.5">
+                                {p.blurb}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                              {p.price}
+                            </span>
+                            <span className="text-xs font-black text-white/70 ml-0.5">
+                              R$
+                            </span>
+                            <div className="text-[9px] text-white/40 font-semibold uppercase">
+                              / {p.period}
+                            </div>
+                          </div>
+                        </div>
+
+                        <ul className="mt-3.5 grid gap-2 sm:grid-cols-2">
+                          {p.features.map((f) => (
+                            <li
+                              key={f}
+                              className="flex items-center gap-2 text-[11px] text-white/70 font-medium"
+                            >
+                              <CheckCircle2
+                                className={cn(
+                                  "w-3.5 h-3.5 shrink-0",
+                                  p.id === "free"
+                                    ? "text-white/40"
+                                    : p.id === "fresh_pro"
+                                      ? "text-[#ccff00]"
+                                      : "text-[#a78bfa]",
+                                )}
+                              />
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+
+                        {p.id !== "free" && (
+                          <button
+                            onClick={() =>
+                              setPurchasePlan(p.id as "fresh_pro" | "pure_ultra")
+                            }
+                            className={cn(
+                              "mt-4 w-full h-10 rounded-full font-black uppercase tracking-wider text-[11px] flex items-center justify-center gap-1.5 transition-all active:scale-95",
+                              p.id === "fresh_pro"
+                                ? "bg-[#ccff00] text-black hover:bg-[#d4ff33] hover:shadow-[0_0_25px_rgba(204,255,0,0.5)]"
+                                : "border border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-white hover:bg-[#8b5cf6]/25 hover:border-[#8b5cf6]/60 hover:shadow-[0_0_25px_rgba(139,92,246,0.35)]",
+                            )}
+                          >
+                            {p.id === "fresh_pro" ? "Upgrade to Pro" : "Get Ultra"}
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="mt-4 text-[10px] text-white/35 font-medium text-center leading-relaxed">
+                  You&apos;re on Free Sip by default — no card needed. Upgrade any
+                  time from the dashboard.
+                </p>
+                <PrimaryRow>
+                  <Ghost onClick={back}>Back</Ghost>
+                  <Primary onClick={next}>
+                    Continue on Free
+                    <ArrowRight className="h-4 w-4" />
+                  </Primary>
+                </PrimaryRow>
+              </StepCard>
+            )}
+
+            {/* ── STEP 4 · CONNECT STUDIO ── */}
+            {step === 4 && (
               <StepCard>
                 <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
                   Connect Roblox Studio.
@@ -316,7 +550,8 @@ export function OnboardingClient({
               </StepCard>
             )}
 
-            {step === 4 && (
+            {/* ── STEP 5 · DONE ── */}
+            {step === 5 && (
               <StepCard>
                 <div className="flex flex-col items-center text-center">
                   <motion.div
@@ -360,6 +595,15 @@ export function OnboardingClient({
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Real subscription purchase + verify flow (same as landing) */}
+      {purchasePlan && (
+        <PurchaseFlowModal
+          plan={purchasePlan}
+          isLoggedIn={isLoggedIn}
+          onClose={() => setPurchasePlan(null)}
+        />
+      )}
     </div>
   );
 }
