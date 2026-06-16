@@ -309,6 +309,14 @@ interface SessionState {
   modalOpen?: boolean;
   totalInputTokens?: number;
   totalOutputTokens?: number;
+  /** Cached account info from /api/cli/usage (refreshed on launch + after login). */
+  account?: {
+    loggedIn: boolean;
+    plan: string;
+    remainingMl: number;
+    totalMl: number;
+    monthlyCapped?: boolean;
+  } | null;
 }
 
 // ─── ANSI ────────────────────────────────────────────────────────────────────
@@ -1048,8 +1056,14 @@ function renderMarkdown(text: string): string {
 function drawHeader(serverOnline: boolean, paired: boolean, config: CLIConfig, state?: SessionState): void {
   const w = termWidth();
   const titleText = gradientText('Apple Juice CLI', SUNSET_START, SUNSET_END);
-  const projectLabel = `${DIM}active project:${R} ${WHITE}${path.basename(process.cwd())}${R}`;
   const engineVersion = `${DIM}v2.1.0${R}`;
+
+  // Show the signed-in user + plan here instead of the (irrelevant) local
+  // working directory — the CLI connects to Roblox Studio, not a local project.
+  const acct = state?.account;
+  const identityLabel = acct && acct.loggedIn
+    ? `${DIM}signed in:${R} ${WHITE}${config.robloxUsername || 'Roblox User'}${R} ${DIM}·${R} ${BRAND_B}${planLabel(acct.plan)}${R}`
+    : `${DIM}not signed in ${R}${DIM}·${R} ${BRAND_B}/login${R}`;
 
   const serverStatus = serverOnline ? `\x1b[32m🟢 Server\x1b[0m` : `\x1b[31m🔴 Offline\x1b[0m`;
   const pairStatus = paired ? `\x1b[32m🟢 Paired\x1b[0m` : `\x1b[31m🔴 Unpaired\x1b[0m`;
@@ -1060,7 +1074,7 @@ function drawHeader(serverOnline: boolean, paired: boolean, config: CLIConfig, s
   const artifactStatus = hasPending ? `\x1b[38;2;230;126;34m[ ✦ ${count} Pending Artifact${count > 1 ? 's' : ''} ]\x1b[0m  ` : '';
   const rightPart = `${artifactStatus}${statusGroup} ${DIM}│${R} ${engineVersion}`;
 
-  const leftPart = `  ${BOLD}${titleText}${R}  │  ${projectLabel}`;
+  const leftPart = `  ${BOLD}${titleText}${R}  │  ${identityLabel}`;
   const gap = Math.max(1, w - stripAnsi(leftPart).length - stripAnsi(rightPart).length - 4);
 
   process.stdout.write(`\x1b[1;1H\x1b[2K${leftPart}${' '.repeat(gap)}${rightPart}\n`);
@@ -1084,7 +1098,11 @@ function drawWelcomeCard(state: SessionState): void {
   };
 
   const col1: string[] = [];
-  col1.push(padC(`${BOLD}Welcome back!${R}`, col1W));
+  const acct = state.account;
+  const greeting = acct && acct.loggedIn
+    ? `${BOLD}Welcome back, ${state.config.robloxUsername || 'creator'}!${R}`
+    : `${BOLD}Welcome to Apple Juice!${R}`;
+  col1.push(padC(greeting, col1W));
 
   const green = '\x1b[38;2;46;204;113m';
   const stem = '\x1b[38;2;139;69;19m';
@@ -1102,29 +1120,42 @@ function drawWelcomeCard(state: SessionState): void {
   }
   col1.push(padR('', col1W));
 
-  const provider = state.config.provider || 'openai';
-  const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
-  col1.push(padC(`${DIM}${providerLabel} (128K context)${R}`, col1W));
-  
-  const shortenedCwd = process.cwd().replace(os.homedir(), '~');
-  let pathText = shortenedCwd;
-  if (pathText.length > col1W) {
-    pathText = '…' + pathText.slice(-(col1W - 2));
+  // Account / subscription summary.
+  const usingCustomKey = !!state.config.openaiKey || !!state.config.googleKey || !!state.config.deepseekKey || !!state.config.openrouterKey;
+  if (usingCustomKey && state.config.provider) {
+    const providerLabel = state.config.provider.charAt(0).toUpperCase() + state.config.provider.slice(1);
+    col1.push(padC(`${DIM}Custom key:${R} ${WHITE}${providerLabel}${R}`, col1W));
+  } else if (acct && acct.loggedIn) {
+    col1.push(padC(`${BRAND_B}${planLabel(acct.plan)}${R} ${DIM}plan${R}`, col1W));
+    col1.push(padC(`${DIM}${Math.round(acct.remainingMl)}/${Math.round(acct.totalMl)} mL credits${R}`, col1W));
+  } else {
+    col1.push(padC(`${DIM}Not signed in —${R} ${BRAND_B}/login${R}`, col1W));
   }
-  col1.push(padC(`${DIM}${pathText}${R}`, col1W));
 
   const col2: string[] = [];
   col2.push(padR(`${BOLD}${WHITE}Getting Started${R}`, col2W));
   col2.push(padR(`Type any prompt to ask the AI.`, col2W));
   col2.push(padR(`Use / for TUI commands:`, col2W));
+  col2.push(padR(`  ${BRAND}/login${R}   Sign in with Roblox`, col2W));
   col2.push(padR(`  ${BRAND}/model${R}   Change AI Model`, col2W));
-  col2.push(padR(`  ${BRAND}/sync${R}    Push files to Studio`, col2W));
-  col2.push(padR(`  ${BRAND}/config${R}  View configuration`, col2W));
+  col2.push(padR(`  ${BRAND}/settings${R} Custom keys & models`, col2W));
   col2.push('---');
-  col2.push(padR(`${BOLD}${WHITE}What's new${R}`, col2W));
-  col2.push(padR(`Server: ${state.serverOnline ? `${BRIGHT_GREEN}Online${R} ${DIM}(port 3000)${R}` : `${BRIGHT_RED}Offline${R}`}`, col2W));
-  col2.push(padR(`Studio: ${state.paired ? `${BRIGHT_GREEN}Paired${R} ` : `${BRIGHT_YELLOW}Not paired${R}`}`, col2W));
-  col2.push(padR(`Type ${BRAND}/help${R} for all commands`, col2W));
+  if (acct && acct.loggedIn && !usingCustomKey) {
+    col2.push(padR(`${BOLD}${WHITE}Your models${R}`, col2W));
+    const models = modelsForPlan(acct.plan);
+    // Show up to 3 included models; summarize the rest.
+    for (const m of models.slice(0, 3)) {
+      col2.push(padR(`  ${BRIGHT_GREEN}•${R} ${m}`, col2W));
+    }
+    if (models.length > 3) {
+      col2.push(padR(`  ${DIM}+${models.length - 3} more — ${R}${BRAND}/model${R}`, col2W));
+    }
+  } else {
+    col2.push(padR(`${BOLD}${WHITE}Status${R}`, col2W));
+    col2.push(padR(`Studio: ${state.paired ? `${BRIGHT_GREEN}Paired${R} ` : `${BRIGHT_YELLOW}Not paired${R}`}`, col2W));
+    col2.push(padR(usingCustomKey ? `Using your own API key` : `Sign in for subscription models`, col2W));
+    col2.push(padR(`Type ${BRAND}/help${R} for all commands`, col2W));
+  }
 
   const maxLines = Math.max(col1.length, col2.length);
   while (col1.length < maxLines) col1.push(padR('', col1W));
@@ -1460,7 +1491,29 @@ function openBrowser(url: string): void {
 /** Pretty plan label. */
 function planLabel(plan?: string): string {
   if (!plan || plan === 'free') return 'Free';
+  if (plan === 'fresh_pro') return 'Fresh Pro';
+  if (plan === 'pure_ultra') return 'Pure Ultra';
+  if (plan === 'partner') return 'Partner';
   return plan.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+// Plan → included models (mirrors src/lib/kiro-models.ts tiers). Used to show
+// the user which subscription models they have access to on the home screen.
+const PLAN_RANK_CLI: Record<string, number> = { free: 0, partner: 1, fresh_pro: 2, pure_ultra: 3 };
+const CLI_MODELS: { label: string; tier: string }[] = [
+  { label: 'Claude Opus 4.8', tier: 'pure_ultra' },
+  { label: 'Claude Opus 4.7', tier: 'pure_ultra' },
+  { label: 'Claude Sonnet 4.6', tier: 'fresh_pro' },
+  { label: 'Claude Sonnet 4.5', tier: 'fresh_pro' },
+  { label: 'GLM-5', tier: 'fresh_pro' },
+  { label: 'MiniMax M2.5', tier: 'fresh_pro' },
+  { label: 'Auto', tier: 'free' },
+  { label: 'Claude Haiku 4.5', tier: 'free' },
+  { label: 'DeepSeek 3.2', tier: 'free' },
+];
+function modelsForPlan(plan?: string): string[] {
+  const rank = PLAN_RANK_CLI[plan || 'free'] ?? 0;
+  return CLI_MODELS.filter((m) => rank >= (PLAN_RANK_CLI[m.tier] ?? 0)).map((m) => m.label);
 }
 
 /**
@@ -3533,7 +3586,16 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     }
   }
 
-  const state: SessionState = { serverOnline, paired, history: [], config, pairingCode };
+  const state: SessionState = { serverOnline, paired, history: [], config, pairingCode, account: null };
+
+  // Load account/subscription info (non-blocking) so the home screen can show
+  // the user's plan + included models. Refreshed again after /login.
+  void fetchUsage(config).then((u) => {
+    if (u) {
+      state.account = u;
+      redrawScreen(state);
+    }
+  }).catch(() => {});
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -4619,7 +4681,10 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             return;
           }
           case 'login': {
-            await loginWithRoblox(state.config);
+            const ok = await loginWithRoblox(state.config);
+            if (ok) {
+              state.account = await fetchUsage(state.config);
+            }
             redrawScreen(state);
             rl.prompt();
             return;
@@ -4627,6 +4692,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
           case 'credits':
           case 'usage': {
             const usage = await fetchUsage(state.config);
+            state.account = usage;
             if (!usage || !usage.loggedIn) {
               state.infoMessage = `Not signed in. Run /login to link your Roblox account and use your subscription.`;
             } else {

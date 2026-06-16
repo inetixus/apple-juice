@@ -929,3 +929,31 @@ REMAINING (env/external):
   [ ] Real-browser HTTPS->loopback test (PNA/mixed-content) → TLS fallback if needed.
   [ ] Code-sign the exe; OS auto-start/login item; CI build for win/mac.
 ================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 10) — CLI login UX + home screen, auth redirect fix
+--------------------------------------------------------------------------------
+[x] BUGFIX (root cause of "CLI waits forever"): src/lib/auth.ts redirect callback
+    hard-coded /dashboard and discarded callbackUrl, so after Roblox sign-in the
+    user never returned to /cli-login?d=... and /approve never fired. Now honors
+    safe same-origin callbackUrl, falling back to /dashboard. (405 on /start was
+    a red herring — it's POST-only, route was deployed fine.)
+[x] CLI home screen redesign:
+      - Removed the "active project: <cwd>" label (irrelevant — CLI targets
+        Studio, not a local dir).
+      - Header shows signed-in username + plan (or "not signed in · /login").
+      - Welcome card: "Welcome back, <name>!", plan + mL credits, and the list
+        of subscription-included models (top 3 + "+N more"). Falls back to a
+        signed-out / custom-key view.
+      - When a custom API key is set, shows "Custom key: <provider>" instead of
+        subscription info (the toggle is /key + /settings, already present).
+[x] Account state cached in SessionState.account; loaded on launch (non-blocking)
+    and refreshed after /login and /credits. Login session persists via saveConfig
+    (sessionKey + robloxUsername in ~/.aj.json), so it survives restarts.
+[x] VERIFIED: CLI bundles clean (esbuild), app+runtime tsc clean earlier, 127/127.
+
+DEPLOY NOTE: the auth.ts redirect fix is server-side — must be deployed to
+apple-juice.online before /login completes end-to-end. CLI exe also needs a
+rebuild (build:cli) to ship the backendUrl + home-screen changes.
+================================================================================

@@ -1,5 +1,5 @@
 {
-  "sessionKey": "EKDYSI",
+  "sessionKey": "86797a77733d08aec4d35f96fdc4957a",
   "apiUrl": "http://localhost:3000",
   "isFirstRun": false,
   "extendedThinking": true,
@@ -14,5 +14,7 @@
   "chatbarStyle": "minimal",
   "buddyMuted": false,
   "verboseLogging": false,
-  "enableSoundEffects": true
+  "enableSoundEffects": true,
+  "robloxUserId": "3762792455",
+  "robloxUsername": "megaplayerboi10"
 }
