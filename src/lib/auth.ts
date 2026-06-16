@@ -125,7 +125,17 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async redirect({ baseUrl }) {
+    async redirect({ url, baseUrl }) {
+      // Honor a safe, same-origin callbackUrl so flows that need to return to a
+      // specific page work (e.g. CLI device login → /cli-login?d=...). Falls
+      // back to the dashboard for the normal sign-in case.
+      try {
+        if (url.startsWith("/")) return `${baseUrl}${url}`;
+        const u = new URL(url);
+        if (u.origin === baseUrl) return url;
+      } catch {
+        /* malformed url → fall through to default */
+      }
       return `${baseUrl}/dashboard`;
     },
   },
