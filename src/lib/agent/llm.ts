@@ -30,6 +30,9 @@ export type LlmMessage = {
   tool_call_id?: string;
   /** Optional label for tool messages (the tool name). */
   name?: string;
+  /** Optional image data URIs to attach (only honored on `user` messages).
+   *  Enables build-vision: the model literally sees a render of the build. */
+  images?: string[];
 };
 
 export type LlmToolSchema = {
@@ -94,6 +97,15 @@ function toWireMessages(messages: LlmMessage[]) {
           function: { name: tc.name, arguments: tc.arguments },
         })),
       };
+    }
+    // User message carrying image(s) → multimodal content-part array.
+    if (m.role === "user" && m.images && m.images.length > 0) {
+      const parts: any[] = [];
+      if (m.content) parts.push({ type: "text", text: m.content });
+      for (const url of m.images) {
+        parts.push({ type: "image_url", image_url: { url } });
+      }
+      return { role: "user", content: parts };
     }
     return { role: m.role, content: m.content ?? "" };
   });

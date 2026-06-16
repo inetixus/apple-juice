@@ -42,6 +42,23 @@ describe("validateGeneration — ordering", () => {
     const { scripts } = validateGeneration(input, { ensurePlaytest: false });
     expect(scripts.map((s) => s.name)).toEqual(["First", "Second"]);
   });
+
+  it("runs set_properties after all create actions so its target exists", () => {
+    const input: GenScript[] = [
+      { action: "set_properties", path: "Workspace.Tower.Base", properties: { Color: [255, 0, 0] } },
+      { action: "create", type: "Script", parent: "ServerScriptService", name: "Main", code: "print('m')" },
+      { action: "build_model", name: "Tower", parent: "Workspace", parts: [] },
+      { action: "create_instance", className: "Part", instanceName: "Base", parent: "Workspace.Tower" },
+    ];
+    const { scripts } = validateGeneration(input, { ensurePlaytest: false });
+    const setPropsIdx = scripts.findIndex((s) => s.action === "set_properties");
+    const lastCreateIdx = Math.max(
+      scripts.findIndex((s) => s.action === "build_model"),
+      scripts.findIndex((s) => s.action === "create_instance"),
+      scripts.findIndex((s) => s.action === "create" || s.action === undefined),
+    );
+    expect(setPropsIdx).toBeGreaterThan(lastCreateIdx);
+  });
 });
 
 describe("validateGeneration — print headers", () => {

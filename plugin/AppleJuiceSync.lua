@@ -482,6 +482,423 @@ local function resolvePath(pathStr)
 	return current
 end
 
+-- ─── 3D Property System ───────────────────────────────────────────────────────
+-- Decodes JSON-friendly property values into real Roblox datatypes so the AI
+-- can build 3D models (set Size/Position/CFrame/Color/Material/etc.). Values
+-- may arrive as plain JSON (arrays/numbers/strings/bools); we coerce them based
+-- on the property name and value shape. Also accepts an explicit tagged form:
+--   { __t = "Vector3", v = {4,1,2} }  for unambiguous typing.
+
+-- Property names whose array value is a Vector3 (3 numbers).
+local VECTOR3_PROPS = {
+	Size = true, Position = true, Orientation = true, Velocity = true,
+	RotVelocity = true, AssemblyLinearVelocity = true, AssemblyAngularVelocity = true,
+	Attachment0WorldPosition = true,
+}
+-- Property names whose array value is a Color3 (3 numbers 0-255 OR 0-1).
+local COLOR3_PROPS = {
+	Color = true, BrickColor = false, Color3 = true,
+}
+
+local function toNumberList(v)
+	if type(v) ~= "table" then return nil end
+	local out = {}
+	for i = 1, #v do
+		local n = tonumber(v[i])
+		if n == nil then return nil end
+		out[i] = n
+	end
+	return out
+end
+
+local function makeColor3(nums)
+	if not nums or #nums < 3 then return nil end
+	-- If any component > 1, assume 0-255 range.
+	local max = math.max(nums[1], nums[2], nums[3])
+	if max > 1.0001 then
+		return Color3.fromRGB(nums[1], nums[2], nums[3])
+	end
+	return Color3.new(nums[1], nums[2], nums[3])
+end
+
+local function makeCFrame(nums)
+	if not nums then return nil end
+	if #nums == 3 then
+		return CFrame.new(nums[1], nums[2], nums[3])
+	elseif #nums == 6 then
+		-- position + orientation (degrees, XYZ)
+		return CFrame.new(nums[1], nums[2], nums[3])
+			* CFrame.Angles(math.rad(nums[4]), math.rad(nums[5]), math.rad(nums[6]))
+	elseif #nums == 12 then
+		return CFrame.new(table.unpack(nums))
+	end
+	return nil
+end
+
+-- Coerce a single value for a given property name into a Roblox datatype.
+local function decodePropertyValue(propName, value)
+	-- Explicit tagged form takes priority.
+	if type(value) == "table" and value.__t then
+		local t = value.__t
+		local nums = toNumberList(value.v) or {}
+		if t == "Vector3" then return Vector3.new(nums[1] or 0, nums[2] or 0, nums[3] or 0) end
+		if t == "Vector2" then return Vector2.new(nums[1] or 0, nums[2] or 0) end
+		if t == "Color3" then return makeColor3(nums) end
+		if t == "CFrame" then return makeCFrame(nums) end
+		if t == "UDim2" then return UDim2.new(nums[1] or 0, nums[2] or 0, nums[3] or 0, nums[4] or 0) end
+		if t == "UDim" then return UDim.new(nums[1] or 0, nums[2] or 0) end
+		if t == "BrickColor" then return BrickColor.new(tostring(value.v)) end
+		if t == "Enum" then
+			local ok, e = pcall(function()
+				return Enum[value.enum][value.item]
+			end)
+			if ok then return e end
+		end
+		return value.v
+	end
+
+	-- Booleans / numbers pass straight through.
+	if type(value) == "boolean" or type(value) == "number" then
+		return value
+	end
+
+	if type(value) == "string" then
+		-- Material / Shape / etc. given as a string → resolve common enums by name.
+		if propName == "Material" then
+			local ok, e = pcall(function() return Enum.Material[value] end)
+			if ok then return e end
+		elseif propName == "Shape" then
+			local ok, e = pcall(function() return Enum.PartType[value] end)
+			if ok then return e end
+		elseif propName == "BrickColor" then
+			local ok, bc = pcall(function() return BrickColor.new(value) end)
+			if ok then return bc end
+		end
+		return value
+	end
+
+	if type(value) == "table" then
+		local nums = toNumberList(value)
+		if nums then
+			if VECTOR3_PROPS[propName] and #nums >= 3 then
+				return Vector3.new(nums[1], nums[2], nums[3])
+			end
+			if COLOR3_PROPS[propName] and #nums >= 3 then
+				return makeColor3(nums)
+			end
+			if propName == "CFrame" then
+				return makeCFrame(nums)
+			end
+			-- Heuristic fallbacks by length.
+			if #nums == 3 then return Vector3.new(nums[1], nums[2], nums[3]) end
+			if #nums == 2 then return Vector2.new(nums[1], nums[2]) end
+			if #nums == 4 then return UDim2.new(nums[1], nums[2], nums[3], nums[4]) end
+		end
+	end
+
+	return value
+end
+
+-- Apply a properties table to an instance, coercing each value. Returns the
+-- number of properties successfully set and a list of any that failed.
+local function applyProperties(inst, props)
+	if type(props) ~= "table" then return 0, {} end
+	local applied = 0
+	local failures = {}
+	for propName, rawValue in pairs(props) do
+		local decoded = decodePropertyValue(propName, rawValue)
+		local ok = pcall(function()
+			inst[propName] = decoded
+		end)
+		if ok then
+			applied += 1
+		else
+			table.insert(failures, propName)
+		end
+	end
+	return applied, failures
+end
+
+-- Build a complete Model from a structured spec in ONE operation. This is the
+-- efficient path for 3D builds: many parts + welds + grouping without a round
+-- trip per part. Spec shape:
+--   {
+--     name = "Tree",
+--     parent = "Workspace",
+--     parts = {
+--       { className="Part", name="Trunk", properties={...} },
+--       { className="Part", name="Leaves", properties={...} },
+--     },
+--     weld = true,            -- weld all parts to the first (primary)
+--     primaryPart = "Trunk",  -- optional; defaults to first part
+--   }
+local function buildModel(spec)
+	local parentPath = spec.parent or "Workspace"
+	local parentInstance = resolvePath(parentPath)
+	if not parentInstance then
+		return false, "Parent path '" .. tostring(parentPath) .. "' not found."
+	end
+
+	local model = Instance.new("Model")
+	model.Name = spec.name or "AIModel"
+
+	local createdParts = {}
+	local firstPart = nil
+	local primaryName = spec.primaryPart
+
+	local partList = spec.parts or {}
+	for _, partSpec in ipairs(partList) do
+		local className = partSpec.className or "Part"
+		local ok, part = pcall(function() return Instance.new(className) end)
+		if ok and part then
+			part.Name = partSpec.name or className
+			applyProperties(part, partSpec.properties or {})
+			part.Parent = model
+			createdParts[part.Name] = part
+			if not firstPart then firstPart = part end
+		end
+	end
+
+	-- Determine the primary part.
+	local primary = (primaryName and createdParts[primaryName]) or firstPart
+	if primary and primary:IsA("BasePart") then
+		model.PrimaryPart = primary
+	end
+
+	-- Weld everything to the primary so the model moves as one rigid body.
+	-- A WeldConstraint only rigidifies its parts when the FOLLOWER is unanchored;
+	-- the assembly's anchored state is then driven entirely by the primary. If we
+	-- anchored the followers too (e.g. mirroring an anchored primary) the welds
+	-- would be redundant, and a half-anchored mix can make the model jitter or
+	-- explode at runtime. So: the primary keeps whatever anchored state the spec
+	-- gave it, and every follower is forced unanchored and welded to it.
+	if spec.weld ~= false and primary and primary:IsA("BasePart") then
+		for _, part in pairs(createdParts) do
+			if part ~= primary and part:IsA("BasePart") then
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = primary
+				weld.Part1 = part
+				weld.Parent = primary
+				-- Follower is driven by the weld → must be unanchored. The primary's
+				-- Anchored property determines whether the whole assembly is fixed.
+				part.Anchored = false
+			end
+		end
+	end
+
+	model.Parent = parentInstance
+	return true, model
+end
+
+-- Collect renderable geometry from an instance subtree so the server can render
+-- an image of it for the AI to "see". Returns a flat list of part descriptors
+-- (world-space center, size, orientation in degrees, color). Bounded so a huge
+-- selection can't produce a massive payload.
+local MAX_INSPECT_PARTS = 400
+local function collectGeometry(root)
+	local parts = {}
+	local function visit(inst)
+		if #parts >= MAX_INSPECT_PARTS then return end
+		if inst:IsA("BasePart") then
+			local cf = inst.CFrame
+			local pos = cf.Position
+			local rx, ry, rz = cf:ToEulerAnglesXYZ()
+			local col = inst.Color
+			local entry = {
+				name = inst.Name,
+				className = inst.ClassName,
+				position = { pos.X, pos.Y, pos.Z },
+				size = { inst.Size.X, inst.Size.Y, inst.Size.Z },
+				orientation = { math.deg(rx), math.deg(ry), math.deg(rz) },
+				color = { math.floor(col.R * 255 + 0.5), math.floor(col.G * 255 + 0.5), math.floor(col.B * 255 + 0.5) },
+				transparency = inst.Transparency,
+				shape = (inst:IsA("Part") and tostring(inst.Shape)) or nil,
+				material = tostring(inst.Material),
+			}
+			table.insert(parts, entry)
+		end
+		for _, child in ipairs(inst:GetChildren()) do
+			visit(child)
+		end
+	end
+	visit(root)
+	return parts
+end
+
+-- Build a quick spatial summary the model can read even without the image:
+-- overall bounds, part count, and anything that looks off (floating / clipping).
+local function summarizeGeometry(parts)
+	if #parts == 0 then return "No parts found." end
+	local minY = math.huge
+	local minX, maxX, minZ, maxZ = math.huge, -math.huge, math.huge, -math.huge
+	for _, p in ipairs(parts) do
+		local halfY = p.size[2] / 2
+		local bottom = p.position[2] - halfY
+		if bottom < minY then minY = bottom end
+		if p.position[1] - p.size[1] / 2 < minX then minX = p.position[1] - p.size[1] / 2 end
+		if p.position[1] + p.size[1] / 2 > maxX then maxX = p.position[1] + p.size[1] / 2 end
+		if p.position[3] - p.size[3] / 2 < minZ then minZ = p.position[3] - p.size[3] / 2 end
+		if p.position[3] + p.size[3] / 2 > maxZ then maxZ = p.position[3] + p.size[3] / 2 end
+	end
+	local lines = {}
+	table.insert(lines, string.format("%d parts; footprint %.1f x %.1f studs; lowest point y=%.2f.", #parts, maxX - minX, maxZ - minZ, minY))
+	if minY > 0.6 then
+		table.insert(lines, string.format("⚠ Lowest part is %.2f studs above y=0 — the build may be floating off the ground.", minY))
+	elseif minY < -0.6 then
+		table.insert(lines, string.format("⚠ Lowest part is %.2f studs below y=0 — the build may be sunk into the ground.", minY))
+	end
+	return table.concat(lines, " ")
+end
+
+-- ─── Resilient Script Editing ──────────────────────────────────────────────────
+-- AI-generated search/replace edits frequently fail to apply because the search
+-- block differs from the real source in trivial ways: tabs vs spaces, trailing
+-- whitespace, CRLF vs LF, or extra blank lines. A plain gsub then matches zero
+-- times and the edit is silently dropped. These helpers add tolerance:
+--   1. exact match (fast path)
+--   2. line-trimmed match (ignores leading/trailing whitespace per line)
+--   3. whitespace-collapsed match (ignores all indentation differences)
+-- The replacement is re-indented to match the indentation of the matched block
+-- so the resulting source stays consistent.
+
+-- Normalize line endings and tabs so comparisons are stable.
+local function normalizeSource(s)
+	s = s:gsub("\r\n", "\n"):gsub("\r", "\n")
+	return s
+end
+
+-- Split a string into a list of lines (no trailing-newline surprises).
+local function splitLines(s)
+	local lines = {}
+	for line in (s .. "\n"):gmatch("(.-)\n") do
+		table.insert(lines, line)
+	end
+	-- gmatch above yields one extra empty entry from the appended newline; drop it.
+	if #lines > 0 and lines[#lines] == "" then
+		table.remove(lines, #lines)
+	end
+	return lines
+end
+
+local function trim(s)
+	return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+-- Capture the leading whitespace of a line.
+local function leadingWhitespace(line)
+	return line:match("^(%s*)") or ""
+end
+
+-- Try to locate `search` inside `source` (both already newline-normalized) and
+-- return the start and end byte offsets of the matched region, plus the
+-- indentation of the matched block's first line. Falls back through three
+-- increasingly lenient strategies. Returns nil when nothing matches.
+local function locateBlock(source, search)
+	if search == "" then return nil end
+
+	-- Strategy 1: exact substring.
+	local s, e = source:find(search, 1, true)
+	if s then
+		local lineStart = source:sub(1, s):match("([^\n]*)$") or ""
+		return s, e, leadingWhitespace(lineStart)
+	end
+
+	-- Prepare line-based matching for strategies 2 & 3.
+	local srcLines = splitLines(source)
+	local searchLines = splitLines(search)
+	if #searchLines == 0 then return nil end
+
+	-- Precompute byte offset of the start of each source line.
+	local lineOffsets = {}
+	do
+		local pos = 1
+		for i, line in ipairs(srcLines) do
+			lineOffsets[i] = pos
+			pos = pos + #line + 1 -- +1 for the newline
+		end
+	end
+
+	local function blockBytes(startLine, count)
+		local startByte = lineOffsets[startLine]
+		local endLineIdx = startLine + count - 1
+		local endByte = lineOffsets[endLineIdx] + #srcLines[endLineIdx] - 1
+		return startByte, endByte
+	end
+
+	-- Strategy 2: per-line trimmed equality.
+	local n = #searchLines
+	for i = 1, #srcLines - n + 1 do
+		local allMatch = true
+		for j = 1, n do
+			if trim(srcLines[i + j - 1]) ~= trim(searchLines[j]) then
+				allMatch = false
+				break
+			end
+		end
+		if allMatch then
+			local sB, eB = blockBytes(i, n)
+			return sB, eB, leadingWhitespace(srcLines[i])
+		end
+	end
+
+	-- Strategy 3: whitespace-collapsed equality (all runs of whitespace → single).
+	local function collapse(str) return (trim(str):gsub("%s+", " ")) end
+	for i = 1, #srcLines - n + 1 do
+		local allMatch = true
+		for j = 1, n do
+			if collapse(srcLines[i + j - 1]) ~= collapse(searchLines[j]) then
+				allMatch = false
+				break
+			end
+		end
+		if allMatch then
+			local sB, eB = blockBytes(i, n)
+			return sB, eB, leadingWhitespace(srcLines[i])
+		end
+	end
+
+	return nil
+end
+
+-- Re-indent a replacement block so its first line sits at `baseIndent` and the
+-- relative indentation of subsequent lines is preserved.
+local function reindentReplacement(replace, baseIndent)
+	local lines = splitLines(replace)
+	if #lines == 0 then return replace end
+	-- Find the minimum indentation across non-empty lines to use as the anchor.
+	local minIndent = nil
+	for _, line in ipairs(lines) do
+		if trim(line) ~= "" then
+			local indent = #leadingWhitespace(line)
+			if minIndent == nil or indent < minIndent then minIndent = indent end
+		end
+	end
+	minIndent = minIndent or 0
+	local out = {}
+	for _, line in ipairs(lines) do
+		if trim(line) == "" then
+			table.insert(out, "")
+		else
+			local stripped = line:sub(minIndent + 1)
+			table.insert(out, baseIndent .. stripped)
+		end
+	end
+	return table.concat(out, "\n")
+end
+
+-- Apply a single {search, replace} edit to source, returning newSource and a
+-- boolean indicating whether it matched. Tolerant of whitespace differences.
+local function applyResilientEdit(source, search, replace)
+	search = normalizeSource(search)
+	replace = normalizeSource(replace)
+	local s, e, baseIndent = locateBlock(source, search)
+	if not s then return source, false end
+	local adjustedReplace = reindentReplacement(replace, baseIndent or "")
+	local newSource = source:sub(1, s - 1) .. adjustedReplace .. source:sub(e + 1)
+	return newSource, true
+end
+
+
 local function injectSingleScript(scriptData)
 	local action = scriptData.action or "create"
 	local parentPath = scriptData.parent or "ServerScriptService"
@@ -549,21 +966,92 @@ local function injectSingleScript(scriptData)
 		end)
 		if ok and newInst then
 			newInst.Name = instanceName
+			-- Apply any 3D / visual properties (Size, Position, Color, Material…).
+			local appliedCount, failures = applyProperties(newInst, scriptData.properties or {})
 			newInst.Parent = parentInstance
-			
+
 			undoFn = function()
 				if newInst and newInst.Parent then newInst:Destroy() end
 			end
-			
-			if currentSessionKey then
-				reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully created " .. className .. " [" .. instanceName .. "]")
+
+			local detail = ""
+			if appliedCount > 0 then
+				detail = " (" .. appliedCount .. " properties set)"
 			end
-			return true, "Created " .. className .. " [" .. instanceName .. "] in " .. parentPath, undoFn
+			if #failures > 0 then
+				detail = detail .. " [skipped: " .. table.concat(failures, ", ") .. "]"
+			end
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully created " .. className .. " [" .. instanceName .. "]" .. detail)
+			end
+			return true, "Created " .. className .. " [" .. instanceName .. "] in " .. parentPath .. detail, undoFn
 		else
 			if currentSessionKey then
 				reportLog(currentSessionKey, "✖ [Roblox Studio] Failed to create instance " .. className .. ": " .. tostring(newInst))
 			end
 			return false, "Failed to create " .. className .. ": " .. tostring(newInst), nil
+		end
+	end
+
+	if action == "set_properties" then
+		-- Update properties on an EXISTING instance (move/recolor/resize/etc.).
+		local targetPath = scriptData.path or (parentPath .. "." .. scriptName)
+		local target = resolvePath(targetPath)
+		if not target then
+			target = parentInstance:FindFirstChild(scriptName)
+		end
+		if not target then
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✖ [Roblox Studio] set_properties: target '" .. tostring(targetPath) .. "' not found.")
+			end
+			return false, "Target '" .. tostring(targetPath) .. "' not found.", nil
+		end
+		-- Snapshot prior values for undo.
+		local priorValues = {}
+		for propName in pairs(scriptData.properties or {}) do
+			pcall(function() priorValues[propName] = target[propName] end)
+		end
+		local appliedCount, failures = applyProperties(target, scriptData.properties or {})
+		undoFn = function()
+			for propName, oldVal in pairs(priorValues) do
+				pcall(function() target[propName] = oldVal end)
+			end
+		end
+		local detail = appliedCount .. " properties set"
+		if #failures > 0 then detail = detail .. " [skipped: " .. table.concat(failures, ", ") .. "]" end
+		if currentSessionKey then
+			reportLog(currentSessionKey, "🎨 [Roblox Studio] Updated " .. target.Name .. " — " .. detail)
+		end
+		return true, "Updated " .. target.Name .. " (" .. detail .. ")", undoFn
+	end
+
+	if action == "build_model" then
+		-- Build a whole multi-part 3D model in one shot.
+		if currentSessionKey then
+			reportLog(currentSessionKey, "🧱 [Roblox Studio] Building model '" .. tostring(scriptData.name or "AIModel") .. "'...")
+		end
+		local ok, modelOrErr = buildModel({
+			name = scriptData.name,
+			parent = scriptData.parent or "Workspace",
+			parts = scriptData.parts,
+			weld = scriptData.weld,
+			primaryPart = scriptData.primaryPart,
+		})
+		if ok then
+			local model = modelOrErr
+			undoFn = function()
+				if model and model.Parent then model:Destroy() end
+			end
+			local partCount = scriptData.parts and #scriptData.parts or 0
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✓ [Roblox Studio] Built model '" .. model.Name .. "' (" .. partCount .. " parts)")
+			end
+			return true, "Built model '" .. model.Name .. "' with " .. partCount .. " parts.", undoFn
+		else
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✖ [Roblox Studio] Build failed: " .. tostring(modelOrErr))
+			end
+			return false, "Build failed: " .. tostring(modelOrErr), nil
 		end
 	end
 
@@ -663,20 +1151,22 @@ local function injectSingleScript(scriptData)
 		end
 
 		if target and target:IsA("LuaSourceContainer") then
-			local oldSource = target.Source
+			local oldSource = normalizeSource(target.Source)
 			local newSource = oldSource
 			local successCount = 0
-			
+			local failedBlocks = {}
+
 			if scriptData.edits and type(scriptData.edits) == "table" then
-				for _, edit in ipairs(scriptData.edits) do
+				for idx, edit in ipairs(scriptData.edits) do
 					local search = edit.search or ""
 					local replace = edit.replace or ""
 					if search ~= "" then
-						local escapedSearch = search:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%1")
-						local replaced, count = newSource:gsub(escapedSearch, replace:gsub("%%", "%%%%"))
-						if count > 0 then
-							newSource = replaced
+						local result, matched = applyResilientEdit(newSource, search, replace)
+						if matched then
+							newSource = result
 							successCount += 1
+						else
+							table.insert(failedBlocks, "#" .. idx)
 						end
 					end
 				end
@@ -685,10 +1175,14 @@ local function injectSingleScript(scriptData)
 			if successCount > 0 then
 				target.Source = newSource
 				undoFn = function() target.Source = oldSource end
-				if currentSessionKey then
-					reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully modified " .. scriptName .. " (" .. successCount .. " replacements)")
+				local detail = successCount .. " replacements"
+				if #failedBlocks > 0 then
+					detail = detail .. ", " .. #failedBlocks .. " unmatched (" .. table.concat(failedBlocks, ", ") .. ")"
 				end
-				return true, "Edited " .. scriptName .. " (" .. successCount .. " replacements)", undoFn
+				if currentSessionKey then
+					reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully modified " .. scriptName .. " (" .. detail .. ")")
+				end
+				return true, "Edited " .. scriptName .. " (" .. detail .. ")", undoFn
 			else
 				if currentSessionKey then
 					reportLog(currentSessionKey, "✖ [Roblox Studio] Modification failed: search blocks not found in " .. scriptName)
@@ -1126,6 +1620,411 @@ local function readScriptByPath(fullPath)
 	return false, nil
 end
 
+-- ─── Tool-parity helpers (Phase 3): search, grep, inspect ──────────────────────
+-- Mirror the OFFICIAL Roblox Studio MCP tool surface (script_search, script_grep,
+-- inspect_instance) so the agent can explore an unfamiliar project the way it
+-- does with the official server. Bounds mirror the official limits.
+
+-- Enumerate every LuaSourceContainer in the project (across the main services),
+-- returning { inst, path } records. Bounded so a huge place can't blow memory.
+local SCRIPT_SCAN_SERVICES = {
+	"Workspace", "ReplicatedFirst", "ReplicatedStorage",
+	"ServerScriptService", "ServerStorage", "StarterGui",
+	"StarterPack", "StarterPlayer", "SoundService", "Lighting",
+}
+local MAX_SCANNED_SCRIPTS = 4000
+
+local function collectAllScripts()
+	local out = {}
+	for _, sName in ipairs(SCRIPT_SCAN_SERVICES) do
+		local ok, root = pcall(function() return game:GetService(sName) end)
+		if ok and root then
+			for _, desc in ipairs(root:GetDescendants()) do
+				if desc:IsA("LuaSourceContainer") then
+					table.insert(out, { inst = desc, path = desc:GetFullName() })
+					if #out >= MAX_SCANNED_SCRIPTS then return out end
+				end
+			end
+		end
+	end
+	return out
+end
+
+-- Fuzzy-ish name search: case-insensitive substring match on the script name,
+-- returns up to `limit` dotted paths (official: <=10).
+local function scriptSearch(query, limit)
+	limit = limit or 10
+	query = string.lower(tostring(query or ""))
+	local results = {}
+	if query == "" then return results end
+	for _, rec in ipairs(collectAllScripts()) do
+		if string.find(string.lower(rec.inst.Name), query, 1, true) then
+			table.insert(results, rec.path .. " [" .. rec.inst.ClassName .. "]")
+			if #results >= limit then break end
+		end
+	end
+	return results
+end
+
+-- Content search across all script sources. Returns up to `limit` matches
+-- (official: <=50). Each match includes a small CONTEXT WINDOW (lines around
+-- the hit) so the model sees the surrounding code topography and can write a
+-- correct multi_edit on the first try, instead of just a bare line.
+local GREP_CONTEXT_LINES = 2
+local function scriptGrep(pattern, limit)
+	limit = limit or 50
+	pattern = string.lower(tostring(pattern or ""))
+	local blocks = {}
+	local total = 0
+	if pattern == "" then return blocks end
+	for _, rec in ipairs(collectAllScripts()) do
+		local ok, src = pcall(function() return rec.inst.Source end)
+		if ok and src then
+			-- Split into an indexed line array once per script.
+			local lines = {}
+			for line in (src .. "\n"):gmatch("(.-)\n") do
+				table.insert(lines, line)
+			end
+			for i = 1, #lines do
+				if string.find(string.lower(lines[i]), pattern, 1, true) then
+					local from = math.max(1, i - GREP_CONTEXT_LINES)
+					local to = math.min(#lines, i + GREP_CONTEXT_LINES)
+					local ctx = {}
+					table.insert(ctx, rec.path .. ":" .. i)
+					for n = from, to do
+						local marker = (n == i) and "→ " or "  "
+						local text = lines[n]
+						if #text > 200 then text = text:sub(1, 200) .. "…" end
+						table.insert(ctx, string.format("%s%d| %s", marker, n, text))
+					end
+					table.insert(blocks, table.concat(ctx, "\n"))
+					total += 1
+					if total >= limit then return blocks end
+				end
+			end
+		end
+	end
+	return blocks
+end
+
+-- Detailed inspection of a single instance: readable properties, attributes,
+-- and a child summary. Mirrors the official inspect_instance.
+local INSPECT_PROP_NAMES = {
+	"Name", "ClassName", "Parent", "Archivable",
+	-- BasePart-ish
+	"Anchored", "CanCollide", "Material", "Transparency", "Color", "BrickColor",
+	"Size", "Position", "Orientation", "CFrame", "Shape",
+	-- GUI-ish
+	"Visible", "Enabled", "Text", "Active", "ZIndex", "BackgroundColor3",
+	-- Misc commonly-useful
+	"Value", "Disabled", "PrimaryPart",
+}
+
+local function inspectInstance(fullPath)
+	local target = resolvePath(fullPath)
+	if not target then
+		return false, nil, "Instance '" .. tostring(fullPath) .. "' not found."
+	end
+
+	local props = {}
+	for _, propName in ipairs(INSPECT_PROP_NAMES) do
+		local ok, val = pcall(function() return target[propName] end)
+		if ok and val ~= nil then
+			-- Stringify datatypes the JSON encoder can't take directly.
+			local t = typeof(val)
+			if t == "Instance" then
+				props[propName] = val:GetFullName()
+			elseif t == "EnumItem" then
+				props[propName] = tostring(val)
+			elseif t == "Vector3" then
+				props[propName] = { val.X, val.Y, val.Z }
+			elseif t == "Color3" then
+				props[propName] = {
+					math.floor(val.R * 255 + 0.5),
+					math.floor(val.G * 255 + 0.5),
+					math.floor(val.B * 255 + 0.5),
+				}
+			elseif t == "string" or t == "number" or t == "boolean" then
+				props[propName] = val
+			else
+				props[propName] = tostring(val)
+			end
+		end
+	end
+
+	-- Custom attributes.
+	local attributes = {}
+	local okAttr, attrMap = pcall(function() return target:GetAttributes() end)
+	if okAttr and attrMap then
+		for k, v in pairs(attrMap) do
+			local t = typeof(v)
+			attributes[k] = (t == "string" or t == "number" or t == "boolean") and v or tostring(v)
+		end
+	end
+
+	-- Child summary (names + classes), bounded.
+	local children = {}
+	local childCount = 0
+	for _, child in ipairs(target:GetChildren()) do
+		childCount += 1
+		if childCount <= 50 then
+			table.insert(children, child.Name .. " [" .. child.ClassName .. "]")
+		end
+	end
+
+	local descendantCount = 0
+	pcall(function() descendantCount = #target:GetDescendants() end)
+
+	local payload = HttpService:JSONEncode({
+		path = target:GetFullName(),
+		className = target.ClassName,
+		properties = props,
+		attributes = attributes,
+		childCount = childCount,
+		descendantCount = descendantCount,
+		children = children,
+	})
+	return true, payload
+end
+
+-- ─── Split playtest controls (Phase 3): start / stop / console ─────────────────
+-- Mirror the official start_stop_play + console_output. Unlike studio_run_playtest
+-- (fixed ~6s blocking run), these let the AGENT control timing: start the run,
+-- poll console_output while it runs, then stop — enabling an interactive debug
+-- loop. They reuse the existing testErrors/testWarnings buffers, which the
+-- LogService.MessageOut hook fills while isAutoTesting is true.
+
+local function startPlaytestSession(sessionKey)
+	if RunService:IsRunMode() or isAutoTesting then
+		return false, "A playtest is already running. Stop it first."
+	end
+	currentPlaytestId += 1
+	isAutoTesting = true
+	testErrors = {}
+	testWarnings = {}
+	local ok = pcall(function() RunService:Run() end)
+	if not ok then
+		isAutoTesting = false
+		return false, "Could not start playtest (RunService:Run failed)."
+	end
+	setStatus("Playtest running (agent-controlled)...", "waiting")
+	return true, "Playtest started. Use console_output to read logs while it runs, then stop_playtest."
+end
+
+local function stopPlaytestSession()
+	isAutoTesting = false
+	currentPlaytestId += 1 -- invalidate any auto-test loop watching the old id
+	pcall(function()
+		if RunService:IsRunMode() then RunService:Stop() end
+	end)
+	setStatus("Playtest stopped.", "info")
+	local errCount = #testErrors
+	if errCount == 0 then
+		return true, "Playtest stopped. No errors captured."
+	end
+	return true, "Playtest stopped. " .. errCount .. " error(s) captured — call console_output for details."
+end
+
+-- Return the captured console output so far (errors + warnings), newest-last.
+local function consoleOutput()
+	local lines = {}
+	for _, e in ipairs(testErrors) do
+		table.insert(lines, "[ERROR] " .. tostring(e.message))
+	end
+	for _, w in ipairs(testWarnings) do
+		table.insert(lines, "[WARN] " .. tostring(w.message))
+	end
+	local state = (RunService:IsRunMode() or isAutoTesting) and "running" or "stopped"
+	if #lines == 0 then
+		return "Playtest " .. state .. ". No errors or warnings captured yet."
+	end
+	return "Playtest " .. state .. " — " .. #lines .. " line(s):\n" .. table.concat(lines, "\n")
+end
+
+-- Build a STRUCTURED JSON summary of captured errors/warnings so the agent's FIX
+-- loop can target the right file+line directly (instead of re-parsing flat text).
+-- Reuses parseErrorDetails for script/line/message extraction.
+local function buildStructuredPlaytest(passed, state)
+	local errors = {}
+	for _, e in ipairs(testErrors) do
+		local p = parseErrorDetails(e.message)
+		table.insert(errors, {
+			scriptName = p.scriptName,
+			scriptPath = p.scriptPath,
+			line = p.lineNumber,
+			message = p.errorText,
+			raw = p.rawMessage,
+		})
+	end
+	local warnings = {}
+	for _, w in ipairs(testWarnings) do
+		table.insert(warnings, tostring(w.message))
+	end
+	return HttpService:JSONEncode({
+		passed = passed,
+		state = state,
+		errorCount = #errors,
+		warningCount = #warnings,
+		errors = errors,
+		warnings = warnings,
+	})
+end
+
+-- multi_edit: apply an ordered list of resilient search/replace edits to a
+-- script, creating it if it doesn't exist (mirrors official multi_edit). Reuses
+-- the same applyResilientEdit + injectSingleScript paths as edit_script/create.
+local function multiEditScript(sessionKey, scriptArgs)
+	local pathStr = scriptArgs.path or scriptArgs.name or ""
+	local edits = scriptArgs.edits
+	if type(edits) ~= "table" or #edits == 0 then
+		return false, "multi_edit requires a non-empty 'edits' array."
+	end
+
+	-- Locate the target script (by dotted path, then by leaf-name fallback).
+	local target = resolvePath(pathStr)
+	if not (target and target:IsA("LuaSourceContainer")) then
+		local parts = string.split(pathStr, ".")
+		local leaf = parts[#parts]
+		local locations = {
+			game:GetService("ServerScriptService"),
+			game:GetService("ReplicatedStorage"),
+			game:GetService("StarterGui"),
+			game:GetService("Workspace"),
+		}
+		for _, loc in ipairs(locations) do
+			local found = loc:FindFirstChild(leaf, true)
+			if found and found:IsA("LuaSourceContainer") then
+				target = found
+				break
+			end
+		end
+	end
+
+	-- If the script doesn't exist, create it from the edits' replacement text
+	-- (official multi_edit creates a new script when the path is missing).
+	if not (target and target:IsA("LuaSourceContainer")) then
+		local seed = {}
+		for _, e in ipairs(edits) do
+			if e.replace and e.replace ~= "" then table.insert(seed, e.replace) end
+		end
+		local parts = string.split(pathStr, ".")
+		local newName = parts[#parts] or "NewScript"
+		local parentPath = "ServerScriptService"
+		if #parts > 1 then
+			parentPath = table.concat(parts, ".", 1, #parts - 1)
+		end
+		local ok, msg, uFn = injectSingleScript({
+			action = "create",
+			parent = parentPath,
+			name = newName,
+			type = scriptArgs.type or "Script",
+			code = table.concat(seed, "\n"),
+		})
+		if ok then
+			return true, "Created " .. newName .. " (multi_edit on a new script)", uFn
+		end
+		return false, msg
+	end
+
+	-- Apply edits in order using the resilient matcher.
+	local oldSource = normalizeSource(target.Source)
+	local newSource = oldSource
+	local successCount = 0
+	local failed = {}
+	for idx, edit in ipairs(edits) do
+		local search = edit.search or ""
+		local replace = edit.replace or ""
+		if search == "" then
+			-- Empty search = append (insert) the replacement at end of file.
+			newSource = newSource .. "\n" .. replace
+			successCount += 1
+		else
+			local result, matched = applyResilientEdit(newSource, search, replace)
+			if matched then
+				newSource = result
+				successCount += 1
+			else
+				table.insert(failed, "#" .. idx)
+			end
+		end
+	end
+
+	if successCount > 0 then
+		target.Source = newSource
+		local uFn = function() target.Source = oldSource end
+		local detail = successCount .. " edit(s)"
+		if #failed > 0 then
+			detail = detail .. ", " .. #failed .. " unmatched (" .. table.concat(failed, ", ") .. ")"
+		end
+		return true, "multi_edit applied to " .. target.Name .. " (" .. detail .. ")", uFn
+	end
+	return false, "multi_edit: no search blocks matched in " .. target.Name
+
+end
+
+-- search_game_tree: explore the instance hierarchy as a filtered flat list.
+-- Supports rootPath (where to start), instanceType (ClassName/IsA filter),
+-- keyword (name substring), and depth. Mirrors the official search_game_tree.
+local function searchGameTree(args)
+	local rootPath = args.path or args.rootPath
+	local instanceType = args.instanceType or args.instance_type
+	local keyword = args.keyword and string.lower(tostring(args.keyword)) or nil
+	local depth = tonumber(args.depth) or 3
+	if depth < 1 then depth = 1 end
+	if depth > 10 then depth = 10 end
+
+	-- Resolve the starting root(s).
+	local roots = {}
+	if rootPath and rootPath ~= "" then
+		local r = resolvePath(rootPath)
+		if not r then
+			return false, "search_game_tree: root '" .. tostring(rootPath) .. "' not found."
+		end
+		table.insert(roots, { inst = r, path = rootPath })
+	else
+		for _, sName in ipairs(SCRIPT_SCAN_SERVICES) do
+			local ok, svc = pcall(function() return game:GetService(sName) end)
+			if ok and svc then table.insert(roots, { inst = svc, path = svc.Name }) end
+		end
+	end
+
+	local MAX_RESULTS = 500
+	local results = {}
+	local function matches(inst)
+		if instanceType and instanceType ~= "" then
+			local okIsA = pcall(function() return inst:IsA(instanceType) end)
+			if not (okIsA and inst:IsA(instanceType)) then return false end
+		end
+		if keyword and not string.find(string.lower(inst.Name), keyword, 1, true) then
+			return false
+		end
+		return true
+	end
+
+	local function walk(inst, pathStr, curDepth)
+		if curDepth > depth or #results >= MAX_RESULTS then return end
+		for _, child in ipairs(inst:GetChildren()) do
+			if #results >= MAX_RESULTS then return end
+			local childPath = pathStr .. "." .. child.Name
+			-- When NO filter is set, list everything (plain tree). With filters,
+			-- only emit matching nodes but still recurse to find deeper matches.
+			if (not instanceType and not keyword) or matches(child) then
+				table.insert(results, childPath .. " [" .. child.ClassName .. "]")
+			end
+			walk(child, childPath, curDepth + 1)
+		end
+	end
+
+	for _, root in ipairs(roots) do
+		walk(root.inst, root.path, 1)
+	end
+
+	if #results == 0 then
+		return true, "No instances matched the search_game_tree filters."
+	end
+	return true, table.concat(results, "\n")
+end
+
 local function executeMcpCommand(sessionKey, command)
 	local tool = command.tool
 	local args = command.args or {}
@@ -1155,9 +2054,50 @@ local function executeMcpCommand(sessionKey, command)
 			parent = args.parent,
 			className = args.className,
 			instanceName = args.instanceName,
+			properties = args.properties,
 		})
 		if ok then return true, msg end
 		return false, nil, msg
+
+	elseif tool == "studio_set_properties" then
+		local ok, msg = injectSingleScript({
+			action = "set_properties",
+			path = args.path,
+			parent = args.parent,
+			name = args.name,
+			properties = args.properties,
+		})
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_build_model" then
+		local ok, msg = injectSingleScript({
+			action = "build_model",
+			name = args.name,
+			parent = args.parent,
+			parts = args.parts,
+			weld = args.weld,
+			primaryPart = args.primaryPart,
+		})
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_inspect_build" then
+		-- Return the geometry of an instance so the server can render an image
+		-- of it (and so the model gets a spatial summary even without vision).
+		local targetPath = args.path or "Workspace"
+		local target = resolvePath(targetPath)
+		if not target then
+			return false, nil, "Inspect target '" .. tostring(targetPath) .. "' not found."
+		end
+		local geometry = collectGeometry(target)
+		local summary = summarizeGeometry(geometry)
+		local payload = HttpService:JSONEncode({
+			path = targetPath,
+			summary = summary,
+			parts = geometry,
+		})
+		return true, payload
 
 	elseif tool == "studio_delete" then
 		local ok, msg = injectSingleScript({
@@ -1196,14 +2136,61 @@ local function executeMcpCommand(sessionKey, command)
 			task.wait(0.5)
 			waited += 0.5
 		end
-		local errs = {}
-		for _, e in ipairs(testErrors) do
-			table.insert(errs, e.message)
+		-- Return STRUCTURED JSON so the agent's FIX loop gets script+line+message
+		-- directly. (studio-bridge parses JSON, with a text fallback.)
+		local passed = #testErrors == 0
+		return true, buildStructuredPlaytest(passed, "stopped")
+
+	elseif tool == "studio_script_search" then
+		local results = scriptSearch(args.query, tonumber(args.limit) or 10)
+		if #results == 0 then
+			return true, "No scripts matched '" .. tostring(args.query) .. "'."
 		end
-		if #errs == 0 then
-			return true, "Playtest passed with no errors."
+		return true, table.concat(results, "\n")
+
+	elseif tool == "studio_script_grep" then
+		local matches = scriptGrep(args.pattern or args.query, tonumber(args.limit) or 50)
+		if #matches == 0 then
+			return true, "No matches for '" .. tostring(args.pattern or args.query) .. "'."
 		end
-		return true, "Playtest found " .. #errs .. " error(s):\n" .. table.concat(errs, "\n")
+		-- Blank line between match blocks (each block is path:line + context window).
+		return true, #matches .. " match(es) (→ marks the hit line):\n\n" .. table.concat(matches, "\n\n")
+
+	elseif tool == "studio_inspect_instance" then
+		local ok, payload, err = inspectInstance(args.path or "")
+		if ok then return true, payload end
+		return false, nil, err
+
+	elseif tool == "studio_search_game_tree" then
+		local ok, payload = searchGameTree(args)
+		if ok then return true, payload end
+		return false, nil, payload
+
+	elseif tool == "studio_multi_edit" then
+		local ok, msg = multiEditScript(sessionKey, args)
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_start_playtest" then
+		local ok, msg = startPlaytestSession(sessionKey)
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_stop_playtest" then
+		local ok, msg = stopPlaytestSession()
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_console_output" then
+		local state = (RunService:IsRunMode() or isAutoTesting) and "running" or "stopped"
+		return true, buildStructuredPlaytest(#testErrors == 0, state)
+
+	elseif tool == "studio_execute_luau" then
+		-- Disabled on the marketplace plugin (web/RemoteTransport) for safety &
+		-- compliance. The local Runtime/CLI path uses Roblox's OFFICIAL Studio
+		-- MCP, which provides execute_luau natively under Roblox's own safety
+		-- model — so this branch should never be reached on the local path.
+		return false, nil, "execute_luau is disabled on the Apple Juice plugin. Use the local Apple Juice Runtime (official Roblox Studio MCP) for arbitrary Luau execution."
 
 	elseif tool == "studio_get_logs" then
 		local logs = {}
@@ -1240,8 +2227,11 @@ local function reportMcpResult(sessionKey, requestId, ok, data, err)
 	end)
 end
 
-local function pollMcpCommand(sessionKey)
+local function pollMcpCommand(sessionKey, waitMs)
 	local url = MCP_NEXT_ENDPOINT .. "?key=" .. HttpService:UrlEncode(sessionKey)
+	if waitMs and waitMs > 0 then
+		url = url .. "&wait=" .. tostring(math.floor(waitMs))
+	end
 	local ok, response = pcall(function()
 		return HttpService:RequestAsync({ Url = url, Method = "GET", Headers = { ["Accept"] = "application/json" } })
 	end)
@@ -1249,6 +2239,43 @@ local function pollMcpCommand(sessionKey)
 	local decodeOk, data = pcall(function() return HttpService:JSONDecode(response.Body) end)
 	if not decodeOk or not data.command then return nil end
 	return data.command
+end
+
+-- Dedicated MCP long-poll loop. Runs in its OWN thread so a held request (up to
+-- ~20s) never blocks the main poll loop's tree reporting / connection watchdog.
+-- After executing a command it immediately re-polls (the official-plugin trick)
+-- so a burst of agent tool calls lands back-to-back with no idle gap.
+local MCP_LONGPOLL_MS = 20000
+local mcpLoopStarted = false
+local mcpBusy = false
+local function mcpPollLoop(sessionKey)
+	while running and not unloading do
+		if mcpBusy then
+			-- A command is executing (e.g. a 6s playtest); don't pull another.
+			task.wait(0.1)
+		else
+			local mcpCmd = pollMcpCommand(sessionKey, MCP_LONGPOLL_MS)
+			if mcpCmd then
+				mcpBusy = true
+				task.spawn(function()
+					local ranOk, rok, rdata, rerr = pcall(executeMcpCommand, sessionKey, mcpCmd)
+					if ranOk then
+						reportMcpResult(sessionKey, mcpCmd.requestId, rok, rdata, rerr)
+					else
+						reportMcpResult(sessionKey, mcpCmd.requestId, false, nil, tostring(rok))
+					end
+					mcpBusy = false
+				end)
+				-- Immediately loop to re-poll; the busy guard above paces us.
+			else
+				-- Held request returned empty (no work within the hold window).
+				-- Loop straight back into another held request; tiny yield keeps
+				-- the scheduler happy without adding perceptible latency.
+				task.wait(0.05)
+			end
+		end
+	end
+	mcpLoopStarted = false
 end
 
 -- ─── Polling ──────────────────────────────────────────────────────────────────
@@ -1286,24 +2313,13 @@ local function pollLoop(sessionKey)
 		-- Report tree on every poll if it changed. Force a report every 60 polls (~30s) to prevent cache expiry.
 		reportTree(sessionKey, pollTicks % 60 == 1)
 
-		-- MCP bridge: pull and execute any pending interactive tool command.
-		-- Run it in a separate thread so a long-running command (e.g. a 6s
-		-- playtest) doesn't block the main poll loop and trip the connection
-		-- watchdog. Only one MCP command in flight at a time.
-		if not mcpBusy then
-			local mcpCmd = pollMcpCommand(sessionKey)
-			if mcpCmd then
-				mcpBusy = true
-				task.spawn(function()
-					local ranOk, rok, rdata, rerr = pcall(executeMcpCommand, sessionKey, mcpCmd)
-					if ranOk then
-						reportMcpResult(sessionKey, mcpCmd.requestId, rok, rdata, rerr)
-					else
-						reportMcpResult(sessionKey, mcpCmd.requestId, false, nil, tostring(rok))
-					end
-					mcpBusy = false
-				end)
-			end
+		-- MCP bridge: a dedicated long-poll loop (started once) pulls and executes
+		-- interactive tool commands in its own thread, so a held request or a
+		-- long-running command (e.g. a 6s playtest) never blocks this main poll
+		-- loop's tree reporting or the connection watchdog.
+		if not mcpLoopStarted then
+			mcpLoopStarted = true
+			task.spawn(function() mcpPollLoop(sessionKey) end)
 		end
 
 		local ok, data, err = requestPoll(sessionKey)

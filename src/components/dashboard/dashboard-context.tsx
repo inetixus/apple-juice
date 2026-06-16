@@ -131,6 +131,8 @@ export interface DashboardContextType {
   setActiveBottomPanel: Dispatch<SetStateAction<"terminal" | "logs" | "problems" | "none">>;
   agentMode: "plan" | "build";
   setAgentMode: Dispatch<SetStateAction<"plan" | "build">>;
+  buildMode: boolean;
+  setBuildMode: Dispatch<SetStateAction<boolean>>;
   savedAssets: SavedAsset[];
   setSavedAssets: Dispatch<SetStateAction<SavedAsset[]>>;
   isEditingAsset: number | null;

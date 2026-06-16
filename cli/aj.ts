@@ -15,6 +15,8 @@ import Enquirer from 'enquirer';
 import { spawn } from 'child_process';
 import http from 'http';
 import { gradientText, SUNSET_START, SUNSET_END } from './utils/ansi.ts';
+import { runLocalMcpAgent, localMcpReady, kiroCliAvailable, extractMcpSummary } from './utils/local-mcp-agent.ts';
+import { officialStudioMcpInstalled, STUDIO_MCP_HELP } from './utils/roblox-mcp.ts';
 import * as Diff from 'diff';
 import https from 'https';
 import { fileURLToPath } from 'url';
@@ -84,6 +86,23 @@ async function customFetch(url: string, options: any = {}): Promise<any> {
 
 // Shadow global fetch to avoid experimental fetch warning and pkg Node 18 compatibility crash
 const fetch = customFetch;
+
+/**
+ * The REAL Apple Juice backend (deployed site / VPS). Account features — Roblox
+ * login, subscription, and credit balance — only exist here, NOT in the CLI's
+ * local lightweight server (which is an offline shim with no auth/billing). So
+ * auth + usage calls must always target production, regardless of config.apiUrl
+ * (which may point at the local shim on :3000). Override with AJ_BACKEND_URL.
+ */
+const PROD_BACKEND_URL = (process.env.AJ_BACKEND_URL || 'https://apple-juice.online').replace(/\/$/, '');
+
+/** Resolve the backend base for account/auth/usage calls (always production). */
+function backendUrl(config: CLIConfig): string {
+  const u = config.apiUrl || '';
+  // If apiUrl points at a real remote host, honor it; otherwise use production.
+  if (/^https?:\/\/(?!localhost|127\.0\.0\.1)/i.test(u)) return u.replace(/\/$/, '');
+  return PROD_BACKEND_URL;
+}
 
 /**
  * Stream an SSE chat response (used for TRUE MCP mode). The server's /api/chat
@@ -252,6 +271,19 @@ interface CLIConfig {
    * the bridge. Changes are applied directly in Studio (no artifact/diff flow).
    */
   mcpMode?: boolean;
+  /**
+   * Local MCP transport preference for MCP mode:
+   *   'auto'   — use the official local Roblox Studio MCP when available
+   *              (Studio MCP binary + kiro-cli present), else the remote bridge.
+   *   'local'  — force the official local Studio MCP (BloxBot-style).
+   *   'remote' — always use the remote VPS bridge.
+   * Defaults to 'auto'.
+   */
+  mcpTransport?: 'auto' | 'local' | 'remote';
+  /** Roblox account linked via `aj login` (device flow). When set, generations
+   *  bill against this user's subscription/credits. */
+  robloxUserId?: string;
+  robloxUsername?: string;
 }
 
 interface SyncStep {
@@ -1412,6 +1444,109 @@ async function generateAuthCode(): Promise<string> {
   return code;
 }
 
+/** Open a URL in the user's default browser (cross-platform, best-effort). */
+function openBrowser(url: string): void {
+  try {
+    if (process.platform === 'win32') {
+      spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+    } else if (process.platform === 'darwin') {
+      spawn('open', [url], { detached: true, stdio: 'ignore' }).unref();
+    } else {
+      spawn('xdg-open', [url], { detached: true, stdio: 'ignore' }).unref();
+    }
+  } catch (_) { /* ignore — we also print the URL */ }
+}
+
+/** Pretty plan label. */
+function planLabel(plan?: string): string {
+  if (!plan || plan === 'free') return 'Free';
+  return plan.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/**
+ * Fetch the linked user's plan + credit balance from the server. Returns null
+ * if not logged in / unreachable. mL is the credit unit used across Apple Juice.
+ */
+async function fetchUsage(config: CLIConfig): Promise<{
+  loggedIn: boolean; plan: string; remainingMl: number; totalMl: number; usedMl: number; bonusMl: number; monthlyCapped: boolean;
+} | null> {
+  try {
+    const res = await fetch(`${backendUrl(config)}/api/cli/usage?key=${encodeURIComponent(config.sessionKey || '')}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Roblox device-login flow: open the browser to sign in with Roblox, then poll
+ * until the user approves. On success the CLI session key is bound to the real
+ * Roblox account so the user's subscription + credits apply.
+ */
+async function loginWithRoblox(config: CLIConfig): Promise<boolean> {
+  process.stdout.write(`\n  ${BRAND}✦${R}  ${BOLD}${WHITE}Sign in with Roblox${R}\n`);
+  let deviceCode = '';
+  let verifyUrl = '';
+  let pollIntervalMs = 2000;
+  const base = backendUrl(config);
+  try {
+    const res = await fetch(`${base}/api/cli/login/start`, { method: 'POST' });
+    if (!res.ok) {
+      process.stdout.write(`  ${BRIGHT_RED}✗${R}  Could not start login (${res.status}).\n`);
+      return false;
+    }
+    const data = await res.json();
+    deviceCode = data.deviceCode;
+    verifyUrl = data.verifyUrl;
+    pollIntervalMs = data.pollIntervalMs || 2000;
+  } catch (e: any) {
+    process.stdout.write(`  ${BRIGHT_RED}✗${R}  ${e?.message || 'Network error'}\n`);
+    return false;
+  }
+
+  process.stdout.write(`  ${DIM}Opening your browser to:${R}\n  ${BRAND_B}${verifyUrl}${R}\n`);
+  process.stdout.write(`  ${DIM}If it doesn't open, paste that URL into your browser.${R}\n\n`);
+  openBrowser(verifyUrl);
+
+  startSpinner('Waiting for Roblox sign-in', true);
+  const deadline = Date.now() + 600_000; // 10 min
+  try {
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, pollIntervalMs));
+      let body: any = null;
+      try {
+        const res = await fetch(`${base}/api/cli/login/poll?d=${encodeURIComponent(deviceCode)}`);
+        body = res.ok ? await res.json() : null;
+      } catch (_) { /* keep polling */ }
+      if (!body) continue;
+      if (body.status === 'approved' && body.sessionKey) {
+        stopSpinner();
+        config.sessionKey = body.sessionKey;
+        config.robloxUserId = body.userId;
+        config.robloxUsername = body.username;
+        config.isFirstRun = false;
+        saveConfig(config);
+        printSuccess(`Signed in as ${BRAND}${body.username || 'Roblox User'}${R}`);
+        const usage = await fetchUsage(config);
+        if (usage) {
+          process.stdout.write(`  ${DIM}Plan:${R} ${BOLD}${planLabel(usage.plan)}${R}   ${DIM}Credits:${R} ${BOLD}${Math.round(usage.remainingMl)}${R}${DIM}/${Math.round(usage.totalMl)} mL${R}\n`);
+        }
+        return true;
+      }
+      if (body.status === 'expired') {
+        stopSpinner();
+        process.stdout.write(`  ${BRIGHT_RED}✗${R}  Login request expired. Run /login to try again.\n`);
+        return false;
+      }
+    }
+  } finally {
+    stopSpinner();
+  }
+  process.stdout.write(`  ${BRIGHT_RED}✗${R}  Timed out waiting for sign-in.\n`);
+  return false;
+}
+
 async function initAuthPairing(config: CLIConfig): Promise<string | null> {
   if (!config.cliUserId) {
     config.cliUserId = crypto.randomBytes(8).toString('hex');
@@ -1469,9 +1604,11 @@ function parseHelpFile(): HelpData {
     ],
     customCommands: [
       ['/pair', 'Link terminal to Roblox Studio'],
+      ['/login', 'Sign in with Roblox (use your subscription)'],
+      ['/credits', 'Show your plan and remaining credits'],
       ['/status', 'Refresh server + Studio status'],
       ['/sync', 'AI-edit a file and push to Studio'],
-      ['/mcp', 'Toggle live MCP mode (interactive studio_* tool calls)'],
+      ['/mcp', 'MCP mode: local|remote|auto|on|off (live Studio tool calls)'],
       ['/provider', 'Set API provider (openai|google|deepseek|openrouter)'],
       ['/key', 'Set API key (optional provider)'],
       ['/model', 'Select AI model interactively'],
@@ -1960,6 +2097,105 @@ async function showInteractiveArtifacts(rl: any, state: any): Promise<void> {
 
     process.stdin.on('keypress', onKeypress);
   });
+}
+
+/**
+ * Decide which MCP transport to use for this turn, honoring the user's
+ * mcpTransport preference and what's actually available locally.
+ *   - 'local'  : official local Studio MCP (errors out clearly if unavailable)
+ *   - 'remote' : the remote VPS bridge
+ *   - 'auto'   : local when ready, otherwise remote
+ */
+function resolveMcpTransport(config: CLIConfig): 'local' | 'remote' {
+  const pref = config.mcpTransport ?? 'auto';
+  if (pref === 'remote') return 'remote';
+  if (pref === 'local') return 'local';
+  return localMcpReady() ? 'local' : 'remote';
+}
+
+/**
+ * Run one LOCAL MCP turn against the OFFICIAL Roblox Studio MCP server
+ * (BloxBot-style). The agent runs on this machine and drives Roblox's own
+ * first-party tools directly in the live Studio session — pure localhost, full
+ * tool surface. Renders progress live, then shows the closing summary.
+ */
+async function handleLocalMcpTurn(rl: any, state: any, input: string): Promise<void> {
+  const config: CLIConfig = state.config;
+
+  // Pre-flight: surface a clear, actionable error instead of a silent failure.
+  if (!officialStudioMcpInstalled()) {
+    state.lastError =
+      `Official Roblox Studio MCP not found. ${STUDIO_MCP_HELP}`;
+    redrawScreen(state);
+    state.lastError = undefined;
+    rl.prompt();
+    return;
+  }
+  if (!kiroCliAvailable()) {
+    state.lastError =
+      `Local agent driver (kiro-cli) not found on PATH. Install it to use ` +
+      `local MCP mode, or run "/mcp remote" to use the cloud bridge.`;
+    redrawScreen(state);
+    state.lastError = undefined;
+    rl.prompt();
+    return;
+  }
+
+  process.stdout.write(
+    `\n  ${BRAND}✦${R}  ${BOLD}${WHITE}MCP Agent${R} ${DIM}— local, official Roblox Studio MCP${R}\n\n`,
+  );
+  startSpinner('Connecting to Roblox Studio MCP', true);
+
+  let sawProgress = false;
+  const onProgress = (text: string) => {
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      if (!sawProgress) {
+        stopSpinner();
+        sawProgress = true;
+      }
+      process.stdout.write(`  ${BRAND}›${R} ${DIM}${line}${R}\n`);
+    }
+  };
+
+  let reply = '';
+  try {
+    const res = await runLocalMcpAgent(input, {
+      apiKey:
+        config.provider === 'google'
+          ? config.googleKey
+          : config.openaiKey,
+      model: config.model,
+      history: state.history.slice(0, -1),
+      timeoutMs: 300000,
+      onProgress,
+    });
+
+    stopSpinner();
+
+    if (!res.ok) {
+      const detail = (res.stderr || 'agent run failed').trim().slice(0, 200);
+      state.lastError = `Local MCP error: ${detail}`;
+    } else {
+      reply =
+        extractMcpSummary(res.stdout) ||
+        (sawProgress ? 'Done — changes applied live in Studio.' : 'No response from the local MCP agent.');
+    }
+  } catch (e: any) {
+    stopSpinner();
+    state.lastError = `Local MCP connection error: ${e?.message || e}`;
+  }
+
+  if (reply) {
+    printAssistantMsg(reply, undefined);
+    state.history.push({ role: 'assistant', content: reply });
+    if (state.history.length > 40) state.history = state.history.slice(-40);
+    writeSessionEvent(state.config, { role: 'assistant', content: reply });
+  }
+
+  redrawScreen(state);
+  state.lastError = undefined;
+  rl.prompt();
 }
 
 /**
@@ -3316,9 +3552,11 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         { command: '/compact', label: '/compact', description: 'Summarize conversation to save context', category: 'Chat' },
         { command: '/context', label: '/context', description: 'Visualize current context usage', category: 'System' },
         { command: '/pair', label: '/pair', description: 'Link terminal to Roblox Studio', category: 'Connection' },
+        { command: '/login', label: '/login', description: 'Sign in with Roblox to use your subscription', category: 'Connection' },
+        { command: '/credits', label: '/credits', description: 'Show your plan and remaining credits', category: 'Connection' },
         { command: '/status', label: '/status', description: 'Refresh server + Studio pairing status', category: 'System' },
         { command: '/sync', label: '/sync <file>', description: 'AI-edit a file and push to Studio', category: 'Code' },
-        { command: '/mcp', label: '/mcp [on|off]', description: 'Toggle live MCP mode (interactive studio_* tool calls)', category: 'Code' },
+        { command: '/mcp', label: '/mcp [mode]', description: 'MCP mode: local|remote|auto|on|off (live Studio tool calls)', category: 'Code' },
         { command: '/provider', label: '/provider <p>', description: 'Set API provider (openai|google)', category: 'AI' },
         { command: '/key', label: '/key <k>', description: 'Set API key for current provider', category: 'AI' },
         { command: '/model', label: '/model', description: 'Set AI model interactively', category: 'AI' },
@@ -3977,9 +4215,11 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     { command: '/compact', label: '/compact', description: 'Summarize conversation to save context', category: 'Chat' },
     { command: '/context', label: '/context', description: 'Visualize current context usage', category: 'System' },
     { command: '/pair', label: '/pair', description: 'Link terminal to Roblox Studio', category: 'Connection' },
+    { command: '/login', label: '/login', description: 'Sign in with Roblox to use your subscription', category: 'Connection' },
+    { command: '/credits', label: '/credits', description: 'Show your plan and remaining credits', category: 'Connection' },
     { command: '/status', label: '/status', description: 'Refresh server + Studio pairing status', category: 'System' },
     { command: '/sync', label: '/sync <file>', description: 'AI-edit a file and push to Studio', category: 'Code' },
-    { command: '/mcp', label: '/mcp [on|off]', description: 'Toggle live MCP mode (interactive studio_* tool calls)', category: 'Code' },
+    { command: '/mcp', label: '/mcp [mode]', description: 'MCP mode: local|remote|auto|on|off (live Studio tool calls)', category: 'Code' },
     { command: '/provider', label: '/provider <p>', description: 'Set API provider (openai|google|deepseek|openrouter)', category: 'AI' },
     { command: '/key', label: '/key [p] <k>', description: 'Set API key (optional provider)', category: 'AI' },
     { command: '/model', label: '/model', description: 'Select AI model interactively', category: 'AI' },
@@ -4131,7 +4371,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       }
 
       if (input.startsWith('/') || input === '?') {
-        const allCmds = ['/add-dir', '/agents', '/background', '/branch', '/btw', '/clear', '/resume', '/color', '/compact', '/context', '/pair', '/status', '/sync', '/mcp', '/key', '/model', '/config', '/settings', '/artifact', '/help', '/exit', '/thinking', '/transcript'];
+        const allCmds = ['/add-dir', '/agents', '/background', '/branch', '/btw', '/clear', '/resume', '/color', '/compact', '/context', '/pair', '/login', '/credits', '/status', '/sync', '/mcp', '/key', '/model', '/config', '/settings', '/artifact', '/help', '/exit', '/thinking', '/transcript'];
         const [rawCmd, ...args] = input.slice(1).split(' ');
         const cmd = rawCmd.toLowerCase();
 
@@ -4378,19 +4618,68 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             rl.prompt();
             return;
           }
+          case 'login': {
+            await loginWithRoblox(state.config);
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
+          case 'credits':
+          case 'usage': {
+            const usage = await fetchUsage(state.config);
+            if (!usage || !usage.loggedIn) {
+              state.infoMessage = `Not signed in. Run /login to link your Roblox account and use your subscription.`;
+            } else {
+              const cap = usage.monthlyCapped ? ` ${DIM}(monthly cap reached)${R}` : '';
+              state.infoMessage =
+                `${BOLD}${planLabel(usage.plan)}${R} plan  ${DIM}·${R}  ` +
+                `${BOLD}${Math.round(usage.remainingMl)}${R}${DIM}/${Math.round(usage.totalMl)} mL credits left${R}${cap}`;
+            }
+            redrawScreen(state);
+            await new Promise(r => setTimeout(r, 2600));
+            state.infoMessage = undefined;
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
           case 'mcp': {
             const sub = (args[0] || '').toLowerCase();
-            if (sub === 'on') state.config.mcpMode = true;
-            else if (sub === 'off') state.config.mcpMode = false;
-            else state.config.mcpMode = !state.config.mcpMode;
+            if (sub === 'on') {
+              state.config.mcpMode = true;
+            } else if (sub === 'off') {
+              state.config.mcpMode = false;
+            } else if (sub === 'local' || sub === 'remote' || sub === 'auto') {
+              // Choosing a transport implies enabling MCP mode.
+              state.config.mcpMode = true;
+              state.config.mcpTransport = sub as 'local' | 'remote' | 'auto';
+            } else {
+              state.config.mcpMode = !state.config.mcpMode;
+            }
             saveConfig(state.config);
             if (state.config.mcpMode) {
-              state.infoMessage = `🔌 MCP Mode ENABLED — prompts now drive live studio_* tool calls in Studio via the bridge. Make sure you're /pair'd.`;
+              const transport = resolveMcpTransport(state.config);
+              const pref = state.config.mcpTransport ?? 'auto';
+              if (transport === 'local') {
+                state.infoMessage =
+                  `🔌 MCP Mode ENABLED — LOCAL (official Roblox Studio MCP). ` +
+                  `Fast, full tool surface. Make sure Studio is open with MCP enabled.`;
+              } else if (pref === 'local') {
+                // Forced local but not actually available — warn precisely.
+                const missing = !officialStudioMcpInstalled()
+                  ? 'Studio MCP server not found'
+                  : 'kiro-cli not found';
+                state.infoMessage =
+                  `🔌 MCP Mode ENABLED — LOCAL requested but ${missing}. ${STUDIO_MCP_HELP}`;
+              } else {
+                state.infoMessage =
+                  `🔌 MCP Mode ENABLED — REMOTE bridge (cloud). ` +
+                  `Tip: "/mcp local" for BloxBot-style local speed when Studio MCP + kiro-cli are installed.`;
+              }
             } else {
               state.infoMessage = `🔌 MCP Mode DISABLED — back to the standard plan/artifact flow.`;
             }
             redrawScreen(state);
-            await new Promise(r => setTimeout(r, 1800));
+            await new Promise(r => setTimeout(r, 2200));
             state.infoMessage = undefined;
             redrawScreen(state);
             rl.prompt();
@@ -5103,7 +5392,11 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       // the paired Studio session via the bridge; changes are applied directly
       // in Studio. We render the agent's progress live (no artifact/sync flow).
       if (state.config.mcpMode) {
-        await handleMcpTurn(rl, state, input);
+        if (resolveMcpTransport(state.config) === 'local') {
+          await handleLocalMcpTurn(rl, state, input);
+        } else {
+          await handleMcpTurn(rl, state, input);
+        }
         return;
       }
 
@@ -5485,9 +5778,11 @@ function showHelp(): void {
   process.stdout.write(`\n  ${DIM}Custom Commands (Inside a session)${R}\n\n`);
   const customCmds: [string, string][] = [
     ['/pair', 'Link terminal to Roblox Studio'],
+    ['/login', 'Sign in with Roblox (use your subscription)'],
+    ['/credits', 'Show your plan and remaining credits'],
     ['/status', 'Refresh server + Studio status'],
     ['/sync', 'AI-edit a file and push to Studio'],
-    ['/mcp', 'Toggle live MCP mode (interactive studio_* tool calls)'],
+    ['/mcp', 'MCP mode: local|remote|auto|on|off (live Studio tool calls)'],
     ['/provider', 'Set API provider (openai|google|deepseek|openrouter)'],
     ['/key', 'Set API key (optional provider)'],
     ['/model', 'Select AI model interactively'],

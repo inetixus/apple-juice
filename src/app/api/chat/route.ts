@@ -115,6 +115,8 @@ type ChatBody = {
   /** Explicit agent mode from the dashboard ("plan" suppresses code execution).
    *  Preferred over sniffing the prompt text for the injected mode note. */
   agentMode?: "plan" | "build";
+  /** Build Mode: the agent focuses on constructing 3D models in the workspace. */
+  buildMode?: boolean;
 };
 
 export async function POST(req: Request) {
@@ -293,7 +295,9 @@ export async function POST(req: Request) {
       | "execute_luau"
       | "insert_asset"
       | "read_script"
-      | "edit_script";
+      | "edit_script"
+      | "set_properties"
+      | "build_model";
     type?: string;
     parent?: string;
     name?: string;
@@ -305,6 +309,16 @@ export async function POST(req: Request) {
     newName?: string;
     newParentPath?: string;
     properties?: Record<string, any>;
+    /** For build_model: the parts that make up the model. */
+    parts?: {
+      className?: string;
+      name?: string;
+      properties?: Record<string, any>;
+    }[];
+    /** For build_model: weld parts into a rigid model + choose the primary. */
+    weld?: boolean;
+    primaryPart?: string;
+    path?: string;
     message?: string;
     suggestions?: string[];
     scripts?: PluginPayload[];
@@ -581,12 +595,22 @@ Carry this context throughout the session. Do not introduce new frameworks or ar
 - \`delete\` — Delete an instance. Use {"action": "delete", "name": "Name", "parent": "Parent"}.
 
 ### Data Model
-- \`create_instance\` — Create high-level non-script objects (Folders, RemoteEvents, ScreenGuis). Do NOT use for individual UI elements.
+- \`create_instance\` — Create any instance WITH properties. For non-script objects (Folders, RemoteEvents) and individual 3D parts. Use {"action":"create_instance","className":"Part","instanceName":"Floor","parent":"Workspace","properties":{"Size":[50,1,50],"Position":[0,0,0],"Color":[120,120,120],"Material":"Slate","Anchored":true}}.
 - \`rename_instance\` — Rename an object. Use {"action": "rename_instance", "oldPath": "Workspace.OldName", "newName": "NewName"}.
 - \`move_instance\` — Move an object. Use {"action": "move_instance", "oldPath": "Workspace.MyPart", "newParentPath": "ServerStorage"}.
+- \`set_properties\` — Update properties on an EXISTING instance (move/recolor/resize/rotate). Use {"action":"set_properties","path":"Workspace.Tree.Trunk","properties":{"Color":[120,72,40],"Position":[0,5,0]}}.
+
+### 3D Building (make real models)
+- \`build_model\` — Build a COMPLETE multi-part 3D model in ONE action. PREFERRED for anything physical (tree, house, car, sword). Use:
+  {"action":"build_model","name":"Tree","parent":"Workspace","weld":true,"parts":[
+    {"className":"Part","name":"Trunk","properties":{"Shape":"Cylinder","Size":[1,8,1],"Position":[0,4,0],"Color":[120,72,40],"Material":"Wood","Anchored":true,"Orientation":[0,0,90]}},
+    {"className":"Part","name":"Canopy","properties":{"Shape":"Ball","Size":[7,7,7],"Position":[0,9,0],"Color":[60,140,60],"Material":"Grass","Anchored":true}}
+  ]}
+- Property value formats: Size/Position/Orientation as [x,y,z]; Color as [r,g,b] (0-255); Material/Shape as enum-name strings ("Wood","Neon","Ball","Cylinder"); Anchored/CanCollide as booleans.
+- GEOMETRY: Y is up. Position is the CENTER of a part. A part of height H resting on the ground (y=0) has Position.y = H/2. Stack by adding half-heights. Anchor static structural parts. Give every part a believable Material and Color — never ship a single grey box.
 
 ### Playtesting & Debugging
-- \`run_playtest\` — Trigger an automatic 6-second playtest. Use {"action": "run_playtest"}. MANDATORY: Always include this as the LAST entry in your scripts array to verify functionality.
+- \`run_playtest\` — Trigger an automatic 6-second playtest. Use {"action": "run_playtest"}. Include this as the LAST entry when your build has scripts/interactivity to verify. (Purely static anchored decor doesn't strictly need it.)
 - \`stop_playtest\` — Stop playtest early. Use {"action": "stop_playtest"}.
 
 ## Roblox Architecture
@@ -778,7 +802,7 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
             items: {
               type: "object",
               properties: {
-                action: { type: "string", enum: ["create", "delete", "create_instance", "rename_instance", "move_instance", "run_playtest", "edit_script", "read_script"] },
+                action: { type: "string", enum: ["create", "delete", "create_instance", "set_properties", "build_model", "rename_instance", "move_instance", "run_playtest", "edit_script", "read_script"] },
                 scriptType: { type: "string", description: "Script type: Script, LocalScript, or ModuleScript. Used when action is create." },
                 parent: { type: "string", description: "The path to the parent instance" },
                 name: { type: "string", description: "Name of the instance" },
@@ -787,7 +811,23 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                 instanceName: { type: "string", description: "Name of the created instance" },
                 oldPath: { type: "string", description: "Old path for move_instance or rename_instance" },
                 newName: { type: "string", description: "New name for rename_instance" },
-                newParentPath: { type: "string", description: "New parent path for move_instance" }
+                newParentPath: { type: "string", description: "New parent path for move_instance" },
+                path: { type: "string", description: "Full dotted path to an existing instance (for set_properties)" },
+                properties: { type: "object", description: 'Property map for create_instance/set_properties. 3D values as arrays: {"Size":[4,1,2],"Position":[0,5,0],"Color":[163,162,165],"Material":"Wood","Anchored":true,"Orientation":[0,45,0]}.' },
+                weld: { type: "boolean", description: "For build_model: weld all parts into a rigid Model (default true)." },
+                primaryPart: { type: "string", description: "For build_model: name of the PrimaryPart." },
+                parts: {
+                  type: "array",
+                  description: "For build_model: array of {className, name, properties} describing every part of the 3D model.",
+                  items: {
+                    type: "object",
+                    properties: {
+                      className: { type: "string" },
+                      name: { type: "string" },
+                      properties: { type: "object" }
+                    }
+                  }
+                }
               },
               required: ["action"]
             }
@@ -1339,6 +1379,19 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                       ),
                     ),
                   );
+                } else if (p.kind === "vision") {
+                  // Surface the rendered build image to the client as a special
+                  // reasoning marker the dashboard can parse and display.
+                  controller.enqueue(
+                    encoder.encode(
+                      sseReason(`\n👁️ Viewing build (${p.direction}): ${p.summary}\n`),
+                    ),
+                  );
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({ ajVision: { image: p.image, direction: p.direction, summary: p.summary } })}\n\n`,
+                    ),
+                  );
                 }
               } catch {
                 /* controller closed; ignore */
@@ -1352,6 +1405,7 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
                 prompt,
                 history: priorHistory as { role: "user" | "assistant"; content: string }[],
                 extraContext: agentExtraContext,
+                buildMode: body.buildMode === true,
                 onProgress,
                 signal: req.signal,
               });
@@ -2650,6 +2704,18 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
         name: s.name ?? `GeneratedScript_${i}`,
         code: s.code ?? "",
         lineCount: s.code ? s.code.split("\n").length : 0,
+        // Preserve instance/3D-building fields so the plugin can act on them.
+        className: (s as any).className,
+        instanceName: (s as any).instanceName,
+        properties: (s as any).properties,
+        parts: (s as any).parts,
+        weld: (s as any).weld,
+        primaryPart: (s as any).primaryPart,
+        path: (s as any).path,
+        oldPath: (s as any).oldPath,
+        newName: (s as any).newName,
+        newParentPath: (s as any).newParentPath,
+        assetId: (s as any).assetId,
       }));
 
       // Store the entire scripts array as a single plugin payload
@@ -2660,6 +2726,16 @@ FINAL REMINDER: Call the tool if available. Otherwise, your ENTIRE response must
           parent: s.parent,
           name: s.name,
           code: s.code,
+          className: s.className,
+          instanceName: s.instanceName,
+          properties: s.properties,
+          parts: s.parts,
+          weld: s.weld,
+          primaryPart: s.primaryPart,
+          path: s.path,
+          oldPath: s.oldPath,
+          newName: s.newName,
+          newParentPath: s.newParentPath,
           assetId: (s as any).assetId,
         })),
       });

@@ -24,76 +24,68 @@ function install() {
   }
 
   console.log('\x1b[36mExtracting and copying binaries...\x1b[0m');
-  // Ultra-robust virtual-asset-finder to locate the bundled binary under any pkg layout
-  let assetPath = '';
+  // Locate the bundled binary. IMPORTANT: do NOT gate on fs.existsSync() — for
+  // pkg virtual-snapshot assets existsSync() can return false even when the
+  // asset is fully readable, which is exactly why the installer "succeeded" but
+  // wrote nothing. Instead, just TRY to read each candidate and use the first
+  // that yields bytes.
   const possiblePaths = [
     path.join(__dirname, '../dist/aj.bin'),
     path.join(__dirname, 'aj.bin'),
     path.join(__dirname, '../aj.bin'),
     path.join('/snapshot', 'apple-juice-source-files', 'dist', 'aj.bin'),
     path.join('/snapshot', 'dist', 'aj.bin'),
+    path.join('C:\\snapshot', 'dist', 'aj.bin'),
   ];
 
+  let binaryBuffer: Buffer | null = null;
+  let usedPath = '';
   for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      assetPath = p;
-      break;
+    try {
+      const buf = fs.readFileSync(p);
+      if (buf && buf.length > 0) {
+        binaryBuffer = buf;
+        usedPath = p;
+        break;
+      }
+    } catch (_) {
+      /* not here — try the next candidate */
     }
   }
 
-  if (!assetPath) {
-    // Try searching up the directory tree from __dirname
+  // Last resort: walk up from __dirname trying to read aj.bin at each level.
+  if (!binaryBuffer) {
     let currentDir = __dirname;
-    for (let depth = 0; depth < 5; depth++) {
-      const checkPath = path.join(currentDir, 'aj.bin');
-      if (fs.existsSync(checkPath)) {
-        assetPath = checkPath;
-        break;
-      }
+    for (let depth = 0; depth < 6; depth++) {
+      try {
+        const buf = fs.readFileSync(path.join(currentDir, 'aj.bin'));
+        if (buf && buf.length > 0) {
+          binaryBuffer = buf;
+          usedPath = path.join(currentDir, 'aj.bin');
+          break;
+        }
+      } catch (_) {}
       const parent = path.dirname(currentDir);
       if (parent === currentDir) break;
       currentDir = parent;
     }
   }
 
-  if (!assetPath) {
-    // If still not found, search virtual snapshot drives recursively
-    const snapshotRoots = ['C:\\snapshot', 'c:\\snapshot', '/snapshot'];
-    for (const root of snapshotRoots) {
-      if (fs.existsSync(root)) {
-        const findInDir = (dir: string): string | null => {
-          try {
-            const files = fs.readdirSync(dir);
-            for (const file of files) {
-              const fullPath = path.join(dir, file);
-              if (file === 'aj.bin') return fullPath;
-              try {
-                const stat = fs.statSync(fullPath);
-                if (stat.isDirectory()) {
-                  const found = findInDir(fullPath);
-                  if (found) return found;
-                }
-              } catch (_) {}
-            }
-          } catch (_) {}
-          return null;
-        };
-        const foundPath = findInDir(root);
-        if (foundPath) {
-          assetPath = foundPath;
-          break;
-        }
-      }
+  if (!binaryBuffer) {
+    console.error('\x1b[31mError: could not read the bundled CLI binary (aj.bin).\x1b[0m');
+    console.log('  This installer build may be missing its embedded asset.');
+    console.log('\nPress any key to close the installer...');
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(true);
+      process.stdin.resume();
+      process.stdin.on('data', () => process.exit(1));
+    } else {
+      setTimeout(() => process.exit(1), 5000);
     }
-  }
-
-  if (!assetPath) {
-    // Fallback to symmetrical default path
-    assetPath = path.join(__dirname, '../dist/aj.bin');
+    return;
   }
 
   try {
-    const binaryBuffer = fs.readFileSync(assetPath);
     fs.writeFileSync(destExe, binaryBuffer);
     fs.writeFileSync(destBgExe, binaryBuffer);
     // Also drop a .cmd shim. cmd.exe and PowerShell resolve PATHEXT entries
@@ -104,10 +96,10 @@ function install() {
       destCmd,
       `@echo off\r\n"%~dp0aj.exe" %*\r\n`,
     );
-    console.log(`  Binary copied successfully.`);
+    console.log(`  Binary copied successfully (${usedPath}).`);
   } catch (err: any) {
     console.error(`\x1b[31mError writing binary files: ${err.message}\x1b[0m`);
-    console.log(`  Tried virtual path: ${assetPath}`);
+    console.log(`  Source: ${usedPath}`);
     console.log('\nPress any key to close the installer...');
     if (process.stdin.isTTY) {
       process.stdin.setRawMode(true);

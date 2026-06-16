@@ -27,6 +27,11 @@ import { BentoTwirl } from "./bento-twirl";
 import { FlipTileGrid } from "./flip-tile-grid";
 import { SpineSection } from "./landing-spine";
 import { MagneticButton } from "./magnetic-button";
+import { GlassyButton } from "./glassy-button";
+import { AnimatedLiquidBackground } from "./animated-liquid-background";
+import { Coolicon } from "./coolicon";
+import { HeroPromptBox } from "./hero-prompt-box";
+import { FloatingGameCards } from "./genre-card-marquee";
 import { FaqItemPremium } from "./faq-item-premium";
 import { NavLiquidTabs } from "./nav-liquid-tabs";
 import { PurchaseFlowModal } from "./purchase-flow-modal";
@@ -236,6 +241,21 @@ export function LandingContent({
 
       {/* â”â”â” HERO & DEMO PANEL â”â”â” */}
       <section className="relative pt-28 sm:pt-36 pb-16 sm:pb-24 px-6 md:px-12 xl:px-20 z-10 flex flex-col items-center overflow-visible">
+        {/* Ambient animated liquid backdrop (native canvas reimplementation of
+            the Framer AnimatedLiquidBackground asset). Sits furthest back,
+            heavily masked so it reads as a subtle living gradient. */}
+        <AnimatedLiquidBackground
+          preset="Plasma"
+          grain={0.08}
+          className="absolute inset-0 -z-20 pointer-events-none"
+          style={{
+            opacity: 0.35,
+            maskImage:
+              "radial-gradient(ellipse 80% 60% at 50% 25%, black, transparent 75%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse 80% 60% at 50% 25%, black, transparent 75%)",
+          }}
+        />
         {/* Continuation glow â€” fills hero below the first viewport so lighting doesn't hard-stop */}
         <div
           className="absolute inset-x-0 top-[55vh] bottom-0 pointer-events-none -z-10"
@@ -249,7 +269,9 @@ export function LandingContent({
             `,
           }}
         />
-        <div className="w-full max-w-[1300px] mx-auto text-center flex flex-col items-center mb-16">
+        <div className="relative w-full max-w-[1300px] mx-auto text-center flex flex-col items-center mb-16">
+          {/* Game-genre cards floating around the prompt box (desktop only). */}
+          <FloatingGameCards signedIn={!!session} />
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -260,6 +282,7 @@ export function LandingContent({
             <span className="text-[10px] tracking-wider uppercase font-bold text-white/40 font-mono">
               Next-Gen Roblox Companion Â· Secure WebSocket Link
             </span>
+            <Coolicon size={14} color="#ccff00" strokeWidth={2} opacity={0.7} />
           </motion.div>
 
           <motion.h1
@@ -283,11 +306,15 @@ export function LandingContent({
             Describe the game elements you want to engineer. Apple Juice generates high-quality Luau code and injects it dynamically into your active Roblox Studio session.
           </motion.p>
 
+          {/* Prompt-first centerpiece — type a prompt, hit Generate, land in the
+              product. Carries the prompt to the dashboard via localStorage. */}
+          <HeroPromptBox signedIn={!!session} />
+
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mt-10"
           >
             <MagneticButton
               type="button"
@@ -301,13 +328,14 @@ export function LandingContent({
               Get Started Free
               <ArrowRight className="h-4 w-4" />
             </MagneticButton>
-            <MagneticButton
+            <GlassyButton
               as="a"
               href="#explore"
-              className="h-12 w-full sm:w-auto px-8 rounded-full bg-white/5 border border-white/10 text-white/80 font-bold uppercase tracking-wider text-[11px] flex items-center justify-center gap-2 hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300 hover:scale-105 active:scale-95"
+              accent="rgba(255,255,255,0.4)"
+              className="h-12 w-full sm:w-auto !px-8 !rounded-full uppercase tracking-wider !text-[11px] !font-bold"
             >
               See Web IDE
-            </MagneticButton>
+            </GlassyButton>
           </motion.div>
 
           <motion.div

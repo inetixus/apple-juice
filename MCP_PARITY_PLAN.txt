@@ -1,0 +1,931 @@
+================================================================================
+ APPLE JUICE — MCP PARITY PLAN
+ Goal: make the AI work as well as BloxBot by adopting the official Roblox
+ Studio MCP tool surface, with a true-local path for CLI and a local-or-remote
+ hybrid for the website.
+================================================================================
+
+Last updated: 2026-06-16
+Owner: (you)
+Status legend:  [ ] todo   [~] in progress   [x] done
+
+--------------------------------------------------------------------------------
+0. TL;DR / DECISIONS
+--------------------------------------------------------------------------------
+- The "skill" of BloxBot is NOT a clever custom system. BloxBot points the
+  OpenCode agent at ROBLOX'S OFFICIAL, BUILT-IN Studio MCP server (a local
+  binary that ships with Studio). All the powerful tools (execute_luau,
+  script_grep, multi_edit, start_stop_play, console_output, input simulation,
+  inspect_instance, etc.) are implemented by ROBLOX inside that binary + the
+  official Studio plugin. BloxBot just connects to it and writes a good prompt.
+
+- The official server is open-source (MIT, github.com/Roblox/studio-rust-mcp-server)
+  and documented at https://create.roblox.com/docs/studio/mcp . It uses the
+  STDIO transport. On Windows it is launched as:
+        cmd.exe /c %LOCALAPPDATA%\Roblox\mcp.bat
+  On macOS:
+        /Applications/RobloxStudio.app/Contents/MacOS/StudioMCP
+
+- WHY IT IS FAST: everything is on localhost. The official Studio plugin
+  long-polls a localhost HTTP bridge with IMMEDIATE re-poll after each response
+  (no sleep between successful polls), so tool round-trips are ~1-5 ms.
+
+- THE WEBSITE CONSTRAINT (the crux of everything):
+  * The Roblox plugin (HttpService) can only make OUTBOUND requests. It cannot
+    host a server the browser connects to.
+  * A browser page served over HTTPS (apple-juice.online) CANNOT fetch
+    http://localhost (mixed-content + Private Network Access blocking).
+  * Today the web bridge round-trips through a REMOTE serverless KV (Turso) on
+    apple-juice.online with a 150 ms poll loop + internet latency
+    (~300-800 ms/call). That latency gap is the real performance difference.
+
+- STRATEGY:
+  * CLI  -> connect DIRECTLY to the official Roblox Studio MCP (local already).
+           This is BloxBot's exact approach. Biggest, fastest capability jump.
+  * WEB  -> (a) immediately: make the existing remote bridge localhost-grade
+               fast (long-poll + blocking pop). No install. Helps everyone.
+           (b) then: add a true-local path via a small local companion helper
+               and AUTO-DETECT it (this is "Option D", described in detail in
+               section 4). Power users get BloxBot-class speed; everyone else
+               falls back to the optimized remote bridge.
+  * TOOLS-> copy the official tool SURFACE/design (names, behavior) into our own
+           plugin + MCP server so the web path reaches parity too.
+
+- OPEN POLICY QUESTION (needs your call): execute_luau (arbitrary Luau) is the
+  single biggest source of "skill." For the CLI it comes FREE (Roblox's server
+  provides it and owns the safety model). For OUR web plugin we deliberately
+  disabled loadstring/execute_luau for Roblox marketplace plugin safety.
+  Re-enabling it in our plugin is a compliance decision, not a code one.
+
+--------------------------------------------------------------------------------
+1. WHAT WE HAVE TODAY (verified by reading the code)
+--------------------------------------------------------------------------------
+- plugin/AppleJuiceSync.lua
+    * Long-polls /api/poll and /api/mcp/next (POLL_INTERVAL 0.2s, clamped 0.1-1.0).
+    * executeMcpCommand handles a fixed action set: create, delete,
+      create_instance, set_properties, build_model, run_playtest, stop_playtest,
+      rename_instance, move_instance, edit_script, read_script.
+    * execute_luau and insert_asset are DISABLED (marketplace safety).
+    * Has a 6-second automatic playtest with structured error capture.
+
+- src/lib/mcp-bridge.ts
+    * KV-backed queue (Turso). enqueueCommand / dequeueCommand (read-modify-write
+      a JSON array) / submitResult / getResult / awaitResult (150 ms poll).
+- src/app/api/mcp/next | result | enqueue | poll  (HTTP bridge endpoints)
+- src/lib/agent/agent-loop.ts
+    * Real server-side agentic loop (explore -> build -> playtest -> fix).
+    * Tools: get_tree, read_script, write_script, create_instance, build_model,
+      look_at_build (vision via renderer), set_properties, delete_instance,
+      run_playtest, get_logs, finish.
+- src/lib/agent/studio-bridge.ts  (runStudioTool/runPlaytest/inspectBuild)
+- kiro-proxy/mcp/studio-mcp.ts
+    * A REAL MCP server (stdio, @modelcontextprotocol/sdk) exposing 9 studio_*
+      tools, bridging to /api/mcp/* . Same architecture as the official one.
+- kiro-proxy/agent.ts -> runMcpAgent()
+    * Writes a kiro-cli AGENT config (~/.kiro/agents/<name>.json) with an
+      mcpServers block, then runs `kiro-cli chat --agent <name>
+      --require-mcp-startup --trust-all-tools`. << KEY: adding another MCP server
+      (the official Roblox one) is a clean extension of this.
+- cli/aj.ts
+    * mcpMode flag exists, but handleMcpTurn() currently routes through the
+      REMOTE /api/chat + VPS bridge — it is NOT local today.
+
+--------------------------------------------------------------------------------
+2. OFFICIAL ROBLOX STUDIO MCP — TOOL SURFACE (the target)
+   (from https://create.roblox.com/docs/studio/mcp)
+--------------------------------------------------------------------------------
+Scripts:
+  script_read       read a script via dot path (game.ServerScriptService.X),
+                    supports line ranges
+  multi_edit        apply multiple edits to a script; creates it if missing
+  script_search     fuzzy search script names (<=10 results)
+  script_grep       search a string pattern across ALL scripts (<=50 matches)
+Asset/content generation:
+  generate_mesh, generate_material, generate_procedural_model,
+  insert_from_creator_store
+Data model exploration:
+  explore_subagent  parallel investigation, compact summary
+  search_game_tree  hierarchy as flat JSON; filter by path/type/keyword/depth
+  inspect_instance  full readable properties, attributes, children summary
+Luau execution:
+  execute_luau      run arbitrary Luau in Studio; returns result or error
+Playtesting:
+  start_stop_play   start/stop playtest
+  console_output    retrieve logs WHILE running
+  screen_capture    capture viewport image in play mode
+  playtest_subagent spawn a test character to run scenarios
+Player input simulation:
+  character_navigation, keyboard_input, mouse_input
+Session management:
+  list_roblox_studios, set_active_studio
+
+OUR MAPPING (official -> ours):
+  script_read        ~ read_script        (ADD line-range support)
+  multi_edit         (MISSING)            ADD — biggest quality win
+  script_search      (MISSING)            ADD
+  script_grep        (MISSING)            ADD
+  search_game_tree   ~ get_tree           ADD type/keyword/depth filtering
+  inspect_instance   ~ inspectBuild       UPGRADE to full props+attributes
+  execute_luau       DISABLED in plugin   POLICY DECISION (free on CLI)
+  start_stop_play    ~ fixed 6s playtest  SPLIT into start/stop/poll
+  console_output     ~ get_logs           make it pollable mid-run
+  screen_capture     ~ look_at_build      keep renderer; optional real capture
+  input simulation   (MISSING)            ADD (needs run-mode bridge)
+  list/set studio    (MISSING)            ADD for multi-instance
+
+--------------------------------------------------------------------------------
+3. PHASE 1 — CLI USES THE OFFICIAL ROBLOX STUDIO MCP  (START HERE)
+--------------------------------------------------------------------------------
+Idea: when running locally (CLI on the user's machine, Studio open with MCP
+enabled), don't go through our remote bridge at all. Register the OFFICIAL
+Roblox Studio MCP server with kiro-cli, exactly like BloxBot registers it with
+OpenCode. The model then calls Roblox's first-party tools directly = instant,
+local, full-capability.
+
+Design:
+  - New module: cli/utils/roblox-mcp.ts
+      * studioMcpCommand(): returns the platform launch command:
+          Windows: { command: "cmd.exe",
+                     args: ["/c", "%LOCALAPPDATA%\\Roblox\\mcp.bat" (expanded)] }
+          macOS:   { command: "/Applications/RobloxStudio.app/Contents/MacOS/StudioMCP",
+                     args: [] }
+          Linux:   { command: "studio-mcp", args: [] }   (best-effort)
+      * detectOfficialStudioMcp(): returns true if the binary/bat exists on disk.
+  - New function in cli/aj.ts: handleLocalMcpTurn()
+      * Writes a temporary kiro-cli agent config to ~/.kiro/agents/aj-local-<id>.json
+        with mcpServers.Roblox_Studio = studioMcpCommand() (mirrors runMcpAgent's
+        pattern, but launches the OFFICIAL server, not our stdio bridge).
+      * Uses the BloxBot-style system prompt (explore-first, edit-with-tools,
+        verify-after, debug-with-playtests) referencing the official tool names
+        (search_game_tree, script_read, multi_edit, execute_luau, etc.).
+      * Spawns `kiro-cli chat --no-interactive --agent <name>
+        --require-mcp-startup --trust-all-tools <instructions>`, streams output
+        to the existing live progress feed, cleans up the temp agent file.
+  - Routing in the prompt handler:
+      * /mcp local            -> force official-local mode
+      * /mcp on (remote)      -> existing remote bridge mode (unchanged)
+      * AUTO: if mcpMode and detectOfficialStudioMcp() -> use local; else remote.
+  - New slash command surface:
+      * /mcp local | remote | off   (extend the existing /mcp command)
+  - Connection-failure UX: if a tool call fails/times out, tell the user to
+    ensure Studio is open and MCP is enabled (Assistant -> Manage MCP Servers ->
+    Enable Studio as MCP server), link the docs. Do not retry-spam.
+
+CLI Phase-1 checklist:
+  [ ] cli/utils/roblox-mcp.ts  (command resolver + existence detector)
+  [ ] handleLocalMcpTurn() in cli/aj.ts (writes agent cfg, spawns kiro-cli,
+      streams progress, cleans up)
+  [ ] BloxBot-style local system prompt using official tool names
+  [ ] extend /mcp command: local | remote | off (+ persist a mcpLocal flag)
+  [ ] auto-detect official server; fall back to remote bridge when absent
+  [ ] failure UX + docs link
+  [ ] manual test: Studio open w/ MCP enabled -> "make a part red" round-trips
+
+--------------------------------------------------------------------------------
+4. "OPTION D" EXPLAINED IN DETAIL — HYBRID LOCAL/REMOTE FOR THE WEBSITE
+--------------------------------------------------------------------------------
+WHAT IT IS (one line): the website automatically uses a FAST LOCAL path when a
+small Apple Juice helper is running on the user's PC, and silently FALLS BACK to
+the (improved) remote path when it isn't. Same UI, two transports, picked
+automatically.
+
+WHY WE NEED IT: a browser tab on https://apple-juice.online cannot talk to
+http://localhost (mixed content + Private Network Access). And the Roblox plugin
+can only make outbound HTTP — it cannot accept a direct connection from the
+browser. So to get localhost speed on the web, SOMETHING local has to sit in the
+middle. That "something" is a tiny helper process (we already ship executables:
+dist/aj.exe, dist/aj-bg.exe, and kiro-proxy is basically this server already).
+
+THE THREE PIECES IN OPTION D:
+  1) The Studio plugin (unchanged role): keeps long-polling an HTTP endpoint for
+     commands and posting results back. It just needs to be pointed at a
+     localhost URL when local mode is active (it already supports a configurable
+     Server URL field — defaulting to https://apple-juice.online today).
+  2) The LOCAL HELPER (new/!reuse kiro-proxy): a small process on the user's PC
+     that:
+       - serves the HTTP bridge the plugin polls at http://localhost:PORT
+         (localhost = ~1-5 ms round trips, exactly like the official server),
+       - AND exposes a channel the browser can reach despite mixed content
+         (options below),
+       - relays: browser  <->  local helper  <->  plugin  (all on the machine).
+  3) The WEBSITE: on load it PROBES for the local helper. If found, it routes all
+     MCP tool calls through the helper (fast). If not found, it uses the remote
+     bridge (works everywhere, just slower).
+
+HOW THE BROWSER REACHES A LOCAL HELPER OVER HTTPS (the mixed-content fix):
+  The blocker is that HTTPS pages can't call http://localhost. Ways around it,
+  pick one (in rough order of robustness):
+   (i)   The helper serves HTTPS/WSS with a certificate for a hostname that
+         resolves to 127.0.0.1 (e.g. a *.apple-juice.online subdomain whose DNS
+         A-record points to 127.0.0.1, with a real cert). Browser connects to
+         wss://local.apple-juice.online:PORT which is loopback but cert-valid.
+         (This is how some pro tools ship local bridges.)
+   (ii)  Private Network Access: Chrome/Edge allow an HTTPS page to reach
+         http://localhost IF the helper answers the PNA preflight
+         (Access-Control-Allow-Private-Network: true) and proper CORS. Simpler,
+         but support/*behavior* varies by browser/version — must feature-detect.
+   (iii) WebSocket to ws://localhost from the HTTPS page — historically allowed
+         in Chromium under PNA with preflight; also varies. Feature-detect.
+         (Loopback is the special-cased origin.)
+   Recommended: ship (i) as the reliable default; opportunistically try (ii)/(iii)
+   to allow a zero-cert setup where the browser permits it.
+
+DATA FLOW WHEN LOCAL MODE IS ACTIVE:
+   Web UI tool call
+     -> (wss/https to localhost helper)
+       -> helper enqueues command in its in-memory localhost queue
+         -> Studio plugin (long-poll on localhost, immediate re-poll) pulls it
+           -> plugin executes in Studio, posts result to localhost helper
+             -> helper pushes result back over the socket to the Web UI
+   No internet hop. Latency ~ the official server.
+
+AUTO-DETECT + FALLBACK LOGIC (what makes it "D"):
+   on app start (and on a periodic heartbeat):
+     probe = try connect to the local helper (short timeout, e.g. 500 ms)
+     if probe.ok:  transport = LOCAL   (badge: "Local — fast")
+     else:         transport = REMOTE  (badge: "Cloud")
+   The agent-loop / studio-bridge call a single sendStudioTool(transport, ...)
+   abstraction so the rest of the code doesn't care which path is used.
+   If the local socket drops mid-session, transparently fall back to remote and
+   show a non-blocking notice.
+
+WHAT THE USER INSTALLS: nothing new conceptually — we already ship aj.exe /
+aj-bg.exe and have kiro-proxy. We add a "local turbo" mode to that helper and a
+one-time "point the plugin at localhost" toggle (or auto-config). Casual users
+who never install the helper keep working via the remote bridge.
+
+WHY NOT JUST DO LOCAL FOR WEB ALWAYS: because most web users won't install a
+helper. D keeps the zero-install experience working (remote) while giving the
+people who want maximum speed a path to it (local). Best of both, no regression.
+
+Option D checklist (later — after Phase 1 & 2):
+  [ ] add a "local turbo" HTTP+socket mode to the helper (reuse kiro-proxy)
+  [ ] cert/hostname strategy for loopback-over-HTTPS (pick i; try ii/iii)
+  [ ] plugin: easy toggle/auto-config to point Server URL at localhost helper
+  [ ] web: local-helper probe + heartbeat + transport badge
+  [ ] sendStudioTool(transport) abstraction in studio-bridge.ts
+  [ ] graceful mid-session fallback local->remote
+
+--------------------------------------------------------------------------------
+5. PHASE 2 — MAKE THE REMOTE WEB BRIDGE LOCALHOST-GRADE FAST (no install)
+   (do right after Phase 1; pure win for every web user)
+--------------------------------------------------------------------------------
+  [ ] Replace fixed 150 ms poll in awaitResult with server-side LONG-POLL:
+      hold /api/mcp/poll and /api/mcp/next open up to ~25 s, return the instant
+      data lands. (Plugin already long-polls; make the server side block too.)
+  [ ] Replace the read-modify-write JSON-array queue in mcp-bridge.ts with a
+      Redis LIST + blocking pop (BLPOP) or pub/sub — removes the rewrite race
+      and cuts a round trip.
+  [ ] Plugin: immediate re-poll after each response; exponential backoff ONLY on
+      failure (mirror the official plugin's loop — it never sleeps between
+      successful polls).
+  [ ] Co-locate the Vercel function region with the Turso/Redis region.
+  [ ] Bound + telemetry: log per-tool round-trip ms (like the official plugin's
+      "completed in Nms") to measure the gain.
+
+--------------------------------------------------------------------------------
+6. PHASE 3 — TOOL-SURFACE PARITY (works on BOTH web + cli, transport-agnostic)
+--------------------------------------------------------------------------------
+  Plugin (AppleJuiceSync.lua) — add handlers:
+   [ ] script_search  (fuzzy name match, <=10)
+   [ ] script_grep    (content search across all LuaSourceContainers, <=50)
+   [ ] inspect_instance (full readable props + attributes + child summary)
+   [ ] search_game_tree filters (instance_type, keyword, depth)
+   [ ] multi_edit (atomic sequential string edits; reuse existing resilient
+       search/replace block-matching already in the file)
+   [ ] split playtest: start_playtest / stop_playtest / console_output (pollable)
+   [ ] (policy) execute_luau — gated/sandboxed if approved for web
+   [ ] (optional) input sim: keyboard_input / mouse_input / character_navigation
+  Server/agent:
+   [ ] register matching tools in studio-bridge.ts (StudioTool union) and
+       agent-loop.ts (AGENT_TOOLS + toStudioCall)
+   [ ] update kiro-proxy/mcp/studio-mcp.ts TOOLS to match
+   [ ] update system prompts to teach the new tools (explore w/ grep+search
+       first, multi_edit over full rewrites, start/stop/console debug loop)
+
+--------------------------------------------------------------------------------
+7. SOURCING / LICENSING NOTE
+--------------------------------------------------------------------------------
+- The official Roblox Studio MCP server is Roblox's own, open-source (MIT). Using
+  it the way BloxBot does (registering it as an MCP server and connecting an
+  agent) is fully legitimate — it is built for exactly this.
+- We will MODEL our tool design on the official documented tool names/behavior
+  (a public spec), not copy any third-party plugin's code. Credit Roblox's
+  project where appropriate.
+- Do NOT bundle BloxBot's binary or lift their source as our own.
+
+--------------------------------------------------------------------------------
+8. BUILD ORDER (recommended)
+--------------------------------------------------------------------------------
+  1) Phase 1 (CLI -> official local MCP)         <-- STARTING NOW
+  2) Phase 2 (remote bridge long-poll/BLPOP)
+  3) Phase 3 (tool-surface parity on plugin+server)
+  4) Option D (web local helper + auto-detect)
+  5) Revisit execute_luau policy for the web plugin
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ SUB-SECTION D.2 — STDIO→LOOPBACK BRIDGE (the safe alternative to tunneling)
+--------------------------------------------------------------------------------
+CONTEXT: A proposal surfaced to expose the official Studio MCP server remotely
+via a public tunnel (ngrok / remote MCP gateway). REJECTED for the website — see
+the rationale in part 3 below. The correct design keeps everything on the user's
+machine: the Apple Juice helper wraps the official stdio server and serves it to
+the dashboard over a LOOPBACK socket only. This is the implementation detail
+behind Option D's "local helper" path.
+
+1. ARCHITECTURAL STRATEGY
+   [Roblox Studio Official MCP]
+        ▲
+        │ (local stdio / pipes)
+        ▼
+   [Apple Juice Local Helper]  ◄──(secure local loopback socket)──►  [Web Dashboard]
+
+   The helper spawns the official Studio MCP server as a CHILD PROCESS and pipes
+   its stdin/stdout. It exposes those capabilities to the dashboard strictly via
+   the local loopback interface — never the public internet.
+
+2. IMPLEMENTATION SPECIFICATIONS
+   - BINDING: the helper's local server MUST bind to 127.0.0.1 (or a local IPC
+     named pipe / Unix socket). It MUST NEVER bind to 0.0.0.0.
+   - PROTOCOL TRANSPOSITION:
+       * Inbound:  dashboard → local WebSocket → helper writes JSON-RPC to the
+                   child process stdin.
+       * Outbound: helper reads the child's stdout → pushes the JSON-RPC response
+                   back over the local WebSocket to the dashboard.
+   - The helper is a thin transposition layer; it does not interpret tool
+     semantics — Studio remains the executor.
+
+3. WHY PUBLIC TUNNELS ARE EXPLICITLY REJECTED
+   - ATTACK SURFACE: an MCP endpoint grants arbitrary Luau execution + file
+     read/write inside the live place. Public-tunneling it = internet-reachable
+     RCE on the developer's machine. Loopback-only eliminates external discovery.
+   - LATENCY: a tunnel routes client → internet → gateway → localhost and back,
+     ADDING an internet round trip. Loopback avoids it — near-native speed, no
+     internet hop. (Note: end-to-end latency still includes the Studio plugin's
+     own poll cycle, so the win is "no internet hop," not literally sub-ms total.)
+   - UX: no CLI tunneling tools, no third-party auth, no ephemeral URLs. The
+     helper bundles into the app for a one-click "Connect" flow.
+   - SUPPLY CHAIN: no piping code-execution rights through an unverified
+     third-party gateway package.
+
+4. ⚠️ TWO HARD REQUIREMENTS THE NAIVE DESIGN MISSES
+   (loopback binding is necessary but NOT sufficient — both of these are
+    mandatory, not optional hardening)
+
+   4a. HTTPS → LOOPBACK IS BLOCKED BY DEFAULT (the real hard part)
+       A page served from https://apple-juice.online cannot open ws://127.0.0.1
+       or fetch http://localhost — mixed-content + Private Network Access (PNA)
+       restrictions block it in Chrome/Edge. Binding to loopback does not change
+       this. The bridge MUST ship ONE of:
+         (i)  a loopback hostname with a VALID TLS cert (e.g. a subdomain whose
+              DNS A-record points to 127.0.0.1) so the dashboard connects to
+              wss://<host>:PORT that is loopback AND cert-valid; OR
+         (ii) answer the PNA preflight (Access-Control-Allow-Private-Network:true)
+              + correct CORS, where browser/version supports it (feature-detect).
+       Recommended: ship (i) as the reliable default; opportunistically try (ii).
+       Without this, the local path silently fails in the browser.
+
+   4b. LOOPBACK IS NOT "TRUSTED" — DEFEND AGAINST LOCAL ATTACKERS
+       127.0.0.1 stops EXTERNAL scanners but NOT other local code: any website
+       the user visits, or any other app, can also reach 127.0.0.1. Without
+       defense, a malicious web page can drive the bridge → full Studio RCE
+       (classic DNS-rebinding / CSRF-against-localhost). The bridge MUST:
+         - Validate the Origin header against a strict allowlist (only the Apple
+           Juice dashboard origin[s]).
+         - Require a per-session AUTH TOKEN minted by the helper and handed to the
+           dashboard out-of-band (e.g. the user pastes/auto-pairs a code, or the
+           helper opens the dashboard with the token); reject connections without
+           it.
+         - Validate the Host header (reject unexpected hosts → blocks DNS
+           rebinding).
+         - Bind to an ephemeral random port and/or use an OS pipe where possible.
+
+5. D.2 CHECKLIST
+   [ ] helper: spawn official Studio MCP as child, pipe stdin/stdout
+   [ ] helper: loopback WebSocket server (127.0.0.1, ephemeral port or pipe)
+   [ ] cert/PNA strategy for HTTPS→loopback (4a) — pick (i), feature-detect (ii)
+   [ ] Origin allowlist + per-session token + Host validation (4b)
+   [ ] dashboard: probe + handshake + token presentation
+   [ ] graceful fallback to remote bridge when helper absent or handshake fails
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ REVISION R1 — ARCHITECTURE REVIEW DECISIONS (supersedes earlier ordering)
+--------------------------------------------------------------------------------
+Outcome of an architecture review. ACCEPTED items refine the design; the two
+PUSHBACK items correct things that would bite during implementation. Where this
+section conflicts with earlier text, THIS section wins.
+
+ACCEPTED — R1.1  HELPER WRAPS THE OFFICIAL MCP; IT DOES NOT REIMPLEMENT MCP
+  The helper must be a DUMB stdio<->loopback transposer around Roblox's official
+  server — NOT a custom MCP that re-declares tools.
+      DO:    aj runtime -> spawn mcp.bat -> pipe stdin/stdout -> expose JSON-RPC locally
+      DON'T: browser -> AJ custom MCP -> Roblox plugin
+  Rationale: owning tool definitions means owning compatibility bugs and every
+  future Roblox MCP change. Wrapping = when Roblox adds new_tool_x, we get it for
+  free. The helper does not interpret tool semantics. (This is exactly D.2 §1.)
+  NOTE: this applies to the LOCAL/RUNTIME path. The WEB no-install path still
+  needs our OWN plugin tool surface (Phase 3) because those users have no runtime
+  and no official server reachable.
+
+ACCEPTED — R1.2  WEB APP THINKS "TRANSPORT", NOT "MCP"
+  Introduce a single abstraction the agent codes against:
+      interface StudioTransport { callTool(name: string, args: unknown): Promise<Result> }
+      implementations: LocalTransport (loopback helper) | RemoteTransport (cloud bridge)
+  The agent calls studio.callTool("multi_edit", ...) and is ignorant of whether
+  it is hitting Vercel, localhost, or stdio. This is the formalization of the
+  earlier sendStudioTool(transport) note in studio-bridge.ts. Build this
+  abstraction BEFORE wiring the helper so both paths drop in cleanly.
+
+ACCEPTED — R1.4  SECURITY IS MANDATORY (reaffirmed, see D.2 §4b)
+  Token flow chosen (NO copy-paste):
+      aj runtime starts -> mints random per-session token
+        -> opens browser to https://apple-juice.online/connect?token=xxxx
+          -> dashboard stores token -> WebSocket handshake presents token
+  Plus (from D.2 §4b): strict Origin allowlist (only the AJ dashboard origin),
+  Host-header validation (anti DNS-rebind), ephemeral random port / OS pipe.
+  Without these: "any website can control Roblox Studio." Non-negotiable.
+
+ACCEPTED — R1.6  RENAME THE HELPER -> "APPLE JUICE RUNTIME"
+  The helper is the foundation, not a one-off. Internally name it the
+  Apple Juice Runtime:
+      Apple Juice Runtime
+        ├── Roblox MCP bridge (R1.1)
+        ├── auth / token (R1.4)
+        ├── updates
+        ├── local cache
+        ├── plugin connection
+        └── future integrations (Blender, VS Code, Git, filesystem, ...)
+  Target end-state architecture:
+      AppleJuice Web
+        │  detects local runtime
+        ├── local mode  -> Apple Juice Runtime -> official Roblox MCP -> Studio
+        └── cloud mode  -> API (remote bridge)
+  Framing: we are NOT trying to beat BloxBot at AI. We MATCH its transport +
+  tools (use the official MCP) and add our own UX. Shortest path to "why does
+  this feel exactly like BloxBot?"
+
+PUSHBACK — R1.3  HELPER ORDERING: PARTIAL DISAGREE (tradeoff, your call)
+  Proposed: move helper before remote-speed + tool-parity.
+  Caveat: the helper ONLY serves users who INSTALL the Runtime. It does not help
+  no-install web users and does not remove the need for Phase 3 on our own
+  plugin for that audience. Phase 2 (remote bridge speed) is CHEAP and helps
+  EVERY existing web user with ZERO install, while the Runtime is the largest
+  effort and still has an unsolved hard problem (R1.5 / D.2 §4a).
+  This is a PRODUCT decision:
+    - If "best experience = install the Runtime": helper early, Phase 3 shrinks
+      to only what the no-install path needs.
+    - If "no-install web must also feel like BloxBot": keep Phase 2 + Phase 3.
+  RECOMMENDED ORDER (overruleable):
+      1) CLI -> official MCP                         [DONE]
+      2) StudioTransport abstraction (R1.2)          [small, unblocks both]
+      3) Phase 2 remote bridge speed                 [cheap, universal, no install]
+      4) Apple Juice Runtime (local helper)          [biggest win for installers]
+      5) Phase 3 tool parity                         [scope to no-install needs]
+
+PUSHBACK — R1.5  CERTS: DON'T TREAT AS OPTIONAL (correction to "avoid certs")
+  Proposed: try http://127.0.0.1 + PNA first, cert "only if needed."
+  Correction: an HTTPS page hitting ws://127.0.0.1 faces TWO INDEPENDENT blocks:
+    (a) Private Network Access (PNA) — addressed by the preflight header, AND
+    (b) MIXED CONTENT (secure page -> insecure ws/http) — a SEPARATE gate whose
+        localhost behavior is murky and CHANGES between Chrome versions.
+  PNA does not solve mixed content. So:
+    - DO feature-detect and use the certless http/127.0.0.1 + PNA path as a fast
+      path WHERE the browser allows it.
+    - BUT the loopback-hostname + valid TLS cert path (D.2 §4a option i) MUST be
+      built and ready as the GUARANTEED fallback — not "someday."
+  Framing it as "avoid certs if possible" risks shipping something that works on
+  the dev's machine and silently fails for a chunk of users. Cert path = the
+  reliability backstop; certless path = the nice-to-have fast path.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ REVISION R2 — PLATFORM REFINEMENTS (supersedes R1 build order)
+--------------------------------------------------------------------------------
+R2 keeps R1.3 and R1.5 exactly as written (the two pushbacks stand). It adds
+capability negotiation, a high-level tool stance, and a pairing flow, and locks
+the build order around the transport abstraction.
+
+R2.1  TRANSPORT BECOMES A CAPABILITY PROVIDER (extends R1.2)
+  The two worlds diverge in what they can DO, so the transport must advertise it:
+      interface StudioTransport {
+        callTool(name: string, args: unknown): Promise<Result>
+        capabilities(): Promise<{
+          tools: string[]
+          executeLuau: boolean
+          screenCapture: boolean
+          inputSimulation: boolean
+          local: boolean
+        }>
+      }
+  Expected capability split:
+      Local Runtime (official MCP): execute_luau ✅  inputSim ✅  screenCapture ✅
+      Remote web (our bridge):      execute_luau ❌  inputSim ~  screenCapture ~
+  USAGE — gate at BOTH layers (this is the part the naive version misses):
+    1) CALL SITE guard:   if (caps.executeLuau) { use_debug_script() }
+    2) PROMPT conditioning: negotiate caps ONCE per session and inject the
+       available tool list into the agent's system prompt, so the model never
+       PLANS around a tool it can't use and dead-ends a turn. Guarding only at
+       the call site still wastes turns. Do both.
+  Negotiate capabilities at session start; cache for the session.
+
+R2.2  PHASE 3 IS "HIGH-LEVEL TOOLS", NOT "COPY ROBLOX 1:1"
+  Roblox's MCP is a general-purpose Studio assistant surface. Apple Juice's goal
+  is narrower: BUILD GAMES FASTER. So the official tools are the FOUNDATION/
+  primitives, not the final UX. Target stack:
+      Agent
+        ├── high-level AJ tools   (build_feature, generate_system,
+        │                          debug_gameplay_loop, balance_values,
+        │                          explain_scene, ...)
+        ├── official-compatible primitives (script_read, multi_edit, grep, ...)
+        └── Studio
+  NOT: Agent -> 500 tiny Roblox primitives -> Studio.
+  OPEN DESIGN DECISION (decide before building Phase 3): are high-level tools
+    (a) SERVER-SIDE ORCHESTRATIONS — real composite functions that call
+        primitives in a loop on our side (testable, deterministic, more code), or
+    (b) PROMPT-LEVEL MACROS — guidance that expands into primitive calls by the
+        model (cheap, flexible, less predictable)?
+  Likely answer: a hybrid (orchestrate the risky/multi-step ones; macro the rest)
+  — but pick per-tool deliberately, don't default by accident.
+
+R2.3  RUNTIME AUTH = PAIRING, NOT URL TOKEN (revises R1.4 token flow)
+  Auto-opening /connect?token=abc can leak the token (browser extensions,
+  antivirus URL inspection, another app observing the launched URL). Use a
+  short-lived PAIRING flow instead:
+      Runtime starts -> shows a pair code:   "Apple Juice Runtime — Pair: 483921"
+      Browser: apple-juice.online/connect -> user enters the code
+      -> Runtime <-> Browser establish the authenticated WebSocket
+  HARDENING (mandatory — a 6-digit code is low entropy):
+      - short-lived (e.g. expires in ~60-120s),
+      - single-use (consumed on first successful pair),
+      - attempt-limited (lock after a few wrong tries) to kill brute force,
+      - still combined with the R1.4 Origin allowlist + Host validation + loopback
+        binding. Pairing replaces the URL-token DELIVERY; it does not replace the
+        other loopback defenses.
+
+R2.4  LOCKED BUILD ORDER (supersedes R1.3's recommended order)
+      1) CLI -> official MCP                         [DONE]
+      2) StudioTransport abstraction (+capabilities) [MOST IMPORTANT MOVE]
+      3) Remote bridge optimization (Phase 2)        [cheap, universal, no install]
+      4) Apple Juice Runtime (local helper)          [biggest win for installers]
+      5) Tool parity / high-level tools (Phase 3)    [scope per R1.1 note + R2.2]
+  Why #2 first: every future feature then lands ONCE as studio.callTool(...),
+  never as if(local)/else if(remote)/else if(cli) scattered across the agent.
+
+R2.5  COMPETITIVE FRAMING (the thesis this whole plan serves)
+  We do NOT try to beat BloxBot at AI. We MATCH its transport + tools (use the
+  official Roblox MCP as infrastructure) and WIN on:
+      - our prompts / agent loop
+      - our UX
+      - our game-building workflows (the high-level tools of R2.2)
+  Final signed-off architecture:
+      Agent
+        └── StudioTransport
+              ├── RemoteTransport -> Cloud MCP/bridge
+              └── LocalTransport  -> Apple Juice Runtime -> Roblox Official MCP -> Studio
+  MCP is infrastructure; the product is the agent + UX + workflows on top.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ LOCAL MCP PARITY CEILING (per-surface — what "local" can mean where)
+--------------------------------------------------------------------------------
+- CLI (installed)          : TRUE local MCP. Spawns the official Roblox server
+                             over stdio on loopback. Full tool surface, native
+                             speed. = BloxBot parity. [implemented]
+- Web + Apple Juice Runtime : TRUE local MCP for the web UI. Runtime bridges the
+                             official server <-> browser on loopback. Full tools,
+                             native speed. The install is the ONLY cost.
+- Web, no install          : CANNOT be local — nothing on the machine to be local
+                             to. Ceiling = optimized remote bridge (Phase 2):
+                             closes latency as far as the internet allows, never
+                             loopback-fast. This is physics, not a design gap.
+HARD LIMITS (not ours to move): the Roblox plugin is outbound-only (can't accept
+a browser connection), and browsers restrict HTTPS->loopback. The Runtime is the
+minimum viable bridge that satisfies both — i.e. the genuine local path for web.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ REVISION R3 — PHASE 2 CORRECTION: STORE IS TURSO, NOT REDIS
+--------------------------------------------------------------------------------
+Discovered during implementation: the KV layer is Turso/libSQL (src/lib/turso.ts),
+NOT Upstash Redis. The KV interface exposes only get/set/del/expire/incr/decr/
+sadd/srem/smembers — there is NO native blocking pop (BLPOP) or pub/sub. So the
+earlier Phase 2 line "Redis LIST + BLPOP" is NOT available as written.
+
+ACHIEVE THE SAME LATENCY WIN WITHIN TURSO:
+  - SERVER-HELD LONG-POLL: hold the HTTP request open on /api/mcp/next (plugin)
+    and /api/mcp/poll (MCP server) and INTERNALLY fast-poll the KV in a tight
+    loop, returning the INSTANT data lands or after a bounded hold (~20-25s).
+    This collapses the old "fixed 150ms client poll + full HTTP round trip per
+    attempt" into a single held request — most of the perceived latency gain of
+    BLPOP, without needing Redis.
+  - ADAPTIVE RESULT WAIT: in awaitResult, fast initial interval (e.g. 60-80ms)
+    that backs off — first response lands sooner without hammering the store.
+  - QUEUE RACE: keep the JSON-array queue but the one-in-flight-per-session MCP
+    pattern makes the read-modify-write race practically a non-issue; long-poll
+    does not worsen it. (A true atomic dequeue would need a libSQL transaction;
+    note as a future hardening, not required for the latency win.)
+  - BACKWARD COMPATIBLE: long-poll must be OPT-IN via a query flag (e.g. ?wait=ms)
+    so the EXISTING plugin (fixed 0.2s poll) keeps working unchanged; the plugin
+    can adopt waiting later.
+  - SERVERLESS NOTE: holding a request consumes a Vercel function invocation for
+    its duration; cap the hold (<=25s, under the 300s route cap) and let the
+    client re-issue. Acceptable for the bridge's low concurrency.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG
+--------------------------------------------------------------------------------
+[x] Step 1  CLI -> official local Roblox Studio MCP
+            (cli/utils/roblox-mcp.ts, cli/utils/local-mcp-agent.ts, /mcp local)
+[x] Step 2  StudioTransport abstraction (+capabilities)
+            (src/lib/agent/transport.ts; agent-loop.ts routes via transport +
+             capability-conditioned system prompt)
+[x] Step 3  Phase 2 remote bridge speedup (Turso-compatible long-poll)
+            - mcp-bridge.ts: dequeueCommandWaiting + getResultWaiting (server-held
+              long-poll, clamped 25s) + adaptive backoff in awaitResult
+            - /api/mcp/next + /api/mcp/poll: opt-in ?wait=MS (backward compatible)
+            - plugin AppleJuiceSync.lua: dedicated MCP long-poll thread (wait=20s)
+              + immediate re-poll after each command (official-plugin trick)
+            - kiro-proxy/mcp/studio-mcp.ts: uses ?wait long-poll on result poll
+            - tests: src/lib/mcp-bridge.test.ts (7) — full suite 102/102 green
+[ ] Step 4  Apple Juice Runtime (local helper) — D.2 + R2.3 pairing + R2 4a/4b
+[x] Step 5  Tool parity (primitives) — parity-relevant set COMPLETE.
+            DONE so far — official-surface PRIMITIVES added end-to-end:
+              - plugin AppleJuiceSync.lua: studio_script_search, studio_script_grep,
+                studio_inspect_instance handlers (+ collectAllScripts helper)
+              - studio-bridge.ts: StudioTool union + timeouts
+              - transport.ts: REMOTE_TOOLS capability list
+              - agent-loop.ts: AGENT_TOOLS schemas + toStudioCall maps + explore
+                prompt now teaches script_search/grep/inspect_instance
+              - api/mcp/enqueue allowlist + kiro-proxy studio-mcp.ts tool defs
+              - verified: tsc clean, 102/102 tests, Lua structure validated
+            STILL TODO in Step 5:
+              - search_game_tree filters (type/keyword/depth)
+              - R2.2 HIGH-LEVEL tools (build_feature, debug_gameplay_loop, ...) —
+                decide orchestration vs macro per-tool first
+              - execute_luau: policy decision (free on CLI/official; gated on web)
+            ADDED since (batch 2):
+              - multi_edit (resilient ordered search/replace; creates if missing;
+                reuses applyResilientEdit; revert+checkpoint capture in agent-loop)
+              - split playtest: start_playtest / stop_playtest / console_output
+                (agent-controlled timing + pollable mid-run logs)
+              - wired across plugin + studio-bridge + transport + agent-loop
+                (schemas, mappings, prompt) + enqueue allowlist + kiro-proxy defs
+              - verified: tsc clean, 102/102 tests, Lua structure validated
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ REVISION R4 — PRODUCT DECISIONS (resolves R1.3 + execute_luau policy)
+--------------------------------------------------------------------------------
+R4.1  PARITY BET (resolves R1.3): "INSTALL THE RUNTIME" is the premium path.
+  - The Apple Juice Runtime (local) is the full, high-fidelity, BloxBot-class
+    experience. Optimize parity work there.
+  - The WEB dashboard stays functional as a clean control panel: orchestration,
+    observation, light management — NOT the place we chase absolute parity
+    against browser sandbox limits.
+  IMPLICATION FOR THIS PLAN:
+    - Step 5 tool parity is scoped to "useful everywhere," but the powerful/risky
+      tools (execute_luau, input simulation) live on the LOCAL transport.
+    - Step 4 (Runtime) is the priority for the "feels like BloxBot" goal.
+
+R4.2  execute_luau POLICY (resolves the open question):
+  - DISABLED on the web/RemoteTransport by default (strict opt-in at most), for
+    Roblox marketplace compliance and a clean security boundary.
+  - ENABLED on the LOCAL transport (Runtime/CLI via the official Roblox MCP),
+    where Roblox owns the execution safety model.
+  MECHANISM: capability-gated tool exposure (R2.1). execute_luau is only offered
+  to the model when caps.executeLuau === true. RemoteTransport reports false;
+  the future LocalTransport reports true. No special-casing in the agent — the
+  capability flag drives both the prompt and the available tool list.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 3) — R4 decisions implemented
+--------------------------------------------------------------------------------
+[x] execute_luau capability-gated (R4.2): agent-loop filters AGENT_TOOLS so the
+    tool is ONLY offered when caps.executeLuau===true (local). RemoteTransport
+    reports false → never exposed/enqueued on web. Plugin handler explicitly
+    refuses studio_execute_luau (marketplace-safe), pointing to the local Runtime.
+[x] search_game_tree (filtered hierarchy: path/instanceType/keyword/depth) added
+    end-to-end: plugin helper+handler, StudioTool+timeout, REMOTE_TOOLS, enqueue
+    allowlist, agent schema+mapping+EXPLORE prompt, kiro-proxy def.
+[x] Verified: tsc clean, 102/102 tests, Lua structure validated.
+
+REMAINING (deferred, need design/product, not blocking):
+  - R2.2 HIGH-LEVEL tools (build_feature, debug_gameplay_loop, balance_values,
+    explain_scene): decide orchestration vs macro per-tool. Best tackled after
+    the Runtime (Step 4) since the premium experience lives there.
+  - Official extras we intentionally skipped (asset generation: generate_mesh/
+    material/procedural, insert_from_creator_store; input simulation; multi-
+    studio list/set): generation + input-sim need engine privileges our plugin
+    lacks → they come "for free" via the official server on the LOCAL path, so
+    they belong to Step 4, not the web plugin.
+
+NEXT: Step 4 — Apple Juice Runtime. Blocked items requiring YOUR input/env:
+  - cert vs PNA approach for HTTPS→loopback (needs real browser testing)
+  - code-signing / distribution of the Runtime binary (external)
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 4) — generation + MCP correctness fixes
+--------------------------------------------------------------------------------
+[x] TRUNCATION NOTICE (generation correctness): tool results fed to the model
+    were silently sliced at 24k, so the model could read a long script, assume
+    it saw all of it, and "rewrite the complete file" — dropping the unseen
+    tail (silent data loss). Extracted boundToolResult() which now APPENDS an
+    explicit "OUTPUT TRUNCATED … NOT the full content" notice with the real
+    total length. Unit-tested (bound-tool-result.test.ts).
+[x] TRANSPORT-ROUTED PLAYTEST/INSPECT (MCP correctness): runPlaytest() and
+    inspectBuild() previously called the remote bridge directly, so on the
+    future LOCAL transport they'd hit the wrong path. Both now accept an optional
+    StudioToolRunner; agent-loop passes a runner bound to the active transport,
+    so every tool call (incl. playtest/inspect) follows one transport.
+[x] Verified: tsc clean, full suite 105/105 (added 3 tests).
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 5) — agent execution-quality upgrades
+--------------------------------------------------------------------------------
+[x] STRUCTURED PLAYTEST ERRORS: plugin now returns JSON from studio_run_playtest
+    and studio_console_output ({passed,errorCount,errors:[{scriptName,scriptPath,
+    line,message,raw}],warnings}) via buildStructuredPlaytest (reuses
+    parseErrorDetails). studio-bridge runPlaytest() parses the JSON and formats
+    "script:line — message" lines for the FIX loop; legacy text format still
+    supported as a fallback. Tests: runplaytest-parse.test.ts (5).
+[x] script_grep CONTEXT WINDOW: scriptGrep now returns each hit with +/-2 lines
+    of surrounding code (the '→' line is the match) so the model has topography
+    to write correct multi_edit blocks first try. Dispatch formats blocks with
+    blank-line separators; agent tool description updated.
+[x] Verified: tsc clean, Lua structure OK, full suite 110/110.
+
+NEXT: Step 4 — Apple Juice Runtime scaffolding (loopback bridge + LocalTransport
+      + pairing/security). Core agent loop is now robust enough to build on.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 6) — Step 4 Apple Juice Runtime SCAFFOLDED
+--------------------------------------------------------------------------------
+Built /runtime as a zero-dependency Node helper (built-ins only):
+  - security.ts  : PairingManager — R2.3 pairing (short-lived, single-use,
+                   attempt-limited 6-digit codes → session tokens) + Origin
+                   allowlist + Host validation (R2 §4b, anti DNS-rebind) +
+                   setAllowedHosts + extractBearer. 10 unit tests.
+  - mcp-stdio.ts : McpStdioClient — spawns the OFFICIAL Roblox Studio MCP and
+                   speaks JSON-RPC over stdio (initialize handshake, tools/list,
+                   tools/call). R1.1: wrap, don't reimplement.
+  - official-mcp.ts : platform launch resolver (cmd.exe /c mcp.bat | StudioMCP).
+  - bridge-server.ts: loopback HTTP server bound STRICTLY to 127.0.0.1; routes
+                   /health (open) /pair /tools /call (auth-gated: Origin+Host+
+                   token). Sends CORS + Access-Control-Allow-Private-Network
+                   (certless PNA fast path, R2 §4a). 256KB body cap.
+  - index.ts     : entrypoint; prints the pair code for the dashboard.
+  - tsconfig.json + package.json; vitest include extended to runtime/**.
+VERIFIED: app tsc clean, runtime tsc clean, full suite 120/120 (14 files).
+
+REMAINING for Step 4 (decisions/env, not code-blocked here):
+  - AGENT-PLACEMENT GATE (now documented in transport.ts getStudioTransport):
+    the agent loop runs server-side (Vercel) and CANNOT reach 127.0.0.1, so a
+    server-side LocalTransport can't connect. Wiring local requires either
+    (a) a client-side agent loop, or (b) Runtime/browser relay. DECIDE FIRST.
+  - HTTPS→loopback TLS fallback (R2 §4a option i) for browsers where mixed-
+    content/PNA blocks the certless path — needs real browser testing.
+  - dashboard /connect pairing UI + LocalTransport client adapter.
+  - Runtime binary code-signing / distribution (external).
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ REVISION R5 — AGENT PLACEMENT DECIDED: OPTION C (agent runs in the Runtime)
+--------------------------------------------------------------------------------
+DECISION: For the installed/premium tier, the AGENT LOOP runs INSIDE the Apple
+Juice Runtime on the user's machine. Tool calls become local function calls into
+the official MCP (no internet hop, no browser→localhost cert/PNA problem for
+tools). The web dashboard is a THIN control panel: it sends the prompt to the
+Runtime over the loopback bridge and streams progress back. Inference (LLM) is
+the ONLY thing the Runtime calls out for — proxied to the existing VPS
+(kiro-proxy) so API keys never touch the browser.
+
+WHY C (vs A browser-agent / B dumb-relay):
+  - All-local tool dispatch = fastest, matches BloxBot + our existing CLI.
+  - No client-side port of the server agent loop; no cert/PNA fight for tools.
+  - The .exe stays "lightweight" enough (agent loop + inference proxy), not heavy.
+
+TWO TIERS (both already exist or are scaffolded):
+  - Tier 1 NO-INSTALL: web + plugin + cloud bridge (RemoteTransport). Works now,
+    parity tools + long-poll. No execute_luau/official server (the ceiling).
+  - Tier 2 INSTALL RUNTIME: agent-in-Runtime + official MCP. Premium, full tools.
+  Auto-detect: dashboard probes for the Runtime on load; uses it if present,
+  else falls back to Tier 1. User is never forced to install.
+
+INFERENCE PATH (C): Runtime agent loop -> HTTPS -> VPS (kiro-proxy /v1 OpenAI-
+  compatible) for model turns. Tools -> local McpStdioClient -> official MCP.
+
+NEXT BUILD (this/coming batches):
+  [ ] Runtime: local agent loop (LLM turn via VPS + tool calls via McpStdioClient)
+  [ ] Runtime: POST /agent on the loopback bridge (auth-gated, streams progress)
+  [ ] Dashboard: /connect pairing UI (enter pair code) + Runtime detection
+  [ ] Dashboard: when Runtime paired, route prompts to it & render streamed steps
+  [ ] (env) TLS fallback for HTTPS->loopback where PNA/mixed-content blocks
+  [ ] (external) code-sign + distribute the Runtime exe; OS auto-start/login item
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 7) — Option C: local agent loop in the Runtime
+--------------------------------------------------------------------------------
+[x] runtime/inference.ts — runLlmTurn(): proxies LLM turns to the VPS
+    (OpenAI-compatible /v1/chat/completions, Bearer sessionKey). Keys never hit
+    the browser; only model turns leave the machine. + parseToolArgs.
+[x] runtime/agent-loop.ts — runRuntimeAgent(): the LOCAL explore→build→verify
+    loop. Discovers the OFFICIAL tool surface via tools/list and forwards it to
+    the model (wrap-don't-reimplement), then passes tool calls straight to
+    McpStdioClient (all-local, full official tools incl. execute_luau). Helpers
+    officialToolsToLlmTools / mcpResultToText / boundResult unit-tested (7).
+[x] runtime/bridge-server.ts — POST /agent (auth-gated) runs the local loop and
+    streams progress over SSE. index.ts passes AJ_INFERENCE_URL.
+[x] VERIFIED: runtime tsc clean, full suite 127/127 (15 files).
+
+The Runtime is now a complete local agent: dashboard → (loopback, paired) →
+/agent → local loop → official MCP, with inference proxied to the VPS.
+
+REMAINING for Step 4 (dashboard + env/external, not Runtime-code):
+  [ ] Dashboard /connect: detect Runtime (GET /health), pair (POST /pair),
+      store token; when paired, send prompts to POST /agent and render the SSE
+      progress; auto-fall back to Tier 1 (cloud) when absent.
+  [ ] HTTPS→loopback: validate certless PNA path in real browsers; build the
+      TLS-hostname fallback if blocked (R2 §4a).
+  [ ] External: code-sign + distribute the exe; OS auto-start/login-item.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 8) — Runtime .EXE BUILT + smoke-tested
+--------------------------------------------------------------------------------
+[x] Build toolchain wired (mirrors cli): esbuild bundle -> pkg node18-win-x64.
+    runtime/package.json scripts: "bundle" and "build:exe".
+[x] Built runtime/dist/apple-juice-runtime.exe (~36MB; pkg+Node18 baseline —
+    our code bundle is only ~22KB, i.e. genuinely lightweight logic).
+[x] Published to public/apple-juice-runtime.exe for website download.
+[x] END-TO-END SMOKE TEST of the running exe (all passed):
+      /health                     -> 200 {ok,mcpRunning,mcpInstalled}
+      /tools no token             -> 401 (auth gate)
+      /pair bad Origin            -> 403 (Origin allowlist)
+      /pair wrong code            -> 401 (code validation)
+      /pair correct code+Origin   -> 200 + token (pairing)
+      /tools with token           -> 200 (authed access)
+    Confirms the loopback bridge + R2.3/§4b security + MCP stdio handshake all
+    work in the packaged binary.
+
+REMAINING (dashboard + env/external — not Runtime code):
+  [ ] Dashboard /connect: GET /health detect, POST /pair, store token, route
+      prompts to POST /agent (SSE), fall back to Tier 1 when absent.
+  [ ] Real-browser HTTPS->loopback validation (certless PNA vs TLS fallback).
+  [ ] Code-sign the exe + OS auto-start/login-item; rebuild on CI.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 9) — CLI Roblox login + credits, dashboard /connect
+--------------------------------------------------------------------------------
+CLI ROBLOX LOGIN (use your subscription on the CLI):
+[x] Backend device-auth flow (like `gh auth login`):
+      POST /api/cli/login/start  -> deviceCode + verifyUrl (/cli-login?d=...)
+      /cli-login page -> NextAuth Roblox sign-in -> POST /api/cli/login/approve
+        (binds a 30-day CLI session key to the real Roblox userId)
+      GET  /api/cli/login/poll?d= -> CLI gets the sessionKey once (then deleted)
+[x] GET /api/cli/usage?key= -> plan + remaining/total mL for the linked user
+    (session-key auth; cli-user-* anon accounts report loggedIn:false).
+[x] CLI: loginWithRoblox() (opens browser, polls), fetchUsage(), openBrowser(),
+    planLabel(); config gains robloxUserId/robloxUsername.
+[x] CLI commands: /login (Roblox sign-in) and /credits (plan + mL left),
+    registered in help + palette + autocomplete. Login prints plan+credits.
+
+DASHBOARD <-> RUNTIME (Option C wiring, web side):
+[x] src/lib/runtime-client.ts: detectRuntime() (probe loopback 48321-48323),
+    pairRuntime() (code -> token), runLocalAgent() (POST /agent, parse SSE).
+[x] /connect page + connect-runtime.tsx: detect → download prompt if absent →
+    enter pair code → store token → "Connected" (falls back to cloud silently).
+[x] Runtime now binds a FIXED port (48321, fallback 48322/48323) so the
+    dashboard can discover it; rebuilt exe + republished to public/. Re-smoke-
+    tested: binds 48321, /health ok.
+[x] VERIFIED: app tsc clean, runtime tsc clean, suite 127/127.
+
+REMAINING (env/external):
+  [ ] Dashboard chat: when a Runtime token exists, route prompts via
+      runLocalAgent() and render progress; else cloud. (Hook into chat UI.)
+  [ ] Real-browser HTTPS->loopback test (PNA/mixed-content) → TLS fallback if needed.
+  [ ] Code-sign the exe; OS auto-start/login item; CI build for win/mac.
+================================================================================

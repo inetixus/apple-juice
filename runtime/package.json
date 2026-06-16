@@ -1,0 +1,18 @@
+{
+  "name": "apple-juice-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local helper that bridges the official Roblox Studio MCP server to the Apple Juice web dashboard over a secure loopback connection.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node --experimental-strip-types src/index.ts",
+    "test": "vitest run",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node18 --outfile=dist/apple-juice-runtime.cjs",
+    "build:exe": "npm run bundle && pkg dist/apple-juice-runtime.cjs --targets node18-win-x64 --output dist/apple-juice-runtime.exe"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

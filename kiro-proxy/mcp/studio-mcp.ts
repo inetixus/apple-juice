@@ -59,11 +59,14 @@ async function runStudioCommand(
   const { requestId } = (await enqRes.json()) as { requestId: string };
   if (!requestId) throw new Error("Bridge did not return a requestId");
 
-  // 2. Poll for the result
+  // 2. Poll for the result. Use server-held long-polling (?wait) so the result
+  //    comes back the instant the plugin posts it, instead of many short polls.
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    const remaining = deadline - Date.now();
+    const wait = Math.max(0, Math.min(remaining, 20000));
     const r = await fetch(
-      `${BRIDGE_URL}/api/mcp/poll?key=${encodeURIComponent(SESSION_KEY)}&requestId=${encodeURIComponent(requestId)}`,
+      `${BRIDGE_URL}/api/mcp/poll?key=${encodeURIComponent(SESSION_KEY)}&requestId=${encodeURIComponent(requestId)}&wait=${wait}`,
       { headers: { Authorization: `Bearer ${BRIDGE_SECRET}` } },
     );
     if (r.ok) {
@@ -73,7 +76,9 @@ async function runStudioCommand(
         throw new Error(body.result.error || "Studio command failed");
       }
     }
-    await new Promise((res) => setTimeout(res, 150));
+    // Held request returned empty (hold elapsed with no result) — loop again.
+    // Tiny yield avoids a hot loop if the server returns immediately.
+    await new Promise((res) => setTimeout(res, 50));
   }
   throw new Error("Timed out waiting for Studio to respond. Is the plugin connected?");
 }
@@ -93,6 +98,20 @@ const TOOLS = [
     inputSchema: { type: "object" as const, properties: {} },
   },
   {
+    name: "studio_search_game_tree",
+    description:
+      "Explore the instance hierarchy with filters (more focused than studio_get_tree). Filter by path (root), instanceType (ClassName/IsA), keyword (name substring), and depth (1-10).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string" },
+        instanceType: { type: "string" },
+        keyword: { type: "string" },
+        depth: { type: "number" },
+      },
+    },
+  },
+  {
     name: "studio_read_script",
     description: "Read the full source of a script by its full path (e.g. 'ServerScriptService.Main').",
     inputSchema: {
@@ -100,6 +119,75 @@ const TOOLS = [
       properties: { path: { type: "string", description: "Full dotted path to the script" } },
       required: ["path"],
     },
+  },
+  {
+    name: "studio_script_search",
+    description:
+      "Fuzzy-search script NAMES across the project (case-insensitive substring). Returns up to 10 dotted paths. Use to locate a script when you don't know its exact path.",
+    inputSchema: {
+      type: "object" as const,
+      properties: { query: { type: "string", description: "Name fragment to search for" } },
+      required: ["query"],
+    },
+  },
+  {
+    name: "studio_script_grep",
+    description:
+      "Search the CONTENTS of every script for a string (case-insensitive). Returns up to 50 matches as 'path:line: text'. Use to find where a remote/API/symbol is used or defined.",
+    inputSchema: {
+      type: "object" as const,
+      properties: { pattern: { type: "string", description: "Text to search for across all sources" } },
+      required: ["pattern"],
+    },
+  },
+  {
+    name: "studio_inspect_instance",
+    description:
+      "Detailed info about ONE instance: readable properties, custom attributes, child count and child summary. Use before modifying an instance.",
+    inputSchema: {
+      type: "object" as const,
+      properties: { path: { type: "string", description: "Full dotted path to the instance" } },
+      required: ["path"],
+    },
+  },
+  {
+    name: "studio_multi_edit",
+    description:
+      "Apply ordered search/replace edits to a script (creates it if missing). Prefer over studio_write_script for changes to existing files. Empty search appends.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string", description: "Dotted path to the script" },
+        type: { type: "string", enum: ["Script", "LocalScript", "ModuleScript"] },
+        edits: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              search: { type: "string" },
+              replace: { type: "string" },
+            },
+            required: ["search", "replace"],
+          },
+        },
+      },
+      required: ["path", "edits"],
+    },
+  },
+  {
+    name: "studio_start_playtest",
+    description: "Start an agent-controlled playtest (does not auto-stop). Poll studio_console_output, then studio_stop_playtest.",
+    inputSchema: { type: "object" as const, properties: {} },
+  },
+  {
+    name: "studio_stop_playtest",
+    description: "Stop the current agent-controlled playtest; returns a summary of captured errors.",
+    inputSchema: { type: "object" as const, properties: {} },
+  },
+  {
+    name: "studio_console_output",
+    description: "Return console errors/warnings captured so far in the current/last playtest.",
+    inputSchema: { type: "object" as const, properties: {} },
   },
   {
     name: "studio_write_script",

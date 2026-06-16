@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.{test,spec}.ts"],
+    include: ["src/**/*.{test,spec}.ts", "runtime/**/*.{test,spec}.ts"],
     exclude: ["node_modules", ".next", "dist", "cli", "claude-code-main"],
   },
 });

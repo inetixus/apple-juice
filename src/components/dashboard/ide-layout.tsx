@@ -61,6 +61,8 @@ export function IdeLayout() {
     isPluginConnected,
     agentMode,
     setAgentMode,
+    buildMode,
+    setBuildMode,
     projectTree,
     handleAddInstance,
     handleRename,
@@ -295,6 +297,7 @@ export function IdeLayout() {
           >
             <div className="h-10 flex flex-shrink-0 items-center justify-between px-4 border-b border-white/5 bg-transparent z-[100]">
               {idePanel === "chat" ? (
+                <div className="flex items-center gap-2">
                 <div className="relative">
                   <button
                     onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)}
@@ -364,6 +367,24 @@ export function IdeLayout() {
                       </>
                     )}
                   </AnimatePresence>
+                </div>
+
+                  {/* Build Mode (3D) toggle — enables the master-builder toolset */}
+                  <button
+                    onClick={() => setBuildMode((b: boolean) => !b)}
+                    title="Build Mode: the AI constructs real 3D models (parts, welds, materials) in your Workspace."
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all text-xs font-semibold select-none group ${
+                      buildMode
+                        ? "bg-orange-500/15 border-orange-400/40 text-orange-300 shadow-[0_0_14px_rgba(251,146,60,0.25)]"
+                        : "bg-white/[0.03] border-white/[0.08] text-slate-300 hover:bg-white/[0.08] hover:border-white/20"
+                    }`}
+                  >
+                    <Box className={`w-3.5 h-3.5 ${buildMode ? "text-orange-300" : "text-white/50"} group-hover:scale-110 transition-transform`} />
+                    <span>3D Build</span>
+                    <span className={`ml-0.5 text-[9px] font-black uppercase ${buildMode ? "text-orange-300" : "text-white/30"}`}>
+                      {buildMode ? "On" : "Off"}
+                    </span>
+                  </button>
                 </div>
               ) : (
                 <span className="text-xs font-semibold text-white/50 tracking-wide">

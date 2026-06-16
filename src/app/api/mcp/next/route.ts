@@ -1,13 +1,20 @@
 import { getSession, checkRateLimit, extractIp } from "@/lib/store";
-import { dequeueCommand } from "@/lib/mcp-bridge";
+import { dequeueCommand, dequeueCommandWaiting } from "@/lib/mcp-bridge";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 /**
- * GET /api/mcp/next?key=SESSION
+ * GET /api/mcp/next?key=SESSION[&wait=MS]
  *
  * The Studio plugin long-polls this to fetch the next MCP command queued by
  * the agent's MCP server. Returns { command } or { command: null }.
+ *
+ * Optional `wait` (ms) enables SERVER-HELD long-polling: the request is held
+ * open, internally fast-polling, and returns the instant a command lands (or
+ * after the bounded hold). This collapses many short client polls into one held
+ * request for much lower command-delivery latency. Omitting `wait` preserves the
+ * original single-shot behavior, so the existing plugin keeps working unchanged.
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -15,6 +22,10 @@ export async function GET(req: Request) {
   if (!sessionKey) {
     return Response.json({ error: "Missing session key" }, { status: 400 });
   }
+
+  // Parse the optional long-poll hold (clamped; 0 = single-shot, legacy).
+  const waitRaw = Number(url.searchParams.get("wait") ?? "0");
+  const waitMs = Number.isFinite(waitRaw) ? Math.min(Math.max(0, waitRaw), 25_000) : 0;
 
   // Rate limit by IP and session. This route hands out queued commands (which
   // can contain script source), and session keys are short/shareable, so cap
@@ -35,7 +46,9 @@ export async function GET(req: Request) {
   }
 
   try {
-    const command = await dequeueCommand(sessionKey);
+    const command = waitMs > 0
+      ? await dequeueCommandWaiting(sessionKey, waitMs)
+      : await dequeueCommand(sessionKey);
     return Response.json({ command: command ?? null });
   } catch (err) {
     console.error("/api/mcp/next error", err);

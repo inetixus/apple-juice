@@ -96,6 +96,36 @@ export async function dequeueCommand(
   return next;
 }
 
+/**
+ * Plugin side, LONG-POLL variant: wait up to `waitMs` for a command to appear,
+ * internally fast-polling the KV, and return it the instant it lands (or null
+ * if the hold elapses). This collapses the old "client polls every 0.2s + a
+ * full HTTP round trip per attempt" into ONE held request — most of the latency
+ * win of a blocking pop, without needing Redis. Opt-in: callers that pass
+ * waitMs<=0 get the original single-shot behavior.
+ *
+ * `waitMs` is clamped so a held request can never exceed the serverless budget.
+ */
+const MAX_LONGPOLL_MS = 25_000;
+export async function dequeueCommandWaiting(
+  sessionKey: string,
+  waitMs: number,
+  pollMs = 120,
+): Promise<BridgeCommand | null> {
+  // Fast path / opt-out: behave exactly like the original single-shot dequeue.
+  const immediate = await dequeueCommand(sessionKey);
+  if (immediate || waitMs <= 0) return immediate;
+
+  const hold = Math.min(Math.max(0, waitMs), MAX_LONGPOLL_MS);
+  const deadline = Date.now() + hold;
+  while (Date.now() < deadline) {
+    await new Promise((res) => setTimeout(res, pollMs));
+    const cmd = await dequeueCommand(sessionKey);
+    if (cmd) return cmd;
+  }
+  return null;
+}
+
 /** Plugin side: submit the result of an executed command. */
 export async function submitResult(
   sessionKey: string,
@@ -125,20 +155,54 @@ export async function getResult(
 }
 
 /**
+ * MCP server side, LONG-POLL variant: hold up to `waitMs` for a result to
+ * appear, returning it the instant it lands (or null if the hold elapses).
+ * Opt-in mirror of dequeueCommandWaiting for the /api/mcp/poll route, so the
+ * MCP server can hold one request instead of issuing many short polls.
+ */
+export async function getResultWaiting(
+  sessionKey: string,
+  requestId: string,
+  waitMs: number,
+  pollMs = 80,
+): Promise<BridgeResult | null> {
+  const immediate = await getResult(sessionKey, requestId);
+  if (immediate || waitMs <= 0) return immediate;
+
+  const hold = Math.min(Math.max(0, waitMs), MAX_LONGPOLL_MS);
+  const deadline = Date.now() + hold;
+  while (Date.now() < deadline) {
+    await new Promise((res) => setTimeout(res, pollMs));
+    const r = await getResult(sessionKey, requestId);
+    if (r) return r;
+  }
+  return null;
+}
+
+/**
  * MCP server side: wait for a command's result, polling the store until it
  * arrives or the timeout elapses. Resolves with an error result on timeout.
+ *
+ * Uses ADAPTIVE backoff: a tight initial interval so the common fast result
+ * lands quickly, ramping to a calmer interval so a slow tool doesn't hammer the
+ * KV. (`pollMs` sets the FLOOR; the original fixed-150ms behavior is preserved
+ * as a sensible ceiling.)
  */
 export async function awaitResult(
   sessionKey: string,
   requestId: string,
   timeoutMs = 30000,
-  pollMs = 150,
+  pollMs = 60,
 ): Promise<BridgeResult> {
   const deadline = Date.now() + timeoutMs;
+  let interval = Math.max(20, pollMs);
+  const maxInterval = 200;
   while (Date.now() < deadline) {
     const r = await getResult(sessionKey, requestId);
     if (r) return r;
-    await new Promise((res) => setTimeout(res, pollMs));
+    await new Promise((res) => setTimeout(res, interval));
+    // Ramp up gently toward maxInterval so slow tools don't spin the KV.
+    interval = Math.min(maxInterval, Math.round(interval * 1.3));
   }
   return {
     requestId,

@@ -1,0 +1,29 @@
+<svg width="26" height="110" viewBox="0 0 26 110" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+<defs>
+<linearGradient id="slatFace" x1="0" y1="0" x2="0" y2="110" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#4a4b4e"/>
+<stop offset="0.5" stop-color="#343539"/>
+<stop offset="1" stop-color="#202123"/>
+</linearGradient>
+</defs>
+<!-- Slat faces. viewBox is sized to the tile (26 wide) x belt height (110) so
+     it renders at uniform scale (no distortion). Each face leans right (top
+     shifted +58 over the height ≈ 28° from vertical). Copies stepped by the
+     26-unit period wrap the lean so the strip tiles seamlessly with repeat-x
+     and the slats butt edge-to-edge with no gap. -->
+<g fill="url(#slatFace)">
+<path d="M-78 110 L-20 0 L-2 0 L-60 110 Z"/>
+<path d="M-52 110 L6 0 L24 0 L-34 110 Z"/>
+<path d="M-26 110 L32 0 L50 0 L-8 110 Z"/>
+<path d="M0 110 L58 0 L76 0 L18 110 Z"/>
+<path d="M26 110 L84 0 L102 0 L44 110 Z"/>
+</g>
+<!-- Thin bright bevel along each slat's leading (left) edge. -->
+<g fill="#74757a" opacity="0.65">
+<path d="M-78 110 L-20 0 L-18 0 L-76 110 Z"/>
+<path d="M-52 110 L6 0 L8 0 L-50 110 Z"/>
+<path d="M-26 110 L32 0 L34 0 L-24 110 Z"/>
+<path d="M0 110 L58 0 L60 0 L2 110 Z"/>
+<path d="M26 110 L84 0 L86 0 L28 110 Z"/>
+</g>
+</svg>

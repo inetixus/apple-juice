@@ -24,6 +24,11 @@ export type GenScript = {
   newName?: string;
   newParentPath?: string;
   assetId?: number | string;
+  properties?: Record<string, unknown>;
+  parts?: unknown[];
+  weld?: boolean;
+  primaryPart?: string;
+  path?: string;
   [key: string]: unknown;
 };
 
@@ -40,17 +45,19 @@ function effectiveType(s: GenScript): string {
 
 /**
  * Dependency rank for stable ordering. Lower runs first.
- *  0: instance scaffolding (Folders, RemoteEvents, etc.)
+ *  0: instance scaffolding (Folders, RemoteEvents, Parts, whole models)
  *  1: ModuleScripts (required by other scripts)
  *  2: Scripts / LocalScripts
- *  3: structural ops (rename/move/delete)
- *  4: run_playtest (always last)
+ *  3: set_properties (target must already exist, so after all creates)
+ *  4: structural ops (rename/move/delete)
+ *  5: run_playtest (always last)
  */
 function rankOf(s: GenScript): number {
   const action = String(s.action ?? "create").toLowerCase();
-  if (action === "run_playtest" || action === "stop_playtest") return 4;
-  if (action === "create_instance") return 0;
-  if (action === "rename_instance" || action === "move_instance" || action === "delete") return 3;
+  if (action === "run_playtest" || action === "stop_playtest") return 5;
+  if (action === "create_instance" || action === "build_model") return 0;
+  if (action === "set_properties") return 3;
+  if (action === "rename_instance" || action === "move_instance" || action === "delete") return 4;
   if (isScriptCreate(s)) {
     return effectiveType(s) === "ModuleScript" ? 1 : 2;
   }
@@ -171,7 +178,7 @@ export function validateGeneration(
   let addedPlaytest = false;
   const hasAnyWork = ranked.some((s) => {
     const a = String(s.action ?? "create").toLowerCase();
-    return a === "create" || a === "create_instance" || a === "delete" || a === "rename_instance" || a === "move_instance";
+    return a === "create" || a === "create_instance" || a === "build_model" || a === "set_properties" || a === "delete" || a === "rename_instance" || a === "move_instance";
   });
   const out = [...ranked];
   if ((ensurePlaytest || playtestPresent) && hasAnyWork) {

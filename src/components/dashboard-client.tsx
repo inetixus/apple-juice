@@ -316,6 +316,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
   const [isIdeSidePanelOpen, setIsIdeSidePanelOpen] = useState(true);
   const [activeBottomPanel, setActiveBottomPanel] = useState<"terminal" | "logs" | "problems" | "none">("none");
   const [agentMode, setAgentMode] = useState<"plan" | "build">("plan");
+  const [buildMode, setBuildMode] = useState(false);
 
 
   const defaultRobloxWorkspace = [
@@ -870,6 +871,21 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
 
     // Check Antigravity link status
     // checkAntigravityLink removed
+  }, []);
+
+  // Pick up a prompt typed on the landing page hero before sign-in. The hero
+  // stashes it in localStorage and routes here; we prefill the chat input so
+  // the user lands ready to generate (we don't auto-submit — they confirm).
+  useEffect(() => {
+    try {
+      const pending = window.localStorage.getItem("aj_pending_prompt");
+      if (pending && pending.trim()) {
+        setPrompt(pending);
+        window.localStorage.removeItem("aj_pending_prompt");
+      }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
 
@@ -2661,6 +2677,7 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
             .map((c) => ({ key: c.key, value: c.value, category: c.category })),
           stream: true,
           agentMode,
+          buildMode,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -3609,6 +3626,8 @@ export function DashboardClient({ username, avatarUrl, initialProjectId, isDemoM
     setActiveBottomPanel,
     agentMode,
     setAgentMode,
+    buildMode,
+    setBuildMode,
     savedAssets,
     setSavedAssets: _setSavedAssets,
     isEditingAsset,
