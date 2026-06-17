@@ -6,6 +6,7 @@ import {
   pairRuntime,
   runtimeDownloadUrl,
   detectOS,
+  isRuntimeAvailable,
   RUNTIME_RELEASES_PAGE,
   RUNTIME_VIRUSTOTAL_URL,
   RUNTIME_TOKEN_KEY,
@@ -89,12 +90,27 @@ export function ConnectRuntime() {
             <p className="text-sm text-white/70">
               No local Runtime detected. Install and start it, then retry.
             </p>
-            <a
-              href={runtimeDownloadUrl(os)}
-              className="inline-block w-full h-12 leading-[3rem] rounded-full bg-[#ccff00] text-black font-black uppercase text-[12px] tracking-wider hover:bg-[#d4ff33] transition"
-            >
-              Download the Runtime ({OS_LABEL[os]})
-            </a>
+            {isRuntimeAvailable(os) ? (
+              <a
+                href={runtimeDownloadUrl(os)}
+                className="inline-block w-full h-12 leading-[3rem] rounded-full bg-[#ccff00] text-black font-black uppercase text-[12px] tracking-wider hover:bg-[#d4ff33] transition"
+              >
+                Download the Runtime ({OS_LABEL[os]})
+              </a>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-amber-300/90">
+                  The {OS_LABEL[os]} build isn&apos;t out yet — only Windows is available
+                  right now.
+                </p>
+                <a
+                  href={runtimeDownloadUrl("windows")}
+                  className="inline-block w-full h-12 leading-[3rem] rounded-full bg-[#ccff00] text-black font-black uppercase text-[12px] tracking-wider hover:bg-[#d4ff33] transition"
+                >
+                  Download for Windows
+                </a>
+              </div>
+            )}
             <p className="text-xs text-white/40">
               Tiny 400&nbsp;KB native app — no installer, no dependencies. Verify it&apos;s
               clean on{" "}
@@ -113,7 +129,7 @@ export function ConnectRuntime() {
                 rel="noopener noreferrer"
                 className="text-white/60 underline underline-offset-2 hover:text-white"
               >
-                other platforms
+                all downloads
               </a>
               .
             </p>

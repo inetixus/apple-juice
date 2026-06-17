@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -17,9 +17,25 @@ import {
   ShieldCheck,
   Crown,
   Check,
+  Download,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { PurchaseFlowModal } from "./purchase-flow-modal";
+import {
+  runtimeDownloadUrl,
+  detectOS,
+  isRuntimeAvailable,
+  RUNTIME_VIRUSTOTAL_URL,
+  RUNTIME_RELEASES_PAGE,
+  type RuntimeOS,
+} from "@/lib/runtime-client";
+
+const OS_LABEL: Record<RuntimeOS, string> = {
+  windows: "Windows",
+  macos: "macOS",
+  linux: "Linux",
+};
 
 // Same animated Stripe-style wave backdrop the landing page uses.
 const StripeWave = dynamic(
@@ -146,6 +162,7 @@ const STEPS = [
   "How it works",
   "Plans",
   "Connect Studio",
+  "Go faster",
   "Done",
 ] as const;
 
@@ -163,6 +180,11 @@ export function OnboardingClient({
   const [goals, setGoals] = useState<GoalId[]>([]);
   const [finishing, setFinishing] = useState(false);
   const [purchasePlan, setPurchasePlan] = useState<"fresh_pro" | "pure_ultra" | null>(null);
+  const [os, setOs] = useState<RuntimeOS>("windows");
+
+  useEffect(() => {
+    setOs(detectOS());
+  }, []);
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
@@ -564,8 +586,104 @@ export function OnboardingClient({
               </StepCard>
             )}
 
-            {/* ── STEP 5 · DONE ── */}
+            {/* ── STEP 5 · GO FASTER (optional local Runtime) ── */}
             {step === 5 && (
+              <StepCard>
+                <div className="flex items-center gap-2 mb-1">
+                  <Zap className="h-5 w-5 text-[#ccff00]" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
+                    Optional · Recommended
+                  </span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+                  Go faster with the Runtime.
+                </h2>
+                <p className="mt-2 text-sm text-white/50 font-medium">
+                  A tiny 400&nbsp;KB app that runs the AI locally against Roblox
+                  Studio&apos;s official tools — fastest round-trips and the full
+                  toolset. The cloud version works without it, so you can skip this.
+                </p>
+
+                <div className="mt-6 sm:mt-7 space-y-2.5 sm:space-y-3">
+                  {[
+                    { t: "Download and run it — no installer, no dependencies." },
+                    { t: "It shows a 6-digit pair code in its window." },
+                    { t: "Enter that code on the Connect page to link this browser." },
+                  ].map((item, i) => (
+                    <div
+                      key={item.t}
+                      className="flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4"
+                    >
+                      <span className="h-6 w-6 shrink-0 rounded-full bg-[#ccff00] text-black flex items-center justify-center font-black text-[11px] font-mono">
+                        {i + 1}
+                      </span>
+                      <span className="text-[12px] sm:text-[13px] text-white/70 font-medium leading-snug">
+                        {item.t}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {isRuntimeAvailable(os) ? (
+                  <a
+                    href={runtimeDownloadUrl(os)}
+                    className="mt-5 w-full h-12 rounded-full bg-[#ccff00] text-black font-black uppercase tracking-wider text-[11px] flex items-center justify-center gap-2 hover:bg-[#d4ff33] hover:shadow-[0_0_25px_rgba(204,255,0,0.5)] active:scale-95 transition-all"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download the Runtime ({OS_LABEL[os]})
+                  </a>
+                ) : (
+                  <div className="mt-5 space-y-2">
+                    <p className="text-xs text-amber-300/90 text-center">
+                      The {OS_LABEL[os]} build isn&apos;t out yet — Windows only for now.
+                    </p>
+                    <a
+                      href={runtimeDownloadUrl("windows")}
+                      className="w-full h-12 rounded-full bg-[#ccff00] text-black font-black uppercase tracking-wider text-[11px] flex items-center justify-center gap-2 hover:bg-[#d4ff33] active:scale-95 transition-all"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download for Windows
+                    </a>
+                  </div>
+                )}
+
+                <p className="mt-3 text-[10px] text-white/35 font-medium text-center leading-relaxed">
+                  Verify it&apos;s clean on{" "}
+                  <a
+                    href={RUNTIME_VIRUSTOTAL_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#ccff00] underline underline-offset-2 hover:text-[#d4ff33]"
+                  >
+                    VirusTotal
+                  </a>
+                  {" · "}
+                  <a
+                    href={RUNTIME_RELEASES_PAGE}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-white/55 underline underline-offset-2 hover:text-white"
+                  >
+                    all downloads
+                  </a>
+                  . You can always grab it later from the dashboard.
+                </p>
+
+                <PrimaryRow>
+                  <Ghost onClick={back}>Back</Ghost>
+                  <div className="flex items-center gap-2.5 sm:gap-3">
+                    <Ghost onClick={next}>Skip</Ghost>
+                    <Primary onClick={next}>
+                      Done
+                      <ArrowRight className="h-4 w-4" />
+                    </Primary>
+                  </div>
+                </PrimaryRow>
+              </StepCard>
+            )}
+
+            {/* ── STEP 6 · DONE ── */}
+            {step === 6 && (
               <StepCard>
                 <div className="flex flex-col items-center text-center">
                   <motion.div

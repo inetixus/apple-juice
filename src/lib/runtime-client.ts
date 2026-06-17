@@ -47,6 +47,17 @@ export function runtimeDownloadUrl(os: RuntimeOS): string {
   return `${RUNTIME_RELEASE_BASE}/${RUNTIME_ASSETS[os]}`;
 }
 
+/**
+ * Which platforms actually have a published binary right now. Today only the
+ * Windows build ships; add "macos"/"linux" here once the CI workflow
+ * (.github/workflows/runtime-release.yml) attaches those assets to the release.
+ */
+export const RUNTIME_AVAILABLE_PLATFORMS: RuntimeOS[] = ["windows"];
+
+export function isRuntimeAvailable(os: RuntimeOS): boolean {
+  return RUNTIME_AVAILABLE_PLATFORMS.includes(os);
+}
+
 /** Best-effort browser OS detection (defaults to Windows — the primary build). */
 export function detectOS(): RuntimeOS {
   if (typeof navigator === "undefined") return "windows";

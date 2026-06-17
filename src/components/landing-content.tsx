@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { LandingCliSection } from "./landing-cli-section";
+import { LandingRuntimeSection } from "./landing-runtime-section";
 import { LandingHeroShowcase } from "./landing-hero-showcase";
 import { Reveal, RevealStagger, RevealItem } from "./reveal";
 // import { LandingAdShowcase } from "./landing-ad-showcase"; // hidden: Product film section commented out
@@ -497,6 +498,9 @@ export function LandingContent({
       </section>
 
       {/* â”â”â” APPLE JUICE CLI â€” TERMINAL SYSTEM â”â”â” */}
+      {/* ━━━ APPLE JUICE RUNTIME — NATIVE LOCAL APP ━━━ */}
+      <LandingRuntimeSection />
+
       <div className="px-6 md:px-12 xl:px-20 relative z-10">
         <div
           className="absolute left-1/2 -translate-x-1/2 top-0 w-[min(100%,900px)] h-[480px] pointer-events-none -z-10 opacity-70"
