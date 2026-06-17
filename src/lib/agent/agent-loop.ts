@@ -809,6 +809,16 @@ export async function runAgentLoop(
     // No tool calls → the model is done talking. Treat content as the final
     // answer (models sometimes finish without calling finish()).
     if (turn.toolCalls.length === 0) {
+      // Diagnostic: if the VERY FIRST turn produced neither content nor tool
+      // calls, the model returned an empty 200 — almost always a misconfigured
+      // KIRO_API_URL / endpoint (returns OK but no completion), NOT a real
+      // "done". Surface that instead of a meaningless "Done.".
+      if (iterations === 0 && !turn.content.trim()) {
+        return wrap(
+          "The model returned an empty response. This usually means the inference endpoint is misconfigured — verify KIRO_API_URL points at a working OpenAI-compatible Chat Completions endpoint and KIRO_API_KEY is valid.",
+          "empty_llm_response",
+        );
+      }
       finalMessage = turn.content.trim() || finalMessage;
       break;
     }

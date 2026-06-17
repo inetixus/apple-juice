@@ -105,6 +105,26 @@ function backendUrl(config: CLIConfig): string {
 }
 
 /**
+ * Where to send AI generation requests.
+ *  - SUBSCRIPTION mode (default): the REAL backend, which uses the user's Kiro
+ *    shared credits (no API key needed) — exactly like the website.
+ *  - CUSTOM mode (customModelsEnabled): the local shim's /api/chat (callDirectAI)
+ *    using the user's OWN provider key.
+ */
+function chatUrl(config: CLIConfig): string {
+  return config.customModelsEnabled ? (config.apiUrl || PROD_BACKEND_URL) : backendUrl(config);
+}
+
+/** The apiKey to send: only in custom mode (subscription uses Kiro, no key). */
+function chatApiKey(config: CLIConfig): string | undefined {
+  if (!config.customModelsEnabled) return undefined; // Kiro shared-credit path
+  if (config.provider === 'google') return config.googleKey;
+  if (config.provider === 'deepseek') return (config as any).deepseekKey;
+  if (config.provider === 'openrouter') return (config as any).openrouterKey;
+  return config.openaiKey;
+}
+
+/**
  * Stream an SSE chat response (used for TRUE MCP mode). The server's /api/chat
  * route, when sent `stream: true` and KIRO_MCP_URL is configured, relays the
  * VPS MCP agent's progress as OpenAI-style `reasoning` deltas and emits the
@@ -265,6 +285,13 @@ interface CLIConfig {
   showTokenPricing?: boolean;
   extendedThinking?: boolean;
   /**
+   * How hard Claude should "think" before answering — the reasoning level.
+   * One of: low | medium | high | xhigh | max. Higher = deeper reasoning /
+   * larger thinking budget (better on complex multi-script builds), lower =
+   * faster/cheaper. Defaults to 'medium'. Changed via /reasoning.
+   */
+  reasoningEffort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  /**
    * TRUE MCP mode. When enabled, prompts are sent with stream:true so the
    * server routes through the VPS MCP agent (KIRO_MCP_URL): the model makes
    * live interactive studio_* tool calls into the paired Studio session via
@@ -284,6 +311,14 @@ interface CLIConfig {
    *  bill against this user's subscription/credits. */
   robloxUserId?: string;
   robloxUsername?: string;
+  /** Local Studio pairing code (links the Studio plugin to the local server).
+   *  Kept SEPARATE from sessionKey (the backend account session) so /pair and
+   *  /login don't clobber each other. */
+  studioPairKey?: string;
+  /** When true, /model shows the full custom model catalogue and lets the user
+   *  pick any model (used with their own API key). Off by default → /model only
+   *  offers the models included in the user's subscription. Toggle in /settings. */
+  customModelsEnabled?: boolean;
 }
 
 interface SyncStep {
@@ -309,6 +344,12 @@ interface SessionState {
   modalOpen?: boolean;
   totalInputTokens?: number;
   totalOutputTokens?: number;
+  /**
+   * How many lines the conversation view is scrolled UP from the bottom.
+   * 0 = pinned to the latest output (default). Positive values reveal older
+   * history. Adjusted via PgUp/PgDn/Home/End and clamped in redrawScreen().
+   */
+  scrollOffset?: number;
   /** Cached account info from /api/cli/usage (refreshed on launch + after login). */
   account?: {
     loggedIn: boolean;
@@ -1266,6 +1307,72 @@ function printSuccess(msg: string): void {
   process.stdout.write(`\n  ${BRIGHT_GREEN}✓${R}  ${msg}\n`);
 }
 
+/**
+ * Runs `fn` while redirecting everything it writes to process.stdout into an
+ * in-memory string instead of the real terminal. Lets us reuse the existing
+ * print* renderers to build the scrollback buffer without touching the screen.
+ */
+function captureOutput(fn: () => void): string {
+  const orig = process.stdout.write.bind(process.stdout);
+  let buf = '';
+  (process.stdout as any).write = (chunk: any, encoding?: any, cb?: any) => {
+    buf += typeof chunk === 'string' ? chunk : chunk.toString();
+    const done = typeof encoding === 'function' ? encoding : cb;
+    if (typeof done === 'function') done();
+    return true;
+  };
+  try {
+    fn();
+  } finally {
+    (process.stdout as any).write = orig;
+  }
+  return buf;
+}
+
+/**
+ * Builds the full conversation as an array of terminal rows (already styled),
+ * reusing the same renderers used for live output so what you scroll through
+ * matches what was printed. Soft-wraps over-long rows to the given width so the
+ * scroll math stays accurate.
+ */
+function buildHistoryLines(state: SessionState, width: number): string[] {
+  const raw = captureOutput(() => {
+    for (const msg of state.history) {
+      if (msg.role === 'user') printUserMsg(msg.content);
+      else printAssistantMsg(msg.content, msg.thinking);
+    }
+    if (state.lastError) printError(state.lastError);
+    if (state.infoMessage) printInfo(state.infoMessage);
+  });
+
+  const out: string[] = [];
+  for (const logical of raw.split('\n')) {
+    if (stripAnsi(logical).length <= width) {
+      out.push(logical);
+      continue;
+    }
+    // Soft-wrap a too-wide line so one logical line counts as the rows it
+    // actually occupies. Split on visible width, preserving ANSI codes.
+    let current = '';
+    let visible = 0;
+    let i = 0;
+    while (i < logical.length) {
+      if (logical[i] === '\x1b') {
+        const m = logical.slice(i).match(/^\x1b\[[0-9;]*m/);
+        if (m) { current += m[0]; i += m[0].length; continue; }
+      }
+      current += logical[i];
+      visible++;
+      i++;
+      if (visible >= width) { out.push(current); current = ''; visible = 0; }
+    }
+    if (current) out.push(current);
+  }
+  // Drop a trailing empty row so the view doesn't show a phantom blank line.
+  if (out.length && out[out.length - 1] === '') out.pop();
+  return out;
+}
+
 function redrawScreen(state: SessionState): void {
   const rows = process.stdout.rows || 24;
 
@@ -1291,21 +1398,49 @@ function redrawScreen(state: SessionState): void {
   process.stdout.write('\x1b[1;1H');
   drawHeader(state.serverOnline, state.paired, state.config, state);
 
-  process.stdout.write(`\x1b[4;${rows - 4}r`);
+  // Content region is rows 4 .. (rows-4); the prompt + bars live below it.
+  const regionTop = 4;
+  const regionBottom = rows - 4;
+  const viewHeight = Math.max(1, regionBottom - regionTop + 1);
 
-  process.stdout.write('\x1b[4;1H');
+  process.stdout.write(`\x1b[${regionTop};${regionBottom}r`);
+  process.stdout.write(`\x1b[4;1H`);
 
   if (state.history.length === 0) {
+    state.scrollOffset = 0;
     drawWelcomeCard(state);
   } else {
-    for (const msg of state.history) {
-      if (msg.role === 'user') printUserMsg(msg.content);
-      else printAssistantMsg(msg.content, msg.thinking);
-    }
-  }
+    // Build the full conversation as wrapped rows, then show only the slice
+    // that fits. scrollOffset lets the user page back through older output;
+    // native terminal scrollback can't work here because the sticky header +
+    // bottom bars require a fixed scroll region.
+    const w = termWidth() - 1;
+    const lines = buildHistoryLines(state, w);
+    const maxOffset = Math.max(0, lines.length - viewHeight);
 
-  if (state.lastError) printError(state.lastError);
-  if (state.infoMessage) printInfo(state.infoMessage);
+    if (state.scrollOffset === undefined) state.scrollOffset = 0;
+    if (state.scrollOffset < 0) state.scrollOffset = 0;
+    if (state.scrollOffset > maxOffset) state.scrollOffset = maxOffset;
+
+    const start = Math.max(0, lines.length - viewHeight - state.scrollOffset);
+    const visible = lines.slice(start, start + viewHeight);
+
+    // When scrolled up, reserve the top row for an indicator so the user knows
+    // there's hidden output above and which keys move it.
+    const toPrint: string[] = [];
+    if (state.scrollOffset > 0) {
+      const above = start;
+      toPrint.push(`  ${BRAND}▲${R} ${DIM}${above} more line${above === 1 ? '' : 's'} above · ${R}${BRAND}PgUp/PgDn${R}${DIM} scroll · ${R}${BRAND}End${R}${DIM} jump to latest${R}`);
+    }
+    for (const ln of visible) {
+      if (toPrint.length >= viewHeight) break;
+      toPrint.push(ln);
+    }
+    // Write the window starting at row 4. Avoid a trailing newline on the final
+    // row: inside a scroll region that would scroll the top line off-screen.
+    process.stdout.write('\x1b[4;1H');
+    process.stdout.write(toPrint.map(l => `\x1b[2K${l}`).join('\n'));
+  }
 
   if (globalRl) {
     // Force-clear the input line and redraw prompt to prevent stale command text
@@ -1415,7 +1550,7 @@ async function pingServer(apiUrl: string): Promise<boolean> {
 async function checkPairingStatus(config: CLIConfig): Promise<boolean> {
   if (!config.sessionKey) return false;
   try {
-    const res = await fetch(`${config.apiUrl}/api/status?key=${encodeURIComponent(config.sessionKey)}&t=${Date.now()}`);
+    const res = await fetch(`${config.apiUrl}/api/status?key=${encodeURIComponent(config.sessionKey)}&peek=1&t=${Date.now()}`);
     if (!res.ok) return false;
     const data = await res.json().catch(() => null);
     return !!data && data.status === 'ok' && !!data.lastPollTime && (Date.now() - data.lastPollTime < 10000);
@@ -1498,18 +1633,27 @@ function planLabel(plan?: string): string {
 }
 
 // Plan → included models (mirrors src/lib/kiro-models.ts tiers). Used to show
-// the user which subscription models they have access to on the home screen.
+// the user which subscription models they have access to. Keep in sync with
+// KIRO_MODELS in src/lib/kiro-models.ts.
 const PLAN_RANK_CLI: Record<string, number> = { free: 0, partner: 1, fresh_pro: 2, pure_ultra: 3 };
 const CLI_MODELS: { label: string; tier: string }[] = [
+  // Ultra — Opus family
   { label: 'Claude Opus 4.8', tier: 'pure_ultra' },
   { label: 'Claude Opus 4.7', tier: 'pure_ultra' },
+  { label: 'Claude Opus 4.6', tier: 'pure_ultra' },
+  { label: 'Claude Opus 4.5', tier: 'pure_ultra' },
+  // Pro — Sonnet family + Auto + mid open-weight
+  { label: 'Auto', tier: 'free' },
   { label: 'Claude Sonnet 4.6', tier: 'fresh_pro' },
   { label: 'Claude Sonnet 4.5', tier: 'fresh_pro' },
+  { label: 'Claude Sonnet 4.0', tier: 'fresh_pro' },
   { label: 'GLM-5', tier: 'fresh_pro' },
   { label: 'MiniMax M2.5', tier: 'fresh_pro' },
-  { label: 'Auto', tier: 'free' },
+  // Free — efficient open-weight + Haiku
   { label: 'Claude Haiku 4.5', tier: 'free' },
   { label: 'DeepSeek 3.2', tier: 'free' },
+  { label: 'MiniMax M2.1', tier: 'free' },
+  { label: 'Qwen3 Coder Next', tier: 'free' },
 ];
 function modelsForPlan(plan?: string): string[] {
   const rank = PLAN_RANK_CLI[plan || 'free'] ?? 0;
@@ -1614,7 +1758,9 @@ async function initAuthPairing(config: CLIConfig): Promise<string | null> {
     });
     if (res.ok) {
       const data = await res.json();
-      config.sessionKey = data.sessionKey;
+      // Store the Studio pairing key SEPARATELY — never clobber sessionKey
+      // (the backend account session from /login, used for Kiro billing).
+      config.studioPairKey = data.sessionKey;
       config.isFirstRun = false;
       saveConfig(config);
       return authCode;
@@ -1896,34 +2042,73 @@ function renderWordDiff(original: string, modified: string): string {
   return outLines.join('\n');
 }
 
+// ─── Live activity feed (CLI) ─────────────────────────────────────────────────
+// Renders the Studio actions the plugin reports (script synced, model built,
+// playtest result, errors) as a styled, streaming feed — the terminal twin of
+// the plugin's "Live Activity" panel.
+
+function feedLineStyle(log: string): { icon: string; color: string } {
+  if (/✖|failed|error|not found|could not/i.test(log)) return { icon: '✗', color: BRIGHT_RED };
+  if (/✓|success|synced|created|built|deleted|renamed|moved|modified|passed/i.test(log)) return { icon: '✓', color: BRIGHT_GREEN };
+  if (/⚠|warn/i.test(log)) return { icon: '⚠', color: BRIGHT_YELLOW };
+  if (/playtest|running|verify/i.test(log)) return { icon: '▶', color: BRIGHT_CYAN };
+  if (/reading|read |snapshot|sending/i.test(log)) return { icon: '·', color: DIM };
+  return { icon: '›', color: DIM };
+}
+
+function formatFeedLine(log: string): string {
+  // Strip the noisy prefix the plugin adds so the feed reads cleanly.
+  let text = String(log)
+    .replace(/\[Roblox Studio\]\s*/g, '')
+    .replace(/^[\s🛠️✓✖⚠🎨🧱📖📸♻️⚡✅🔑]+/u, '')
+    .trim();
+  if (text.length > 200) text = text.slice(0, 200) + '…';
+  const { icon, color } = feedLineStyle(log);
+  const ts = new Date().toLocaleTimeString();
+  return `  ${DIM}${ts}${R} ${color}${icon}${R} ${text}`;
+}
+
 async function pollLogsUntilSyncComplete(state: any): Promise<void> {
   const startTime = Date.now();
-  const timeoutMs = 12000;
-  let complete = false;
+  const hardTimeoutMs = 20000;   // absolute cap (covers a ~6s auto-playtest)
+  const quietMs = 2500;          // stop once activity goes quiet
+  let lastActivity = Date.now();
+  let printedHeader = false;
+  let sawAny = false;
 
   startSpinner('Syncing to Roblox Studio', false);
 
-  while (Date.now() - startTime < timeoutMs) {
+  while (Date.now() - startTime < hardTimeoutMs) {
     try {
-      await new Promise(r => setTimeout(r, 400));
-      const res = await fetch(`${state.config.apiUrl}/api/status?key=${state.config.sessionKey}`);
+      await new Promise(r => setTimeout(r, 350));
+      const res = await fetch(`${state.config.apiUrl}/api/status?key=${encodeURIComponent(state.config.sessionKey)}&t=${Date.now()}`);
       if (res.ok) {
-        const data = await res.json();
-        if (data.logs && data.logs.length > 0) {
+        const data = await res.json().catch(() => null) as any;
+        const logs: string[] = (data && Array.isArray(data.logs)) ? data.logs : [];
+        // Filter out internal control markers (test JSON etc.).
+        const visible = logs.filter((l) => l && !l.includes('APPLE_JUICE_TEST') && !l.includes('APPLE_JUICE_ERROR'));
+        if (visible.length > 0) {
           clearSpinner();
-          for (const log of data.logs) {
-            process.stdout.write(`\r  \x1b[38;2;230;100;80m🛠️\x1b[0m \x1b[36m[Progress]\x1b[0m ${log}\n`);
-            if (log.includes('Successfully synced') || log.includes('Failed to sync') || log.includes('Successfully deleted') || log.includes('Successfully created') || log.includes('Successfully modified') || log.includes('Move failed') || log.includes('Rename failed')) {
-              complete = true;
-            }
+          if (!printedHeader) {
+            process.stdout.write(`\n  ${BRAND}●${R} ${BOLD}Live Activity${R} ${DIM}— Roblox Studio${R}\n`);
+            printedHeader = true;
           }
+          for (const log of visible) {
+            process.stdout.write(`\r${formatFeedLine(log)}\n`);
+          }
+          sawAny = true;
+          lastActivity = Date.now();
         }
       }
-      if (complete) break;
     } catch (_) {}
+    // Stop once we've seen activity and it's been quiet for a moment.
+    if (sawAny && Date.now() - lastActivity > quietMs) break;
   }
 
   stopSpinner();
+  if (sawAny) {
+    process.stdout.write(`  ${DIM}${'─'.repeat(Math.min(40, (termWidth() || 60) - 4))}${R}\n`);
+  }
 }
 
 async function showInteractiveArtifacts(rl: any, state: any): Promise<void> {
@@ -2283,19 +2468,17 @@ async function handleMcpTurn(rl: any, state: any, input: string): Promise<void> 
   let reply = '';
   try {
     const res = await streamChat(
-      `${config.apiUrl}/api/chat`,
+      `${chatUrl(config)}/api/chat`,
       {
         prompt: input,
         sessionKey: config.sessionKey,
         messages: state.history.slice(0, -1),
-        provider: config.provider,
-        apiKey: config.provider === 'google' ? config.googleKey
-          : config.provider === 'deepseek' ? config.deepseekKey
-            : config.provider === 'openrouter' ? config.openrouterKey
-              : config.openaiKey,
-        openaiKey: config.openaiKey,
+        provider: config.customModelsEnabled ? config.provider : undefined,
+        apiKey: chatApiKey(config),
+        openaiKey: config.customModelsEnabled ? config.openaiKey : undefined,
         model: config.model,
         mode: config.extendedThinking ? 'thinking' : 'fast',
+        reasoningEffort: config.reasoningEffort || 'medium',
         stream: true,
         autoSync: false,
       },
@@ -2368,19 +2551,16 @@ async function handleFeedbackSync(rl: any, state: any, feedbackMsg: string): Pro
   pollLogsDuringGeneration();
 
   try {
-    const res = await fetch(`${state.config.apiUrl}/api/chat`, {
+    const res = await fetch(`${chatUrl(state.config)}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt: feedbackMsg,
         sessionKey: state.config.sessionKey,
         messages: state.history,
-        provider: state.config.provider,
-        apiKey: state.config.provider === 'google' ? state.config.googleKey
-          : state.config.provider === 'deepseek' ? state.config.deepseekKey
-            : state.config.provider === 'openrouter' ? state.config.openrouterKey
-              : state.config.openaiKey,
-        openaiKey: state.config.openaiKey,
+        provider: state.config.customModelsEnabled ? state.config.provider : undefined,
+        apiKey: chatApiKey(state.config),
+        openaiKey: state.config.customModelsEnabled ? state.config.openaiKey : undefined,
         model: state.config.model,
         autoSync: false
       }),
@@ -2432,11 +2612,12 @@ async function handleFeedbackSync(rl: any, state: any, feedbackMsg: string): Pro
 async function showInteractiveSettings(rl: any, state: any): Promise<void> {
   return new Promise<void>((resolve) => {
     let selectedIndex = 0;
-    const options = ['themeColor', 'chatbarStyle', 'showTokenPricing', 'enableSoundEffects', 'verboseLogging'];
+    const options = ['themeColor', 'chatbarStyle', 'showTokenPricing', 'customModelsEnabled', 'enableSoundEffects', 'verboseLogging'];
     const optionLabels = [
       'UI Theme Color',
       'Chatbar Prompt Style',
       'Show Token Metrics & Cost',
+      'Custom Models & API Keys',
       'Enable TTY Sound Effects',
       'Verbose Server Logs'
     ];
@@ -2467,6 +2648,8 @@ async function showInteractiveSettings(rl: any, state: any): Promise<void> {
           valDisplay = state.config.chatbarStyle || 'mode';
         } else if (opt === 'showTokenPricing') {
           valDisplay = state.config.showTokenPricing !== false ? 'Enabled' : 'Disabled';
+        } else if (opt === 'customModelsEnabled') {
+          valDisplay = state.config.customModelsEnabled === true ? 'Enabled' : 'Disabled';
         } else if (opt === 'enableSoundEffects') {
           valDisplay = state.config.enableSoundEffects === true ? 'Enabled' : 'Disabled';
         } else if (opt === 'verboseLogging') {
@@ -2578,6 +2761,22 @@ async function showInteractiveSettings(rl: any, state: any): Promise<void> {
         writeLine('');
         writeLine('');
         writeLine('');
+      } else if (currentOpt === 'customModelsEnabled') {
+        const customOn = state.config.customModelsEnabled === true;
+        const toggleList = `${customOn ? `${BRAND}${BOLD}\x1b[4m[ Enabled ]\x1b[24m${R}  ${DIM}Disabled${R}` : `${DIM}Enabled${R}  ${BRAND}${BOLD}\x1b[4m[ Disabled ]\x1b[24m${R}`}`;
+
+        writeLine(`  ${BOLD}Custom Models:${R}  ${toggleList}`);
+        writeLine('');
+        if (customOn) {
+          writeLine(`  ${BOLD}/model${R} lists the FULL catalogue (any provider).`);
+          writeLine(`  Use ${BRAND}/key${R} to set your own API key per provider.`);
+          writeLine(`  ${DIM}Your usage is billed to YOUR key, not your subscription.${R}`);
+        } else {
+          writeLine(`  ${BOLD}/model${R} shows only the models your subscription includes.`);
+          writeLine(`  Enable to use your own API keys + any custom model.`);
+          writeLine('');
+        }
+        writeLine('');
       } else if (currentOpt === 'enableSoundEffects') {
         const soundOn = state.config.enableSoundEffects === true;
         const toggleList = `${soundOn ? `${BRAND}${BOLD}\x1b[4m[ Enabled ]\x1b[24m${R}  ${DIM}Disabled${R}` : `${DIM}Enabled${R}  ${BRAND}${BOLD}\x1b[4m[ Disabled ]\x1b[24m${R}`}`;
@@ -2653,6 +2852,9 @@ async function showInteractiveSettings(rl: any, state: any): Promise<void> {
         } else if (opt === 'showTokenPricing') {
           const current = state.config.showTokenPricing !== false;
           state.config.showTokenPricing = !current;
+        } else if (opt === 'customModelsEnabled') {
+          const current = state.config.customModelsEnabled === true;
+          state.config.customModelsEnabled = !current;
         } else if (opt === 'enableSoundEffects') {
           const current = state.config.enableSoundEffects === true;
           state.config.enableSoundEffects = !current;
@@ -3434,7 +3636,7 @@ async function showBtwOverlay(rl: any, question: string, state: any): Promise<vo
 
       // Ensure bottom status and shortcuts lines are drawn and never disappear
       if (rows >= 10) {
-        const shortcutsHint = ` ${DIM}Press ${R}${BRAND}[Tab]${R}${DIM} for commands · ${R}${BRAND}[Shift+Tab]${R}${DIM} to toggle agents · ${R}${BRAND}[Ctrl+C]${R}${DIM} to exit${R} `;
+        const shortcutsHint = ` ${DIM}Press ${R}${BRAND}[Tab]${R}${DIM} commands · ${R}${BRAND}[PgUp/PgDn]${R}${DIM} scroll · ${R}${BRAND}[Ctrl+C]${R}${DIM} exit${R} `;
         const linePadding = Math.max(0, Math.floor((w - stripAnsi(shortcutsHint).length) / 2));
         const rightPadding = Math.max(0, w - stripAnsi(shortcutsHint).length - linePadding);
         process.stdout.write(`\x1b[${rows - 3};1H\x1b[2K\x1b[38;2;65;65;65m${'─'.repeat(linePadding)}${R}${shortcutsHint}\x1b[38;2;65;65;65m${'─'.repeat(rightPadding)}${R}`);
@@ -3478,19 +3680,16 @@ async function showBtwOverlay(rl: any, question: string, state: any): Promise<vo
     // Async Fetch from API
     (async () => {
       try {
-        const res = await fetch(`${state.config.apiUrl}/api/chat`, {
+        const res = await fetch(`${chatUrl(state.config)}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: question,
-            sessionKey: state.config.sessionKey + '-btw',
+            sessionKey: state.config.sessionKey,
             messages: [],
-            provider: state.config.provider,
-            apiKey: state.config.provider === 'google' ? state.config.googleKey
-              : state.config.provider === 'deepseek' ? state.config.deepseekKey
-                : state.config.provider === 'openrouter' ? state.config.openrouterKey
-                  : state.config.openaiKey,
-            openaiKey: state.config.openaiKey,
+            provider: state.config.customModelsEnabled ? state.config.provider : undefined,
+            apiKey: chatApiKey(state.config),
+            openaiKey: state.config.customModelsEnabled ? state.config.openaiKey : undefined,
             model: state.config.model,
           }),
         });
@@ -3588,6 +3787,14 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
   const state: SessionState = { serverOnline, paired, history: [], config, pairingCode, account: null };
 
+  // If we generated a pairing code at startup (Studio not yet linked), surface
+  // it immediately so the user can enter it in the Studio plugin. Otherwise it
+  // would be invisible (pairingCode itself isn't rendered).
+  if (!paired && pairingCode) {
+    state.infoMessage =
+      `🔑 Pairing code: ${BOLD}${BRIGHT_CYAN}${pairingCode}${R}  ${DIM}— enter it in the Studio plugin & click Connect (or run /pair).${R}`;
+  }
+
   // Load account/subscription info (non-blocking) so the home screen can show
   // the user's plan + included models. Refreshed again after /login.
   void fetchUsage(config).then((u) => {
@@ -3623,6 +3830,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         { command: '/key', label: '/key <k>', description: 'Set API key for current provider', category: 'AI' },
         { command: '/model', label: '/model', description: 'Set AI model interactively', category: 'AI' },
         { command: '/thinking', label: '/thinking', description: 'Toggle extended thinking/reasoning mode', category: 'AI' },
+        { command: '/reasoning', label: '/reasoning [lvl]', description: 'Set Claude reasoning: low|medium|high|xhigh|max', category: 'AI' },
         { command: '/transcript', label: '/transcript', description: 'Open fullscreen session transcript viewer', category: 'System' },
         { command: '/config', label: '/config', description: 'Show current configuration', category: 'System' },
         { command: '/settings', label: '/settings', description: 'Open personal settings panel', category: 'System' },
@@ -4095,6 +4303,35 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     if (exiting || isCommandRunning) return;
     if (!key) return;
 
+    // ─── Conversation scrollback (PgUp/PgDn/Home/End + Shift+Up/Down) ────────
+    // The sticky header + bottom bars require a fixed scroll region, which
+    // disables the terminal's native mouse-wheel scrollback. These keys page
+    // through the captured conversation buffer instead.
+    if (!state.modalOpen && state.history.length > 0) {
+      const rows = process.stdout.rows || 24;
+      const page = Math.max(1, (rows - 8));
+      let scrolled = false;
+      if (key.name === 'pageup' || (key.shift && key.name === 'up')) {
+        state.scrollOffset = (state.scrollOffset || 0) + (key.name === 'pageup' ? page : 2);
+        scrolled = true;
+      } else if (key.name === 'pagedown' || (key.shift && key.name === 'down')) {
+        state.scrollOffset = Math.max(0, (state.scrollOffset || 0) - (key.name === 'pagedown' ? page : 2));
+        scrolled = true;
+      } else if (key.name === 'home' && !(rl as any).line) {
+        // Jump to oldest. redrawScreen clamps to the real maximum.
+        state.scrollOffset = Number.MAX_SAFE_INTEGER;
+        scrolled = true;
+      } else if (key.name === 'end' && !(rl as any).line) {
+        state.scrollOffset = 0;
+        scrolled = true;
+      }
+      if (scrolled) {
+        redrawScreen(state);
+        rl.prompt(true);
+        return;
+      }
+    }
+
     // Shift + Tab or backtab to cycle modes
     if (key.name === 'backtab' || (key.name === 'tab' && key.shift) || key.sequence === '\x1b[Z') {
       const modes: ('Normal' | 'Plan' | 'Auto')[] = ['Normal', 'Plan', 'Auto'];
@@ -4187,7 +4424,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     const w = termWidth() - 1;
     if (rows >= 10 && !exiting) {
       process.stdout.write(`\x1b[${rows - 3};1H\x1b[2K`);
-      const shortcutsHint = ` ${DIM}Press ${R}${BRAND}[Tab]${R}${DIM} for commands · ${R}${BRAND}[Shift+Tab]${R}${DIM} to toggle agents · ${R}${BRAND}[Ctrl+C]${R}${DIM} to exit${R} `;
+      const shortcutsHint = ` ${DIM}Press ${R}${BRAND}[Tab]${R}${DIM} commands · ${R}${BRAND}[PgUp/PgDn]${R}${DIM} scroll · ${R}${BRAND}[Ctrl+C]${R}${DIM} exit${R} `;
       const linePadding = Math.max(0, Math.floor((w - stripAnsi(shortcutsHint).length) / 2));
       const rightPadding = Math.max(0, w - stripAnsi(shortcutsHint).length - linePadding);
       process.stdout.write(
@@ -4286,6 +4523,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
     { command: '/key', label: '/key [p] <k>', description: 'Set API key (optional provider)', category: 'AI' },
     { command: '/model', label: '/model', description: 'Select AI model interactively', category: 'AI' },
     { command: '/thinking', label: '/thinking', description: 'Toggle extended thinking/reasoning mode', category: 'AI' },
+    { command: '/reasoning', label: '/reasoning [lvl]', description: 'Set Claude reasoning: low|medium|high|xhigh|max', category: 'AI' },
     { command: '/transcript', label: '/transcript', description: 'Open fullscreen session transcript viewer', category: 'System' },
     { command: '/config', label: '/config', description: 'Show current configuration', category: 'System' },
     { command: '/settings', label: '/settings', description: 'Open personal settings panel', category: 'System' },
@@ -4409,6 +4647,9 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
   rl.on('line', async (rawLine: string) => {
     isCommandRunning = true;
 
+    // A new turn always snaps the conversation view back to the latest output.
+    state.scrollOffset = 0;
+
     if (slashActive) {
       clearSlashListLocal();
       slashActive = false;
@@ -4433,7 +4674,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       }
 
       if (input.startsWith('/') || input === '?') {
-        const allCmds = ['/add-dir', '/agents', '/background', '/branch', '/btw', '/clear', '/resume', '/color', '/compact', '/context', '/pair', '/login', '/credits', '/status', '/sync', '/mcp', '/key', '/model', '/config', '/settings', '/artifact', '/help', '/exit', '/thinking', '/transcript'];
+        const allCmds = ['/add-dir', '/agents', '/background', '/branch', '/btw', '/clear', '/resume', '/color', '/compact', '/context', '/pair', '/login', '/credits', '/status', '/sync', '/mcp', '/key', '/model', '/config', '/settings', '/artifact', '/help', '/exit', '/thinking', '/reasoning', '/transcript'];
         const [rawCmd, ...args] = input.slice(1).split(' ');
         const cmd = rawCmd.toLowerCase();
 
@@ -4490,7 +4731,8 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             if (!code) { rl.prompt(); return; }
             state.pairingCode = code;
             for (let i = 0; i < 30; i++) {
-              state.infoMessage = `Waiting for Studio to connect (${i + 1}/30)…`;
+              state.infoMessage =
+                `🔑 Pairing code: ${BOLD}${BRIGHT_CYAN}${code}${R}  ${DIM}— enter it in the Studio plugin & click Connect. Waiting (${i + 1}/30)…${R}`;
               redrawScreen(state);
               await new Promise(r => setTimeout(r, 2000));
               if (await checkPairingStatus(config)) { state.paired = true; break; }
@@ -4498,7 +4740,7 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             state.pairingCode = undefined;
             state.infoMessage = state.paired
               ? `${BRIGHT_GREEN}✓${R} Paired successfully!`
-              : `${BRIGHT_YELLOW}⚠${R} Timed out — verify the code in Studio.`;
+              : `${BRIGHT_YELLOW}⚠${R} Timed out — the code was ${BOLD}${code}${R}. Verify it in Studio and retry /pair.`;
             redrawScreen(state);
             await new Promise(r => setTimeout(r, 2000));
             state.infoMessage = undefined;
@@ -4680,6 +4922,40 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
             rl.prompt();
             return;
           }
+          case 'reasoning':
+          case 'effort': {
+            const levels: Array<'low' | 'medium' | 'high' | 'xhigh' | 'max'> = ['low', 'medium', 'high', 'xhigh', 'max'];
+            const arg = (args[0] || '').toLowerCase().replace(/[\s-]/g, '');
+            const aliases: Record<string, 'low' | 'medium' | 'high' | 'xhigh' | 'max'> = {
+              low: 'low', med: 'medium', medium: 'medium', high: 'high',
+              xhigh: 'xhigh', extrahigh: 'xhigh', 'x-high': 'xhigh', ultra: 'xhigh',
+              max: 'max', maximum: 'max',
+            };
+            const cur = state.config.reasoningEffort || 'medium';
+            let next: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+            if (aliases[arg]) {
+              next = aliases[arg];
+            } else {
+              // No/invalid arg → step up to the next level (cycles back to low).
+              next = levels[(levels.indexOf(cur) + 1) % levels.length];
+            }
+            state.config.reasoningEffort = next;
+            saveConfig(state.config);
+            const blurb: Record<string, string> = {
+              low: 'fastest, light reasoning',
+              medium: 'balanced',
+              high: 'thorough',
+              xhigh: 'very deep — for complex builds',
+              max: 'maximum reasoning budget',
+            };
+            state.infoMessage = `🧠 Claude reasoning → ${BOLD}${next.toUpperCase()}${R}${DIM} (${blurb[next]}). Usage: /reasoning low|medium|high|xhigh|max${R}`;
+            redrawScreen(state);
+            await new Promise(r => setTimeout(r, 2200));
+            state.infoMessage = undefined;
+            redrawScreen(state);
+            rl.prompt();
+            return;
+          }
           case 'login': {
             const ok = await loginWithRoblox(state.config);
             if (ok) {
@@ -4823,19 +5099,16 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
 
             try {
               const summaryPrompt = "Please summarize our conversation so far in a few highly concise sentences, listing the key files edited, decisions made, and current status. This will be used as the context baseline to save prompt tokens.";
-              const res = await fetch(`${config.apiUrl}/api/chat`, {
+              const res = await fetch(`${chatUrl(config)}/api/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   prompt: summaryPrompt,
                   sessionKey: config.sessionKey,
                   messages: state.history,
-                  provider: state.config.provider,
-                  apiKey: state.config.provider === 'google' ? state.config.googleKey
-                    : state.config.provider === 'deepseek' ? state.config.deepseekKey
-                      : state.config.provider === 'openrouter' ? state.config.openrouterKey
-                        : state.config.openaiKey,
-                  openaiKey: state.config.openaiKey,
+                  provider: state.config.customModelsEnabled ? state.config.provider : undefined,
+                  apiKey: chatApiKey(state.config),
+                  openaiKey: state.config.customModelsEnabled ? state.config.openaiKey : undefined,
                   model: state.config.model,
                 }),
               });
@@ -4969,6 +5242,39 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
           case 'model': {
             const m = args.join(' ');
             if (!m) {
+              // ── Subscription mode (default): only the models the user's plan
+              // includes. Custom models/keys are opt-in via /settings. ──
+              if (!state.config.customModelsEnabled) {
+                const acct = state.account || await fetchUsage(state.config);
+                state.account = acct;
+                if (!acct || !acct.loggedIn) {
+                  state.infoMessage = `Sign in first with /login to use subscription models — or enable custom models in /settings.`;
+                  redrawScreen(state);
+                  await new Promise(r => setTimeout(r, 2600));
+                  state.infoMessage = undefined;
+                  redrawScreen(state);
+                  rl.prompt();
+                  return;
+                }
+                const subModels = modelsForPlan(acct.plan);
+                state.modalOpen = true;
+                const selected = await showModelSelector(rl, subModels, state);
+                state.modalOpen = false;
+                if (selected) {
+                  // Subscription models run through the shared (Kiro) provider.
+                  state.config.provider = 'openai';
+                  state.config.model = selected;
+                  saveConfig(state.config);
+                  state.infoMessage = `Model → ${selected} (${planLabel(acct.plan)} subscription)`;
+                } else {
+                  state.infoMessage = 'Model selection cancelled.';
+                }
+                await new Promise(r => setTimeout(r, 100));
+                redrawScreen(state);
+                state.lastError = undefined; state.infoMessage = undefined;
+                rl.prompt();
+                return;
+              }
               let popularModels = (state.config.availableModels && state.config.availableModels.length > 0)
                 ? state.config.availableModels
                 : Array.from(new Set([
@@ -5466,6 +5772,16 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
         return;
       }
 
+      // Subscription mode needs a logged-in account session for Kiro credits.
+      // Without it the backend would 401; guide the user instead.
+      if (!state.config.customModelsEnabled && !state.config.sessionKey) {
+        state.lastError = `Not signed in. Run ${BRAND}/login${R} to use your subscription (Kiro credits), or enable custom API keys in ${BRAND}/settings${R}.`;
+        redrawScreen(state);
+        state.lastError = undefined;
+        rl.prompt();
+        return;
+      }
+
       // 4. Start spinner
       startSpinner('Thinking', activeMode !== 'Normal');
 
@@ -5491,19 +5807,16 @@ async function startInteractiveSession(config: CLIConfig): Promise<void> {
       pollLogsDuringGeneration();
 
       try {
-        const res = await fetch(`${config.apiUrl}/api/chat`, {
+        const res = await fetch(`${chatUrl(config)}/api/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: input,
             sessionKey: config.sessionKey,
             messages: state.history.slice(0, -1),
-            provider: state.config.provider,
-            apiKey: state.config.provider === 'google' ? state.config.googleKey
-              : state.config.provider === 'deepseek' ? state.config.deepseekKey
-                : state.config.provider === 'openrouter' ? state.config.openrouterKey
-                  : state.config.openaiKey,
-            openaiKey: state.config.openaiKey,
+            provider: state.config.customModelsEnabled ? state.config.provider : undefined,
+            apiKey: chatApiKey(state.config),
+            openaiKey: state.config.customModelsEnabled ? state.config.openaiKey : undefined,
             model: state.config.model,
             mode: state.config.extendedThinking ? 'thinking' : 'fast',
             autoSync: false
@@ -5746,17 +6059,15 @@ async function handleCodeCommand(config: CLIConfig, filePath: string, instructio
   steps[0].status = 'done'; steps[1].status = 'running';
   const prompt = `Update the file "${basename}":\n\nORIGINAL:\n${original}\n\nINSTRUCTIONS:\n${instructions}\n\nReturn only the updated code in the standard JSON format.`;
   try {
-    const res = await fetch(`${config.apiUrl}/api/chat`, {
+    const res = await fetch(`${chatUrl(config)}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt, sessionKey: config.sessionKey, messages: [],
-        provider: config.provider,
-        apiKey: config.provider === 'google' ? config.googleKey
-          : config.provider === 'deepseek' ? config.deepseekKey
-            : config.provider === 'openrouter' ? config.openrouterKey
-              : config.openaiKey,
-        openaiKey: config.openaiKey, model: config.model,
+        provider: config.customModelsEnabled ? config.provider : undefined,
+        apiKey: chatApiKey(config),
+        openaiKey: config.customModelsEnabled ? config.openaiKey : undefined,
+        model: config.model,
       }),
     });
     if (!res.ok) {
@@ -5969,18 +6280,15 @@ async function main() {
       }
       startSpinner('Asking');
       try {
-        const res = await fetch(`${config.apiUrl}/api/chat`, {
+        const res = await fetch(`${chatUrl(config)}/api/chat`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: q,
             sessionKey: config.sessionKey,
             messages: [],
-            provider: config.provider,
-            apiKey: config.provider === 'google' ? config.googleKey
-              : config.provider === 'deepseek' ? config.deepseekKey
-                : config.provider === 'openrouter' ? config.openrouterKey
-                  : config.openaiKey,
-            openaiKey: config.openaiKey,
+            provider: config.customModelsEnabled ? config.provider : undefined,
+            apiKey: chatApiKey(config),
+            openaiKey: config.customModelsEnabled ? config.openaiKey : undefined,
             model: config.model
           }),
         });
@@ -6280,7 +6588,16 @@ async function startLightweightServer(inProcess = false) {
   const port = 3000;
   let activeSessionKey = 'LOCAL-SESSION-KEY';
   let lastPollTime = Date.now();
-  let pendingCodePayload: any = null;
+  // FIFO queue of payloads waiting to be delivered to the Studio plugin. Using a
+  // queue (not a single slot) means rapid successive pushes — e.g. the agent
+  // writing several scripts in a burst — are all delivered instead of the last
+  // one clobbering the rest. Each poll drains exactly one payload.
+  let pendingPayloads: any[] = [];
+  // Monotonic id so two payloads enqueued in the same millisecond still get
+  // distinct messageIds (the plugin skips a payload whose messageId it has
+  // already seen — Date.now() collisions silently dropped scripts).
+  let messageSeq = 0;
+  const nextMessageId = () => `${Date.now()}-${++messageSeq}`;
   let localLogsBuffer: string[] = [];
   const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -6293,15 +6610,48 @@ async function startLightweightServer(inProcess = false) {
     const body = (): Promise<any> => new Promise(resolve => { let b = ''; req.on('data', c => b += c); req.on('end', () => { try { resolve(JSON.parse(b)); } catch { resolve({}); } }); });
     if (path_ === '/api/projects' && req.method === 'GET') { sendJSON([]); return; }
     if (path_ === '/api/status' && req.method === 'GET') {
+      // Drains the log buffer by default so each consumer sees only new lines
+      // (no duplicates). The pairing heartbeat passes ?peek=1 so it can check
+      // liveness WITHOUT stealing log lines from the live-activity feed.
+      const peek = url.searchParams.get('peek') === '1';
       const logs = [...localLogsBuffer];
-      localLogsBuffer = [];
+      if (!peek) localLogsBuffer = [];
       sendJSON({ status: 'ok', lastPollTime, logs });
       return;
     }
     if (path_ === '/api/pair/init' && req.method === 'POST') { const b = await body(); const code = (b.authCode || '').toUpperCase(); if (code) activeSessionKey = code; sendJSON({ ok: true, sessionKey: activeSessionKey, ownerUserId: 'local-user' }); return; }
     if (path_ === '/api/pair/keepalive' && req.method === 'POST') { sendJSON({ status: 'ok' }); return; }
     if (path_ === '/api/connect' && req.method === 'GET') { sendJSON({ connected: true, sessionKey: activeSessionKey, ip: '127.0.0.1' }); return; }
-    if (path_ === '/api/poll' && req.method === 'GET') { lastPollTime = Date.now(); if (pendingCodePayload) { sendJSON(pendingCodePayload); pendingCodePayload = null; } else { sendJSON({ paired: true, hasNewCode: false }); } return; }
+    if (path_ === '/api/poll' && req.method === 'GET') {
+      lastPollTime = Date.now();
+      if (url.searchParams.get('disconnect') === 'true') { pendingPayloads = []; sendJSON({ paired: false }); return; }
+      // Drain one queued payload per poll so a burst of pushes all get through.
+      // Suggest a poll cadence to the plugin: brisk while work is queued, more
+      // relaxed when idle — keeps total request rate well under Roblox's
+      // ~500/min HttpService limit so the session never gets throttled.
+      const next = pendingPayloads.shift();
+      const pollInterval = pendingPayloads.length > 0 ? 0.15 : 0.3;
+      if (next) { sendJSON({ ...next, pollInterval }); } else { sendJSON({ paired: true, hasNewCode: false, pollInterval }); }
+      return;
+    }
+    // MCP long-poll. The local CLI agent reaches Studio over the SAME push/poll
+    // bridge above — it does NOT use this MCP command channel — so there are
+    // never queued MCP commands here. We still HOLD the request like a real
+    // long-poll: returning 404/empty immediately makes the plugin's MCP thread
+    // respin ~20x/sec, which blows past Roblox's HTTP rate limit and forces a
+    // "cannot reach dashboard" disconnect.
+    if (path_ === '/api/mcp/next' && req.method === 'GET') {
+      const waitMs = Math.min(parseInt(url.searchParams.get('wait') || '0', 10) || 0, 25000);
+      if (waitMs > 0) {
+        const t = setTimeout(() => { sendJSON({ command: null }); }, waitMs);
+        req.on('close', () => clearTimeout(t));
+      } else {
+        sendJSON({ command: null });
+      }
+      return;
+    }
+    if (path_ === '/api/mcp/result' && req.method === 'POST') { await body(); sendJSON({ ok: true }); return; }
+    if (path_ === '/api/snapshot' && req.method === 'POST') { await body(); sendJSON({ success: true }); return; }
     if (path_ === '/api/cli/push-code' && req.method === 'POST') {
       const b = await body();
       const pluginPayload = JSON.stringify({
@@ -6313,13 +6663,13 @@ async function startLightweightServer(inProcess = false) {
           code: b.code || ""
         }]
       });
-      pendingCodePayload = {
+      pendingPayloads.push({
         paired: true,
         hasNewCode: true,
         code: pluginPayload,
-        messageId: Date.now().toString(),
+        messageId: nextMessageId(),
         requestedFile: b.name || 'Script'
-      };
+      });
       sendJSON({ ok: true });
       return;
     }
@@ -6334,13 +6684,13 @@ async function startLightweightServer(inProcess = false) {
           name: s.name || `GeneratedScript_${i}`,
           code: s.code || ''
         }));
-        pendingCodePayload = {
+        pendingPayloads.push({
           paired: true,
           hasNewCode: true,
           code: JSON.stringify({ scripts: scriptResults }),
-          messageId: Date.now().toString(),
+          messageId: nextMessageId(),
           requestedFile: scriptResults[0].name || 'Script'
-        };
+        });
       }
       sendJSON({ ok: true });
       return;

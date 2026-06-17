@@ -957,3 +957,76 @@ DEPLOY NOTE: the auth.ts redirect fix is server-side — must be deployed to
 apple-juice.online before /login completes end-to-end. CLI exe also needs a
 rebuild (build:cli) to ship the backendUrl + home-screen changes.
 ================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 11) — /model gated to subscription; custom-models toggle
+--------------------------------------------------------------------------------
+[x] /model now shows ONLY the models included in the user's subscription by
+    default (modelsForPlan(account.plan), routed through the shared Kiro
+    provider). If not signed in, it prompts /login (or enabling custom models).
+[x] New config flag customModelsEnabled (default off). When ON, /model shows the
+    full custom catalogue (any provider) and the user supplies their own API key
+    via /key — billed to their key, not their subscription.
+[x] /settings gains a "Custom Models & API Keys" toggle (with live-preview
+    explanation) that flips customModelsEnabled.
+[x] VERIFIED: CLI bundles clean, 127/127 tests, no diagnostics.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 12) — plugin de-duplication (single source of truth)
+--------------------------------------------------------------------------------
+PROBLEM: AppleJuiceSyncCLI.lua had drifted far behind AppleJuiceSync.lua — it was
+missing every batch 2/3/5/9-11 change (long-poll, script_search/grep,
+inspect_instance, multi_edit, split playtest, search_game_tree, structured
+playtest, resilient edits). Two hand-maintained ~2000-line copies = guaranteed drift.
+
+FIX (option 2 — generate, don't duplicate):
+[x] AppleJuiceSync.lua is now the CANONICAL engine. All variant-specific values
+    live in ONE delimited block: -- ╔═══ AJ_CONFIG_START ... AJ_CONFIG_END ═══╗
+    (toolbar/widget names, version, defaultServerUrl, settingsKey, UI copy, and a
+    requireManualCode flag). The whole body reads from AJ_CONFIG — including the
+    connect handler (requireManualCode gates IP auto-pair vs terminal-code).
+[x] scripts/build-plugins.cjs generates AppleJuiceSyncCLI.lua by replacing ONLY
+    that block with the CLI variant. The CLI file is now marked GENERATED — DO
+    NOT EDIT BY HAND.
+[x] package.json: added "build:plugins": "node scripts/build-plugins.cjs".
+[x] VERIFIED: both plugins parse; CLI now has script_grep/multi_edit/
+    search_game_tree (drift gone) + correct CLI config (localhost:3000,
+    ServerUrlCLI, requireManualCode). package.json valid.
+
+WORKFLOW GOING FORWARD: edit plugin/AppleJuiceSync.lua only, then run
+`npm run build:plugins` (also wire into build:cli/release later).
+================================================================================
+
+
+--------------------------------------------------------------------------------
+ PROGRESS LOG (batch 13) — CLI uses Kiro (subscription) like the website
+--------------------------------------------------------------------------------
+PROBLEM: CLI generations 401'd ("OpenAI ... no API key"). Two root causes:
+  1. Chat went to the LOCAL shim's /api/chat (callDirectAI → own OpenAI key),
+     not the real backend's Kiro shared-credit path.
+  2. config.sessionKey was used for BOTH the backend account session (/login)
+     AND the local Studio pairing code (/pair) — they clobbered each other.
+FIX:
+[x] chatUrl(config) + chatApiKey(config) helpers:
+      - subscription (default): real backend (Kiro), NO api key sent.
+      - custom (customModelsEnabled): local shim + the user's own key.
+    Applied to ALL generation sends: main prompt, feedback-after-playtest,
+    /btw artifact, /compact, /sync, `ask`, and the MCP-turn stream.
+    (push-scripts/push-code/poll/status stay on the LOCAL server — the plugin
+     polls there; only AI generation moved to the backend.)
+[x] Decoupled sessions: added config.studioPairKey for the local Studio pairing;
+    initAuthPairing no longer overwrites config.sessionKey (the /login account
+    session). /pair and /login no longer clobber each other.
+[x] Guard: subscription mode with no account session → "Run /login …" instead
+    of a backend 401.
+[x] Settings toggle "Custom Models & API Keys" (customModelsEnabled) drives all
+    of the above (already added batch 11).
+[x] VERIFIED: CLI bundles clean (pre-existing type-debt only: provider union +
+    deepseek/openrouter key fields — unrelated, esbuild strips types).
+
+TO TAKE EFFECT: rebuild the CLI exe (npm run build:cli). Then: /login first
+(Kiro credits), then /pair (Studio). Custom keys remain opt-in via /settings.
+================================================================================

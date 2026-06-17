@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body, html, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #ffffff;
+  color: #0055ff;
+  font-family: 'Inter', sans-serif;
+  user-select: none;
+}
+
+.start-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  z-index: 50;
+  cursor: pointer;
+  transition: opacity 1s ease-out;
+}
+
+.start-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.start-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0055ff;
+  background: transparent;
+  border: 2px solid #0055ff;
+  border-radius: 40px;
+  padding: 1.5rem 3rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.start-btn:hover {
+  background: #0055ff;
+  color: #ffffff;
+}
+
+.overlay-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.promo-text {
+  position: absolute;
+  font-size: 8vw;
+  font-weight: 600;
+  color: #0055ff;
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: -0.05em;
+}
+
+.text-outline {
+  border: 2px solid #0055ff;
+  border-radius: 100px;
+  padding: 0.2em 0.5em;
+  display: inline-block;
+}
+
+.outro-text {
+  font-family: monospace;
+  font-size: 2rem;
+  color: #000;
+  text-align: center;
+  white-space: pre;
+}

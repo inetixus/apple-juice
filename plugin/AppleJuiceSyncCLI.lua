@@ -5,15 +5,41 @@ local TweenService = game:GetService("TweenService")
 local LogService = game:GetService("LogService")
 local RunService = game:GetService("RunService")
 
-local TOOLBAR_NAME = "Apple Juice AI Sync (CLI)"
-local WIDGET_TITLE = "Apple Juice AI Sync (CLI)"
-local VERSION = "v1.1.0-cli"
+-- ╔═══ AJ_CONFIG_START ═══════════════════════════════════════════════════════╗
+-- GENERATED FILE — DO NOT EDIT BY HAND.
+-- This is the CLI variant of AppleJuiceSync.lua, produced by
+-- scripts/build-plugins.cjs. Edit plugin/AppleJuiceSync.lua (the canonical
+-- engine) and re-run `node scripts/build-plugins.cjs`.
+local AJ_CONFIG = {
+	toolbarName = "Apple Juice AI Sync (CLI)",
+	widgetTitle = "Apple Juice AI Sync (CLI)",
+	version = "v2.0.0-cli",
+	variant = "cli",
+	-- The CLI runs the Apple Juice app locally and serves it on the loopback
+	-- address. Use 127.0.0.1 (NOT localhost) — Roblox Studio's HttpService often
+	-- fails to resolve "localhost" but reaches the loopback IP fine. FIXED: there
+	-- is no URL box in the widget.
+	serverUrl = "http://127.0.0.1:3000",
+	toggleButtonId = "AppleJuiceAISyncCLIToggle",
+	toggleButtonTooltip = "Toggle Apple Juice AI Sync (CLI)",
+	widgetId = "AppleJuiceAISyncCLIWidget",
+	tagline = "Linked to your local `aj` terminal.",
+	-- The local CLI server auto-pairs on /api/connect, so NO code is needed and
+	-- no manual-code box is shown.
+	showManualCode = false,
+	requireManualCode = false,
+}
+-- ╚═══ AJ_CONFIG_END ═════════════════════════════════════════════════════════╝
 
--- The CLI runs the Apple Juice app locally and prints a pairing code in your
--- terminal. Point at localhost and pair using that code (manual key flow) —
--- IP auto-pairing does not apply to CLI sessions.
-local defaultServerUrl = "http://localhost:3000"
-local BASE_URL = defaultServerUrl
+local TOOLBAR_NAME = AJ_CONFIG.toolbarName
+local WIDGET_TITLE = AJ_CONFIG.widgetTitle
+local VERSION = AJ_CONFIG.version
+
+-- The server URL is FIXED per plugin variant (no in-widget URL box):
+--   • Web build → the public Apple Juice site.
+--   • CLI build → the local app the `aj` terminal serves on 127.0.0.1.
+local BASE_URL = AJ_CONFIG.serverUrl
+if BASE_URL:sub(-1) == "/" then BASE_URL = BASE_URL:sub(1, -2) end
 local CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
 local POLL_ENDPOINT = BASE_URL .. "/api/poll"
 local LOGS_ENDPOINT = BASE_URL .. "/api/logs"
@@ -23,32 +49,6 @@ local SNAPSHOT_ENDPOINT = BASE_URL .. "/api/snapshot"
 local MCP_NEXT_ENDPOINT = BASE_URL .. "/api/mcp/next"
 local MCP_RESULT_ENDPOINT = BASE_URL .. "/api/mcp/result"
 
-local function updateEndpoints(newUrl)
-	newUrl = newUrl:gsub("%s+", "")
-	if newUrl == "" then
-		newUrl = defaultServerUrl
-	end
-	-- Strip trailing slash if present
-	if newUrl:sub(-1) == "/" then
-		newUrl = newUrl:sub(1, -2)
-	end
-	BASE_URL = newUrl
-	CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
-	POLL_ENDPOINT = BASE_URL .. "/api/poll"
-	LOGS_ENDPOINT = BASE_URL .. "/api/logs"
-	TREE_ENDPOINT = BASE_URL .. "/api/tree"
-	REPORT_FILE_ENDPOINT = BASE_URL .. "/api/report-file"
-	SNAPSHOT_ENDPOINT = BASE_URL .. "/api/snapshot"
-	MCP_NEXT_ENDPOINT = BASE_URL .. "/api/mcp/next"
-	MCP_RESULT_ENDPOINT = BASE_URL .. "/api/mcp/result"
-end
-
-pcall(function()
-	local savedUrl = plugin:GetSetting("ServerUrlCLI")
-	if savedUrl and savedUrl ~= "" then
-		updateEndpoints(savedUrl)
-	end
-end)
 local POLL_INTERVAL = 0.2
 -- Server-driven, plan-aware poll cadence. The /api/poll response may return a
 -- recommended `pollInterval` (higher subscription tiers poll faster so code +
@@ -59,231 +59,515 @@ local MAX_POLL_INTERVAL = 1.0
 local currentPollInterval = POLL_INTERVAL
 
 local toolbar = plugin:CreateToolbar(TOOLBAR_NAME)
-local toolbarButton = toolbar:CreateButton("AppleJuiceAISyncCLIToggle", "Toggle Apple Juice AI Sync (CLI)", "rbxassetid://4458901886")
+local toolbarButton = toolbar:CreateButton(AJ_CONFIG.toggleButtonId, AJ_CONFIG.toggleButtonTooltip, "rbxassetid://4458901886")
 toolbarButton.ClickableWhenViewportHidden = true
 
-local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 380, 260, 300, 180)
-local widget = plugin:CreateDockWidgetPluginGui("AppleJuiceAISyncCLIWidget", widgetInfo)
+local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 360, 520, 320, 430)
+local widget = plugin:CreateDockWidgetPluginGui(AJ_CONFIG.widgetId, widgetInfo)
 widget.Title = WIDGET_TITLE
 
 -- ─── UI ───────────────────────────────────────────────────────────────────────
+-- Animated, modern panel. The server URL is FIXED (no input box). Pairing is one
+-- click; a manual code box appears only as a fallback (web build) or not at all
+-- (CLI build). running / unloading / undoStack are forward-declared here so the
+-- animation closures and the engine below all capture the SAME upvalues.
+local running = false
+local unloading = false
+local undoStack = {}
+
+-- Palette
+local COL_BG       = Color3.fromRGB(20, 22, 27)
+local COL_SURFACE  = Color3.fromRGB(31, 34, 41)
+local COL_SURFACE2 = Color3.fromRGB(40, 44, 53)
+local COL_TEXT     = Color3.fromRGB(240, 241, 245)
+local COL_DIM      = Color3.fromRGB(138, 145, 160)
+local COL_ACCENT_A = Color3.fromRGB(230, 126, 34)   -- terracotta
+local COL_ACCENT_B = Color3.fromRGB(255, 176, 102)  -- light orange
+local COL_OK       = Color3.fromRGB(77, 214, 123)
+local COL_WARN     = Color3.fromRGB(245, 208, 96)
+local COL_ERR      = Color3.fromRGB(255, 96, 96)
+local COL_DISC     = Color3.fromRGB(220, 64, 64)
+
+local function corner(inst, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r or 8)
+	c.Parent = inst
+	return c
+end
+local function pad(inst, l, r, t, b)
+	local p = Instance.new("UIPadding")
+	p.PaddingLeft = UDim.new(0, l or 0)
+	p.PaddingRight = UDim.new(0, r or 0)
+	p.PaddingTop = UDim.new(0, t or 0)
+	p.PaddingBottom = UDim.new(0, b or 0)
+	p.Parent = inst
+	return p
+end
 
 local root = Instance.new("Frame")
 root.Name = "Root"
 root.Size = UDim2.fromScale(1, 1)
-root.BackgroundColor3 = Color3.fromRGB(23, 25, 30)
+root.BackgroundColor3 = COL_BG
 root.BorderSizePixel = 0
 root.Parent = widget
 
-local rootCorner = Instance.new("UICorner")
-rootCorner.CornerRadius = UDim.new(0, 6)
-rootCorner.Parent = root
+-- Entrance scale/fade lives on a child container so the bg stays solid.
+local panel = Instance.new("Frame")
+panel.Name = "Panel"
+panel.Size = UDim2.fromScale(1, 1)
+panel.BackgroundTransparency = 1
+panel.BorderSizePixel = 0
+panel.Parent = root
+pad(panel, 16, 16, 16, 16)
 
-local rootPadding = Instance.new("UIPadding")
-rootPadding.PaddingTop = UDim.new(0, 18)
-rootPadding.PaddingBottom = UDim.new(0, 18)
-rootPadding.PaddingLeft = UDim.new(0, 18)
-rootPadding.PaddingRight = UDim.new(0, 18)
-rootPadding.Parent = root
+local panelScale = Instance.new("UIScale")
+panelScale.Scale = 0.94
+panelScale.Parent = panel
 
 local layout = Instance.new("UIListLayout")
 layout.FillDirection = Enum.FillDirection.Vertical
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Padding = UDim.new(0, 8)
-layout.Parent = root
+layout.Padding = UDim.new(0, 12)
+layout.Parent = panel
 
-local function makeLabel(text, order, sizeY, color, font, textSize)
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.new(1, 0, 0, sizeY)
-	label.Text = text
-	label.TextColor3 = color
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Font = font
-	label.TextSize = textSize
-	label.LayoutOrder = order
-	label.Parent = root
-	return label
-end
+-- ── Header card (logo chip + title + animated gradient) ──────────────────────
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 64)
+header.BackgroundColor3 = COL_SURFACE
+header.BorderSizePixel = 0
+header.LayoutOrder = 1
+header.Parent = panel
+corner(header, 12)
+pad(header, 12, 12, 10, 10)
 
-makeLabel("Apple Juice AI Sync " .. VERSION, 1, 24, Color3.fromRGB(240, 240, 245), Enum.Font.GothamBold, 17)
-makeLabel("Enter the pairing code from your terminal, then Connect.", 2, 16, Color3.fromRGB(120, 126, 140), Enum.Font.Gotham, 11)
+local headerStroke = Instance.new("UIStroke")
+headerStroke.Color = COL_ACCENT_A
+headerStroke.Transparency = 0.6
+headerStroke.Thickness = 1
+headerStroke.Parent = header
 
-local spacer = Instance.new("Frame")
-spacer.Size = UDim2.new(1, 0, 0, 4)
-spacer.BackgroundTransparency = 1
-spacer.LayoutOrder = 3
-spacer.Parent = root
+local logoChip = Instance.new("Frame")
+logoChip.Name = "Logo"
+logoChip.Size = UDim2.fromOffset(44, 44)
+logoChip.Position = UDim2.fromScale(0, 0.5)
+logoChip.AnchorPoint = Vector2.new(0, 0.5)
+logoChip.BackgroundColor3 = COL_ACCENT_A
+logoChip.BorderSizePixel = 0
+logoChip.Parent = header
+corner(logoChip, 12)
 
-local serverUrlInput = Instance.new("TextBox")
-serverUrlInput.Name = "ServerUrlInput"
-serverUrlInput.Size = UDim2.new(1, 0, 0, 32)
-serverUrlInput.BackgroundColor3 = Color3.fromRGB(35, 38, 45)
-serverUrlInput.TextColor3 = Color3.fromRGB(240, 240, 245)
-serverUrlInput.Font = Enum.Font.GothamMedium
-serverUrlInput.TextSize = 13
-serverUrlInput.PlaceholderText = "CLI server URL (e.g. http://localhost:3000)"
-serverUrlInput.Text = BASE_URL
-serverUrlInput.ClearTextOnFocus = false
-serverUrlInput.BorderSizePixel = 0
-serverUrlInput.LayoutOrder = 3.2
-serverUrlInput.Parent = root
+local logoGrad = Instance.new("UIGradient")
+logoGrad.Color = ColorSequence.new(COL_ACCENT_A, COL_ACCENT_B)
+logoGrad.Rotation = 0
+logoGrad.Parent = logoChip
 
-local serverUrlCorner = Instance.new("UICorner")
-serverUrlCorner.CornerRadius = UDim.new(0, 6)
-serverUrlCorner.Parent = serverUrlInput
+local logoText = Instance.new("TextLabel")
+logoText.BackgroundTransparency = 1
+logoText.Size = UDim2.fromScale(1, 1)
+logoText.Text = "🍎"
+logoText.TextScaled = true
+logoText.Font = Enum.Font.GothamBold
+logoText.TextColor3 = Color3.fromRGB(255, 255, 255)
+logoText.Parent = logoChip
+pad(logoText, 7, 7, 7, 7)
 
-local serverUrlPadding = Instance.new("UIPadding")
-serverUrlPadding.PaddingLeft = UDim.new(0, 8)
-serverUrlPadding.PaddingRight = UDim.new(0, 8)
-serverUrlPadding.Parent = serverUrlInput
+local titleLabel = Instance.new("TextLabel")
+titleLabel.BackgroundTransparency = 1
+titleLabel.Position = UDim2.fromOffset(56, 8)
+titleLabel.Size = UDim2.new(1, -120, 0, 22)
+titleLabel.Text = "Apple Juice"
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 18
+titleLabel.TextColor3 = COL_TEXT
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = header
 
-local manualInput = Instance.new("TextBox")
-manualInput.Name = "ManualInput"
-manualInput.Size = UDim2.new(1, 0, 0, 32)
-manualInput.BackgroundColor3 = Color3.fromRGB(35, 38, 45)
-manualInput.TextColor3 = Color3.fromRGB(240, 240, 245)
-manualInput.Font = Enum.Font.GothamMedium
-manualInput.TextSize = 13
-manualInput.PlaceholderText = "Terminal Pairing Code (e.g. TI9YIA)"
-manualInput.Text = ""
-manualInput.ClearTextOnFocus = false
-manualInput.BorderSizePixel = 0
-manualInput.LayoutOrder = 3.5
-manualInput.Parent = root
+local subLabel = Instance.new("TextLabel")
+subLabel.BackgroundTransparency = 1
+subLabel.Position = UDim2.fromOffset(56, 30)
+subLabel.Size = UDim2.new(1, -60, 0, 16)
+subLabel.Text = AJ_CONFIG.tagline
+subLabel.Font = Enum.Font.Gotham
+subLabel.TextSize = 11
+subLabel.TextColor3 = COL_DIM
+subLabel.TextXAlignment = Enum.TextXAlignment.Left
+subLabel.TextTruncate = Enum.TextTruncate.AtEnd
+subLabel.Parent = header
 
-local manualCorner = Instance.new("UICorner")
-manualCorner.CornerRadius = UDim.new(0, 6)
-manualCorner.Parent = manualInput
+local verPill = Instance.new("TextLabel")
+verPill.AnchorPoint = Vector2.new(1, 0)
+verPill.Position = UDim2.new(1, 0, 0, 2)
+verPill.Size = UDim2.fromOffset(58, 18)
+verPill.BackgroundColor3 = COL_SURFACE2
+verPill.Text = VERSION
+verPill.Font = Enum.Font.GothamMedium
+verPill.TextSize = 10
+verPill.TextColor3 = COL_DIM
+verPill.Parent = header
+corner(verPill, 9)
 
-local manualPadding = Instance.new("UIPadding")
-manualPadding.PaddingLeft = UDim.new(0, 8)
-manualPadding.PaddingRight = UDim.new(0, 8)
-manualPadding.Parent = manualInput
+-- ── Status card (pulsing dot + spinner + message) ────────────────────────────
+local statusCard = Instance.new("Frame")
+statusCard.Name = "StatusCard"
+statusCard.Size = UDim2.new(1, 0, 0, 58)
+statusCard.BackgroundColor3 = COL_SURFACE
+statusCard.BorderSizePixel = 0
+statusCard.LayoutOrder = 2
+statusCard.Parent = panel
+corner(statusCard, 12)
+pad(statusCard, 14, 14, 12, 12)
 
-serverUrlInput.FocusLost:Connect(function(enterPressed)
-	local url = serverUrlInput.Text:gsub("%s+", "")
-	updateEndpoints(url)
-	serverUrlInput.Text = BASE_URL
-	pcall(function()
-		plugin:SetSetting("ServerUrlCLI", BASE_URL)
-	end)
-end)
+local statusDot = Instance.new("Frame")
+statusDot.Name = "Dot"
+statusDot.Size = UDim2.fromOffset(10, 10)
+statusDot.Position = UDim2.fromOffset(0, 3)
+statusDot.BackgroundColor3 = COL_DIM
+statusDot.BorderSizePixel = 0
+statusDot.Parent = statusCard
+corner(statusDot, 5)
 
-local connectButton = Instance.new("TextButton")
-connectButton.Name = "ConnectButton"
-connectButton.Size = UDim2.new(1, 0, 0, 40)
-local buttonBaseColor = Color3.fromRGB(43, 103, 255)
-local buttonHoverColor = Color3.fromRGB(57, 117, 255)
-local buttonConnectedColor = Color3.fromRGB(220, 38, 38)
-connectButton.BackgroundColor3 = buttonBaseColor
-connectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-connectButton.Font = Enum.Font.GothamBold
-connectButton.TextSize = 15
-connectButton.Text = "Connect"
-connectButton.AutoButtonColor = false
-connectButton.BorderSizePixel = 0
-connectButton.LayoutOrder = 4
-connectButton.Parent = root
-
-local connectButtonCorner = Instance.new("UICorner")
-connectButtonCorner.CornerRadius = UDim.new(0, 8)
-connectButtonCorner.Parent = connectButton
+local spinner = Instance.new("TextLabel")
+spinner.Name = "Spinner"
+spinner.BackgroundTransparency = 1
+spinner.Position = UDim2.fromOffset(-4, -5)
+spinner.Size = UDim2.fromOffset(18, 18)
+spinner.Text = ""
+spinner.Font = Enum.Font.GothamBold
+spinner.TextSize = 16
+spinner.TextColor3 = COL_ACCENT_B
+spinner.Visible = false
+spinner.Parent = statusCard
 
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "Status"
-statusLabel.Size = UDim2.new(1, 0, 0, 56)
+statusLabel.Position = UDim2.fromOffset(20, 0)
+statusLabel.Size = UDim2.new(1, -20, 1, 0)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextWrapped = true
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.TextYAlignment = Enum.TextYAlignment.Top
 statusLabel.Font = Enum.Font.GothamSemibold
-statusLabel.TextSize = 12
-statusLabel.LayoutOrder = 5
-statusLabel.Parent = root
+statusLabel.TextSize = 12.5
+statusLabel.TextColor3 = COL_DIM
+statusLabel.Text = "Ready."
+statusLabel.Parent = statusCard
 
-local hoverTweenInfo = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-connectButton.MouseEnter:Connect(function()
-	if not running then
-		TweenService:Create(connectButton, hoverTweenInfo, { BackgroundColor3 = buttonHoverColor }):Play()
-	end
-end)
-connectButton.MouseLeave:Connect(function()
-	if not running then
-		TweenService:Create(connectButton, hoverTweenInfo, { BackgroundColor3 = buttonBaseColor }):Play()
-	end
-end)
+-- ── Live activity feed (streams every Studio action in real time) ─────────────
+local feedCard = Instance.new("Frame")
+feedCard.Name = "Feed"
+feedCard.Size = UDim2.new(1, 0, 0, 168)
+feedCard.BackgroundColor3 = COL_SURFACE
+feedCard.BorderSizePixel = 0
+feedCard.LayoutOrder = 4
+feedCard.Parent = panel
+corner(feedCard, 12)
+pad(feedCard, 12, 8, 10, 10)
 
+local feedTitle = Instance.new("TextLabel")
+feedTitle.BackgroundTransparency = 1
+feedTitle.Size = UDim2.new(1, -16, 0, 14)
+feedTitle.Text = "LIVE ACTIVITY"
+feedTitle.Font = Enum.Font.GothamBold
+feedTitle.TextSize = 10
+feedTitle.TextColor3 = COL_DIM
+feedTitle.TextXAlignment = Enum.TextXAlignment.Left
+feedTitle.Parent = feedCard
+
+local liveDot = Instance.new("Frame")
+liveDot.Name = "LiveDot"
+liveDot.Size = UDim2.fromOffset(6, 6)
+liveDot.Position = UDim2.fromOffset(82, 4)
+liveDot.BackgroundColor3 = COL_OK
+liveDot.BorderSizePixel = 0
+liveDot.Parent = feedCard
+corner(liveDot, 3)
+
+local feedScroll = Instance.new("ScrollingFrame")
+feedScroll.Name = "FeedScroll"
+feedScroll.Position = UDim2.fromOffset(0, 20)
+feedScroll.Size = UDim2.new(1, 0, 1, -20)
+feedScroll.BackgroundTransparency = 1
+feedScroll.BorderSizePixel = 0
+feedScroll.ScrollBarThickness = 4
+feedScroll.ScrollBarImageColor3 = COL_ACCENT_A
+feedScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+feedScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+feedScroll.ScrollingDirection = Enum.ScrollingDirection.Y
+feedScroll.Parent = feedCard
+
+local feedLayout = Instance.new("UIListLayout")
+feedLayout.FillDirection = Enum.FillDirection.Vertical
+feedLayout.SortOrder = Enum.SortOrder.LayoutOrder
+feedLayout.Padding = UDim.new(0, 3)
+feedLayout.Parent = feedScroll
+
+local feedEmpty = Instance.new("TextLabel")
+feedEmpty.Name = "Empty"
+feedEmpty.BackgroundTransparency = 1
+feedEmpty.Size = UDim2.new(1, -6, 0, 16)
+feedEmpty.Text = "Waiting for activity…"
+feedEmpty.Font = Enum.Font.Gotham
+feedEmpty.TextSize = 11
+feedEmpty.TextColor3 = Color3.fromRGB(95, 101, 115)
+feedEmpty.TextXAlignment = Enum.TextXAlignment.Left
+feedEmpty.LayoutOrder = 0
+feedEmpty.Parent = feedScroll
+
+-- pulse the little "live" dot
+TweenService:Create(liveDot, TweenInfo.new(1, SINE, Enum.EasingDirection.InOut, -1, true), { BackgroundTransparency = 0.6 }):Play()
+
+local feedCount = 0
+local FEED_MAX = 80
+
+local function feedKindColor(kind)
+	if kind == "success" then return COL_OK end
+	if kind == "error" then return COL_ERR end
+	if kind == "warn" then return COL_WARN end
+	if kind == "test" then return COL_ACCENT_B end
+	return Color3.fromRGB(186, 192, 205)
+end
+
+local function detectFeedKind(text)
+	if string.find(text, "✓", 1, true) then return "success" end
+	if string.find(text, "✖", 1, true) then return "error" end
+	if string.find(text, "⚠", 1, true) then return "warn" end
+	return "info"
+end
+
+-- Append a line to the live feed. Safe to call from anywhere; ignores the
+-- internal control markers so the feed stays human-readable.
+local function addFeed(text, kind)
+	if not text or text == "" then return end
+	if string.find(text, "APPLE_JUICE_TEST", 1, true) or string.find(text, "APPLE_JUICE_ERROR", 1, true) then
+		return
+	end
+	if feedEmpty then feedEmpty:Destroy(); feedEmpty = nil end
+
+	feedCount = feedCount + 1
+	local now = os.date("%H:%M:%S")
+
+	local row = Instance.new("TextLabel")
+	row.Name = "Row" .. feedCount
+	row.Size = UDim2.new(1, -8, 0, 0)
+	row.AutomaticSize = Enum.AutomaticSize.Y
+	row.BackgroundTransparency = 1
+	row.Text = string.format("%s  %s", now, text)
+	row.Font = Enum.Font.Gotham
+	row.TextSize = 11
+	row.TextColor3 = feedKindColor(kind or detectFeedKind(text))
+	row.TextXAlignment = Enum.TextXAlignment.Left
+	row.TextYAlignment = Enum.TextYAlignment.Top
+	row.TextWrapped = true
+	row.LayoutOrder = feedCount
+	row.TextTransparency = 1
+	row.Parent = feedScroll
+	TweenService:Create(row, TweenInfo.new(0.25), { TextTransparency = 0 }):Play()
+
+	-- Cap the number of rows so a long session can't grow unbounded.
+	local rows = {}
+	for _, c in ipairs(feedScroll:GetChildren()) do
+		if c:IsA("TextLabel") then table.insert(rows, c) end
+	end
+	if #rows > FEED_MAX then
+		table.sort(rows, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+		for i = 1, #rows - FEED_MAX do
+			rows[i]:Destroy()
+		end
+	end
+
+	-- Auto-scroll to the newest entry once the canvas has re-measured.
+	task.defer(function()
+		pcall(function()
+			feedScroll.CanvasPosition = Vector2.new(0, feedScroll.AbsoluteCanvasSize.Y)
+		end)
+	end)
+end
+
+-- ── Connect button (gradient + hover/press + connecting shimmer) ──────────────
+local connectButton = Instance.new("TextButton")
+connectButton.Name = "ConnectButton"
+connectButton.Size = UDim2.new(1, 0, 0, 46)
+connectButton.AutoButtonColor = false
+connectButton.BackgroundColor3 = COL_ACCENT_A
+connectButton.Text = "Connect"
+connectButton.Font = Enum.Font.GothamBold
+connectButton.TextSize = 16
+connectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+connectButton.BorderSizePixel = 0
+connectButton.LayoutOrder = 3
+connectButton.Parent = panel
+corner(connectButton, 10)
+
+local btnGrad = Instance.new("UIGradient")
+btnGrad.Color = ColorSequence.new(COL_ACCENT_A, COL_ACCENT_B)
+btnGrad.Rotation = 25
+btnGrad.Parent = connectButton
+
+local btnScale = Instance.new("UIScale")
+btnScale.Scale = 1
+btnScale.Parent = connectButton
+
+-- compat aliases used by the engine (pollLoop / Unloading)
+local buttonBaseColor = COL_ACCENT_A
+local buttonConnectedColor = COL_DISC
+
+-- ── Manual code (fallback only) ───────────────────────────────────────────────
+local manualInput   -- forward decl (may stay nil on CLI build)
+local manualToggle
+if AJ_CONFIG.showManualCode then
+	manualToggle = Instance.new("TextButton")
+	manualToggle.Name = "ManualToggle"
+	manualToggle.Size = UDim2.new(1, 0, 0, 18)
+	manualToggle.BackgroundTransparency = 1
+	manualToggle.Text = "Have a pairing code?  ▾"
+	manualToggle.Font = Enum.Font.Gotham
+	manualToggle.TextSize = 11
+	manualToggle.TextColor3 = COL_DIM
+	manualToggle.LayoutOrder = 5
+	manualToggle.Parent = panel
+
+	manualInput = Instance.new("TextBox")
+	manualInput.Name = "ManualInput"
+	manualInput.Size = UDim2.new(1, 0, 0, 32)
+	manualInput.BackgroundColor3 = COL_SURFACE2
+	manualInput.TextColor3 = COL_TEXT
+	manualInput.Font = Enum.Font.GothamMedium
+	manualInput.TextSize = 13
+	manualInput.PlaceholderText = "Pairing code (optional)"
+	manualInput.PlaceholderColor3 = COL_DIM
+	manualInput.Text = ""
+	manualInput.ClearTextOnFocus = false
+	manualInput.BorderSizePixel = 0
+	manualInput.Visible = false
+	manualInput.LayoutOrder = 6
+	manualInput.Parent = panel
+	corner(manualInput, 8)
+	pad(manualInput, 10, 10, 0, 0)
+
+	manualToggle.MouseButton1Click:Connect(function()
+		manualInput.Visible = not manualInput.Visible
+		manualToggle.Text = manualInput.Visible and "Have a pairing code?  ▴" or "Have a pairing code?  ▾"
+		if manualInput.Visible then
+			pcall(function() manualInput:CaptureFocus() end)
+		end
+	end)
+end
+
+local function getManualCode()
+	if manualInput and manualInput.Visible then
+		return (manualInput.Text:gsub("%s+", "")):upper()
+	end
+	return ""
+end
+
+-- ── Undo button ───────────────────────────────────────────────────────────────
 local undoButton = Instance.new("TextButton")
 undoButton.Name = "UndoButton"
-undoButton.Size = UDim2.new(1, 0, 0, 28)
-undoButton.BackgroundColor3 = Color3.fromRGB(50, 52, 60)
-undoButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+undoButton.Size = UDim2.new(1, 0, 0, 30)
+undoButton.BackgroundColor3 = COL_SURFACE2
+undoButton.TextColor3 = COL_DIM
 undoButton.Font = Enum.Font.GothamSemibold
 undoButton.TextSize = 12
-undoButton.Text = "Undo Last Sync"
+undoButton.Text = "↩  Undo Last Sync"
 undoButton.AutoButtonColor = true
 undoButton.BorderSizePixel = 0
-undoButton.LayoutOrder = 6
 undoButton.Visible = false
-undoButton.Parent = root
+undoButton.LayoutOrder = 7
+undoButton.Parent = panel
+corner(undoButton, 8)
 
-local undoButtonCorner = Instance.new("UICorner")
-undoButtonCorner.CornerRadius = UDim.new(0, 6)
-undoButtonCorner.Parent = undoButton
+-- ── Footer hint ───────────────────────────────────────────────────────────────
+local footer = Instance.new("TextLabel")
+footer.Name = "Footer"
+footer.Size = UDim2.new(1, 0, 0, 14)
+footer.BackgroundTransparency = 1
+footer.Text = (AJ_CONFIG.variant == "cli") and "Local · 127.0.0.1:3000" or "apple-juice.online"
+footer.Font = Enum.Font.Gotham
+footer.TextSize = 10
+footer.TextColor3 = Color3.fromRGB(90, 96, 110)
+footer.LayoutOrder = 8
+footer.Parent = panel
+
+-- ── Animations ────────────────────────────────────────────────────────────────
+local QUAD = Enum.EasingStyle.Quad
+local SINE = Enum.EasingStyle.Sine
+
+-- entrance pop-in
+TweenService:Create(panelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+
+-- slow gradient sweep on the logo chip (0→360 loops seamlessly)
+TweenService:Create(logoGrad, TweenInfo.new(5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1), { Rotation = 360 }):Play()
+
+-- pulsing status dot
+TweenService:Create(statusDot, TweenInfo.new(0.85, SINE, Enum.EasingDirection.InOut, -1, true), { BackgroundTransparency = 0.5 }):Play()
+
+-- connect button hover / press
+connectButton.MouseEnter:Connect(function()
+	if running then return end
+	TweenService:Create(btnScale, TweenInfo.new(0.12, QUAD), { Scale = 1.03 }):Play()
+end)
+connectButton.MouseLeave:Connect(function()
+	TweenService:Create(btnScale, TweenInfo.new(0.12, QUAD), { Scale = 1 }):Play()
+end)
+connectButton.MouseButton1Down:Connect(function()
+	TweenService:Create(btnScale, TweenInfo.new(0.07, QUAD), { Scale = 0.97 }):Play()
+end)
+connectButton.MouseButton1Up:Connect(function()
+	TweenService:Create(btnScale, TweenInfo.new(0.1, QUAD), { Scale = 1 }):Play()
+end)
+
+-- connecting spinner state (cycles a ring glyph while pairing)
+local connecting = false
+local function setConnecting(on)
+	connecting = on
+	spinner.Visible = on
+	statusDot.Visible = not on
+	if on then
+		task.spawn(function()
+			local frames = { "◐", "◓", "◑", "◒" }
+			local i = 1
+			while connecting do
+				spinner.Text = frames[i]
+				i = i % #frames + 1
+				task.wait(0.11)
+			end
+		end)
+	end
+end
 
 -- ─── State ────────────────────────────────────────────────────────────────────
 
 local STATUS_COLORS = {
-	success = Color3.fromRGB(77, 214, 123),
-	waiting = Color3.fromRGB(245, 208, 96),
-	error = Color3.fromRGB(255, 96, 96),
-	info = Color3.fromRGB(170, 176, 188),
+	success = COL_OK,
+	waiting = COL_WARN,
+	warning = COL_WARN,
+	error = COL_ERR,
+	info = COL_DIM,
 }
 
-local running = false
-local unloading = false
-local lastMessageId = nil
-local isConnected = false
-local currentSessionKey = nil
-local isAutoTesting = false
-local currentPlaytestId = 0
-local testErrors = {}
-local testWarnings = {}
-local mcpBusy = false
-local lastInjectedScripts = {}
+-- running / unloading / undoStack are forward-declared in the UI section above
+-- so the animation closures capture the same upvalues.
 
-local undoStack = {}
-
-local function updateUndoButton()
-	if #undoStack > 0 then
-		undoButton.Visible = true
-		undoButton.Text = "Undo Last Sync (" .. #undoStack .. ")"
-	else
-		undoButton.Visible = false
-	end
+local function setStatus(msg, statusType)
+	statusLabel.Text = msg
+	local c = STATUS_COLORS[statusType] or STATUS_COLORS.info
+	statusLabel.TextColor3 = c
+	pcall(function()
+		TweenService:Create(statusDot, TweenInfo.new(0.2), { BackgroundColor3 = c }):Play()
+	end)
 end
 
-undoButton.MouseButton1Click:Connect(function()
-	if #undoStack == 0 then return end
-	local batch = table.remove(undoStack, #undoStack)
-	for _, fn in ipairs(batch) do
-		pcall(fn)
-	end
-	updateUndoButton()
-	statusLabel.Text = "Undid last generation successfully."
-	statusLabel.TextColor3 = Color3.fromRGB(77, 214, 123)
-end)
-
-local function setStatus(message, kind)
-	statusLabel.Text = message
-	statusLabel.TextColor3 = STATUS_COLORS[kind] or STATUS_COLORS.info
+local function updateUndoButton()
+	undoButton.Visible = #undoStack > 0
 end
 
 -- ─── Helpers ──────────────────────────────────────────────────────────────────
 
 local function reportLog(sessionKey, logMessage)
+	-- Stream the action to the in-widget live feed (skips control markers).
+	pcall(function() addFeed(logMessage) end)
 	task.spawn(function()
 		pcall(function()
 			HttpService:PostAsync(
@@ -510,6 +794,423 @@ local function resolvePath(pathStr)
 	return current
 end
 
+-- ─── 3D Property System ───────────────────────────────────────────────────────
+-- Decodes JSON-friendly property values into real Roblox datatypes so the AI
+-- can build 3D models (set Size/Position/CFrame/Color/Material/etc.). Values
+-- may arrive as plain JSON (arrays/numbers/strings/bools); we coerce them based
+-- on the property name and value shape. Also accepts an explicit tagged form:
+--   { __t = "Vector3", v = {4,1,2} }  for unambiguous typing.
+
+-- Property names whose array value is a Vector3 (3 numbers).
+local VECTOR3_PROPS = {
+	Size = true, Position = true, Orientation = true, Velocity = true,
+	RotVelocity = true, AssemblyLinearVelocity = true, AssemblyAngularVelocity = true,
+	Attachment0WorldPosition = true,
+}
+-- Property names whose array value is a Color3 (3 numbers 0-255 OR 0-1).
+local COLOR3_PROPS = {
+	Color = true, BrickColor = false, Color3 = true,
+}
+
+local function toNumberList(v)
+	if type(v) ~= "table" then return nil end
+	local out = {}
+	for i = 1, #v do
+		local n = tonumber(v[i])
+		if n == nil then return nil end
+		out[i] = n
+	end
+	return out
+end
+
+local function makeColor3(nums)
+	if not nums or #nums < 3 then return nil end
+	-- If any component > 1, assume 0-255 range.
+	local max = math.max(nums[1], nums[2], nums[3])
+	if max > 1.0001 then
+		return Color3.fromRGB(nums[1], nums[2], nums[3])
+	end
+	return Color3.new(nums[1], nums[2], nums[3])
+end
+
+local function makeCFrame(nums)
+	if not nums then return nil end
+	if #nums == 3 then
+		return CFrame.new(nums[1], nums[2], nums[3])
+	elseif #nums == 6 then
+		-- position + orientation (degrees, XYZ)
+		return CFrame.new(nums[1], nums[2], nums[3])
+			* CFrame.Angles(math.rad(nums[4]), math.rad(nums[5]), math.rad(nums[6]))
+	elseif #nums == 12 then
+		return CFrame.new(table.unpack(nums))
+	end
+	return nil
+end
+
+-- Coerce a single value for a given property name into a Roblox datatype.
+local function decodePropertyValue(propName, value)
+	-- Explicit tagged form takes priority.
+	if type(value) == "table" and value.__t then
+		local t = value.__t
+		local nums = toNumberList(value.v) or {}
+		if t == "Vector3" then return Vector3.new(nums[1] or 0, nums[2] or 0, nums[3] or 0) end
+		if t == "Vector2" then return Vector2.new(nums[1] or 0, nums[2] or 0) end
+		if t == "Color3" then return makeColor3(nums) end
+		if t == "CFrame" then return makeCFrame(nums) end
+		if t == "UDim2" then return UDim2.new(nums[1] or 0, nums[2] or 0, nums[3] or 0, nums[4] or 0) end
+		if t == "UDim" then return UDim.new(nums[1] or 0, nums[2] or 0) end
+		if t == "BrickColor" then return BrickColor.new(tostring(value.v)) end
+		if t == "Enum" then
+			local ok, e = pcall(function()
+				return Enum[value.enum][value.item]
+			end)
+			if ok then return e end
+		end
+		return value.v
+	end
+
+	-- Booleans / numbers pass straight through.
+	if type(value) == "boolean" or type(value) == "number" then
+		return value
+	end
+
+	if type(value) == "string" then
+		-- Material / Shape / etc. given as a string → resolve common enums by name.
+		if propName == "Material" then
+			local ok, e = pcall(function() return Enum.Material[value] end)
+			if ok then return e end
+		elseif propName == "Shape" then
+			local ok, e = pcall(function() return Enum.PartType[value] end)
+			if ok then return e end
+		elseif propName == "BrickColor" then
+			local ok, bc = pcall(function() return BrickColor.new(value) end)
+			if ok then return bc end
+		end
+		return value
+	end
+
+	if type(value) == "table" then
+		local nums = toNumberList(value)
+		if nums then
+			if VECTOR3_PROPS[propName] and #nums >= 3 then
+				return Vector3.new(nums[1], nums[2], nums[3])
+			end
+			if COLOR3_PROPS[propName] and #nums >= 3 then
+				return makeColor3(nums)
+			end
+			if propName == "CFrame" then
+				return makeCFrame(nums)
+			end
+			-- Heuristic fallbacks by length.
+			if #nums == 3 then return Vector3.new(nums[1], nums[2], nums[3]) end
+			if #nums == 2 then return Vector2.new(nums[1], nums[2]) end
+			if #nums == 4 then return UDim2.new(nums[1], nums[2], nums[3], nums[4]) end
+		end
+	end
+
+	return value
+end
+
+-- Apply a properties table to an instance, coercing each value. Returns the
+-- number of properties successfully set and a list of any that failed.
+local function applyProperties(inst, props)
+	if type(props) ~= "table" then return 0, {} end
+	local applied = 0
+	local failures = {}
+	for propName, rawValue in pairs(props) do
+		local decoded = decodePropertyValue(propName, rawValue)
+		local ok = pcall(function()
+			inst[propName] = decoded
+		end)
+		if ok then
+			applied += 1
+		else
+			table.insert(failures, propName)
+		end
+	end
+	return applied, failures
+end
+
+-- Build a complete Model from a structured spec in ONE operation. This is the
+-- efficient path for 3D builds: many parts + welds + grouping without a round
+-- trip per part. Spec shape:
+--   {
+--     name = "Tree",
+--     parent = "Workspace",
+--     parts = {
+--       { className="Part", name="Trunk", properties={...} },
+--       { className="Part", name="Leaves", properties={...} },
+--     },
+--     weld = true,            -- weld all parts to the first (primary)
+--     primaryPart = "Trunk",  -- optional; defaults to first part
+--   }
+local function buildModel(spec)
+	local parentPath = spec.parent or "Workspace"
+	local parentInstance = resolvePath(parentPath)
+	if not parentInstance then
+		return false, "Parent path '" .. tostring(parentPath) .. "' not found."
+	end
+
+	local model = Instance.new("Model")
+	model.Name = spec.name or "AIModel"
+
+	local createdParts = {}
+	local firstPart = nil
+	local primaryName = spec.primaryPart
+
+	local partList = spec.parts or {}
+	for _, partSpec in ipairs(partList) do
+		local className = partSpec.className or "Part"
+		local ok, part = pcall(function() return Instance.new(className) end)
+		if ok and part then
+			part.Name = partSpec.name or className
+			applyProperties(part, partSpec.properties or {})
+			part.Parent = model
+			createdParts[part.Name] = part
+			if not firstPart then firstPart = part end
+		end
+	end
+
+	-- Determine the primary part.
+	local primary = (primaryName and createdParts[primaryName]) or firstPart
+	if primary and primary:IsA("BasePart") then
+		model.PrimaryPart = primary
+	end
+
+	-- Weld everything to the primary so the model moves as one rigid body.
+	-- A WeldConstraint only rigidifies its parts when the FOLLOWER is unanchored;
+	-- the assembly's anchored state is then driven entirely by the primary. If we
+	-- anchored the followers too (e.g. mirroring an anchored primary) the welds
+	-- would be redundant, and a half-anchored mix can make the model jitter or
+	-- explode at runtime. So: the primary keeps whatever anchored state the spec
+	-- gave it, and every follower is forced unanchored and welded to it.
+	if spec.weld ~= false and primary and primary:IsA("BasePart") then
+		for _, part in pairs(createdParts) do
+			if part ~= primary and part:IsA("BasePart") then
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = primary
+				weld.Part1 = part
+				weld.Parent = primary
+				-- Follower is driven by the weld → must be unanchored. The primary's
+				-- Anchored property determines whether the whole assembly is fixed.
+				part.Anchored = false
+			end
+		end
+	end
+
+	model.Parent = parentInstance
+	return true, model
+end
+
+-- Collect renderable geometry from an instance subtree so the server can render
+-- an image of it for the AI to "see". Returns a flat list of part descriptors
+-- (world-space center, size, orientation in degrees, color). Bounded so a huge
+-- selection can't produce a massive payload.
+local MAX_INSPECT_PARTS = 400
+local function collectGeometry(root)
+	local parts = {}
+	local function visit(inst)
+		if #parts >= MAX_INSPECT_PARTS then return end
+		if inst:IsA("BasePart") then
+			local cf = inst.CFrame
+			local pos = cf.Position
+			local rx, ry, rz = cf:ToEulerAnglesXYZ()
+			local col = inst.Color
+			local entry = {
+				name = inst.Name,
+				className = inst.ClassName,
+				position = { pos.X, pos.Y, pos.Z },
+				size = { inst.Size.X, inst.Size.Y, inst.Size.Z },
+				orientation = { math.deg(rx), math.deg(ry), math.deg(rz) },
+				color = { math.floor(col.R * 255 + 0.5), math.floor(col.G * 255 + 0.5), math.floor(col.B * 255 + 0.5) },
+				transparency = inst.Transparency,
+				shape = (inst:IsA("Part") and tostring(inst.Shape)) or nil,
+				material = tostring(inst.Material),
+			}
+			table.insert(parts, entry)
+		end
+		for _, child in ipairs(inst:GetChildren()) do
+			visit(child)
+		end
+	end
+	visit(root)
+	return parts
+end
+
+-- Build a quick spatial summary the model can read even without the image:
+-- overall bounds, part count, and anything that looks off (floating / clipping).
+local function summarizeGeometry(parts)
+	if #parts == 0 then return "No parts found." end
+	local minY = math.huge
+	local minX, maxX, minZ, maxZ = math.huge, -math.huge, math.huge, -math.huge
+	for _, p in ipairs(parts) do
+		local halfY = p.size[2] / 2
+		local bottom = p.position[2] - halfY
+		if bottom < minY then minY = bottom end
+		if p.position[1] - p.size[1] / 2 < minX then minX = p.position[1] - p.size[1] / 2 end
+		if p.position[1] + p.size[1] / 2 > maxX then maxX = p.position[1] + p.size[1] / 2 end
+		if p.position[3] - p.size[3] / 2 < minZ then minZ = p.position[3] - p.size[3] / 2 end
+		if p.position[3] + p.size[3] / 2 > maxZ then maxZ = p.position[3] + p.size[3] / 2 end
+	end
+	local lines = {}
+	table.insert(lines, string.format("%d parts; footprint %.1f x %.1f studs; lowest point y=%.2f.", #parts, maxX - minX, maxZ - minZ, minY))
+	if minY > 0.6 then
+		table.insert(lines, string.format("⚠ Lowest part is %.2f studs above y=0 — the build may be floating off the ground.", minY))
+	elseif minY < -0.6 then
+		table.insert(lines, string.format("⚠ Lowest part is %.2f studs below y=0 — the build may be sunk into the ground.", minY))
+	end
+	return table.concat(lines, " ")
+end
+
+-- ─── Resilient Script Editing ──────────────────────────────────────────────────
+-- AI-generated search/replace edits frequently fail to apply because the search
+-- block differs from the real source in trivial ways: tabs vs spaces, trailing
+-- whitespace, CRLF vs LF, or extra blank lines. A plain gsub then matches zero
+-- times and the edit is silently dropped. These helpers add tolerance:
+--   1. exact match (fast path)
+--   2. line-trimmed match (ignores leading/trailing whitespace per line)
+--   3. whitespace-collapsed match (ignores all indentation differences)
+-- The replacement is re-indented to match the indentation of the matched block
+-- so the resulting source stays consistent.
+
+-- Normalize line endings and tabs so comparisons are stable.
+local function normalizeSource(s)
+	s = s:gsub("\r\n", "\n"):gsub("\r", "\n")
+	return s
+end
+
+-- Split a string into a list of lines (no trailing-newline surprises).
+local function splitLines(s)
+	local lines = {}
+	for line in (s .. "\n"):gmatch("(.-)\n") do
+		table.insert(lines, line)
+	end
+	-- gmatch above yields one extra empty entry from the appended newline; drop it.
+	if #lines > 0 and lines[#lines] == "" then
+		table.remove(lines, #lines)
+	end
+	return lines
+end
+
+local function trim(s)
+	return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+-- Capture the leading whitespace of a line.
+local function leadingWhitespace(line)
+	return line:match("^(%s*)") or ""
+end
+
+-- Try to locate `search` inside `source` (both already newline-normalized) and
+-- return the start and end byte offsets of the matched region, plus the
+-- indentation of the matched block's first line. Falls back through three
+-- increasingly lenient strategies. Returns nil when nothing matches.
+local function locateBlock(source, search)
+	if search == "" then return nil end
+
+	-- Strategy 1: exact substring.
+	local s, e = source:find(search, 1, true)
+	if s then
+		local lineStart = source:sub(1, s):match("([^\n]*)$") or ""
+		return s, e, leadingWhitespace(lineStart)
+	end
+
+	-- Prepare line-based matching for strategies 2 & 3.
+	local srcLines = splitLines(source)
+	local searchLines = splitLines(search)
+	if #searchLines == 0 then return nil end
+
+	-- Precompute byte offset of the start of each source line.
+	local lineOffsets = {}
+	do
+		local pos = 1
+		for i, line in ipairs(srcLines) do
+			lineOffsets[i] = pos
+			pos = pos + #line + 1 -- +1 for the newline
+		end
+	end
+
+	local function blockBytes(startLine, count)
+		local startByte = lineOffsets[startLine]
+		local endLineIdx = startLine + count - 1
+		local endByte = lineOffsets[endLineIdx] + #srcLines[endLineIdx] - 1
+		return startByte, endByte
+	end
+
+	-- Strategy 2: per-line trimmed equality.
+	local n = #searchLines
+	for i = 1, #srcLines - n + 1 do
+		local allMatch = true
+		for j = 1, n do
+			if trim(srcLines[i + j - 1]) ~= trim(searchLines[j]) then
+				allMatch = false
+				break
+			end
+		end
+		if allMatch then
+			local sB, eB = blockBytes(i, n)
+			return sB, eB, leadingWhitespace(srcLines[i])
+		end
+	end
+
+	-- Strategy 3: whitespace-collapsed equality (all runs of whitespace → single).
+	local function collapse(str) return (trim(str):gsub("%s+", " ")) end
+	for i = 1, #srcLines - n + 1 do
+		local allMatch = true
+		for j = 1, n do
+			if collapse(srcLines[i + j - 1]) ~= collapse(searchLines[j]) then
+				allMatch = false
+				break
+			end
+		end
+		if allMatch then
+			local sB, eB = blockBytes(i, n)
+			return sB, eB, leadingWhitespace(srcLines[i])
+		end
+	end
+
+	return nil
+end
+
+-- Re-indent a replacement block so its first line sits at `baseIndent` and the
+-- relative indentation of subsequent lines is preserved.
+local function reindentReplacement(replace, baseIndent)
+	local lines = splitLines(replace)
+	if #lines == 0 then return replace end
+	-- Find the minimum indentation across non-empty lines to use as the anchor.
+	local minIndent = nil
+	for _, line in ipairs(lines) do
+		if trim(line) ~= "" then
+			local indent = #leadingWhitespace(line)
+			if minIndent == nil or indent < minIndent then minIndent = indent end
+		end
+	end
+	minIndent = minIndent or 0
+	local out = {}
+	for _, line in ipairs(lines) do
+		if trim(line) == "" then
+			table.insert(out, "")
+		else
+			local stripped = line:sub(minIndent + 1)
+			table.insert(out, baseIndent .. stripped)
+		end
+	end
+	return table.concat(out, "\n")
+end
+
+-- Apply a single {search, replace} edit to source, returning newSource and a
+-- boolean indicating whether it matched. Tolerant of whitespace differences.
+local function applyResilientEdit(source, search, replace)
+	search = normalizeSource(search)
+	replace = normalizeSource(replace)
+	local s, e, baseIndent = locateBlock(source, search)
+	if not s then return source, false end
+	local adjustedReplace = reindentReplacement(replace, baseIndent or "")
+	local newSource = source:sub(1, s - 1) .. adjustedReplace .. source:sub(e + 1)
+	return newSource, true
+end
+
+
 local function injectSingleScript(scriptData)
 	local action = scriptData.action or "create"
 	local parentPath = scriptData.parent or "ServerScriptService"
@@ -577,21 +1278,92 @@ local function injectSingleScript(scriptData)
 		end)
 		if ok and newInst then
 			newInst.Name = instanceName
+			-- Apply any 3D / visual properties (Size, Position, Color, Material…).
+			local appliedCount, failures = applyProperties(newInst, scriptData.properties or {})
 			newInst.Parent = parentInstance
-			
+
 			undoFn = function()
 				if newInst and newInst.Parent then newInst:Destroy() end
 			end
-			
-			if currentSessionKey then
-				reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully created " .. className .. " [" .. instanceName .. "]")
+
+			local detail = ""
+			if appliedCount > 0 then
+				detail = " (" .. appliedCount .. " properties set)"
 			end
-			return true, "Created " .. className .. " [" .. instanceName .. "] in " .. parentPath, undoFn
+			if #failures > 0 then
+				detail = detail .. " [skipped: " .. table.concat(failures, ", ") .. "]"
+			end
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully created " .. className .. " [" .. instanceName .. "]" .. detail)
+			end
+			return true, "Created " .. className .. " [" .. instanceName .. "] in " .. parentPath .. detail, undoFn
 		else
 			if currentSessionKey then
 				reportLog(currentSessionKey, "✖ [Roblox Studio] Failed to create instance " .. className .. ": " .. tostring(newInst))
 			end
 			return false, "Failed to create " .. className .. ": " .. tostring(newInst), nil
+		end
+	end
+
+	if action == "set_properties" then
+		-- Update properties on an EXISTING instance (move/recolor/resize/etc.).
+		local targetPath = scriptData.path or (parentPath .. "." .. scriptName)
+		local target = resolvePath(targetPath)
+		if not target then
+			target = parentInstance:FindFirstChild(scriptName)
+		end
+		if not target then
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✖ [Roblox Studio] set_properties: target '" .. tostring(targetPath) .. "' not found.")
+			end
+			return false, "Target '" .. tostring(targetPath) .. "' not found.", nil
+		end
+		-- Snapshot prior values for undo.
+		local priorValues = {}
+		for propName in pairs(scriptData.properties or {}) do
+			pcall(function() priorValues[propName] = target[propName] end)
+		end
+		local appliedCount, failures = applyProperties(target, scriptData.properties or {})
+		undoFn = function()
+			for propName, oldVal in pairs(priorValues) do
+				pcall(function() target[propName] = oldVal end)
+			end
+		end
+		local detail = appliedCount .. " properties set"
+		if #failures > 0 then detail = detail .. " [skipped: " .. table.concat(failures, ", ") .. "]" end
+		if currentSessionKey then
+			reportLog(currentSessionKey, "🎨 [Roblox Studio] Updated " .. target.Name .. " — " .. detail)
+		end
+		return true, "Updated " .. target.Name .. " (" .. detail .. ")", undoFn
+	end
+
+	if action == "build_model" then
+		-- Build a whole multi-part 3D model in one shot.
+		if currentSessionKey then
+			reportLog(currentSessionKey, "🧱 [Roblox Studio] Building model '" .. tostring(scriptData.name or "AIModel") .. "'...")
+		end
+		local ok, modelOrErr = buildModel({
+			name = scriptData.name,
+			parent = scriptData.parent or "Workspace",
+			parts = scriptData.parts,
+			weld = scriptData.weld,
+			primaryPart = scriptData.primaryPart,
+		})
+		if ok then
+			local model = modelOrErr
+			undoFn = function()
+				if model and model.Parent then model:Destroy() end
+			end
+			local partCount = scriptData.parts and #scriptData.parts or 0
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✓ [Roblox Studio] Built model '" .. model.Name .. "' (" .. partCount .. " parts)")
+			end
+			return true, "Built model '" .. model.Name .. "' with " .. partCount .. " parts.", undoFn
+		else
+			if currentSessionKey then
+				reportLog(currentSessionKey, "✖ [Roblox Studio] Build failed: " .. tostring(modelOrErr))
+			end
+			return false, "Build failed: " .. tostring(modelOrErr), nil
 		end
 	end
 
@@ -691,20 +1463,22 @@ local function injectSingleScript(scriptData)
 		end
 
 		if target and target:IsA("LuaSourceContainer") then
-			local oldSource = target.Source
+			local oldSource = normalizeSource(target.Source)
 			local newSource = oldSource
 			local successCount = 0
-			
+			local failedBlocks = {}
+
 			if scriptData.edits and type(scriptData.edits) == "table" then
-				for _, edit in ipairs(scriptData.edits) do
+				for idx, edit in ipairs(scriptData.edits) do
 					local search = edit.search or ""
 					local replace = edit.replace or ""
 					if search ~= "" then
-						local escapedSearch = search:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%1")
-						local replaced, count = newSource:gsub(escapedSearch, replace:gsub("%%", "%%%%"))
-						if count > 0 then
-							newSource = replaced
+						local result, matched = applyResilientEdit(newSource, search, replace)
+						if matched then
+							newSource = result
 							successCount += 1
+						else
+							table.insert(failedBlocks, "#" .. idx)
 						end
 					end
 				end
@@ -713,10 +1487,14 @@ local function injectSingleScript(scriptData)
 			if successCount > 0 then
 				target.Source = newSource
 				undoFn = function() target.Source = oldSource end
-				if currentSessionKey then
-					reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully modified " .. scriptName .. " (" .. successCount .. " replacements)")
+				local detail = successCount .. " replacements"
+				if #failedBlocks > 0 then
+					detail = detail .. ", " .. #failedBlocks .. " unmatched (" .. table.concat(failedBlocks, ", ") .. ")"
 				end
-				return true, "Edited " .. scriptName .. " (" .. successCount .. " replacements)", undoFn
+				if currentSessionKey then
+					reportLog(currentSessionKey, "✓ [Roblox Studio] Successfully modified " .. scriptName .. " (" .. detail .. ")")
+				end
+				return true, "Edited " .. scriptName .. " (" .. detail .. ")", undoFn
 			else
 				if currentSessionKey then
 					reportLog(currentSessionKey, "✖ [Roblox Studio] Modification failed: search blocks not found in " .. scriptName)
@@ -1078,19 +1856,31 @@ local function reportTree(sessionKey, force)
 	end)
 end
 
-local function autoConnect()
-	setStatus("Connecting via IP...", "waiting")
+local function autoConnect(manualKey)
+	if manualKey then
+		setStatus("Connecting via key [" .. manualKey .. "]...", "waiting")
+	else
+		setStatus("Connecting via IP...", "waiting")
+	end
 	
+	local url = CONNECT_ENDPOINT
+	if manualKey then
+		url = url .. "?code=" .. HttpService:UrlEncode(manualKey)
+	end
+
 	local ok, response = pcall(function()
 		return HttpService:RequestAsync({
-			Url = CONNECT_ENDPOINT,
+			Url = url,
 			Method = "GET",
 			Headers = { ["Accept"] = "application/json" },
 		})
 	end)
 
 	if not ok then
-		return nil, "Cannot reach dashboard."
+		-- `response` holds the thrown error here. Surface it so connection
+		-- problems are diagnosable (e.g. trust/HTTP-disabled/DNS), instead of a
+		-- generic message.
+		return nil, "Cannot reach dashboard: " .. tostring(response)
 	end
 
 	if not response.Success then
@@ -1145,6 +1935,411 @@ local function readScriptByPath(fullPath)
 	return false, nil
 end
 
+-- ─── Tool-parity helpers (Phase 3): search, grep, inspect ──────────────────────
+-- Mirror the OFFICIAL Roblox Studio MCP tool surface (script_search, script_grep,
+-- inspect_instance) so the agent can explore an unfamiliar project the way it
+-- does with the official server. Bounds mirror the official limits.
+
+-- Enumerate every LuaSourceContainer in the project (across the main services),
+-- returning { inst, path } records. Bounded so a huge place can't blow memory.
+local SCRIPT_SCAN_SERVICES = {
+	"Workspace", "ReplicatedFirst", "ReplicatedStorage",
+	"ServerScriptService", "ServerStorage", "StarterGui",
+	"StarterPack", "StarterPlayer", "SoundService", "Lighting",
+}
+local MAX_SCANNED_SCRIPTS = 4000
+
+local function collectAllScripts()
+	local out = {}
+	for _, sName in ipairs(SCRIPT_SCAN_SERVICES) do
+		local ok, root = pcall(function() return game:GetService(sName) end)
+		if ok and root then
+			for _, desc in ipairs(root:GetDescendants()) do
+				if desc:IsA("LuaSourceContainer") then
+					table.insert(out, { inst = desc, path = desc:GetFullName() })
+					if #out >= MAX_SCANNED_SCRIPTS then return out end
+				end
+			end
+		end
+	end
+	return out
+end
+
+-- Fuzzy-ish name search: case-insensitive substring match on the script name,
+-- returns up to `limit` dotted paths (official: <=10).
+local function scriptSearch(query, limit)
+	limit = limit or 10
+	query = string.lower(tostring(query or ""))
+	local results = {}
+	if query == "" then return results end
+	for _, rec in ipairs(collectAllScripts()) do
+		if string.find(string.lower(rec.inst.Name), query, 1, true) then
+			table.insert(results, rec.path .. " [" .. rec.inst.ClassName .. "]")
+			if #results >= limit then break end
+		end
+	end
+	return results
+end
+
+-- Content search across all script sources. Returns up to `limit` matches
+-- (official: <=50). Each match includes a small CONTEXT WINDOW (lines around
+-- the hit) so the model sees the surrounding code topography and can write a
+-- correct multi_edit on the first try, instead of just a bare line.
+local GREP_CONTEXT_LINES = 2
+local function scriptGrep(pattern, limit)
+	limit = limit or 50
+	pattern = string.lower(tostring(pattern or ""))
+	local blocks = {}
+	local total = 0
+	if pattern == "" then return blocks end
+	for _, rec in ipairs(collectAllScripts()) do
+		local ok, src = pcall(function() return rec.inst.Source end)
+		if ok and src then
+			-- Split into an indexed line array once per script.
+			local lines = {}
+			for line in (src .. "\n"):gmatch("(.-)\n") do
+				table.insert(lines, line)
+			end
+			for i = 1, #lines do
+				if string.find(string.lower(lines[i]), pattern, 1, true) then
+					local from = math.max(1, i - GREP_CONTEXT_LINES)
+					local to = math.min(#lines, i + GREP_CONTEXT_LINES)
+					local ctx = {}
+					table.insert(ctx, rec.path .. ":" .. i)
+					for n = from, to do
+						local marker = (n == i) and "→ " or "  "
+						local text = lines[n]
+						if #text > 200 then text = text:sub(1, 200) .. "…" end
+						table.insert(ctx, string.format("%s%d| %s", marker, n, text))
+					end
+					table.insert(blocks, table.concat(ctx, "\n"))
+					total += 1
+					if total >= limit then return blocks end
+				end
+			end
+		end
+	end
+	return blocks
+end
+
+-- Detailed inspection of a single instance: readable properties, attributes,
+-- and a child summary. Mirrors the official inspect_instance.
+local INSPECT_PROP_NAMES = {
+	"Name", "ClassName", "Parent", "Archivable",
+	-- BasePart-ish
+	"Anchored", "CanCollide", "Material", "Transparency", "Color", "BrickColor",
+	"Size", "Position", "Orientation", "CFrame", "Shape",
+	-- GUI-ish
+	"Visible", "Enabled", "Text", "Active", "ZIndex", "BackgroundColor3",
+	-- Misc commonly-useful
+	"Value", "Disabled", "PrimaryPart",
+}
+
+local function inspectInstance(fullPath)
+	local target = resolvePath(fullPath)
+	if not target then
+		return false, nil, "Instance '" .. tostring(fullPath) .. "' not found."
+	end
+
+	local props = {}
+	for _, propName in ipairs(INSPECT_PROP_NAMES) do
+		local ok, val = pcall(function() return target[propName] end)
+		if ok and val ~= nil then
+			-- Stringify datatypes the JSON encoder can't take directly.
+			local t = typeof(val)
+			if t == "Instance" then
+				props[propName] = val:GetFullName()
+			elseif t == "EnumItem" then
+				props[propName] = tostring(val)
+			elseif t == "Vector3" then
+				props[propName] = { val.X, val.Y, val.Z }
+			elseif t == "Color3" then
+				props[propName] = {
+					math.floor(val.R * 255 + 0.5),
+					math.floor(val.G * 255 + 0.5),
+					math.floor(val.B * 255 + 0.5),
+				}
+			elseif t == "string" or t == "number" or t == "boolean" then
+				props[propName] = val
+			else
+				props[propName] = tostring(val)
+			end
+		end
+	end
+
+	-- Custom attributes.
+	local attributes = {}
+	local okAttr, attrMap = pcall(function() return target:GetAttributes() end)
+	if okAttr and attrMap then
+		for k, v in pairs(attrMap) do
+			local t = typeof(v)
+			attributes[k] = (t == "string" or t == "number" or t == "boolean") and v or tostring(v)
+		end
+	end
+
+	-- Child summary (names + classes), bounded.
+	local children = {}
+	local childCount = 0
+	for _, child in ipairs(target:GetChildren()) do
+		childCount += 1
+		if childCount <= 50 then
+			table.insert(children, child.Name .. " [" .. child.ClassName .. "]")
+		end
+	end
+
+	local descendantCount = 0
+	pcall(function() descendantCount = #target:GetDescendants() end)
+
+	local payload = HttpService:JSONEncode({
+		path = target:GetFullName(),
+		className = target.ClassName,
+		properties = props,
+		attributes = attributes,
+		childCount = childCount,
+		descendantCount = descendantCount,
+		children = children,
+	})
+	return true, payload
+end
+
+-- ─── Split playtest controls (Phase 3): start / stop / console ─────────────────
+-- Mirror the official start_stop_play + console_output. Unlike studio_run_playtest
+-- (fixed ~6s blocking run), these let the AGENT control timing: start the run,
+-- poll console_output while it runs, then stop — enabling an interactive debug
+-- loop. They reuse the existing testErrors/testWarnings buffers, which the
+-- LogService.MessageOut hook fills while isAutoTesting is true.
+
+local function startPlaytestSession(sessionKey)
+	if RunService:IsRunMode() or isAutoTesting then
+		return false, "A playtest is already running. Stop it first."
+	end
+	currentPlaytestId += 1
+	isAutoTesting = true
+	testErrors = {}
+	testWarnings = {}
+	local ok = pcall(function() RunService:Run() end)
+	if not ok then
+		isAutoTesting = false
+		return false, "Could not start playtest (RunService:Run failed)."
+	end
+	setStatus("Playtest running (agent-controlled)...", "waiting")
+	return true, "Playtest started. Use console_output to read logs while it runs, then stop_playtest."
+end
+
+local function stopPlaytestSession()
+	isAutoTesting = false
+	currentPlaytestId += 1 -- invalidate any auto-test loop watching the old id
+	pcall(function()
+		if RunService:IsRunMode() then RunService:Stop() end
+	end)
+	setStatus("Playtest stopped.", "info")
+	local errCount = #testErrors
+	if errCount == 0 then
+		return true, "Playtest stopped. No errors captured."
+	end
+	return true, "Playtest stopped. " .. errCount .. " error(s) captured — call console_output for details."
+end
+
+-- Return the captured console output so far (errors + warnings), newest-last.
+local function consoleOutput()
+	local lines = {}
+	for _, e in ipairs(testErrors) do
+		table.insert(lines, "[ERROR] " .. tostring(e.message))
+	end
+	for _, w in ipairs(testWarnings) do
+		table.insert(lines, "[WARN] " .. tostring(w.message))
+	end
+	local state = (RunService:IsRunMode() or isAutoTesting) and "running" or "stopped"
+	if #lines == 0 then
+		return "Playtest " .. state .. ". No errors or warnings captured yet."
+	end
+	return "Playtest " .. state .. " — " .. #lines .. " line(s):\n" .. table.concat(lines, "\n")
+end
+
+-- Build a STRUCTURED JSON summary of captured errors/warnings so the agent's FIX
+-- loop can target the right file+line directly (instead of re-parsing flat text).
+-- Reuses parseErrorDetails for script/line/message extraction.
+local function buildStructuredPlaytest(passed, state)
+	local errors = {}
+	for _, e in ipairs(testErrors) do
+		local p = parseErrorDetails(e.message)
+		table.insert(errors, {
+			scriptName = p.scriptName,
+			scriptPath = p.scriptPath,
+			line = p.lineNumber,
+			message = p.errorText,
+			raw = p.rawMessage,
+		})
+	end
+	local warnings = {}
+	for _, w in ipairs(testWarnings) do
+		table.insert(warnings, tostring(w.message))
+	end
+	return HttpService:JSONEncode({
+		passed = passed,
+		state = state,
+		errorCount = #errors,
+		warningCount = #warnings,
+		errors = errors,
+		warnings = warnings,
+	})
+end
+
+-- multi_edit: apply an ordered list of resilient search/replace edits to a
+-- script, creating it if it doesn't exist (mirrors official multi_edit). Reuses
+-- the same applyResilientEdit + injectSingleScript paths as edit_script/create.
+local function multiEditScript(sessionKey, scriptArgs)
+	local pathStr = scriptArgs.path or scriptArgs.name or ""
+	local edits = scriptArgs.edits
+	if type(edits) ~= "table" or #edits == 0 then
+		return false, "multi_edit requires a non-empty 'edits' array."
+	end
+
+	-- Locate the target script (by dotted path, then by leaf-name fallback).
+	local target = resolvePath(pathStr)
+	if not (target and target:IsA("LuaSourceContainer")) then
+		local parts = string.split(pathStr, ".")
+		local leaf = parts[#parts]
+		local locations = {
+			game:GetService("ServerScriptService"),
+			game:GetService("ReplicatedStorage"),
+			game:GetService("StarterGui"),
+			game:GetService("Workspace"),
+		}
+		for _, loc in ipairs(locations) do
+			local found = loc:FindFirstChild(leaf, true)
+			if found and found:IsA("LuaSourceContainer") then
+				target = found
+				break
+			end
+		end
+	end
+
+	-- If the script doesn't exist, create it from the edits' replacement text
+	-- (official multi_edit creates a new script when the path is missing).
+	if not (target and target:IsA("LuaSourceContainer")) then
+		local seed = {}
+		for _, e in ipairs(edits) do
+			if e.replace and e.replace ~= "" then table.insert(seed, e.replace) end
+		end
+		local parts = string.split(pathStr, ".")
+		local newName = parts[#parts] or "NewScript"
+		local parentPath = "ServerScriptService"
+		if #parts > 1 then
+			parentPath = table.concat(parts, ".", 1, #parts - 1)
+		end
+		local ok, msg, uFn = injectSingleScript({
+			action = "create",
+			parent = parentPath,
+			name = newName,
+			type = scriptArgs.type or "Script",
+			code = table.concat(seed, "\n"),
+		})
+		if ok then
+			return true, "Created " .. newName .. " (multi_edit on a new script)", uFn
+		end
+		return false, msg
+	end
+
+	-- Apply edits in order using the resilient matcher.
+	local oldSource = normalizeSource(target.Source)
+	local newSource = oldSource
+	local successCount = 0
+	local failed = {}
+	for idx, edit in ipairs(edits) do
+		local search = edit.search or ""
+		local replace = edit.replace or ""
+		if search == "" then
+			-- Empty search = append (insert) the replacement at end of file.
+			newSource = newSource .. "\n" .. replace
+			successCount += 1
+		else
+			local result, matched = applyResilientEdit(newSource, search, replace)
+			if matched then
+				newSource = result
+				successCount += 1
+			else
+				table.insert(failed, "#" .. idx)
+			end
+		end
+	end
+
+	if successCount > 0 then
+		target.Source = newSource
+		local uFn = function() target.Source = oldSource end
+		local detail = successCount .. " edit(s)"
+		if #failed > 0 then
+			detail = detail .. ", " .. #failed .. " unmatched (" .. table.concat(failed, ", ") .. ")"
+		end
+		return true, "multi_edit applied to " .. target.Name .. " (" .. detail .. ")", uFn
+	end
+	return false, "multi_edit: no search blocks matched in " .. target.Name
+
+end
+
+-- search_game_tree: explore the instance hierarchy as a filtered flat list.
+-- Supports rootPath (where to start), instanceType (ClassName/IsA filter),
+-- keyword (name substring), and depth. Mirrors the official search_game_tree.
+local function searchGameTree(args)
+	local rootPath = args.path or args.rootPath
+	local instanceType = args.instanceType or args.instance_type
+	local keyword = args.keyword and string.lower(tostring(args.keyword)) or nil
+	local depth = tonumber(args.depth) or 3
+	if depth < 1 then depth = 1 end
+	if depth > 10 then depth = 10 end
+
+	-- Resolve the starting root(s).
+	local roots = {}
+	if rootPath and rootPath ~= "" then
+		local r = resolvePath(rootPath)
+		if not r then
+			return false, "search_game_tree: root '" .. tostring(rootPath) .. "' not found."
+		end
+		table.insert(roots, { inst = r, path = rootPath })
+	else
+		for _, sName in ipairs(SCRIPT_SCAN_SERVICES) do
+			local ok, svc = pcall(function() return game:GetService(sName) end)
+			if ok and svc then table.insert(roots, { inst = svc, path = svc.Name }) end
+		end
+	end
+
+	local MAX_RESULTS = 500
+	local results = {}
+	local function matches(inst)
+		if instanceType and instanceType ~= "" then
+			local okIsA = pcall(function() return inst:IsA(instanceType) end)
+			if not (okIsA and inst:IsA(instanceType)) then return false end
+		end
+		if keyword and not string.find(string.lower(inst.Name), keyword, 1, true) then
+			return false
+		end
+		return true
+	end
+
+	local function walk(inst, pathStr, curDepth)
+		if curDepth > depth or #results >= MAX_RESULTS then return end
+		for _, child in ipairs(inst:GetChildren()) do
+			if #results >= MAX_RESULTS then return end
+			local childPath = pathStr .. "." .. child.Name
+			-- When NO filter is set, list everything (plain tree). With filters,
+			-- only emit matching nodes but still recurse to find deeper matches.
+			if (not instanceType and not keyword) or matches(child) then
+				table.insert(results, childPath .. " [" .. child.ClassName .. "]")
+			end
+			walk(child, childPath, curDepth + 1)
+		end
+	end
+
+	for _, root in ipairs(roots) do
+		walk(root.inst, root.path, 1)
+	end
+
+	if #results == 0 then
+		return true, "No instances matched the search_game_tree filters."
+	end
+	return true, table.concat(results, "\n")
+end
+
 local function executeMcpCommand(sessionKey, command)
 	local tool = command.tool
 	local args = command.args or {}
@@ -1174,9 +2369,50 @@ local function executeMcpCommand(sessionKey, command)
 			parent = args.parent,
 			className = args.className,
 			instanceName = args.instanceName,
+			properties = args.properties,
 		})
 		if ok then return true, msg end
 		return false, nil, msg
+
+	elseif tool == "studio_set_properties" then
+		local ok, msg = injectSingleScript({
+			action = "set_properties",
+			path = args.path,
+			parent = args.parent,
+			name = args.name,
+			properties = args.properties,
+		})
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_build_model" then
+		local ok, msg = injectSingleScript({
+			action = "build_model",
+			name = args.name,
+			parent = args.parent,
+			parts = args.parts,
+			weld = args.weld,
+			primaryPart = args.primaryPart,
+		})
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_inspect_build" then
+		-- Return the geometry of an instance so the server can render an image
+		-- of it (and so the model gets a spatial summary even without vision).
+		local targetPath = args.path or "Workspace"
+		local target = resolvePath(targetPath)
+		if not target then
+			return false, nil, "Inspect target '" .. tostring(targetPath) .. "' not found."
+		end
+		local geometry = collectGeometry(target)
+		local summary = summarizeGeometry(geometry)
+		local payload = HttpService:JSONEncode({
+			path = targetPath,
+			summary = summary,
+			parts = geometry,
+		})
+		return true, payload
 
 	elseif tool == "studio_delete" then
 		local ok, msg = injectSingleScript({
@@ -1215,14 +2451,61 @@ local function executeMcpCommand(sessionKey, command)
 			task.wait(0.5)
 			waited += 0.5
 		end
-		local errs = {}
-		for _, e in ipairs(testErrors) do
-			table.insert(errs, e.message)
+		-- Return STRUCTURED JSON so the agent's FIX loop gets script+line+message
+		-- directly. (studio-bridge parses JSON, with a text fallback.)
+		local passed = #testErrors == 0
+		return true, buildStructuredPlaytest(passed, "stopped")
+
+	elseif tool == "studio_script_search" then
+		local results = scriptSearch(args.query, tonumber(args.limit) or 10)
+		if #results == 0 then
+			return true, "No scripts matched '" .. tostring(args.query) .. "'."
 		end
-		if #errs == 0 then
-			return true, "Playtest passed with no errors."
+		return true, table.concat(results, "\n")
+
+	elseif tool == "studio_script_grep" then
+		local matches = scriptGrep(args.pattern or args.query, tonumber(args.limit) or 50)
+		if #matches == 0 then
+			return true, "No matches for '" .. tostring(args.pattern or args.query) .. "'."
 		end
-		return true, "Playtest found " .. #errs .. " error(s):\n" .. table.concat(errs, "\n")
+		-- Blank line between match blocks (each block is path:line + context window).
+		return true, #matches .. " match(es) (→ marks the hit line):\n\n" .. table.concat(matches, "\n\n")
+
+	elseif tool == "studio_inspect_instance" then
+		local ok, payload, err = inspectInstance(args.path or "")
+		if ok then return true, payload end
+		return false, nil, err
+
+	elseif tool == "studio_search_game_tree" then
+		local ok, payload = searchGameTree(args)
+		if ok then return true, payload end
+		return false, nil, payload
+
+	elseif tool == "studio_multi_edit" then
+		local ok, msg = multiEditScript(sessionKey, args)
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_start_playtest" then
+		local ok, msg = startPlaytestSession(sessionKey)
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_stop_playtest" then
+		local ok, msg = stopPlaytestSession()
+		if ok then return true, msg end
+		return false, nil, msg
+
+	elseif tool == "studio_console_output" then
+		local state = (RunService:IsRunMode() or isAutoTesting) and "running" or "stopped"
+		return true, buildStructuredPlaytest(#testErrors == 0, state)
+
+	elseif tool == "studio_execute_luau" then
+		-- Disabled on the marketplace plugin (web/RemoteTransport) for safety &
+		-- compliance. The local Runtime/CLI path uses Roblox's OFFICIAL Studio
+		-- MCP, which provides execute_luau natively under Roblox's own safety
+		-- model — so this branch should never be reached on the local path.
+		return false, nil, "execute_luau is disabled on the Apple Juice plugin. Use the local Apple Juice Runtime (official Roblox Studio MCP) for arbitrary Luau execution."
 
 	elseif tool == "studio_get_logs" then
 		local logs = {}
@@ -1259,8 +2542,11 @@ local function reportMcpResult(sessionKey, requestId, ok, data, err)
 	end)
 end
 
-local function pollMcpCommand(sessionKey)
+local function pollMcpCommand(sessionKey, waitMs)
 	local url = MCP_NEXT_ENDPOINT .. "?key=" .. HttpService:UrlEncode(sessionKey)
+	if waitMs and waitMs > 0 then
+		url = url .. "&wait=" .. tostring(math.floor(waitMs))
+	end
 	local ok, response = pcall(function()
 		return HttpService:RequestAsync({ Url = url, Method = "GET", Headers = { ["Accept"] = "application/json" } })
 	end)
@@ -1268,6 +2554,43 @@ local function pollMcpCommand(sessionKey)
 	local decodeOk, data = pcall(function() return HttpService:JSONDecode(response.Body) end)
 	if not decodeOk or not data.command then return nil end
 	return data.command
+end
+
+-- Dedicated MCP long-poll loop. Runs in its OWN thread so a held request (up to
+-- ~20s) never blocks the main poll loop's tree reporting / connection watchdog.
+-- After executing a command it immediately re-polls (the official-plugin trick)
+-- so a burst of agent tool calls lands back-to-back with no idle gap.
+local MCP_LONGPOLL_MS = 20000
+local mcpLoopStarted = false
+local mcpBusy = false
+local function mcpPollLoop(sessionKey)
+	while running and not unloading do
+		if mcpBusy then
+			-- A command is executing (e.g. a 6s playtest); don't pull another.
+			task.wait(0.1)
+		else
+			local mcpCmd = pollMcpCommand(sessionKey, MCP_LONGPOLL_MS)
+			if mcpCmd then
+				mcpBusy = true
+				task.spawn(function()
+					local ranOk, rok, rdata, rerr = pcall(executeMcpCommand, sessionKey, mcpCmd)
+					if ranOk then
+						reportMcpResult(sessionKey, mcpCmd.requestId, rok, rdata, rerr)
+					else
+						reportMcpResult(sessionKey, mcpCmd.requestId, false, nil, tostring(rok))
+					end
+					mcpBusy = false
+				end)
+				-- Immediately loop to re-poll; the busy guard above paces us.
+			else
+				-- Held request returned empty (no work within the hold window).
+				-- Loop straight back into another held request; tiny yield keeps
+				-- the scheduler happy without adding perceptible latency.
+				task.wait(0.05)
+			end
+		end
+	end
+	mcpLoopStarted = false
 end
 
 -- ─── Polling ──────────────────────────────────────────────────────────────────
@@ -1292,8 +2615,9 @@ local function pollLoop(sessionKey)
 	currentSessionKey = sessionKey
 	local hasError = false
 	local pollTicks = 0
-	-- Resilience: tolerate transient poll/heartbeat failures instead of
-	-- disconnecting on the first one (see AppleJuiceSync.lua for rationale).
+	-- Resilience: a single failed poll (transient network blip, a momentary
+	-- 502 from the host, one slow request) used to disconnect immediately.
+	-- Tolerate a few consecutive failures before actually giving up.
 	local consecutiveFailures = 0
 	local MAX_CONSECUTIVE_FAILURES = 5
 	local consecutiveUnpaired = 0
@@ -1304,29 +2628,20 @@ local function pollLoop(sessionKey)
 		-- Report tree on every poll if it changed. Force a report every 60 polls (~30s) to prevent cache expiry.
 		reportTree(sessionKey, pollTicks % 60 == 1)
 
-		-- MCP bridge: pull and execute any pending interactive tool command.
-		-- Run it in a separate thread so a long-running command (e.g. a 6s
-		-- playtest) doesn't block the main poll loop and trip the connection
-		-- watchdog. Only one MCP command in flight at a time.
-		if not mcpBusy then
-			local mcpCmd = pollMcpCommand(sessionKey)
-			if mcpCmd then
-				mcpBusy = true
-				task.spawn(function()
-					local ranOk, rok, rdata, rerr = pcall(executeMcpCommand, sessionKey, mcpCmd)
-					if ranOk then
-						reportMcpResult(sessionKey, mcpCmd.requestId, rok, rdata, rerr)
-					else
-						reportMcpResult(sessionKey, mcpCmd.requestId, false, nil, tostring(rok))
-					end
-					mcpBusy = false
-				end)
-			end
+		-- MCP bridge: a dedicated long-poll loop (started once) pulls and executes
+		-- interactive tool commands in its own thread, so a held request or a
+		-- long-running command (e.g. a 6s playtest) never blocks this main poll
+		-- loop's tree reporting or the connection watchdog.
+		if not mcpLoopStarted then
+			mcpLoopStarted = true
+			task.spawn(function() mcpPollLoop(sessionKey) end)
 		end
 
 		local ok, data, err = requestPoll(sessionKey)
 
 		if not ok then
+			-- Transient failure: warn but keep trying. Only disconnect after
+			-- several failures in a row (sustained outage / real problem).
 			consecutiveFailures += 1
 			if consecutiveFailures >= MAX_CONSECUTIVE_FAILURES then
 				setStatus(err or "Poll failed.", "error")
@@ -1335,18 +2650,23 @@ local function pollLoop(sessionKey)
 				break
 			else
 				setStatus("Reconnecting... (" .. consecutiveFailures .. ")", "warning")
+				-- Back off a little before the next attempt.
 				local waited = 0
 				while running and not unloading and waited < 1 do
 					task.wait(0.2)
 					waited += 0.2
 				end
+				-- Skip the rest of this iteration and retry.
 				continue
 			end
 		end
 
+		-- Successful request — reset the failure counter.
 		consecutiveFailures = 0
 
 		if data.paired ~= true then
+			-- The dashboard heartbeat may briefly lapse (tab backgrounded,
+			-- network hiccup). Tolerate a few before disconnecting.
 			consecutiveUnpaired += 1
 			if consecutiveUnpaired >= MAX_CONSECUTIVE_UNPAIRED then
 				setStatus(data.error or "Session expired.", "error")
@@ -1367,6 +2687,7 @@ local function pollLoop(sessionKey)
 			end
 		end
 
+		-- Paired successfully — reset the unpaired counter.
 		consecutiveUnpaired = 0
 
 		if not isConnected then
@@ -1397,17 +2718,22 @@ local function pollLoop(sessionKey)
 				reportLog(sessionKey, "📖 [Roblox Studio] Reading file " .. fileName)
 			end
 			-- Resolve the target script. The dashboard sends a full dotted path
-			-- (e.g. "ServerScriptService.Folder.MyScript"), while the agent may
-			-- send a bare name. Handle both: walk a dotted path from game, then
-			-- fall back to a recursive search by leaf name.
+			-- (e.g. "ServerScriptService.Folder.MyScript" or "game.Workspace.X"),
+			-- while the agent may send a bare name. Handle both:
+			--   1. If it's a dotted path, walk it from game (skipping a leading
+			--      "game" segment) to land on the exact instance.
+			--   2. Otherwise (or if the walk fails), recursively search common
+			--      service roots for a script with that (leaf) name.
 			local target = nil
 
 			local function resolveDottedPath(path)
 				local segments = string.split(path, ".")
+				-- Drop a leading "game" segment if present.
 				if segments[1] == "game" then
 					table.remove(segments, 1)
 				end
 				if #segments == 0 then return nil end
+				-- First segment is a service.
 				local ok, current = pcall(function()
 					return game:GetService(segments[1])
 				end)
@@ -1429,6 +2755,7 @@ local function pollLoop(sessionKey)
 				end
 			end
 
+			-- Fallback: recursive search by leaf name across common locations.
 			if not target then
 				local leaf = fileName
 				if string.find(leaf, "%.") then
@@ -1549,16 +2876,24 @@ toolbarButton.Click:Connect(function() widget.Enabled = not widget.Enabled end)
 local httpEnabled = false
 pcall(function() httpEnabled = HttpService.HttpEnabled end)
 if not httpEnabled then
-	setStatus("Enable HTTP Requests in Game Settings.", "error")
+	setStatus("Enable HTTP Requests in Game Settings → Security.", "error")
 else
-	setStatus("Ready. Enter your terminal's pairing code, then Connect.", "info")
+	setStatus("Ready. Click Connect to pair.", "info")
+end
+
+local function tweenButtonColor(c)
+	pcall(function()
+		TweenService:Create(connectButton, TweenInfo.new(0.25), { BackgroundColor3 = c }):Play()
+	end)
 end
 
 connectButton.MouseButton1Click:Connect(function()
 	if not httpEnabled then return end
-	
+
 	if running then
+		-- Disconnect
 		running = false
+		setStatus("Disconnecting…", "info")
 		pcall(function()
 			if currentSessionKey then
 				HttpService:RequestAsync({
@@ -1572,48 +2907,45 @@ connectButton.MouseButton1Click:Connect(function()
 	end
 
 	task.spawn(function()
-		local url = serverUrlInput.Text:gsub("%s+", "")
-		updateEndpoints(url)
-		serverUrlInput.Text = BASE_URL
-		pcall(function()
-			plugin:SetSetting("ServerUrlCLI", BASE_URL)
-		end)
+		setConnecting(true)
+		connectButton.Text = "Connecting…"
+		setStatus("Pairing with your dashboard…", "waiting")
 
-		local manualKey = manualInput.Text:gsub("%s+", ""):upper()
+		local manualKey = getManualCode()
 		local sessionKey, err
 
 		if #manualKey >= 4 then
-			setStatus("Connecting via code [" .. manualKey .. "]...", "waiting")
-			sessionKey = manualKey
-			-- Verify the pairing code is registered by the CLI session.
-			local ok, data, pollErr = requestPoll(sessionKey)
-			if not ok or data.paired ~= true then
-				setStatus(pollErr or (data and data.error) or "Invalid pairing code. Check your terminal.", "error")
-				return
-			end
+			sessionKey, err = autoConnect(manualKey)
+		elseif AJ_CONFIG.requireManualCode then
+			setConnecting(false)
+			connectButton.Text = "Connect"
+			setStatus("Enter the pairing code, then click Connect.", "waiting")
+			return
 		else
-			-- CLI sessions are keyed by the terminal pairing code (clientIp = "cli"),
-			-- so IP auto-pairing can't find them. Try it as a courtesy, but guide
-			-- the user to enter the code if nothing is found.
 			sessionKey, err = autoConnect()
-			if not sessionKey then
-				setStatus("Enter the pairing code shown in your terminal, then click Connect.", "waiting")
-				return
-			end
 		end
 
+		setConnecting(false)
+
 		if not sessionKey then
-			setStatus(err or "Could not connect. Enter the terminal pairing code.", "error")
+			connectButton.Text = "Connect"
+			setStatus(err or "Could not pair. Is the dashboard open?", "error")
 			return
 		end
 
-		setStatus("Paired! Starting sync...", "success")
+		setStatus("Paired! Starting sync…", "success")
 		running = true
 		connectButton.Text = "Disconnect"
-		connectButton.BackgroundColor3 = buttonConnectedColor
-		
-		-- Start the polling loop directly in this thread
+		btnGrad.Enabled = false
+		tweenButtonColor(buttonConnectedColor)
+
+		-- Start the polling loop directly in this thread. It returns when the
+		-- session ends, so restore the idle button look afterwards.
 		pollLoop(sessionKey)
+
+		btnGrad.Enabled = true
+		tweenButtonColor(buttonBaseColor)
+		connectButton.Text = "Connect"
 	end)
 end)
 

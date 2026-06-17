@@ -20,7 +20,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Build tag so we can verify which code is actually running (GET /version).
-const BUILD_TAG = 'kiro-proxy-v14-credits';
+const BUILD_TAG = 'kiro-proxy-v15-surface-errors';
 
 // Where per-session project files are materialized.
 const SESSIONS_ROOT = process.env.KIRO_SESSIONS_ROOT || '/tmp/kiro-sessions';
@@ -126,6 +126,26 @@ function stripChrome(s: string): string {
  *  - Otherwise treat the whole thing as a plain chat reply and wrap it so the
  *    app never falls back to its "response was truncated" recovery path.
  */
+/**
+ * Detect the "ran but produced nothing useful" case: kiro-cli sometimes exits 0
+ * while only printing a warning/error to STDERR (e.g. expired KIRO_API_KEY,
+ * missing GLIBCXX, MCP-disabled). Without this, an empty stdout gets wrapped as
+ * {message:""} → the app shows a meaningless "Done.". Returns a human error
+ * string when that's the case, else null.
+ */
+function emptyOutputError(rawStdout: string, stderr: string): string | null {
+  const cleaned = stripChrome(rawStdout);
+  if (cleaned.trim().length > 0) return null; // there was real output
+  const err = (stderr || '').trim();
+  if (!err) return null;
+  // Surface the most relevant line(s).
+  const lines = err.split('\n').map((l) => l.trim()).filter(Boolean);
+  const relevant = lines.filter((l) =>
+    /auth|api key|expired|invalid|GLIBCXX|login|profile|MCP|denied|forbidden|quota/i.test(l),
+  );
+  return (relevant.length ? relevant : lines).slice(0, 4).join(' ');
+}
+
 function toAppJson(rawOutput: string): string {
   const clean = stripChrome(rawOutput);
 
@@ -237,6 +257,26 @@ app.post('/v1/chat/completions', (req: Request<{}, {}, OpenAIRequest>, res: Resp
       return res.end();
     }
 
+    // kiro-cli can exit 0 yet produce nothing useful (expired key, GLIBCXX,
+    // MCP disabled, …) with the real reason only on stderr. Surface it instead
+    // of returning an empty {message:""} that the app shows as "Done.".
+    const emptyErr = emptyOutputError(rawBuffer, errorOutput);
+    if (emptyErr) {
+      console.error('kiro-cli produced no output. stderr:', errorOutput);
+      const errJson = JSON.stringify({ message: `[Kiro CLI] ${emptyErr}`, scripts: [] });
+      if (!stream) {
+        return res.status(502).json({ error: 'Kiro CLI produced no output', detail: emptyErr });
+      }
+      const payload = JSON.stringify({
+        id: 'chatcmpl-kiro', object: 'chat.completion.chunk',
+        created: Math.floor(Date.now() / 1000), model: model || 'kiro-model',
+        choices: [{ index: 0, delta: { content: errJson } }],
+      });
+      res.write(`data: ${payload}\n\n`);
+      res.write(`data: [DONE]\n\n`);
+      return res.end();
+    }
+
     // Always hand the app a single valid JSON object.
     const appJson = toAppJson(rawBuffer);
 
@@ -322,11 +362,22 @@ app.post('/v1/mcp-agent', async (req: Request, res: Response) => {
       onProgress: (text) => sse('progress', { text }),
     });
 
+    // Surface kiro-cli's real failure (expired key, GLIBCXX, MCP disabled, …)
+    // instead of a silent "Done." when it produced no summary.
+    const summary = extractSummary(result.stdout);
+    const emptyErr = !summary ? emptyOutputError(result.stdout, result.stderr || '') : null;
+    if (emptyErr) {
+      console.error('MCP agent produced no output. stderr:', result.stderr);
+      sse('error', { error: `[Kiro CLI] ${emptyErr}` });
+      res.write('event: done\ndata: {}\n\n');
+      return res.end();
+    }
+
     sse('result', {
       ok: result.ok,
       // In MCP mode changes are already applied live in Studio, so there are no
       // scripts to return — just the agent's summary.
-      message: extractSummary(result.stdout) || 'Done.',
+      message: summary || 'Done.',
       appliedLive: true,
       exitCode: result.code,
       // Real credits consumed (from the kiro-cli footer), when available.

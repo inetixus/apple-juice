@@ -1,0 +1,25 @@
+[package]
+name = "apple-juice-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Tiny native loopback bridge wrapping the official Roblox Studio MCP for the Apple Juice dashboard."
+license = "MIT"
+
+[[bin]]
+name = "apple-juice-runtime"
+path = "src/main.rs"
+
+[dependencies]
+tiny_http = "0.12"
+serde_json = "1"
+getrandom = "0.2"
+
+# Size-first release profile. The whole point of the native rewrite is a
+# self-contained binary in the ~1 MB range (vs ~45-70 MB for the Node build),
+# so we optimize aggressively for size and strip symbols.
+[profile.release]
+opt-level = "z"     # optimize for size
+lto = true          # link-time optimization across crates
+codegen-units = 1   # better optimization, smaller output
+panic = "abort"     # drop unwinding machinery
+strip = true        # strip symbols

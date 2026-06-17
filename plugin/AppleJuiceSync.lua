@@ -5,12 +5,38 @@ local TweenService = game:GetService("TweenService")
 local LogService = game:GetService("LogService")
 local RunService = game:GetService("RunService")
 
-local TOOLBAR_NAME = "Apple Juice AI Sync"
-local WIDGET_TITLE = "Apple Juice AI Sync"
-local VERSION = "v1.1.0"
+-- ╔═══ AJ_CONFIG_START ═══════════════════════════════════════════════════════╗
+-- Single source of truth for the two plugin variants. The CLI plugin
+-- (AppleJuiceSyncCLI.lua) is GENERATED from this file by scripts/build-plugins.cjs
+-- which replaces ONLY this block. Do not hand-edit AppleJuiceSyncCLI.lua — edit
+-- here and re-run `node scripts/build-plugins.cjs`.
+local AJ_CONFIG = {
+	toolbarName = "Apple Juice AI Sync",
+	widgetTitle = "Apple Juice AI Sync",
+	version = "v2.0.0",
+	variant = "web",
+	-- Fixed endpoint for the public build — there is NO URL box in the widget.
+	serverUrl = "https://apple-juice.online",
+	toggleButtonId = "AppleJuiceAISyncToggle",
+	toggleButtonTooltip = "Toggle Apple Juice AI Sync",
+	widgetId = "AppleJuiceAISyncWidget",
+	tagline = "One click links Studio to your dashboard.",
+	-- The public site pairs automatically by matching your IP to the open
+	-- dashboard. A manual pairing code is offered only as a fallback.
+	showManualCode = true,
+	requireManualCode = false,
+}
+-- ╚═══ AJ_CONFIG_END ═════════════════════════════════════════════════════════╝
 
-local defaultServerUrl = "https://apple-juice.online"
-local BASE_URL = defaultServerUrl
+local TOOLBAR_NAME = AJ_CONFIG.toolbarName
+local WIDGET_TITLE = AJ_CONFIG.widgetTitle
+local VERSION = AJ_CONFIG.version
+
+-- The server URL is FIXED per plugin variant (no in-widget URL box):
+--   • Web build → the public Apple Juice site.
+--   • CLI build → the local app the `aj` terminal serves on 127.0.0.1.
+local BASE_URL = AJ_CONFIG.serverUrl
+if BASE_URL:sub(-1) == "/" then BASE_URL = BASE_URL:sub(1, -2) end
 local CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
 local POLL_ENDPOINT = BASE_URL .. "/api/poll"
 local LOGS_ENDPOINT = BASE_URL .. "/api/logs"
@@ -20,32 +46,6 @@ local SNAPSHOT_ENDPOINT = BASE_URL .. "/api/snapshot"
 local MCP_NEXT_ENDPOINT = BASE_URL .. "/api/mcp/next"
 local MCP_RESULT_ENDPOINT = BASE_URL .. "/api/mcp/result"
 
-local function updateEndpoints(newUrl)
-	newUrl = newUrl:gsub("%s+", "")
-	if newUrl == "" then
-		newUrl = defaultServerUrl
-	end
-	-- Strip trailing slash if present
-	if newUrl:sub(-1) == "/" then
-		newUrl = newUrl:sub(1, -2)
-	end
-	BASE_URL = newUrl
-	CONNECT_ENDPOINT = BASE_URL .. "/api/connect"
-	POLL_ENDPOINT = BASE_URL .. "/api/poll"
-	LOGS_ENDPOINT = BASE_URL .. "/api/logs"
-	TREE_ENDPOINT = BASE_URL .. "/api/tree"
-	REPORT_FILE_ENDPOINT = BASE_URL .. "/api/report-file"
-	SNAPSHOT_ENDPOINT = BASE_URL .. "/api/snapshot"
-	MCP_NEXT_ENDPOINT = BASE_URL .. "/api/mcp/next"
-	MCP_RESULT_ENDPOINT = BASE_URL .. "/api/mcp/result"
-end
-
-pcall(function()
-	local savedUrl = plugin:GetSetting("ServerUrl")
-	if savedUrl and savedUrl ~= "" then
-		updateEndpoints(savedUrl)
-	end
-end)
 local POLL_INTERVAL = 0.2
 -- Server-driven, plan-aware poll cadence. The /api/poll response may return a
 -- recommended `pollInterval` (higher subscription tiers poll faster so code +
@@ -56,197 +56,504 @@ local MAX_POLL_INTERVAL = 1.0
 local currentPollInterval = POLL_INTERVAL
 
 local toolbar = plugin:CreateToolbar(TOOLBAR_NAME)
-local toolbarButton = toolbar:CreateButton("AppleJuiceAISyncToggle", "Toggle Apple Juice AI Sync", "rbxassetid://4458901886")
+local toolbarButton = toolbar:CreateButton(AJ_CONFIG.toggleButtonId, AJ_CONFIG.toggleButtonTooltip, "rbxassetid://4458901886")
 toolbarButton.ClickableWhenViewportHidden = true
 
-local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 380, 260, 300, 180)
-local widget = plugin:CreateDockWidgetPluginGui("AppleJuiceAISyncWidget", widgetInfo)
+local widgetInfo = DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, true, false, 360, 520, 320, 430)
+local widget = plugin:CreateDockWidgetPluginGui(AJ_CONFIG.widgetId, widgetInfo)
 widget.Title = WIDGET_TITLE
 
 -- ─── UI ───────────────────────────────────────────────────────────────────────
+-- Animated, modern panel. The server URL is FIXED (no input box). Pairing is one
+-- click; a manual code box appears only as a fallback (web build) or not at all
+-- (CLI build). running / unloading / undoStack are forward-declared here so the
+-- animation closures and the engine below all capture the SAME upvalues.
+local running = false
+local unloading = false
+local undoStack = {}
+
+-- Palette
+local COL_BG       = Color3.fromRGB(20, 22, 27)
+local COL_SURFACE  = Color3.fromRGB(31, 34, 41)
+local COL_SURFACE2 = Color3.fromRGB(40, 44, 53)
+local COL_TEXT     = Color3.fromRGB(240, 241, 245)
+local COL_DIM      = Color3.fromRGB(138, 145, 160)
+local COL_ACCENT_A = Color3.fromRGB(230, 126, 34)   -- terracotta
+local COL_ACCENT_B = Color3.fromRGB(255, 176, 102)  -- light orange
+local COL_OK       = Color3.fromRGB(77, 214, 123)
+local COL_WARN     = Color3.fromRGB(245, 208, 96)
+local COL_ERR      = Color3.fromRGB(255, 96, 96)
+local COL_DISC     = Color3.fromRGB(220, 64, 64)
+
+local function corner(inst, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r or 8)
+	c.Parent = inst
+	return c
+end
+local function pad(inst, l, r, t, b)
+	local p = Instance.new("UIPadding")
+	p.PaddingLeft = UDim.new(0, l or 0)
+	p.PaddingRight = UDim.new(0, r or 0)
+	p.PaddingTop = UDim.new(0, t or 0)
+	p.PaddingBottom = UDim.new(0, b or 0)
+	p.Parent = inst
+	return p
+end
 
 local root = Instance.new("Frame")
 root.Name = "Root"
 root.Size = UDim2.fromScale(1, 1)
-root.BackgroundColor3 = Color3.fromRGB(23, 25, 30)
+root.BackgroundColor3 = COL_BG
 root.BorderSizePixel = 0
 root.Parent = widget
 
-local rootCorner = Instance.new("UICorner")
-rootCorner.CornerRadius = UDim.new(0, 6)
-rootCorner.Parent = root
+-- Entrance scale/fade lives on a child container so the bg stays solid.
+local panel = Instance.new("Frame")
+panel.Name = "Panel"
+panel.Size = UDim2.fromScale(1, 1)
+panel.BackgroundTransparency = 1
+panel.BorderSizePixel = 0
+panel.Parent = root
+pad(panel, 16, 16, 16, 16)
 
-local rootPadding = Instance.new("UIPadding")
-rootPadding.PaddingTop = UDim.new(0, 18)
-rootPadding.PaddingBottom = UDim.new(0, 18)
-rootPadding.PaddingLeft = UDim.new(0, 18)
-rootPadding.PaddingRight = UDim.new(0, 18)
-rootPadding.Parent = root
+local panelScale = Instance.new("UIScale")
+panelScale.Scale = 0.94
+panelScale.Parent = panel
 
 local layout = Instance.new("UIListLayout")
 layout.FillDirection = Enum.FillDirection.Vertical
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Padding = UDim.new(0, 8)
-layout.Parent = root
+layout.Padding = UDim.new(0, 12)
+layout.Parent = panel
 
-local function makeLabel(text, order, sizeY, color, font, textSize)
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.new(1, 0, 0, sizeY)
-	label.Text = text
-	label.TextColor3 = color
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Font = font
-	label.TextSize = textSize
-	label.LayoutOrder = order
-	label.Parent = root
-	return label
-end
+-- ── Header card (logo chip + title + animated gradient) ──────────────────────
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 64)
+header.BackgroundColor3 = COL_SURFACE
+header.BorderSizePixel = 0
+header.LayoutOrder = 1
+header.Parent = panel
+corner(header, 12)
+pad(header, 12, 12, 10, 10)
 
-makeLabel("Apple Juice AI Sync " .. VERSION, 1, 24, Color3.fromRGB(240, 240, 245), Enum.Font.GothamBold, 17)
-makeLabel("Auto-pairs via IP — just click Connect.", 2, 16, Color3.fromRGB(120, 126, 140), Enum.Font.Gotham, 11)
+local headerStroke = Instance.new("UIStroke")
+headerStroke.Color = COL_ACCENT_A
+headerStroke.Transparency = 0.6
+headerStroke.Thickness = 1
+headerStroke.Parent = header
 
-local spacer = Instance.new("Frame")
-spacer.Size = UDim2.new(1, 0, 0, 4)
-spacer.BackgroundTransparency = 1
-spacer.LayoutOrder = 3
-spacer.Parent = root
+local logoChip = Instance.new("Frame")
+logoChip.Name = "Logo"
+logoChip.Size = UDim2.fromOffset(44, 44)
+logoChip.Position = UDim2.fromScale(0, 0.5)
+logoChip.AnchorPoint = Vector2.new(0, 0.5)
+logoChip.BackgroundColor3 = COL_ACCENT_A
+logoChip.BorderSizePixel = 0
+logoChip.Parent = header
+corner(logoChip, 12)
 
-local serverUrlInput = Instance.new("TextBox")
-serverUrlInput.Name = "ServerUrlInput"
-serverUrlInput.Size = UDim2.new(1, 0, 0, 32)
-serverUrlInput.BackgroundColor3 = Color3.fromRGB(35, 38, 45)
-serverUrlInput.TextColor3 = Color3.fromRGB(240, 240, 245)
-serverUrlInput.Font = Enum.Font.GothamMedium
-serverUrlInput.TextSize = 13
-serverUrlInput.PlaceholderText = "Server URL (e.g. https://apple-juice.online)"
-serverUrlInput.Text = BASE_URL
-serverUrlInput.ClearTextOnFocus = false
-serverUrlInput.BorderSizePixel = 0
-serverUrlInput.LayoutOrder = 3.2
-serverUrlInput.Parent = root
+local logoGrad = Instance.new("UIGradient")
+logoGrad.Color = ColorSequence.new(COL_ACCENT_A, COL_ACCENT_B)
+logoGrad.Rotation = 0
+logoGrad.Parent = logoChip
 
-local serverUrlCorner = Instance.new("UICorner")
-serverUrlCorner.CornerRadius = UDim.new(0, 6)
-serverUrlCorner.Parent = serverUrlInput
+local logoText = Instance.new("TextLabel")
+logoText.BackgroundTransparency = 1
+logoText.Size = UDim2.fromScale(1, 1)
+logoText.Text = "🍎"
+logoText.TextScaled = true
+logoText.Font = Enum.Font.GothamBold
+logoText.TextColor3 = Color3.fromRGB(255, 255, 255)
+logoText.Parent = logoChip
+pad(logoText, 7, 7, 7, 7)
 
-local serverUrlPadding = Instance.new("UIPadding")
-serverUrlPadding.PaddingLeft = UDim.new(0, 8)
-serverUrlPadding.PaddingRight = UDim.new(0, 8)
-serverUrlPadding.Parent = serverUrlInput
+local titleLabel = Instance.new("TextLabel")
+titleLabel.BackgroundTransparency = 1
+titleLabel.Position = UDim2.fromOffset(56, 8)
+titleLabel.Size = UDim2.new(1, -120, 0, 22)
+titleLabel.Text = "Apple Juice"
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 18
+titleLabel.TextColor3 = COL_TEXT
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = header
 
-local manualInput = Instance.new("TextBox")
-manualInput.Name = "ManualInput"
-manualInput.Size = UDim2.new(1, 0, 0, 32)
-manualInput.BackgroundColor3 = Color3.fromRGB(35, 38, 45)
-manualInput.TextColor3 = Color3.fromRGB(240, 240, 245)
-manualInput.Font = Enum.Font.GothamMedium
-manualInput.TextSize = 13
-manualInput.PlaceholderText = "Manual Pairing Key (Optional)"
-manualInput.Text = ""
-manualInput.ClearTextOnFocus = false
-manualInput.BorderSizePixel = 0
-manualInput.LayoutOrder = 3.5
-manualInput.Parent = root
+local subLabel = Instance.new("TextLabel")
+subLabel.BackgroundTransparency = 1
+subLabel.Position = UDim2.fromOffset(56, 30)
+subLabel.Size = UDim2.new(1, -60, 0, 16)
+subLabel.Text = AJ_CONFIG.tagline
+subLabel.Font = Enum.Font.Gotham
+subLabel.TextSize = 11
+subLabel.TextColor3 = COL_DIM
+subLabel.TextXAlignment = Enum.TextXAlignment.Left
+subLabel.TextTruncate = Enum.TextTruncate.AtEnd
+subLabel.Parent = header
 
-local manualCorner = Instance.new("UICorner")
-manualCorner.CornerRadius = UDim.new(0, 6)
-manualCorner.Parent = manualInput
+local verPill = Instance.new("TextLabel")
+verPill.AnchorPoint = Vector2.new(1, 0)
+verPill.Position = UDim2.new(1, 0, 0, 2)
+verPill.Size = UDim2.fromOffset(58, 18)
+verPill.BackgroundColor3 = COL_SURFACE2
+verPill.Text = VERSION
+verPill.Font = Enum.Font.GothamMedium
+verPill.TextSize = 10
+verPill.TextColor3 = COL_DIM
+verPill.Parent = header
+corner(verPill, 9)
 
-local manualPadding = Instance.new("UIPadding")
-manualPadding.PaddingLeft = UDim.new(0, 8)
-manualPadding.PaddingRight = UDim.new(0, 8)
-manualPadding.Parent = manualInput
+-- ── Status card (pulsing dot + spinner + message) ────────────────────────────
+local statusCard = Instance.new("Frame")
+statusCard.Name = "StatusCard"
+statusCard.Size = UDim2.new(1, 0, 0, 58)
+statusCard.BackgroundColor3 = COL_SURFACE
+statusCard.BorderSizePixel = 0
+statusCard.LayoutOrder = 2
+statusCard.Parent = panel
+corner(statusCard, 12)
+pad(statusCard, 14, 14, 12, 12)
 
-serverUrlInput.FocusLost:Connect(function(enterPressed)
-	local url = serverUrlInput.Text:gsub("%s+", "")
-	updateEndpoints(url)
-	serverUrlInput.Text = BASE_URL
-	pcall(function()
-		plugin:SetSetting("ServerUrl", BASE_URL)
-	end)
-end)
+local statusDot = Instance.new("Frame")
+statusDot.Name = "Dot"
+statusDot.Size = UDim2.fromOffset(10, 10)
+statusDot.Position = UDim2.fromOffset(0, 3)
+statusDot.BackgroundColor3 = COL_DIM
+statusDot.BorderSizePixel = 0
+statusDot.Parent = statusCard
+corner(statusDot, 5)
 
-local connectButton = Instance.new("TextButton")
-connectButton.Name = "ConnectButton"
-connectButton.Size = UDim2.new(1, 0, 0, 40)
-local buttonBaseColor = Color3.fromRGB(43, 103, 255)
-local buttonHoverColor = Color3.fromRGB(57, 117, 255)
-local buttonConnectedColor = Color3.fromRGB(220, 38, 38)
-connectButton.BackgroundColor3 = buttonBaseColor
-connectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-connectButton.Font = Enum.Font.GothamBold
-connectButton.TextSize = 15
-connectButton.Text = "Connect"
-connectButton.AutoButtonColor = false
-connectButton.BorderSizePixel = 0
-connectButton.LayoutOrder = 4
-connectButton.Parent = root
-
-local connectButtonCorner = Instance.new("UICorner")
-connectButtonCorner.CornerRadius = UDim.new(0, 8)
-connectButtonCorner.Parent = connectButton
+local spinner = Instance.new("TextLabel")
+spinner.Name = "Spinner"
+spinner.BackgroundTransparency = 1
+spinner.Position = UDim2.fromOffset(-4, -5)
+spinner.Size = UDim2.fromOffset(18, 18)
+spinner.Text = ""
+spinner.Font = Enum.Font.GothamBold
+spinner.TextSize = 16
+spinner.TextColor3 = COL_ACCENT_B
+spinner.Visible = false
+spinner.Parent = statusCard
 
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "Status"
-statusLabel.Size = UDim2.new(1, 0, 0, 56)
+statusLabel.Position = UDim2.fromOffset(20, 0)
+statusLabel.Size = UDim2.new(1, -20, 1, 0)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextWrapped = true
 statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 statusLabel.TextYAlignment = Enum.TextYAlignment.Top
 statusLabel.Font = Enum.Font.GothamSemibold
-statusLabel.TextSize = 12
-statusLabel.LayoutOrder = 5
-statusLabel.Parent = root
+statusLabel.TextSize = 12.5
+statusLabel.TextColor3 = COL_DIM
+statusLabel.Text = "Ready."
+statusLabel.Parent = statusCard
 
-local hoverTweenInfo = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-connectButton.MouseEnter:Connect(function()
-	if not running then
-		TweenService:Create(connectButton, hoverTweenInfo, { BackgroundColor3 = buttonHoverColor }):Play()
-	end
-end)
-connectButton.MouseLeave:Connect(function()
-	if not running then
-		TweenService:Create(connectButton, hoverTweenInfo, { BackgroundColor3 = buttonBaseColor }):Play()
-	end
-end)
+-- ── Live activity feed (streams every Studio action in real time) ─────────────
+local feedCard = Instance.new("Frame")
+feedCard.Name = "Feed"
+feedCard.Size = UDim2.new(1, 0, 0, 168)
+feedCard.BackgroundColor3 = COL_SURFACE
+feedCard.BorderSizePixel = 0
+feedCard.LayoutOrder = 4
+feedCard.Parent = panel
+corner(feedCard, 12)
+pad(feedCard, 12, 8, 10, 10)
 
+local feedTitle = Instance.new("TextLabel")
+feedTitle.BackgroundTransparency = 1
+feedTitle.Size = UDim2.new(1, -16, 0, 14)
+feedTitle.Text = "LIVE ACTIVITY"
+feedTitle.Font = Enum.Font.GothamBold
+feedTitle.TextSize = 10
+feedTitle.TextColor3 = COL_DIM
+feedTitle.TextXAlignment = Enum.TextXAlignment.Left
+feedTitle.Parent = feedCard
+
+local liveDot = Instance.new("Frame")
+liveDot.Name = "LiveDot"
+liveDot.Size = UDim2.fromOffset(6, 6)
+liveDot.Position = UDim2.fromOffset(82, 4)
+liveDot.BackgroundColor3 = COL_OK
+liveDot.BorderSizePixel = 0
+liveDot.Parent = feedCard
+corner(liveDot, 3)
+
+local feedScroll = Instance.new("ScrollingFrame")
+feedScroll.Name = "FeedScroll"
+feedScroll.Position = UDim2.fromOffset(0, 20)
+feedScroll.Size = UDim2.new(1, 0, 1, -20)
+feedScroll.BackgroundTransparency = 1
+feedScroll.BorderSizePixel = 0
+feedScroll.ScrollBarThickness = 4
+feedScroll.ScrollBarImageColor3 = COL_ACCENT_A
+feedScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+feedScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+feedScroll.ScrollingDirection = Enum.ScrollingDirection.Y
+feedScroll.Parent = feedCard
+
+local feedLayout = Instance.new("UIListLayout")
+feedLayout.FillDirection = Enum.FillDirection.Vertical
+feedLayout.SortOrder = Enum.SortOrder.LayoutOrder
+feedLayout.Padding = UDim.new(0, 3)
+feedLayout.Parent = feedScroll
+
+local feedEmpty = Instance.new("TextLabel")
+feedEmpty.Name = "Empty"
+feedEmpty.BackgroundTransparency = 1
+feedEmpty.Size = UDim2.new(1, -6, 0, 16)
+feedEmpty.Text = "Waiting for activity…"
+feedEmpty.Font = Enum.Font.Gotham
+feedEmpty.TextSize = 11
+feedEmpty.TextColor3 = Color3.fromRGB(95, 101, 115)
+feedEmpty.TextXAlignment = Enum.TextXAlignment.Left
+feedEmpty.LayoutOrder = 0
+feedEmpty.Parent = feedScroll
+
+-- pulse the little "live" dot
+TweenService:Create(liveDot, TweenInfo.new(1, SINE, Enum.EasingDirection.InOut, -1, true), { BackgroundTransparency = 0.6 }):Play()
+
+local feedCount = 0
+local FEED_MAX = 80
+
+local function feedKindColor(kind)
+	if kind == "success" then return COL_OK end
+	if kind == "error" then return COL_ERR end
+	if kind == "warn" then return COL_WARN end
+	if kind == "test" then return COL_ACCENT_B end
+	return Color3.fromRGB(186, 192, 205)
+end
+
+local function detectFeedKind(text)
+	if string.find(text, "✓", 1, true) then return "success" end
+	if string.find(text, "✖", 1, true) then return "error" end
+	if string.find(text, "⚠", 1, true) then return "warn" end
+	return "info"
+end
+
+-- Append a line to the live feed. Safe to call from anywhere; ignores the
+-- internal control markers so the feed stays human-readable.
+local function addFeed(text, kind)
+	if not text or text == "" then return end
+	if string.find(text, "APPLE_JUICE_TEST", 1, true) or string.find(text, "APPLE_JUICE_ERROR", 1, true) then
+		return
+	end
+	if feedEmpty then feedEmpty:Destroy(); feedEmpty = nil end
+
+	feedCount = feedCount + 1
+	local now = os.date("%H:%M:%S")
+
+	local row = Instance.new("TextLabel")
+	row.Name = "Row" .. feedCount
+	row.Size = UDim2.new(1, -8, 0, 0)
+	row.AutomaticSize = Enum.AutomaticSize.Y
+	row.BackgroundTransparency = 1
+	row.Text = string.format("%s  %s", now, text)
+	row.Font = Enum.Font.Gotham
+	row.TextSize = 11
+	row.TextColor3 = feedKindColor(kind or detectFeedKind(text))
+	row.TextXAlignment = Enum.TextXAlignment.Left
+	row.TextYAlignment = Enum.TextYAlignment.Top
+	row.TextWrapped = true
+	row.LayoutOrder = feedCount
+	row.TextTransparency = 1
+	row.Parent = feedScroll
+	TweenService:Create(row, TweenInfo.new(0.25), { TextTransparency = 0 }):Play()
+
+	-- Cap the number of rows so a long session can't grow unbounded.
+	local rows = {}
+	for _, c in ipairs(feedScroll:GetChildren()) do
+		if c:IsA("TextLabel") then table.insert(rows, c) end
+	end
+	if #rows > FEED_MAX then
+		table.sort(rows, function(a, b) return a.LayoutOrder < b.LayoutOrder end)
+		for i = 1, #rows - FEED_MAX do
+			rows[i]:Destroy()
+		end
+	end
+
+	-- Auto-scroll to the newest entry once the canvas has re-measured.
+	task.defer(function()
+		pcall(function()
+			feedScroll.CanvasPosition = Vector2.new(0, feedScroll.AbsoluteCanvasSize.Y)
+		end)
+	end)
+end
+
+-- ── Connect button (gradient + hover/press + connecting shimmer) ──────────────
+local connectButton = Instance.new("TextButton")
+connectButton.Name = "ConnectButton"
+connectButton.Size = UDim2.new(1, 0, 0, 46)
+connectButton.AutoButtonColor = false
+connectButton.BackgroundColor3 = COL_ACCENT_A
+connectButton.Text = "Connect"
+connectButton.Font = Enum.Font.GothamBold
+connectButton.TextSize = 16
+connectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+connectButton.BorderSizePixel = 0
+connectButton.LayoutOrder = 3
+connectButton.Parent = panel
+corner(connectButton, 10)
+
+local btnGrad = Instance.new("UIGradient")
+btnGrad.Color = ColorSequence.new(COL_ACCENT_A, COL_ACCENT_B)
+btnGrad.Rotation = 25
+btnGrad.Parent = connectButton
+
+local btnScale = Instance.new("UIScale")
+btnScale.Scale = 1
+btnScale.Parent = connectButton
+
+-- compat aliases used by the engine (pollLoop / Unloading)
+local buttonBaseColor = COL_ACCENT_A
+local buttonConnectedColor = COL_DISC
+
+-- ── Manual code (fallback only) ───────────────────────────────────────────────
+local manualInput   -- forward decl (may stay nil on CLI build)
+local manualToggle
+if AJ_CONFIG.showManualCode then
+	manualToggle = Instance.new("TextButton")
+	manualToggle.Name = "ManualToggle"
+	manualToggle.Size = UDim2.new(1, 0, 0, 18)
+	manualToggle.BackgroundTransparency = 1
+	manualToggle.Text = "Have a pairing code?  ▾"
+	manualToggle.Font = Enum.Font.Gotham
+	manualToggle.TextSize = 11
+	manualToggle.TextColor3 = COL_DIM
+	manualToggle.LayoutOrder = 5
+	manualToggle.Parent = panel
+
+	manualInput = Instance.new("TextBox")
+	manualInput.Name = "ManualInput"
+	manualInput.Size = UDim2.new(1, 0, 0, 32)
+	manualInput.BackgroundColor3 = COL_SURFACE2
+	manualInput.TextColor3 = COL_TEXT
+	manualInput.Font = Enum.Font.GothamMedium
+	manualInput.TextSize = 13
+	manualInput.PlaceholderText = "Pairing code (optional)"
+	manualInput.PlaceholderColor3 = COL_DIM
+	manualInput.Text = ""
+	manualInput.ClearTextOnFocus = false
+	manualInput.BorderSizePixel = 0
+	manualInput.Visible = false
+	manualInput.LayoutOrder = 6
+	manualInput.Parent = panel
+	corner(manualInput, 8)
+	pad(manualInput, 10, 10, 0, 0)
+
+	manualToggle.MouseButton1Click:Connect(function()
+		manualInput.Visible = not manualInput.Visible
+		manualToggle.Text = manualInput.Visible and "Have a pairing code?  ▴" or "Have a pairing code?  ▾"
+		if manualInput.Visible then
+			pcall(function() manualInput:CaptureFocus() end)
+		end
+	end)
+end
+
+local function getManualCode()
+	if manualInput and manualInput.Visible then
+		return (manualInput.Text:gsub("%s+", "")):upper()
+	end
+	return ""
+end
+
+-- ── Undo button ───────────────────────────────────────────────────────────────
 local undoButton = Instance.new("TextButton")
 undoButton.Name = "UndoButton"
-undoButton.Size = UDim2.new(1, 0, 0, 28)
-undoButton.BackgroundColor3 = Color3.fromRGB(50, 52, 60)
-undoButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+undoButton.Size = UDim2.new(1, 0, 0, 30)
+undoButton.BackgroundColor3 = COL_SURFACE2
+undoButton.TextColor3 = COL_DIM
 undoButton.Font = Enum.Font.GothamSemibold
 undoButton.TextSize = 12
-undoButton.Text = "Undo Last Sync"
+undoButton.Text = "↩  Undo Last Sync"
 undoButton.AutoButtonColor = true
 undoButton.BorderSizePixel = 0
-undoButton.LayoutOrder = 6
 undoButton.Visible = false
-undoButton.Parent = root
+undoButton.LayoutOrder = 7
+undoButton.Parent = panel
+corner(undoButton, 8)
 
-local undoButtonCorner = Instance.new("UICorner")
-undoButtonCorner.CornerRadius = UDim.new(0, 6)
-undoButtonCorner.Parent = undoButton
+-- ── Footer hint ───────────────────────────────────────────────────────────────
+local footer = Instance.new("TextLabel")
+footer.Name = "Footer"
+footer.Size = UDim2.new(1, 0, 0, 14)
+footer.BackgroundTransparency = 1
+footer.Text = (AJ_CONFIG.variant == "cli") and "Local · 127.0.0.1:3000" or "apple-juice.online"
+footer.Font = Enum.Font.Gotham
+footer.TextSize = 10
+footer.TextColor3 = Color3.fromRGB(90, 96, 110)
+footer.LayoutOrder = 8
+footer.Parent = panel
+
+-- ── Animations ────────────────────────────────────────────────────────────────
+local QUAD = Enum.EasingStyle.Quad
+local SINE = Enum.EasingStyle.Sine
+
+-- entrance pop-in
+TweenService:Create(panelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+
+-- slow gradient sweep on the logo chip (0→360 loops seamlessly)
+TweenService:Create(logoGrad, TweenInfo.new(5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1), { Rotation = 360 }):Play()
+
+-- pulsing status dot
+TweenService:Create(statusDot, TweenInfo.new(0.85, SINE, Enum.EasingDirection.InOut, -1, true), { BackgroundTransparency = 0.5 }):Play()
+
+-- connect button hover / press
+connectButton.MouseEnter:Connect(function()
+	if running then return end
+	TweenService:Create(btnScale, TweenInfo.new(0.12, QUAD), { Scale = 1.03 }):Play()
+end)
+connectButton.MouseLeave:Connect(function()
+	TweenService:Create(btnScale, TweenInfo.new(0.12, QUAD), { Scale = 1 }):Play()
+end)
+connectButton.MouseButton1Down:Connect(function()
+	TweenService:Create(btnScale, TweenInfo.new(0.07, QUAD), { Scale = 0.97 }):Play()
+end)
+connectButton.MouseButton1Up:Connect(function()
+	TweenService:Create(btnScale, TweenInfo.new(0.1, QUAD), { Scale = 1 }):Play()
+end)
+
+-- connecting spinner state (cycles a ring glyph while pairing)
+local connecting = false
+local function setConnecting(on)
+	connecting = on
+	spinner.Visible = on
+	statusDot.Visible = not on
+	if on then
+		task.spawn(function()
+			local frames = { "◐", "◓", "◑", "◒" }
+			local i = 1
+			while connecting do
+				spinner.Text = frames[i]
+				i = i % #frames + 1
+				task.wait(0.11)
+			end
+		end)
+	end
+end
 
 -- ─── State ────────────────────────────────────────────────────────────────────
 
 local STATUS_COLORS = {
-	success = Color3.fromRGB(77, 214, 123),
-	waiting = Color3.fromRGB(245, 208, 96),
-	error = Color3.fromRGB(255, 96, 96),
-	info = Color3.fromRGB(170, 176, 188),
+	success = COL_OK,
+	waiting = COL_WARN,
+	warning = COL_WARN,
+	error = COL_ERR,
+	info = COL_DIM,
 }
 
-local running = false
-local unloading = false
-
-local undoStack = {}
+-- running / unloading / undoStack are forward-declared in the UI section above
+-- so the animation closures capture the same upvalues.
 
 local function setStatus(msg, statusType)
 	statusLabel.Text = msg
-	statusLabel.TextColor3 = STATUS_COLORS[statusType] or STATUS_COLORS.info
+	local c = STATUS_COLORS[statusType] or STATUS_COLORS.info
+	statusLabel.TextColor3 = c
+	pcall(function()
+		TweenService:Create(statusDot, TweenInfo.new(0.2), { BackgroundColor3 = c }):Play()
+	end)
 end
 
 local function updateUndoButton()
@@ -256,6 +563,8 @@ end
 -- ─── Helpers ──────────────────────────────────────────────────────────────────
 
 local function reportLog(sessionKey, logMessage)
+	-- Stream the action to the in-widget live feed (skips control markers).
+	pcall(function() addFeed(logMessage) end)
 	task.spawn(function()
 		pcall(function()
 			HttpService:PostAsync(
@@ -1565,7 +1874,10 @@ local function autoConnect(manualKey)
 	end)
 
 	if not ok then
-		return nil, "Cannot reach dashboard."
+		-- `response` holds the thrown error here. Surface it so connection
+		-- problems are diagnosable (e.g. trust/HTTP-disabled/DNS), instead of a
+		-- generic message.
+		return nil, "Cannot reach dashboard: " .. tostring(response)
 	end
 
 	if not response.Success then
@@ -2561,16 +2873,24 @@ toolbarButton.Click:Connect(function() widget.Enabled = not widget.Enabled end)
 local httpEnabled = false
 pcall(function() httpEnabled = HttpService.HttpEnabled end)
 if not httpEnabled then
-	setStatus("Enable HTTP Requests in Game Settings.", "error")
+	setStatus("Enable HTTP Requests in Game Settings → Security.", "error")
 else
 	setStatus("Ready. Click Connect to pair.", "info")
 end
 
+local function tweenButtonColor(c)
+	pcall(function()
+		TweenService:Create(connectButton, TweenInfo.new(0.25), { BackgroundColor3 = c }):Play()
+	end)
+end
+
 connectButton.MouseButton1Click:Connect(function()
 	if not httpEnabled then return end
-	
+
 	if running then
+		-- Disconnect
 		running = false
+		setStatus("Disconnecting…", "info")
 		pcall(function()
 			if currentSessionKey then
 				HttpService:RequestAsync({
@@ -2584,34 +2904,45 @@ connectButton.MouseButton1Click:Connect(function()
 	end
 
 	task.spawn(function()
-		local url = serverUrlInput.Text:gsub("%s+", "")
-		updateEndpoints(url)
-		serverUrlInput.Text = BASE_URL
-		pcall(function()
-			plugin:SetSetting("ServerUrl", BASE_URL)
-		end)
+		setConnecting(true)
+		connectButton.Text = "Connecting…"
+		setStatus("Pairing with your dashboard…", "waiting")
 
-		local manualKey = manualInput.Text:gsub("%s+", ""):upper()
+		local manualKey = getManualCode()
 		local sessionKey, err
-		
+
 		if #manualKey >= 4 then
 			sessionKey, err = autoConnect(manualKey)
+		elseif AJ_CONFIG.requireManualCode then
+			setConnecting(false)
+			connectButton.Text = "Connect"
+			setStatus("Enter the pairing code, then click Connect.", "waiting")
+			return
 		else
 			sessionKey, err = autoConnect()
 		end
-		
+
+		setConnecting(false)
+
 		if not sessionKey then
-			setStatus(err or "Could not auto-connect.", "error")
+			connectButton.Text = "Connect"
+			setStatus(err or "Could not pair. Is the dashboard open?", "error")
 			return
 		end
 
-		setStatus("Paired! Starting sync...", "success")
+		setStatus("Paired! Starting sync…", "success")
 		running = true
 		connectButton.Text = "Disconnect"
-		connectButton.BackgroundColor3 = buttonConnectedColor
-		
-		-- Start the polling loop directly in this thread
+		btnGrad.Enabled = false
+		tweenButtonColor(buttonConnectedColor)
+
+		-- Start the polling loop directly in this thread. It returns when the
+		-- session ends, so restore the idle button look afterwards.
 		pollLoop(sessionKey)
+
+		btnGrad.Enabled = true
+		tweenButtonColor(buttonBaseColor)
+		connectButton.Text = "Connect"
 	end)
 end)
 

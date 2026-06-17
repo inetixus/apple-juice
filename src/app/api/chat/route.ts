@@ -103,6 +103,10 @@ type ChatBody = {
   provider?: string;
   openaiKey?: string;
   mode?: "fast" | "thinking";
+  /** Claude reasoning level from the CLI (/reasoning). Higher = larger thinking
+   *  budget. 'low' leans fast; 'high'|'xhigh'|'max' force thinking with
+   *  increasing depth. */
+  reasoningEffort?: "low" | "medium" | "high" | "xhigh" | "max";
   fileContents?: { name: string; content: string }[];
   autoSync?: boolean;
   tree?: string;
@@ -175,7 +179,19 @@ export async function POST(req: Request) {
   // Synced settings fallback chain: Body -> Session Pair (synced from dashboard) -> Standard Defaults
   const provider = (body.provider?.trim() || pair?.provider || "openai").toString();
   const model = body.model?.trim() || pair?.model || "gpt-4o-mini";
-  const mode = body.mode || pair?.mode || "fast";
+  // Reasoning level (from the CLI's /reasoning) controls deliberation depth.
+  // low → fast; high/xhigh/max → thinking with a progressively larger budget.
+  // 'medium' respects the explicit thinking toggle.
+  const reasoningEffort = body.reasoningEffort || "medium";
+  let mode = body.mode || pair?.mode || "fast";
+  if (reasoningEffort === "high" || reasoningEffort === "xhigh" || reasoningEffort === "max") mode = "thinking";
+  else if (reasoningEffort === "low") mode = "fast";
+  // Map the level to an approximate thinking token budget for models that
+  // honor it (clamped later against the plan's max output tokens).
+  const reasoningBudget: Record<string, number> = {
+    low: 0, medium: 8192, high: 16384, xhigh: 32768, max: 65536,
+  };
+  const thinkingBudgetTokens = reasoningBudget[reasoningEffort] ?? 8192;
 
   const openaiKey = body.openaiKey?.trim() || pair?.openaiKey || "";
   const googleKey = pair?.googleKey || "";
@@ -257,12 +273,15 @@ export async function POST(req: Request) {
     }
   }
 
-  // Dynamic max_output_tokens based on remaining mL balance
+  // Dynamic max_output_tokens based on remaining mL balance. In thinking mode
+  // the ceiling scales with the reasoning level so higher levels (xhigh/max)
+  // actually get more room to reason + produce.
+  const thinkingCeiling = Math.min(65536, Math.max(16384, thinkingBudgetTokens || 0));
   const dynamicMaxOutputTokens =
     !isUsingCustomKey && userUsage
-      ? Math.min(userUsage.maxOutputTokens, mode === "thinking" ? 65536 : 32768)
+      ? Math.min(userUsage.maxOutputTokens, mode === "thinking" ? thinkingCeiling : 32768)
       : mode === "thinking"
-        ? 65536
+        ? thinkingCeiling
         : 32768;
 
   if (!prompt || !sessionKey) {
