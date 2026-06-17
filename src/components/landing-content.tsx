@@ -12,12 +12,12 @@ import {
   ShieldCheck,
   ChevronRight,
   Crown,
-  Terminal,
-  Scale
+  Terminal
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { LandingCliSection } from "./landing-cli-section";
 import { LandingRuntimeSection } from "./landing-runtime-section";
+import { LandingCouncilSection } from "./landing-council-section";
 import { LandingHeroShowcase } from "./landing-hero-showcase";
 import { Reveal, RevealStagger, RevealItem } from "./reveal";
 // import { LandingAdShowcase } from "./landing-ad-showcase"; // hidden: Product film section commented out
@@ -218,13 +218,6 @@ export function LandingContent({
           <NavLiquidTabs scrolled={scrolled} />
 
           <div className="flex items-center gap-2">
-            <a
-              href="/council"
-              className="hidden sm:inline-flex h-9 px-4 rounded-full border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 text-[#c4b5fd] text-[11px] font-black uppercase tracking-wider hover:bg-[#8b5cf6]/20 hover:border-[#8b5cf6]/50 transition-all duration-300 items-center justify-center gap-1.5"
-            >
-              <Scale className="w-3.5 h-3.5" />
-              Council
-            </a>
             <button
               onClick={() =>
                 session
@@ -500,6 +493,9 @@ export function LandingContent({
       {/* â”â”â” APPLE JUICE CLI â€” TERMINAL SYSTEM â”â”â” */}
       {/* ━━━ APPLE JUICE RUNTIME — NATIVE LOCAL APP ━━━ */}
       <LandingRuntimeSection />
+
+      {/* ━━━ CODE COUNCIL — MULTI-MODEL JUDGE ━━━ */}
+      <LandingCouncilSection />
 
       <div className="px-6 md:px-12 xl:px-20 relative z-10">
         <div
