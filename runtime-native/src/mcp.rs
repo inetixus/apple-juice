@@ -198,6 +198,7 @@ impl McpClient {
         self.request("tools/call", json!({ "name": name, "arguments": args }))
     }
 
+    #[allow(dead_code)]
     pub fn stop(&self) {
         self.running.store(false, Ordering::SeqCst);
         if let Some(mut child) = self.child.lock().unwrap().take() {

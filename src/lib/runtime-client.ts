@@ -14,9 +14,65 @@
 
 const DEFAULT_CANDIDATE_PORTS = [
   // The Runtime binds to 48321 by default, falling back to 48322/48323 if taken
-  // (see runtime/src/index.ts + bridge-server.ts). Probe that same set.
+  // (see runtime-native/src/main.rs). Probe that same set.
   48_321, 48_322, 48_323,
 ];
+
+/**
+ * Where the native Runtime binary is published. Binaries are NOT committed to
+ * the repo (.gitignore: dist/, public/*.exe) — they live on GitHub Releases.
+ * Bump RUNTIME_RELEASE_TAG when cutting a new Runtime release; every download
+ * URL is derived from it so there's a single thing to change.
+ */
+export const RUNTIME_RELEASE_TAG = "v0.6.1";
+const RUNTIME_RELEASE_BASE = `https://github.com/inetixus/apple-juice/releases/download/${RUNTIME_RELEASE_TAG}`;
+
+/** The releases landing page (for "other platforms" / manual download). */
+export const RUNTIME_RELEASES_PAGE = `https://github.com/inetixus/apple-juice/releases/tag/${RUNTIME_RELEASE_TAG}`;
+
+export type RuntimeOS = "windows" | "macos" | "linux";
+
+/**
+ * Release asset file names per OS. These MUST match the asset names produced by
+ * .github/workflows/runtime-release.yml and uploaded to the release.
+ */
+export const RUNTIME_ASSETS: Record<RuntimeOS, string> = {
+  windows: "apple-juice-runtime-windows-x64.exe",
+  macos: "apple-juice-runtime-macos", // universal (arm64 + x64) via lipo
+  linux: "apple-juice-runtime-linux-x64",
+};
+
+/** Build the download URL for a given OS from the release tag + asset name. */
+export function runtimeDownloadUrl(os: RuntimeOS): string {
+  return `${RUNTIME_RELEASE_BASE}/${RUNTIME_ASSETS[os]}`;
+}
+
+/** Best-effort browser OS detection (defaults to Windows — the primary build). */
+export function detectOS(): RuntimeOS {
+  if (typeof navigator === "undefined") return "windows";
+  const ua = `${navigator.userAgent} ${navigator.platform ?? ""}`.toLowerCase();
+  if (ua.includes("mac")) return "macos";
+  if (ua.includes("linux") || ua.includes("x11")) return "linux";
+  return "windows";
+}
+
+/** Windows download URL (kept for back-compat / default callers). */
+export const RUNTIME_DOWNLOAD_URL = runtimeDownloadUrl("windows");
+
+/**
+ * Public VirusTotal report for the published binary, so users can verify the
+ * download is clean before running it. Durable SHA-256 permalink (matches the
+ * v0.6.1 windows-x64 binary). Update alongside RUNTIME_RELEASE_TAG on each
+ * release.
+ */
+export const RUNTIME_VIRUSTOTAL_URL =
+  "https://www.virustotal.com/gui/file/f9313fef309dd274c2b91d50cc226a2d89c043a1c193f257e5ce534157347d02";
+
+/** localStorage keys shared by the connect flow and the dashboard status badge. */
+export const RUNTIME_TOKEN_KEY = "aj.runtime.token";
+export const RUNTIME_BASE_KEY = "aj.runtime.baseUrl";
+/** Set once a pair has ever succeeded, so we can tell "never connected" apart. */
+export const RUNTIME_EVER_KEY = "aj.runtime.everConnected";
 
 export interface RuntimeHealth {
   ok: boolean;

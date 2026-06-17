@@ -4,19 +4,35 @@ import { useCallback, useEffect, useState } from "react";
 import {
   detectRuntime,
   pairRuntime,
+  runtimeDownloadUrl,
+  detectOS,
+  RUNTIME_RELEASES_PAGE,
+  RUNTIME_VIRUSTOTAL_URL,
+  RUNTIME_TOKEN_KEY,
+  RUNTIME_BASE_KEY,
+  RUNTIME_EVER_KEY,
+  type RuntimeOS,
   type RuntimeHealth,
 } from "@/lib/runtime-client";
 
 type Phase = "detecting" | "not-found" | "found" | "pairing" | "paired" | "error";
 
-const RUNTIME_TOKEN_KEY = "aj.runtime.token";
-const RUNTIME_BASE_KEY = "aj.runtime.baseUrl";
+const OS_LABEL: Record<RuntimeOS, string> = {
+  windows: "Windows",
+  macos: "macOS",
+  linux: "Linux",
+};
 
 export function ConnectRuntime() {
   const [phase, setPhase] = useState<Phase>("detecting");
   const [health, setHealth] = useState<RuntimeHealth | null>(null);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [os, setOs] = useState<RuntimeOS>("windows");
+
+  useEffect(() => {
+    setOs(detectOS());
+  }, []);
 
   const probe = useCallback(async () => {
     setPhase("detecting");
@@ -43,6 +59,7 @@ export function ConnectRuntime() {
       try {
         localStorage.setItem(RUNTIME_TOKEN_KEY, r.token);
         localStorage.setItem(RUNTIME_BASE_KEY, health.baseUrl);
+        localStorage.setItem(RUNTIME_EVER_KEY, "1");
       } catch {
         /* storage may be blocked; pairing still valid for this tab */
       }
@@ -73,11 +90,33 @@ export function ConnectRuntime() {
               No local Runtime detected. Install and start it, then retry.
             </p>
             <a
-              href="/apple-juice-runtime.exe"
+              href={runtimeDownloadUrl(os)}
               className="inline-block w-full h-12 leading-[3rem] rounded-full bg-[#ccff00] text-black font-black uppercase text-[12px] tracking-wider hover:bg-[#d4ff33] transition"
             >
-              Download the Runtime
+              Download the Runtime ({OS_LABEL[os]})
             </a>
+            <p className="text-xs text-white/40">
+              Tiny 400&nbsp;KB native app — no installer, no dependencies. Verify it&apos;s
+              clean on{" "}
+              <a
+                href={RUNTIME_VIRUSTOTAL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#ccff00] underline underline-offset-2 hover:text-[#d4ff33]"
+              >
+                VirusTotal
+              </a>
+              {" · "}
+              <a
+                href={RUNTIME_RELEASES_PAGE}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white/60 underline underline-offset-2 hover:text-white"
+              >
+                other platforms
+              </a>
+              .
+            </p>
             <button
               onClick={probe}
               className="w-full h-11 rounded-full border border-white/15 text-sm hover:bg-white/5 transition"

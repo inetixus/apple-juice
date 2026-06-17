@@ -1,0 +1,79 @@
+name: Build Apple Juice Runtime
+
+# Builds the tiny native Runtime for Windows, Linux, and macOS (universal) and
+# attaches the binaries to a GitHub Release.
+#
+# Trigger by pushing a tag like `runtime-v0.6.1`, or run manually. The asset
+# names produced here MUST match RUNTIME_ASSETS in src/lib/runtime-client.ts:
+#   apple-juice-runtime-windows-x64.exe
+#   apple-juice-runtime-linux-x64
+#   apple-juice-runtime-macos            (universal: arm64 + x86_64)
+#
+# After the release is published, set RUNTIME_RELEASE_TAG in runtime-client.ts
+# to the tag you pushed so the website points at the new binaries.
+
+on:
+  push:
+    tags:
+      - "runtime-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: runtime-native
+
+jobs:
+  build-windows-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: apple-juice-runtime.exe
+            asset: apple-juice-runtime-windows-x64.exe
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: apple-juice-runtime
+            asset: apple-juice-runtime-linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
+      - name: Build (release)
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Stage asset
+        shell: bash
+        run: |
+          mkdir -p out
+          cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "out/${{ matrix.asset }}"
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: runtime-native/out/${{ matrix.asset }}
+
+  build-macos-universal:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust targets
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Build both arches (release)
+        run: |
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+      - name: Make universal binary
+        run: |
+          mkdir -p out
+          lipo -create \
+            target/aarch64-apple-darwin/release/apple-juice-runtime \
+            target/x86_64-apple-darwin/release/apple-juice-runtime \
+            -output out/apple-juice-runtime-macos
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: runtime-native/out/apple-juice-runtime-macos

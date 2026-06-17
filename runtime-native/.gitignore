@@ -1,0 +1,5 @@
+# Rust build artifacts — never commit these. The published binaries live on
+# GitHub Releases (built by .github/workflows/runtime-release.yml).
+/target
+/dist
+/out

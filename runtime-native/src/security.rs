@@ -175,6 +175,7 @@ impl PairingManager {
     }
 
     /// Replace the allowed Host list (set once the bridge knows its port).
+    #[allow(dead_code)]
     pub fn set_allowed_hosts(&mut self, hosts: Vec<String>) {
         self.allowed_hosts = hosts;
     }

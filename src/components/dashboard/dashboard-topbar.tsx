@@ -4,6 +4,7 @@ import { Box, Sparkles, ShoppingCart, ChevronDown, Settings, X } from "lucide-re
 import { signOut } from "next-auth/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useDashboard } from "./dashboard-context";
+import { RuntimeStatusBadge } from "./runtime-status-badge";
 
 export function DashboardTopbar() {
   const {
@@ -71,6 +72,7 @@ export function DashboardTopbar() {
       </div>
 
       <div className="flex items-center gap-3">
+        <RuntimeStatusBadge />
         {workspaceStyle === "ide" && activeProjectId && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/5">
             <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">

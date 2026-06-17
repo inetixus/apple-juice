@@ -151,6 +151,9 @@ fn handle(mut req: Request, state: &AppState) {
         let result = mgr.pair(&code);
         drop(mgr);
         let resp = if result.ok {
+            // Confirm in the Runtime's console window so the user sees the link
+            // land (previously the window said nothing after the site connected).
+            println!("  \u{2713} Paired with the dashboard \u{2014} running locally. You can minimize this window.");
             json_response(
                 200,
                 json!({ "token": result.token }),
