@@ -7,6 +7,8 @@
 //! This is the small, dependency-free native build (no embedded Node runtime).
 
 mod mcp;
+mod project;
+mod rojo;
 mod security;
 mod server;
 
@@ -17,6 +19,8 @@ use std::time::Duration;
 use tiny_http::Server;
 
 use crate::mcp::{official_installed, official_launch, McpClient};
+use crate::project::ProjectManager;
+use crate::rojo::RojoManager;
 use crate::security::PairingManager;
 use crate::server::{serve, AppState};
 
@@ -24,7 +28,9 @@ use crate::server::{serve, AppState};
 /// DEFAULT_CANDIDATE_PORTS: 48321, 48322, 48323).
 const DEFAULT_PORT: u16 = 48_321;
 const FALLBACK_PORTS: [u16; 2] = [48_322, 48_323];
-const WORKERS: usize = 4;
+/// Max concurrent in-flight requests before fast-rejecting with 503. Far above
+/// any realistic local load; exists only to bound pathological bursts.
+const MAX_INFLIGHT: usize = 256;
 
 fn main() {
     let allowed_origins: Vec<String> = env::var("AJ_ALLOWED_ORIGINS")
@@ -88,6 +94,22 @@ fn main() {
     );
     let pair_code = pairing.new_pair_code();
 
+    // Durable project ("personal space"): scaffold folders + Rojo project.json +
+    // git on disk. Best-effort — the bridge still serves if this fails.
+    let project_root = ProjectManager::default_root();
+    let project = ProjectManager::new(project_root.clone());
+    match project.open_or_create() {
+        Ok(()) => log(&format!("Project ready at {}", project.root().display())),
+        Err(e) => log(&format!("WARNING: could not init project: {e}")),
+    }
+
+    // Rojo serve supervisor (not auto-started; the dashboard starts it on demand).
+    let rojo = RojoManager::new(project_root);
+    match RojoManager::version() {
+        Some(v) => log(&format!("Rojo available: {v}")),
+        None => log("NOTE: rojo not found yet (file sync will be unavailable until installed/bundled)."),
+    }
+
     // Human-facing banner (stdout) with the pair code.
     println!();
     println!("  🍎 Apple Juice Runtime");
@@ -100,6 +122,8 @@ fn main() {
         pairing: Mutex::new(pairing),
         mcp,
         allowed_origins,
+        project: Mutex::new(project),
+        rojo,
     });
 
     // Periodic sweep of expired codes/tokens.
@@ -111,7 +135,7 @@ fn main() {
         });
     }
 
-    serve(Arc::new(server), state, WORKERS);
+    serve(Arc::new(server), state, MAX_INFLIGHT);
 }
 
 fn log(msg: &str) {

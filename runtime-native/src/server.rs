@@ -12,6 +12,7 @@
 //!   POST /call     — body {tool,args}; call a tool. (auth)
 
 use std::io::{Cursor, Read};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -19,6 +20,8 @@ use serde_json::{json, Value};
 use tiny_http::{Header, Method, Request, Response, Server};
 
 use crate::mcp::{official_installed, McpClient};
+use crate::project::ProjectManager;
+use crate::rojo::RojoManager;
 use crate::security::{extract_bearer, PairingManager};
 
 const MAX_BODY_BYTES: u64 = 256 * 1024;
@@ -27,6 +30,8 @@ pub struct AppState {
     pub pairing: Mutex<PairingManager>,
     pub mcp: McpClient,
     pub allowed_origins: Vec<String>,
+    pub project: Mutex<ProjectManager>,
+    pub rojo: RojoManager,
 }
 
 fn header(name: &[u8], value: &[u8]) -> Header {
@@ -71,21 +76,36 @@ fn read_body(req: &mut Request) -> String {
     s
 }
 
-/// Spawn `workers` threads each pulling requests off the shared server.
-pub fn serve(server: Arc<Server>, state: Arc<AppState>, workers: usize) {
-    let mut handles = Vec::with_capacity(workers);
-    for _ in 0..workers {
-        let s = server.clone();
+/// Accept loop: one thread per request, bounded by `max_inflight`.
+///
+/// Thread-per-request (instead of a fixed worker pool) is deliberate: `/health`
+/// and `/pair` never touch the MCP, so they must never be starved by in-flight
+/// `/tools`/`/call` requests that block on the MCP round-trip. The cap is a
+/// safety valve against pathological bursts — well above any real local load.
+pub fn serve(server: Arc<Server>, state: Arc<AppState>, max_inflight: usize) {
+    let inflight = Arc::new(AtomicUsize::new(0));
+    loop {
+        let req = match server.recv() {
+            Ok(r) => r,
+            Err(_) => break,
+        };
+        // Reserve a slot; reject fast (without touching the MCP) if saturated.
+        if inflight.fetch_add(1, Ordering::SeqCst) >= max_inflight {
+            inflight.fetch_sub(1, Ordering::SeqCst);
+            let _ = req.respond(json_response(
+                503,
+                json!({ "error": "Runtime busy" }),
+                None,
+                &state.allowed_origins,
+            ));
+            continue;
+        }
         let st = state.clone();
-        handles.push(thread::spawn(move || loop {
-            match s.recv() {
-                Ok(req) => handle(req, &st),
-                Err(_) => break,
-            }
-        }));
-    }
-    for h in handles {
-        let _ = h.join();
+        let counter = inflight.clone();
+        thread::spawn(move || {
+            handle(req, &st);
+            counter.fetch_sub(1, Ordering::SeqCst);
+        });
     }
 }
 
@@ -124,6 +144,7 @@ fn handle(mut req: Request, state: &AppState) {
             "ok": true,
             "mcpRunning": state.mcp.is_running(),
             "mcpInstalled": official_installed(),
+            "rojoServing": state.rojo.is_running(),
         });
         let _ = req.respond(json_response(200, body, origin.as_deref(), allowed));
         return;
@@ -218,6 +239,125 @@ fn handle(mut req: Request, state: &AppState) {
             Err(e) => json_response(500, json!({ "error": e }), origin.as_deref(), allowed),
         };
         let _ = req.respond(resp);
+        return;
+    }
+
+    // ── project: durable file/git layer (Rojo half) ─────────────────────────
+    if path == "/project/open" && method == Method::Post {
+        let pm = state.project.lock().unwrap();
+        let resp = match pm.open_or_create() {
+            Ok(()) => {
+                let files: Vec<Value> = pm
+                    .list_files()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|f| json!({ "path": f.path, "bytes": f.bytes }))
+                    .collect();
+                json!({ "ok": true, "root": pm.root().to_string_lossy(), "files": files })
+            }
+            Err(e) => json!({ "ok": false, "error": e }),
+        };
+        let _ = req.respond(json_response(200, resp, origin.as_deref(), allowed));
+        return;
+    }
+
+    if path == "/project/files" && method == Method::Get {
+        let pm = state.project.lock().unwrap();
+        let resp = match pm.list_files() {
+            Ok(files) => json!({
+                "files": files.iter().map(|f| json!({ "path": f.path, "bytes": f.bytes })).collect::<Vec<_>>()
+            }),
+            Err(e) => json!({ "error": e }),
+        };
+        let _ = req.respond(json_response(200, resp, origin.as_deref(), allowed));
+        return;
+    }
+
+    if path == "/project/status" && method == Method::Get {
+        let pm = state.project.lock().unwrap();
+        let resp = match pm.status() {
+            Ok(s) => json!({ "status": s, "clean": s.trim().is_empty() }),
+            Err(e) => json!({ "error": e }),
+        };
+        let _ = req.respond(json_response(200, resp, origin.as_deref(), allowed));
+        return;
+    }
+
+    if path == "/project/read" && method == Method::Post {
+        let body: Value = serde_json::from_str(&read_body(&mut req)).unwrap_or(Value::Null);
+        let rel = body.get("path").and_then(|p| p.as_str()).unwrap_or("");
+        let pm = state.project.lock().unwrap();
+        let resp = match pm.read_file(rel) {
+            Ok(content) => json!({ "content": content }),
+            Err(e) => json!({ "error": e }),
+        };
+        let _ = req.respond(json_response(200, resp, origin.as_deref(), allowed));
+        return;
+    }
+
+    if path == "/project/write" && method == Method::Post {
+        let body: Value = serde_json::from_str(&read_body(&mut req)).unwrap_or(Value::Null);
+        let rel = body.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string();
+        let content = body.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string();
+        if rel.is_empty() {
+            let _ = req.respond(json_response(400, json!({ "error": "Missing path" }), origin.as_deref(), allowed));
+            return;
+        }
+        let pm = state.project.lock().unwrap();
+        let resp = match pm.write_file(&rel, &content) {
+            Ok(()) => json!({ "ok": true }),
+            Err(e) => json!({ "ok": false, "error": e }),
+        };
+        let _ = req.respond(json_response(200, resp, origin.as_deref(), allowed));
+        return;
+    }
+
+    if path == "/project/delete" && method == Method::Post {
+        let body: Value = serde_json::from_str(&read_body(&mut req)).unwrap_or(Value::Null);
+        let rel = body.get("path").and_then(|p| p.as_str()).unwrap_or("");
+        let pm = state.project.lock().unwrap();
+        let resp = match pm.delete_file(rel) {
+            Ok(()) => json!({ "ok": true }),
+            Err(e) => json!({ "ok": false, "error": e }),
+        };
+        let _ = req.respond(json_response(200, resp, origin.as_deref(), allowed));
+        return;
+    }
+
+    if path == "/project/commit" && method == Method::Post {
+        let body: Value = serde_json::from_str(&read_body(&mut req)).unwrap_or(Value::Null);
+        let message = body.get("message").and_then(|m| m.as_str()).unwrap_or("Apple Juice update");
+        let pm = state.project.lock().unwrap();
+        let resp = match pm.commit(message) {
+            Ok(head) => json!({ "ok": true, "commit": head }),
+            Err(e) => json!({ "ok": false, "error": e }),
+        };
+        let _ = req.respond(json_response(200, resp, origin.as_deref(), allowed));
+        return;
+    }
+
+    if path == "/project/serve/start" && method == Method::Post {
+        let resp = match state.rojo.start() {
+            Ok(port) => json!({ "ok": true, "port": port }),
+            Err(e) => json!({ "ok": false, "error": e }),
+        };
+        let _ = req.respond(json_response(200, resp, origin.as_deref(), allowed));
+        return;
+    }
+
+    if path == "/project/serve/stop" && method == Method::Post {
+        state.rojo.stop();
+        let _ = req.respond(json_response(200, json!({ "ok": true }), origin.as_deref(), allowed));
+        return;
+    }
+
+    if path == "/project/serve/status" && method == Method::Get {
+        let resp = json!({
+            "running": state.rojo.is_running(),
+            "port": state.rojo.port(),
+            "rojoVersion": crate::rojo::RojoManager::version(),
+        });
+        let _ = req.respond(json_response(200, resp, origin.as_deref(), allowed));
         return;
     }
 
