@@ -40,7 +40,7 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: "Missing session key" }, { status: 401 });
   }
 
-  let pair: Awaited<ReturnType<typeof getSession>> = null;
+  let pair: Awaited<ReturnType<typeof getSession>> = undefined;
   try {
     pair = await getSession(sessionKey);
   } catch (e) {
@@ -72,6 +72,9 @@ export async function POST(req: Request): Promise<Response> {
   if (messages.length === 0) {
     return Response.json({ error: "messages are required" }, { status: 400 });
   }
+  const tools = Array.isArray(body.tools) && body.tools.length > 0 ? body.tools : undefined;
+  const toolChoice = body.tool_choice;
+
   // ── pick the inference backend ────────────────────────────────────────
   // Production: Kiro (its key lives in the deployment env). Local/dev: fall
   // back to OpenRouter using the platform key so the loop is testable without
