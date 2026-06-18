@@ -24,7 +24,7 @@ const DEFAULT_CANDIDATE_PORTS = [
  * Bump RUNTIME_RELEASE_TAG when cutting a new Runtime release; every download
  * URL is derived from it so there's a single thing to change.
  */
-export const RUNTIME_RELEASE_TAG = "v0.6.1";
+export const RUNTIME_RELEASE_TAG = "v0.6.2";
 const RUNTIME_RELEASE_BASE = `https://github.com/inetixus/apple-juice/releases/download/${RUNTIME_RELEASE_TAG}`;
 
 /** The releases landing page (for "other platforms" / manual download). */
@@ -73,11 +73,11 @@ export const RUNTIME_DOWNLOAD_URL = runtimeDownloadUrl("windows");
 /**
  * Public VirusTotal report for the published binary, so users can verify the
  * download is clean before running it. Durable SHA-256 permalink (matches the
- * v0.6.1 windows-x64 binary). Update alongside RUNTIME_RELEASE_TAG on each
+ * v0.6.2 windows-x64 binary). Update alongside RUNTIME_RELEASE_TAG on each
  * release.
  */
 export const RUNTIME_VIRUSTOTAL_URL =
-  "https://www.virustotal.com/gui/file/f9313fef309dd274c2b91d50cc226a2d89c043a1c193f257e5ce534157347d02";
+  "https://www.virustotal.com/gui/file/1904b6e406a224351aa5e0e6bbbe3471041c3cfcda0ee4f537a9f1e510d8ab4b";
 
 /** localStorage keys shared by the connect flow and the dashboard status badge. */
 export const RUNTIME_TOKEN_KEY = "aj.runtime.token";
