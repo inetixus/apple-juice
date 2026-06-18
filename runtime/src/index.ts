@@ -14,7 +14,14 @@ const ALLOWED_ORIGINS = (process.env.AJ_ALLOWED_ORIGINS ||
   .map((s) => s.trim())
   .filter(Boolean);
 
-const INFERENCE_BASE_URL = process.env.AJ_INFERENCE_URL || "https://apple-juice.online";
+// The runtime's agent loop proxies LLM turns to the website's runtime inference
+// route (src/app/api/runtime/v1/chat/completions). inference.ts appends
+// "/v1/chat/completions", so the base must be the ".../api/runtime" prefix.
+// That route authenticates the session key, meters credits, and forwards to the
+// Kiro VPS server-to-server. Override with AJ_INFERENCE_URL for local testing
+// (e.g. http://localhost:3000/api/runtime).
+const INFERENCE_BASE_URL =
+  process.env.AJ_INFERENCE_URL || "https://apple-juice.online/api/runtime";
 
 // The dashboard discovers the Runtime by probing a small set of fixed loopback
 // ports (see src/lib/runtime-client.ts DEFAULT_CANDIDATE_PORTS). Default to the

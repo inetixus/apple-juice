@@ -14,6 +14,7 @@
  */
 
 import { McpStdioClient } from "./mcp-stdio.ts";
+import { ProjectManager } from "./project.ts";
 import {
   runLlmTurn,
   parseToolArgs,
@@ -40,6 +41,140 @@ Operating loop every time:
 
 Rules: server logic in ServerScriptService; client/UI in StarterPlayer.StarterPlayerScripts or StarterGui; never scripts loose in Workspace. Idiomatic Luau (task.*, typed, timed WaitForChild). Validate RemoteEvent inputs server-side. Verify before claiming success. Keep natural-language turns short — the user watches them as live progress.`;
 
+/**
+ * Two-domain prompt (Option C + Rojo). Scripts are durable FILES synced by Rojo;
+ * the live game is driven by MCP. The split is enforced (we don't expose the MCP
+ * script-edit tools), but the prompt teaches the model to think in it.
+ */
+const SYSTEM_PROMPT_PROJECT = `You are Apple Juice AI — an expert Roblox game developer. You work in a hybrid setup with TWO clearly separated domains. Using the wrong domain for a task is an error.
+
+DOMAIN 1 — CODE (files, version-controlled, synced into Studio by Rojo):
+- All scripts/modules are real files. Edit them with the FILE tools: list_files, read_file, write_file, delete_file.
+- Paths map into Studio automatically:
+    • src/server/<Name>.server.luau   → ServerScriptService (server scripts)
+    • src/client/<Name>.client.luau   → StarterPlayer.StarterPlayerScripts (local scripts)
+    • src/shared/<Name>.luau          → ReplicatedStorage (ModuleScripts)
+- Writing a file syncs it into the live session within moments — you do NOT need a separate "apply" step.
+- NEVER use MCP/Studio tools to read or write scripts. Code lives in files, period.
+- After a change verifies clean, call commit_project with a short message to checkpoint it in git.
+
+DOMAIN 2 — LIVE GAME (Studio, via MCP tools): everything that is NOT source code.
+- Playtesting: start/stop playtest, read console_output, fix the ROOT CAUSE, re-run until clean.
+- Building/physical: create and position parts, models, properties; generate geometry.
+- Inspection + runtime: search_game_tree, inspect_instance, execute_luau for batch/live ops.
+
+Operating loop:
+1. EXPLORE — list_files + read_file to understand existing code; search_game_tree / inspect_instance for the live datamodel.
+2. PLAN — briefly state what you'll change and where (which files, which live ops).
+3. BUILD — write dependency modules before dependents; complete, production-ready, idiomatic Luau (task.*, typed, timed WaitForChild, server-side validation of RemoteEvent input).
+4. VERIFY — start a playtest, read console_output, fix the file, let Rojo re-sync, re-run until clean.
+5. CHECKPOINT — commit_project once it passes.
+
+Keep natural-language turns short — the user watches them as live progress.`;
+
+/** Official MCP tools we HIDE in project mode — scripting belongs to files. */
+const EXCLUDED_MCP_TOOLS = new Set([
+  "script_read",
+  "script_write",
+  "multi_edit",
+  "script_search",
+  "script_grep",
+  "write_script",
+  "read_script",
+  "edit_script",
+]);
+
+/** The file-domain tools the model gets in project mode. */
+const PROJECT_TOOLS: LlmTool[] = [
+  {
+    type: "function",
+    function: {
+      name: "list_files",
+      description:
+        "List all script/module files in the project (the code synced into Studio by Rojo).",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_file",
+      description: "Read a project source file by its relative path (e.g. src/server/Main.server.luau).",
+      parameters: {
+        type: "object",
+        properties: { path: { type: "string" } },
+        required: ["path"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "write_file",
+      description:
+        "Create or overwrite a project source file. Rojo syncs it into the live Studio session. Use src/server/*.server.luau, src/client/*.client.luau, or src/shared/*.luau.",
+      parameters: {
+        type: "object",
+        properties: { path: { type: "string" }, content: { type: "string" } },
+        required: ["path", "content"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_file",
+      description: "Delete a project source file by relative path.",
+      parameters: {
+        type: "object",
+        properties: { path: { type: "string" } },
+        required: ["path"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "commit_project",
+      description: "Checkpoint the current project state in git with a short message. Call after a change verifies clean.",
+      parameters: {
+        type: "object",
+        properties: { message: { type: "string" } },
+        required: ["message"],
+      },
+    },
+  },
+];
+
+const PROJECT_TOOL_NAMES = new Set(PROJECT_TOOLS.map((t) => t.function.name));
+
+/** Execute a file-domain tool against the project. Returns readable text. */
+function runProjectTool(
+  project: ProjectManager,
+  name: string,
+  args: Record<string, unknown>,
+): string {
+  switch (name) {
+    case "list_files": {
+      const files = project.listFiles();
+      if (files.length === 0) return "(project is empty)";
+      return files.map((f) => `${f.path} (${f.bytes}b)`).join("\n");
+    }
+    case "read_file":
+      return project.readFile(String(args.path ?? ""));
+    case "write_file":
+      project.writeFile(String(args.path ?? ""), String(args.content ?? ""));
+      return `Wrote ${args.path} — Rojo will sync it into Studio.`;
+    case "delete_file":
+      project.deleteFile(String(args.path ?? ""));
+      return `Deleted ${args.path}.`;
+    case "commit_project":
+      return `Committed: ${project.commit(String(args.message ?? "Apple Juice update"))}`;
+    default:
+      return `Unknown project tool: ${name}`;
+  }
+}
+
 export interface RuntimeAgentOptions {
   mcp: McpStdioClient;
   inference: InferenceOptions;
@@ -48,6 +183,12 @@ export interface RuntimeAgentOptions {
   maxIterations?: number;
   onProgress?: (p: RuntimeProgress) => void;
   signal?: AbortSignal;
+  /**
+   * When provided, enables the two-domain split (Option C + Rojo): scripts are
+   * edited as files here (synced by Rojo), MCP script-edit tools are hidden, and
+   * the project file tools are exposed to the model.
+   */
+  project?: ProjectManager;
 }
 
 export interface RuntimeAgentResult {
@@ -108,22 +249,30 @@ export async function runRuntimeAgent(
     maxIterations = 16,
     onProgress = () => {},
     signal,
+    project,
   } = opts;
 
   if (!mcp.isRunning()) {
     return { message: "", iterations: 0, error: "Official Roblox Studio MCP is not running." };
   }
 
-  // Discover the official tool surface once.
+  // Discover the official tool surface once. In project mode, HIDE the
+  // script-edit tools (scripting belongs to files) and ADD the file tools.
   let llmTools: LlmTool[] = [];
   try {
-    llmTools = officialToolsToLlmTools(await mcp.listTools());
+    const mcpTools = officialToolsToLlmTools(await mcp.listTools());
+    if (project) {
+      const liveTools = mcpTools.filter((t) => !EXCLUDED_MCP_TOOLS.has(t.function.name));
+      llmTools = [...PROJECT_TOOLS, ...liveTools];
+    } else {
+      llmTools = mcpTools;
+    }
   } catch (err) {
     return { message: "", iterations: 0, error: `Could not list MCP tools: ${(err as Error).message}` };
   }
 
   const messages: LlmMessage[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: project ? SYSTEM_PROMPT_PROJECT : SYSTEM_PROMPT },
     ...history.slice(-10),
     { role: "user", content: prompt },
   ];
@@ -163,8 +312,14 @@ export async function runRuntimeAgent(
       let text: string;
       let ok = true;
       try {
-        const result = await mcp.callTool(call.name, parseToolArgs(call.arguments));
-        text = boundResult(mcpResultToText(result));
+        if (project && PROJECT_TOOL_NAMES.has(call.name)) {
+          // File domain → project (Rojo syncs to Studio).
+          text = boundResult(runProjectTool(project, call.name, parseToolArgs(call.arguments)));
+        } else {
+          // Live domain → official MCP.
+          const result = await mcp.callTool(call.name, parseToolArgs(call.arguments));
+          text = boundResult(mcpResultToText(result));
+        }
       } catch (err) {
         ok = false;
         text = `ERROR: ${(err as Error).message}`;

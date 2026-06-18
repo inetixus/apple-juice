@@ -1,0 +1,17 @@
+AGENT HTTP 200 | token=True
+event: progress
+data: {"kind":"error","message":"Inference HTTP 500: "}
+event: result
+data: {"message":"","iterations":0,"error":"Inference HTTP 500: "}
+event: done
+data: {}
+--- files in project/src/server ---
+
+Name                       
+----                       
+AppleJuiceHello.server.luau
+Hello.server.luau          
+LuaTest.server.lua         
+
+
+

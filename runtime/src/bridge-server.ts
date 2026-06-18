@@ -24,6 +24,8 @@ import { PairingManager, extractBearer } from "./security.ts";
 import { McpStdioClient } from "./mcp-stdio.ts";
 import { studioMcpLaunch, officialStudioMcpInstalled } from "./official-mcp.ts";
 import { runRuntimeAgent } from "./agent-loop.ts";
+import { ProjectManager } from "./project.ts";
+import { RojoManager } from "./rojo.ts";
 
 export interface BridgeServerOptions {
   /** Loopback port (0 = ephemeral). */
@@ -85,6 +87,28 @@ export async function startBridgeServer(
     log("Official Roblox Studio MCP connected over stdio.");
   } catch (err) {
     log(`Failed to start official MCP: ${(err as Error).message}`);
+  }
+
+  // Durable project (Rojo half): scaffold folders + project.json + git, and
+  // start `rojo serve` so file writes sync into Studio. Best-effort.
+  const project = new ProjectManager(ProjectManager.defaultRoot());
+  try {
+    project.openOrCreate();
+    log(`Project ready at ${project.root}`);
+  } catch (err) {
+    log(`WARNING: could not init project: ${(err as Error).message}`);
+  }
+  const rojo = new RojoManager(project.root);
+  const rojoVersion = RojoManager.version();
+  if (rojoVersion) {
+    try {
+      await rojo.start();
+      log(`Rojo serving (${rojoVersion}) on port ${rojo.port}.`);
+    } catch (err) {
+      log(`WARNING: rojo serve did not start: ${(err as Error).message}`);
+    }
+  } else {
+    log("NOTE: rojo not found — file sync unavailable until it's installed/bundled.");
   }
 
   // allowedHosts: only loopback addresses on our actual port (set after listen).
@@ -191,12 +215,41 @@ export async function startBridgeServer(
           inference: { baseUrl: opts.inferenceBaseUrl, sessionKey, model },
           prompt,
           history,
+          project,
           onProgress: (p) => sse("progress", p),
         });
         sse("result", result);
         res.write("event: done\ndata: {}\n\n");
         res.end();
         return;
+      }
+
+      // ── project: read-only views for the dashboard (files/git/rojo) ──
+      if (req.method === "GET" && url.pathname === "/project/files") {
+        return json(res, 200, { root: project.root, files: project.listFiles() });
+      }
+      if (req.method === "POST" && url.pathname === "/project/read") {
+        const body = JSON.parse((await readBody(req)) || "{}");
+        try {
+          return json(res, 200, { content: project.readFile(String(body.path ?? "")) });
+        } catch (e) {
+          return json(res, 400, { error: (e as Error).message });
+        }
+      }
+      if (req.method === "GET" && url.pathname === "/project/status") {
+        try {
+          const s = project.status();
+          return json(res, 200, { status: s, clean: s.trim() === "" });
+        } catch (e) {
+          return json(res, 200, { error: (e as Error).message });
+        }
+      }
+      if (req.method === "GET" && url.pathname === "/project/serve/status") {
+        return json(res, 200, {
+          running: rojo.isRunning(),
+          port: rojo.port,
+          rojoVersion,
+        });
       }
 
       json(res, 404, { error: "Not found" });
@@ -249,6 +302,7 @@ export async function startBridgeServer(
       new Promise<void>((resolve) => {
         clearInterval(sweepTimer);
         mcp.stop();
+        rojo.stop();
         server.close(() => resolve());
       }),
   };

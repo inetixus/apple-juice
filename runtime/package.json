@@ -7,12 +7,15 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node --experimental-strip-types src/index.ts",
+    "start": "node --experimental-transform-types src/index.ts",
     "test": "vitest run",
     "bundle": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node18 --outfile=dist/apple-juice-runtime.cjs",
     "build:exe": "npm run bundle && pkg dist/apple-juice-runtime.cjs --targets node18-win-x64 --output dist/apple-juice-runtime.exe"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.20.0"
   }
 }
